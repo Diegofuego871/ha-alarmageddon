@@ -59,6 +59,8 @@ const ARMED_KINDS = ["chime", "device", "wait", "scene", "custom"];
 // Aktionen beim Deaktivieren (1.27.0): Gerät, Deaktivierungston, Warten, Szene und eigene Aktion; je Modus, der scharf war
 const DISARMED_KINDS = ["dechime", "device", "wait", "scene", "custom"];
 // Alarmton und Aktivierungston teilen sich die Felder (Lautsprecher, Ton, Lautstärke, Dauer)
+// So viele Schritte hat eine Liste höchstens (wie der Server: MAX_STEPS)
+const MAX_STEPS = 40;
 const isTone = (kind) => kind === "sound" || kind === "chime" || kind === "dechime" || kind === "prealarm";
 // Lautstärke je Medienplayer (1.16.0): eigene Werte nur, wenn eingeschaltet, mehr als ein Lautsprecher gewählt ist und sie sich unterscheiden
 const ownVolumes = (f) => {
@@ -606,6 +608,7 @@ export class ActionsUi {
       <div class="ag-wf-text"><b>${esc(title)}</b> ${restore}<div class="ag-t2 ag-small">${esc(this._summary(f))}</div>${f.delay ? this._delayPill(zone) : this._waitPill(f)}</div>
       <div class="ag-wf-btns">${this._stepTestBtn(i, zone)}
         <button class="ag-iconbtn" data-wf="edit" data-index="${i}" aria-label="${esc(this._t("stepEdit"))}">${ic("pencil", 18)}</button>
+        <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this.steps(zone).length >= MAX_STEPS ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
         <button class="ag-iconbtn" data-wf="delete" data-index="${i}" aria-label="${esc(this._t("stepDelete"))}">${ic("trash", 18)}</button></div></div>`;
   }
 
@@ -1553,6 +1556,13 @@ export class ActionsUi {
       this.edit = { index: i, insert: null, form: fromStep(list[i]), q: "", error: "", open: false, zone };
       this.renderEditor();
       this._dlg().showModal();
+    } else if (act === "duplicate") {
+      // Kopie direkt unter dem Schritt, in derselben Liste (der Server begrenzt die Zahl der Schritte je Liste)
+      if (list[i] && list.length < MAX_STEPS) {
+        this._setSteps([...list.slice(0, i + 1), JSON.parse(JSON.stringify(list[i])), ...list.slice(i + 1)], zone);
+        this.saveState = null;
+        this.render();
+      }
     } else if (act === "delete") {
       this._setSteps(list.filter((_s, k) => k !== i), zone);
       this.saveState = null;

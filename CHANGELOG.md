@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.36.0] - 2026-11-15
+
+### Added
+
+- **Duplicate a step.** Every step in the actions has a new button with two squares, between "Edit" and "Delete". It creates an identical copy right below the step, in the same list (during the delays, when arming, in the alarm, after acknowledging, when disarming). The copy is independent of the original. Like every change it is a draft until you save. A list holds at most 40 steps; at that number the button is switched off.
+
 ## [1.35.5] - 2026-11-15
 
 ### Fixed
@@ -1411,6 +1417,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.36.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.0
 [1.35.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.5
 [1.35.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.4
 [1.35.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.3

@@ -21,7 +21,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Alarmton zeigt Player, Lautstärke, Dauer`, await s.ev("const x=r.querySelectorAll('.ag-wf-step')[4].innerText; return x.includes('Sonos Wohnzimmer') && x.includes('70 %') && x.includes('20 s')"));
     check(`${tag}: Greifer und Testknopf je Schritt`, await s.ev("return r.querySelectorAll('.ag-wf-step [data-wf=\"grab\"]').length === 5 && r.querySelectorAll('.ag-wf-step [data-wf=\"test-step\"]').length === 5"));
     const bt = await s.ev("const rs=[...r.querySelectorAll('.ag-wf-step')].map((st) => [...st.querySelectorAll('.ag-wf-btns .ag-iconbtn')].map((b) => { const q=b.getBoundingClientRect(), c=getComputedStyle(b); return { w: Math.round(q.width), h: Math.round(q.height), left: q.left, right: q.right, border: parseFloat(c.borderTopWidth) }; })); return rs.map((b) => ({ n: b.length, minSize: Math.min(...b.map((x) => Math.min(x.w, x.h))), gap: Math.round(Math.min(...b.slice(1).map((x, k) => x.left - b[k].right))), border: Math.min(...b.map((x) => x.border)) }))");
-    check(`${tag}: Knöpfe je Schritt: umrandet, mindestens 44 px gross und mit Abstand (${bt.length} Schritte)`, bt.length > 0 && bt.every((x) => x.n === 3 && x.minSize >= 44 && x.gap >= (mobile ? 12 : 8) && x.border >= 1), JSON.stringify(bt[0]));
+    check(`${tag}: Knöpfe je Schritt (Test, Bearbeiten, Duplizieren, Löschen): umrandet, mindestens 44 px gross und mit Abstand (${bt.length} Schritte)`, bt.length > 0 && bt.every((x) => x.n === 4 && x.minSize >= 44 && x.gap >= (mobile ? 12 : 8) && x.border >= 1), JSON.stringify(bt[0]));
     check(`${tag}: Kapsel am gewählten Auslöser`, await s.ev("const p=r.querySelector('.ag-wf-head .ag-seg .ag-pill'); const b=r.querySelector('.ag-wf-head [data-trigger=\"away\"]'); return !!p && Math.abs(p.getBoundingClientRect().left - b.getBoundingClientRect().left) < 2"));
     check(`${tag}: "Testen" steht unten bei Abbrechen und Speichern, nicht oben`, await s.ev("return !!r.querySelector('.ag-foot [data-wf=\"test\"], .ag-foot [data-wf=\"test-stop\"]') && !r.querySelector('.ag-wf-head [data-wf=\"test\"]') && r.querySelector('.ag-foot').getBoundingClientRect().width > 0"));
     if (!mobile) {
@@ -389,6 +389,13 @@ for (const lang of ["de", "en"]) {
       await s.waitFor("return r.getElementById('ag-step').open");
       await s.tap('#ag-step [data-wf="apply"]');
       check(`${tag}: Übernehmen speichert 80 % als gemeinsamen Wert (kein gemeinsamer Wert 75 % neben den 80 % je Player)`, await s.ev("const st=r.host.actions.steps()[0]; return st.volume === 0.8 && !st.volumes"));
+      // Duplizieren: Kopie direkt unter dem Schritt, in derselben Liste, unabhängig vom Original
+      check(`${tag}: Schritt hat einen Knopf "Duplizieren" (zwischen Bearbeiten und Löschen)`, await s.ev("const b=[...r.querySelectorAll('.ag-wf-main .ag-wf-step')[0].querySelectorAll('.ag-wf-btns [data-wf]')].map((x) => x.dataset.wf); return b.join() === 'test-step,edit,duplicate,delete'"));
+      await s.tap('.ag-wf-main .ag-wf-step [data-wf="duplicate"]');
+      check(`${tag}: Duplizieren legt eine gleiche Kopie direkt darunter an`, await s.waitFor("const l=r.host.actions.steps(); return l.length === 2 && JSON.stringify(l[0]) === JSON.stringify(l[1]) && l[0] !== l[1] && l[0].players !== l[1].players && r.querySelectorAll('.ag-wf-main .ag-wf-step').length === 2"));
+      await s.ev("r.host.actions.steps()[1].volume = 0.3; return 1");
+      check(`${tag}: die Kopie ist unabhängig vom Original`, await s.ev("return r.host.actions.steps()[0].volume === 0.8"));
+      check(`${tag}: Duplizieren ist eine ungespeicherte Änderung (Speichern möglich)`, await s.ev("const b=r.querySelector('.ag-foot .ag-btn.primary'); return !!b && !b.disabled"));
     }
     check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
