@@ -31,6 +31,18 @@ const VARIANTS = {
     .ag-wf-line .ag-wf-seg { background: color-mix(in srgb, var(--z) 60%, var(--ag-divider)); }
     .mk-zone { display: flex; width: fit-content; align-items: center; margin-top: 8px; min-height: 24px; padding: 1px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; background: color-mix(in srgb, var(--z) 18%, transparent); color: color-mix(in srgb, var(--z) 80%, var(--ag-text)); }` },
 };
+// Sechs eigene Farben (Vorschlag des Nutzers, 2026-11-15): Verzögerungen orange (Ausgang hell, Eingang dunkel), scharf und Alarm rot (hell, dunkel),
+// quittiert und deaktiviert grün (hell, dunkel)
+const ZONES6 = `
+.ag-wf-arming { --z: #ffb74d; }
+.ag-wf-entry { --z: #ef6c00; }
+.ag-wf-armed { --z: #ff8a80; }
+.ag-wf-main { --z: #d32f2f; }
+.ag-wf-after { --z: #81c784; }
+.ag-wf-disarmed { --z: #2e7d32; }
+`;
+VARIANTS["5-E-sechs-farben"] = { title: "E: wie D, sechs eigene Farben (Vorschlag des Nutzers)", css: VARIANTS["4-D-verlauf-linie-pille"].css.replace(ZONES, ZONES6)
+  .replace("color-mix(in srgb, var(--z) 16%, var(--ag-card))", "color-mix(in srgb, var(--z) 22%, var(--ag-card))") };
 const LABEL = { arming: "Ausgangsverzögerung", armed: "Scharf geschaltet", entry: "Eingangsverzögerung", main: "Alarm", after: "Nach dem Quittieren", disarmed: "Beim Deaktivieren" };
 
 // Schritte in allen Zonen (erfundene Anlage "Alarmanlage Wohnung", Modus "Abwesend")
@@ -52,7 +64,7 @@ async function shot(name, mobile, v) {
   await s.page.waitForTimeout(700);
   await s.ev(`const st = document.createElement('style'); st.textContent = ${JSON.stringify(v.css)}; r.appendChild(st);
     const label = ${JSON.stringify(LABEL)};
-    if (${JSON.stringify(name)}.startsWith('4-')) for (const line of r.querySelectorAll('.ag-wf-line')) { const z = [...line.classList].find((c) => c.startsWith('ag-wf-') && label[c.slice(6)]); if (!z) continue; for (const t of line.querySelectorAll('.ag-wf-step .ag-wf-text')) { const p = document.createElement('span'); p.className = 'mk-zone'; p.textContent = label[z.slice(6)]; t.appendChild(p); } }
+    if (/^[45]-/.test(${JSON.stringify(name)})) for (const line of r.querySelectorAll('.ag-wf-line')) { const z = [...line.classList].find((c) => c.startsWith('ag-wf-') && label[c.slice(6)]); if (!z) continue; for (const t of line.querySelectorAll('.ag-wf-step .ag-wf-text')) { const p = document.createElement('span'); p.className = 'mk-zone'; p.textContent = label[z.slice(6)]; t.appendChild(p); } }
     return 1`);
   await s.page.waitForTimeout(400);
   // ab dem Kapitel "Beim Scharfschalten", direkt unter den festen Teilen

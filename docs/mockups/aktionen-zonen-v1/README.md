@@ -27,6 +27,8 @@ Die Farbe der Zone ist die Farbe des festen Punktes davor, die schon heute da is
 | `3-C-flaeche-desktop.png`, `3-C-flaeche-handy.png` | **C: Zonenfläche**: die ganze Zone (Punkt, Linie, Karten) liegt auf einer leicht getönten Fläche mit Rand |
 | `4-D-verlauf-linie-pille-desktop.png`, `4-D-verlauf-linie-pille-handy.png` | **D: Verlauf (16 %), farbige Verbindungslinie und Zonen-Pille** in jedem Schritt ("Ausgangsverzögerung", "Alarm" …). **Empfehlung** |
 
+| `5-E-sechs-farben-desktop.png`, `5-E-sechs-farben-handy.png` | **E: wie D, mit sechs eigenen Farben** (Vorschlag des Nutzers, 2026-11-15, nach D "passt"): Ausgangsverzögerung hellorange (`#ffb74d`), Eingangsverzögerung dunkelorange (`#ef6c00`), scharf geschaltet hellrot (`#ff8a80`), Alarm dunkelrot (`#d32f2f`), nach dem Quittieren hellgrün (`#81c784`), beim Deaktivieren dunkelgrün (`#2e7d32`) |
+
 ## Einschätzung
 
 - **A** löst die Frage, braucht aber nur Farbe: wer Gelb und Rot schlecht unterscheidet (Rot-Grün-Schwäche), sieht den Unterschied zwischen
