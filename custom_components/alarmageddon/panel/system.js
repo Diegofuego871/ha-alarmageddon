@@ -212,7 +212,7 @@ export class SystemUi {
       }
       const u = usage(this.host, s.id);
       const playing = this.cs.playing === s.url;
-      return `<div class="ag-setrow ag-csrow" data-sound="${esc(s.id)}">${soundBadge(s.id, playing)}<div class="ag-settx"><b>${esc(s.name)}</b><small>${esc(soundInfo(s))} · ${esc(t(u.steps ? "csUsed" : "csUnused", { n: u.steps }))}</small></div>
+      return `<div class="ag-setrow ag-csrow" data-sound="${esc(s.id)}">${soundBadge(s.id, playing)}<div class="ag-settx"><b>${esc(s.name)}</b><small>${esc(soundInfo(s))} · ${esc(t(u.steps > 1 ? "csUsedMany" : u.steps ? "csUsed" : "csUnused", { n: u.steps }))}</small></div>
         <div class="ag-btnrow"><button class="ag-iconbtn ${playing ? "on" : ""}" data-sys="${playing ? "cs-stop" : "cs-play"}" data-url="${esc(s.url)}" aria-label="${esc(t(playing ? "pvStop" : "pvPlay"))}" title="${esc(t(playing ? "pvStop" : "pvPlay"))}">${ic(playing ? "stop" : "play", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-rename" data-id="${esc(s.id)}" aria-label="${esc(t("csRename"))}" title="${esc(t("csRename"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-delete" data-id="${esc(s.id)}" aria-label="${esc(t("csDelete"))}" title="${esc(t("csDelete"))}">${ic("trash", 18)}</button></div></div>`;
@@ -234,7 +234,7 @@ export class SystemUi {
     const sound = customList(h).find((s) => s.id === id);
     if (!sound) return;
     const u = usage(h, id);
-    const text = this._t(u.steps ? "csDeleteUsed" : "csDeleteText", { name: sound.name, n: u.steps, systems: u.systems.join(", ") });
+    const text = this._t(u.steps > 1 ? "csDeleteUsedMany" : u.steps ? "csDeleteUsed" : "csDeleteText", { name: sound.name, n: u.steps, systems: u.systems.join(", ") });
     if (!(await h._confirm(this._t("csDeleteTitle", { name: sound.name }), text, this._t("csDelete")))) return;
     try {
       const res = await h._hass.callWS({ type: "alarmageddon/delete_sound", sound_id: id });

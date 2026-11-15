@@ -13,6 +13,10 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 - **Empfang von Bluetooth- und ZHA-Geräten.** Geräte, deren Empfang nur Home Assistant selbst kennt (Bluetooth-Geräte, ZHA), zeigen jetzt auch ohne Empfangssensor einen Wert und einen Verlauf. Du siehst nur den Wert (dBm oder LQI) in der Liste und den Reiter "Empfang" mit dem Verlauf, nichts über Empfänger oder Technik. Bei mehreren Bluetooth-Adaptern oder Proxys zählt der **stärkste** Empfänger; der Wert springt nicht zwischen zwei fast gleich starken hin und her (der bisherige Empfänger bleibt, solange kein anderer mehr als 2 dB stärker ist; nur Empfänger, die das Gerät kürzlich gehört haben, zählen; ungültige Werte wie 0 dBm werden ignoriert). Der Wert folgt dem Median der letzten Minuten. Den Verlauf zeichnet das Panel selbst auf (jede Minute für überwachte Geräte, die leben: 5-Minuten-Blöcke für einen Tag, Stunden für 31 Tage), weil Home Assistant diese Werte nicht speichert. Ein Gerät, das gerade nicht gehört wird, behält den Reiter und zeigt "–". Geräte mit Empfangssensor funktionieren wie bisher.
 
+### Geändert
+
+- **"Aktionen" statt "Schritte" bei den eigenen Tönen.** In Konfiguration › Anlage › Eigene Töne steht die Nutzung als "in 1 Aktion genutzt" oder "in 3 Aktionen genutzt" (ebenso in der Rückfrage vor dem Löschen), mit richtiger Einzahl und Mehrzahl statt "Schritt(en)".
+
 ## [1.40.0] - 2026-11-15
 
 ### Hinzugefügt

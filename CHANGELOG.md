@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **Signal strength of Bluetooth and ZHA devices.** Devices that report their signal only inside Home Assistant (Bluetooth devices, ZHA) now show a value and a history, even without a signal sensor. You see just the value (dBm or LQI) in the list and the tab "Signal" with the history, nothing about receivers or technology. With several Bluetooth adapters or proxies the **strongest** receiver counts; the value does not jump back and forth between two almost equally strong ones (the previous receiver stays unless another is more than 2 dB stronger; only receivers that heard the device recently count; invalid values such as 0 dBm are ignored). The value follows the median of the last minutes. The panel records the history itself (every minute for monitored devices that are alive: 5-minute blocks for a day, hours for 31 days), because Home Assistant does not store these values. A device that is not heard right now keeps the tab and shows "–". Devices with a signal sensor work as before.
 
+### Changed
+
+- **"Actions" instead of "steps" for your own sounds.** In Configuration › System › Your own sounds the usage reads "used in 1 action" or "used in 3 actions" (and the same in the question before deleting), with the correct singular and plural instead of "step(s)".
+
 ## [1.40.0] - 2026-11-15
 
 ### Added

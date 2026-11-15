@@ -3,8 +3,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { errText: "Textdatei", errImage: "ein Bild", errServer: "Code 500", errNet: "nicht gesendet", group: "Eigene Töne", up: "+ Eigenen Ton hochladen …", missing: "Eigener Ton gelöscht (Standardton spielt)", used: "in 1 Schritt(en) genutzt", unused: "nicht genutzt", errName: "Gib einen Namen", errFile: "Wähle eine Datei", errInvalid: "kein Ton", errTaken: "schon einen Ton mit diesem Namen", wavOnly: "Formate: WAV." },
-  en: { errText: "text file", errImage: "a picture", errServer: "code 500", errNet: "could not be sent", group: "Your own sounds", up: "+ Upload your own sound …", missing: "Own sound deleted (standard sound plays)", used: "used in 1 step(s)", unused: "not used", errName: "Enter a name", errFile: "Choose a file", errInvalid: "not a sound", errTaken: "already a sound with this name", wavOnly: "Formats: WAV." },
+  de: { many: "in 3 Aktionen genutzt", errText: "Textdatei", errImage: "ein Bild", errServer: "Code 500", errNet: "nicht gesendet", group: "Eigene Töne", up: "+ Eigenen Ton hochladen …", missing: "Eigener Ton gelöscht (Standardton spielt)", used: "in 1 Aktion genutzt", unused: "nicht genutzt", errName: "Gib einen Namen", errFile: "Wähle eine Datei", errInvalid: "kein Ton", errTaken: "schon einen Ton mit diesem Namen", wavOnly: "Formate: WAV." },
+  en: { many: "used in 3 actions", errText: "text file", errImage: "a picture", errServer: "code 500", errNet: "could not be sent", group: "Your own sounds", up: "+ Upload your own sound …", missing: "Own sound deleted (standard sound plays)", used: "used in 1 action", unused: "not used", errName: "Enter a name", errFile: "Choose a file", errInvalid: "not a sound", errTaken: "already a sound with this name", wavOnly: "Formats: WAV." },
 };
 const STEP = (kind, sound) => ({ type: kind, players: ["media_player.sonos_wohnzimmer"], sound, duration: 5, restore: true });
 const WAV = Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WAVE"), Buffer.alloc(40)]);
@@ -78,6 +78,7 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sub="system"]');
     await s.waitFor("return !!r.querySelector('[data-cs=manage]')");
     check(`${tag}: Kapitel "${lang === "de" ? "Eigene Töne" : "Your own sounds"}" listet beide Töne mit Grösse und Nutzung`, await s.ev(`const rows=[...r.querySelectorAll('[data-cs=manage] .ag-csrow')]; return rows.length === 2 && rows[0].textContent.includes('Garage Tor') && rows[0].textContent.includes(${JSON.stringify(t.used)}) && rows[1].textContent.includes('Haustür-Sirene') && rows[1].textContent.includes(${JSON.stringify(t.used)}) && /KB|MB/.test(rows[1].textContent)`));
+    check(`${tag}: Nutzung: "Aktion" statt "Schritt", Einzahl und Mehrzahl richtig, keine Klammer "(en)"`, await s.ev(`const one=r.host._t('csUsed'), many=r.host._t('csUsedMany', { n: 3 }), del1=r.host._t('csDeleteUsed', { systems: 'A' }), delN=r.host._t('csDeleteUsedMany', { n: 3, systems: 'A' }); return many === ${JSON.stringify(t.many)} && ![one, many, del1, delN].some((x) => /\\(en\\)|\\(s\\)|Schritt|step/i.test(x))`));
     // Abspielen: der Knopf wird rot (wie der Stopp-Knopf eines Schritts) und danach wieder normal (1.40.0)
     await s.ev("const a=window.Audio; window.__realAudio=a; window.Audio = function () { const o = { play: () => Promise.resolve(), pause() {}, addEventListener() {}, set onended(f) { o._end = f; }, set src(v) {}, currentTime: 0 }; window.__fakeAudio = o; return o; }; return 1");
     await s.tap('[data-cs=manage] .ag-csrow [data-sys="cs-play"]');
@@ -98,7 +99,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: nach dem Umbenennen steht der neue Name da, die Schritte nennen ihn schon`, await s.waitFor("return r.querySelector('[data-cs=manage] [data-sound=\"custom_000000000002\"] b')?.textContent === 'Tor offen'"));
     // Löschen mit Rückfrage und Nennung der Nutzung
     await s.tap('[data-cs=manage] [data-sound="custom_0123456789ab"] [data-sys="cs-delete"]');
-    check(`${tag}: Löschen fragt nach und nennt die Zahl der Schritte, die den Ton nutzen`, await s.waitFor("const c=r.getElementById('ag-confirm'); return c.open && /1 (Schritt|step)/.test(c.innerText) && c.innerText.includes('Haustür-Sirene')"));
+    check(`${tag}: Löschen fragt nach und nennt die Zahl der Aktionen, die den Ton nutzen`, await s.waitFor("const c=r.getElementById('ag-confirm'); return c.open && /1 (Aktion|action)/.test(c.innerText) && c.innerText.includes('Haustür-Sirene')"));
     await s.tap('#ag-confirm [data-c="yes"]');
     check(`${tag}: nach dem Löschen ist der Ton aus der Liste`, await s.waitFor("return r.querySelectorAll('[data-cs=manage] .ag-csrow').length === 1"));
     await s.tap('[data-sub="actions"]');
