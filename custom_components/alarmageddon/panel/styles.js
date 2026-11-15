@@ -462,7 +462,8 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-line .ag-wf-step { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
 .ag-wf-end .ag-wf-endcard { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
 .ag-wf-end::before { background: color-mix(in srgb, var(--z) 60%, var(--ag-divider)); }
-.ag-wf-line .ag-wf-seg { background: color-mix(in srgb, var(--z) 60%, var(--ag-divider)); }
+/* Die Linien zum Plus-Knopf haben seine Farbe (nicht die der Zone) und treffen ihn oben und unten genau in der Mitte */
+.ag-wf-seg { background: var(--ag-primary); align-self: center; }
 .ag-zone { display: flex; width: fit-content; max-width: 100%; align-items: center; margin-top: 8px; min-height: 24px; padding: 1px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; background: color-mix(in srgb, var(--z) 18%, transparent); color: color-mix(in srgb, var(--z) 55%, var(--ag-text)); }
 /* contents: sonst klebt die Leiste nur innerhalb dieses Blocks und scrollt mit weg */
 .ag-wf-head { display: contents; }
