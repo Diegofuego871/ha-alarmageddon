@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **The fixed block "Closing message" is coloured like the actions after acknowledging.** It carries the same light green gradient and connecting line as the steps of its zone.
+- **Tabs of the sensor window on the phone: symbol plus short text.** Each tab shows its symbol with a short text below: "History" and "Device" with the word, "Battery" and "Signal" with the value (for example "72 %" and "-58 dBm"). Nothing is cut off any more. On the computer and the tablet nothing changes.
 
 ## [1.43.1] - 2026-11-15
 

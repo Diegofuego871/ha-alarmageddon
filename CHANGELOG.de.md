@@ -16,6 +16,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 ### Geändert
 
 - **Der feste Block "Abschlussmeldung" ist eingefärbt wie die Aktionen nach dem Quittieren.** Er trägt denselben hellgrünen Verlauf und dieselbe Verbindungslinie wie die Schritte seiner Zone.
+- **Reiter des Sensorfensters auf dem Handy: Symbol plus Kurztext.** Jeder Reiter zeigt sein Symbol mit einem kurzen Text darunter: "Verlauf" und "Gerät" mit dem Wort, "Batterie" und "Empfang" mit dem Wert (zum Beispiel "72 %" und "-58 dBm"). Nichts wird mehr abgeschnitten. Am Computer und Tablet ändert sich nichts.
 
 ## [1.43.1] - 2026-11-15
 
