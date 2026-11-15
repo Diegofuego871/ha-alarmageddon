@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.43.1] - 2026-11-15
+
+### Behoben
+
+- **Dateiauswahl für eigene Töne auf dem iPhone, zweiter Versuch.** Das Auswahlfenster bot weiterhin die Fotomediathek und die Videoaufnahme an. Die Liste der erlaubten Dateien besteht jetzt nur noch aus reinen Endungen (".wav", ".mp3", ".flac") und nennt "audio/*" nicht mehr, das das iPhone ebenfalls als Wunsch nach Medien behandelt. M4A- und OGG-Dateien sind absichtlich nicht genannt (das iPhone behandelt M4A als Video); werden sie auf dem iPhone ausgegraut, wähle im Dateifenster "Alle Dateien" oder melde es.
+
 ## [1.43.0] - 2026-11-15
 
 ### Geändert
@@ -1491,6 +1497,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.43.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.1
 [1.43.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.0
 [1.42.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.42.0
 [1.41.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.41.0

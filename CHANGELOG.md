@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.43.1] - 2026-11-15
+
+### Fixed
+
+- **File choice for your own sounds on the iPhone, second attempt.** The file dialog still offered the photo library and video recording. The list of allowed files now consists of plain endings only (".wav", ".mp3", ".flac") and no longer names "audio/*", which the iPhone also treats as a request for media. M4A and OGG files are not named on purpose (the iPhone treats M4A as video); if the iPhone greys them out, choose "All files" in the file dialog or tell us.
+
 ## [1.43.0] - 2026-11-15
 
 ### Changed
@@ -1491,6 +1497,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.43.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.1
 [1.43.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.0
 [1.42.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.42.0
 [1.41.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.41.0

@@ -36,8 +36,9 @@ export const soundInfo = (s) => `${fmtSeconds(Number(s.seconds) || 0)} · ${fmtS
 export function uploadHtml(t, host, ui, attr) {
   const lim = limits(host);
   const formats = lim.ffmpeg ? "WAV, MP3, OGG, FLAC, M4A" : "WAV";
-  // Nur Audio, ohne Endungen wie .m4a/.aac: iOS ordnet sie dem MPEG-4-Typ zu (der als Film gilt) und bietet dann Fotomediathek und Videoaufnahme an
-  const accept = lim.ffmpeg ? ".wav,.mp3,.flac,audio/*" : ".wav,audio/wav,audio/x-wav";
+  // Nur Endungen, kein "audio/*" (1.43.1): iOS bietet bei jedem MIME-Typ mit "audio/", "video/" oder "image/" Fotomediathek und Videoaufnahme an;
+  // mit reinen Endungen zeigt es nur die Dateiauswahl. Bewusst ohne .m4a und .ogg (iOS ordnet M4A dem MPEG-4-Typ zu, der als Film gilt); der Server erkennt das Format ohnehin am Inhalt, die Auswahl ist nur eine Vorfilterung.
+  const accept = lim.ffmpeg ? ".wav,.mp3,.flac" : ".wav";
   return `<div class="ag-up" data-cs="upload">
     <div class="ag-ef"><div class="ag-ef-l">${esc(t("upName"))}</div><input class="ag-input" type="text" maxlength="40" value="${esc(ui.name || "")}" ${attr("cs-name")} data-cs="name" placeholder="${esc(t("upNamePh"))}" aria-label="${esc(t("upName"))}"></div>
     <div class="ag-ef"><div class="ag-ef-l">${esc(t("upFile"))}</div><input class="ag-input ag-up-file" type="file" accept="${accept}" data-cs="file" aria-label="${esc(t("upFile"))}"></div>

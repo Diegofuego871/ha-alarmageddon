@@ -36,7 +36,7 @@ for (const lang of ["de", "en"]) {
     await (await s.el('#ag-step [data-key="sound"]')).selectOption("__upload");
     await s.waitFor("return !!r.getElementById('ag-step').querySelector('[data-cs=upload]')");
     check(`${tag}: Formular unter dem Feld mit Name, Datei und Hinweis zu Formaten und Grenzen, der Ton bleibt gewählt`, await dlg("const u=d.querySelector('[data-cs=upload]'); return !!u.querySelector('[data-cs=name]') && !!u.querySelector('[data-cs=file]') && /30/.test(u.innerText) && d.querySelector('[data-key=\"sound\"]').value === 'custom_0123456789ab'"));
-    check(`${tag}: die Dateiauswahl nimmt nur Audio an, nie Bilder oder Videos (iPhone bietet sonst Fotomediathek und Videoaufnahme an)`, await dlg("const a=d.querySelector('[data-cs=file]').accept.split(','); return a.includes('audio/*') && !a.some((x) => /^(image|video)\\//.test(x) || /\\.(m4a|aac|mp4|mov|ogg|oga|ogv)$/.test(x))"));
+    check(`${tag}: die Dateiauswahl nennt nur Endungen, nie "audio/*", Bilder oder Videos (iPhone bietet sonst Fotomediathek und Videoaufnahme an)`, await dlg("const a=d.querySelector('[data-cs=file]').accept.split(','); return a.length >= 1 && a.every((x) => /^\\.[a-z0-9]+$/.test(x)) && !a.some((x) => /\\.(m4a|aac|mp4|mov|ogg|oga|ogv|jpe?g|png|heic|gif)$/.test(x)) && a.includes('.wav') && a.includes('.mp3')"));
     await s.tap('#ag-step [data-wf="cs-go"]');
     check(`${tag}: ohne Name: Hinweis`, await s.waitFor(`return r.getElementById('ag-step').querySelector('.ag-up-err').textContent.includes(${JSON.stringify(t.errName)})`));
     await s.ev("const i=r.getElementById('ag-step').querySelector('[data-cs=name]'); i.value='Garage'; i.dispatchEvent(new Event('input', { bubbles: true })); return 1");
