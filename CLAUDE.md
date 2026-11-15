@@ -135,6 +135,9 @@ Umsetzung:
   (`workflow._on_disarmed`, aus dem Alarm im Lauf der Aktionen nach dem Quittieren, `_end`), nie bei "Quittieren" und nie ohne scharfen
   Modus (`_mode_seen`). Sie sind Zusatz: Scharfschalten und Alarm beenden sie sofort, kein Gerät und kein Fehler hält den Alarm oder das
   Scharfschalten auf. Tests in `tests/test_disarmed_actions.py` und `tests/test_action_hang.py`, Zeilen in `scripts/mutation_check.py`.
+- Rückgängig nach einer Zeit (seit 1.37.0, Schritt "Gerät schalten", `undo_after`): die Zeit bestimmt allein der Nutzer und zählt ab dem Aufruf, auch über
+  Neuladen und Neustart (`run["undo"]`, `workflow._arm_undo`); Deaktivieren, Quittieren und das Ende eines Tests schalten sofort zurück
+  (`_flush_undos`), der Gegendienst ist wie jeder Aufruf begrenzt. Tests in `tests/test_undo_after.py`, Zeilen in `scripts/mutation_check.py`.
 - Deaktivieren per Push-Aktion ist standardmässig aus.
 - Scharfschalten per Push-Knopf (seit 1.18.0, Meldung "Scharfschalten nicht möglich": "Erneut versuchen", "Trotzdem scharf
   schalten") ist standardmässig an (Entscheid des Nutzers, 2026-11-12). Die Knöpfe wirken nur bei deaktivierter Anlage, eine

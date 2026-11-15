@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.37.0] - 2026-11-15
+
+### Added
+
+- **Reverse a device step after a time.** The step "Switch device" has a new optional setting "Reverse after a time": after the set time (1 second to 1 hour) the opposite is done, for example a socket with a siren: on, off after 2 minutes; also open and close, lock and unlock; "Toggle" toggles again. The card of the step shows it ("Turn off after 2 min"). The time is yours alone, it counts from the call and across a reload or a restart of Home Assistant (after a restart only the rest runs; if the time has passed meanwhile, it switches back at once). Disarming, acknowledging and the end of a test switch back at once, so a socket with a siren never stays on longer than the alarm. The opposite call is bounded like every call (10 seconds), a device that does not answer holds nothing up. Steps without an opposite (set position, set temperature, scene, your own service) do not offer it.
+
 ## [1.36.1] - 2026-11-15
 
 ### Changed
@@ -1423,6 +1429,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.37.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.37.0
 [1.36.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.1
 [1.36.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.0
 [1.35.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.5

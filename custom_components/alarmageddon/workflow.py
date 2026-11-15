@@ -39,6 +39,7 @@ from .const import (
     CONF_WORKFLOWS_ENTRY,
     RESTORABLE_DOMAINS,
     TEST_SECONDS,
+    UNDO_SERVICES,
     WORKFLOW_STORE_KEY,
 )
 from .controller import ARMED_STATE, AlarmController
@@ -206,6 +207,8 @@ class WorkflowRunner:
                 also = saved.get("also")
                 if isinstance(also, dict) and also.get("trigger"):
                     self._spawn(saved, int(also.get("index", 0) or 0), str(also["trigger"]))
+                for entry in list(saved.get("undo") or []):
+                    self._arm_undo(saved, entry)  # Restzeit; war die Zeit schon um, schaltet es sofort zurück
             else:
                 await self.async_stop()
         if str(self._ctl.state) in DELAY_PHASES and self._run is None:
@@ -288,11 +291,18 @@ class WorkflowRunner:
         run = self._run
         if run is None or not run.get("after"):
             return
+        pending = list(run.get("undo") or [])
         await self._end_test()
         if self._run is not None:
             # Währenddessen hat ein neuer Lauf begonnen (der Alarm): ab hier gehören Lautsprecher und Ablage ihm. Ein Stopp
-            # jetzt brächte seine Sirene zum Schweigen, das Löschen nähme ihm den Stand für den Neustart (1.18.0).
+            # jetzt brächte seine Sirene zum Schweigen, das Löschen nähme ihm den Stand für den Neustart (1.18.0). Vorgemerkte
+            # Gegendienste gehen mit ihrer Zeit an den Alarm.
+            for entry in pending:
+                self._run.setdefault("undo", []).append(entry)
+                self._arm_undo(self._run, entry)
             return
+        run["undo"] = pending
+        await self._flush_undos(run)  # der Lauf endet vor der Zeit: die Geräte sofort zurück
         players = sorted({p for step in run.get("steps") or [] if step.get("type") in ("sound", "chime", "dechime", "prealarm") for p in step.get("players", [])})
         if players:
             await self._call("media_player", "media_stop", {"entity_id": players})
@@ -572,6 +582,11 @@ class WorkflowRunner:
         # Nach einem abgebrochenen Test gilt dessen Schnappschuss: er zeigt die Geräte vor dem Test, nicht mitten im Test
         run["snapshot"] = {**self._snapshot(entities), **before}
         run["sonos"] = sorted({*sonos_before, *await self._sonos_snapshot([e for e in entities if e not in sonos_before])})
+        # Ein beendeter Test oder Lauf daneben hinterlässt vorgemerkte Gegendienste (Steckdose mit Sirene): der echte Alarm übernimmt sie
+        # mit ihrer Zeit, sie gehen nie verloren und enden nie früher als eingestellt
+        for entry in list((inherited or {}).get("undo") or []):
+            run.setdefault("undo", []).append(entry)
+            self._arm_undo(run, entry)
         if self._run is not run:
             return
         await self._save_run(run)
@@ -906,6 +921,7 @@ class WorkflowRunner:
             if step.get("target"):
                 data["entity_id"] = list(step["target"])
             await self._bounded(self.hass.services.async_call(domain, service, data, blocking=True), f"{domain}.{service}")
+            self._plan_undo(step, domain, service, data)
         elif kind == "sound":
             await self._play(step, resumable)
         elif kind == "chime" and step.get("delay"):
@@ -921,6 +937,64 @@ class WorkflowRunner:
             # Aufgabe (_on_change), dieser Schritt kehrt vorher zurück und wird nicht selbst abgebrochen
             if not test:
                 self._ctl.acknowledge(self._notifier.text("by_step"))
+
+    # ----- Rückgängig nach einer Zeit (1.37.0) -----
+    #
+    # "Gerät schalten" kann nach N Sekunden den Gegendienst aufrufen (Steckdose mit Sirene: ein, nach 120 s aus). Die Zeit bestimmt allein der
+    # Nutzer und zählt ab dem Aufruf. Der Eintrag steht im gespeicherten Stand des Laufs (run["undo"]): ein Neuladen oder Neustart von Home
+    # Assistant setzt ihn mit der Restzeit fort, Deaktivieren und Quittieren (und das Ende eines Tests) schalten sofort zurück. Der
+    # Gegendienst ist Zusatz wie jeder Aufruf: höchstens SERVICE_TIMEOUT, ein Fehler hält nichts auf.
+
+    def _plan_undo(self, step: dict[str, Any], domain: str, service: str, data: dict[str, Any]) -> None:
+        """Nach dem Aufruf eines Schritts mit "undo_after" den Gegendienst vormerken. Nie ein Hindernis: ein Fehler hier steht nur im Log."""
+        try:
+            seconds = int(step.get("undo_after") or 0)
+            inverse = UNDO_SERVICES.get(service)
+            targets = data.get("entity_id")
+            run = self._run
+            if seconds <= 0 or inverse is None or run is None or not targets:
+                return
+            entry = {"domain": domain, "service": inverse, "target": list(targets) if isinstance(targets, (list, tuple)) else [targets],
+                     "at": (dt_util.utcnow() + timedelta(seconds=seconds)).isoformat()}
+            run.setdefault("undo", []).append(entry)
+            self._store.async_delay_save(lambda: self._run or {}, 0)
+            self._arm_undo(run, entry)
+        except Exception:  # noqa: BLE001 - der Schritt selbst ist erledigt, das Vormerken hält nichts auf
+            _LOGGER.exception("%s: planning the undo of a step failed", self.entry.title)
+
+    def _arm_undo(self, run: dict[str, Any], entry: dict[str, Any]) -> None:
+        """Den Gegendienst zur vorgemerkten Zeit ausführen (Aufgabe nebenher: sie endet mit dem Lauf)."""
+        task = self._background(self._undo_task(run, entry))
+        self._side_tasks.add(task)
+        task.add_done_callback(self._side_tasks.discard)
+
+    async def _undo_task(self, run: dict[str, Any], entry: dict[str, Any]) -> None:
+        try:
+            end = dt_util.parse_datetime(str(entry.get("at") or ""))
+            left = max(0.0, (end - dt_util.utcnow()).total_seconds()) if end is not None else 0.0  # ohne lesbare Zeit: sofort zurück
+            await self._sleep(left)
+            await self._undo_now(run, entry)
+        except asyncio.CancelledError:
+            raise  # der Eintrag bleibt im Lauf: Neuladen setzt ihn fort, Deaktivieren schaltet ihn zurück (_flush_undos)
+        except Exception:  # noqa: BLE001 - ein Fehler hier hält nichts auf
+            _LOGGER.exception("%s: the undo of a step failed", self.entry.title)
+
+    async def _undo_now(self, run: dict[str, Any], entry: dict[str, Any]) -> None:
+        """Einen Eintrag zurücknehmen und den Gegendienst aufrufen. Der Eintrag wird zuerst entnommen: nie zweimal."""
+        entries = run.get("undo") or []
+        if entry not in entries:
+            return
+        entries.remove(entry)
+        if self._run is run:
+            self._store.async_delay_save(lambda: self._run or {}, 0)
+        await self._call(str(entry.get("domain")), str(entry.get("service")), {"entity_id": list(entry.get("target") or [])})
+
+    async def _flush_undos(self, run: dict[str, Any]) -> None:
+        """Alle noch vorgemerkten Gegendienste sofort ausführen (Lauf zu Ende: Deaktivieren, Quittieren, Test beendet). Parallel, je höchstens SERVICE_TIMEOUT."""
+        entries = list(run.get("undo") or [])
+        if not entries:
+            return
+        await asyncio.gather(*(self._undo_now(run, entry) for entry in entries), return_exceptions=True)
 
     async def _play(self, step: dict[str, Any], resumable: bool = False) -> None:
         players = list(step.get("players", []))
@@ -1121,6 +1195,7 @@ class WorkflowRunner:
         run, self._run = self._run, None
         await self._cancel_task()
         if run:
+            await self._flush_undos(run)
             await self._restore(run)
         if self._run is None:
             await self._store.async_remove()

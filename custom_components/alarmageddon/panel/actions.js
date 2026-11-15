@@ -61,6 +61,9 @@ const DISARMED_KINDS = ["dechime", "device", "wait", "scene", "custom"];
 // Alarmton und Aktivierungston teilen sich die Felder (Lautsprecher, Ton, Lautstärke, Dauer)
 // So viele Schritte hat eine Liste höchstens (wie der Server: MAX_STEPS)
 const MAX_STEPS = 40;
+// Rückgängig nach einer Zeit (1.37.0): der Gegendienst, wie im Server (UNDO_SERVICES)
+const UNDO_SERVICES = { turn_on: "turn_off", turn_off: "turn_on", toggle: "toggle", open_cover: "close_cover", close_cover: "open_cover", open_valve: "close_valve", close_valve: "open_valve", lock: "unlock", unlock: "lock" };
+const UNDO_ACTION = { on: "off", off: "on", toggle: "toggle" };
 const isTone = (kind) => kind === "sound" || kind === "chime" || kind === "dechime" || kind === "prealarm";
 // Lautstärke je Medienplayer (1.16.0): eigene Werte nur, wenn eingeschaltet, mehr als ein Lautsprecher gewählt ist und sie sich unterscheiden
 const ownVolumes = (f) => {
@@ -140,7 +143,7 @@ function fromStepBase(step) {
   const [domain, service] = action.split(".");
   const data = { ...(step.data || {}) };
   const keys = Object.keys(data);
-  const base = { ...f, targets: [...(step.target || [])], restore: !!step.restore, domain, service };
+  const base = { ...f, targets: [...(step.target || [])], restore: !!step.restore, domain, service, undoOn: step.undo_after != null, undoSeconds: step.undo_after || 60 };
   if ((action === "scene.turn_on" || action === "script.turn_on") && !keys.length) return { ...base, kind: "scene" };
   const act = DEVICE[domain] && Object.keys(DEVICE[domain]).find((a) => DEVICE[domain][a] === service);
   if (act && !keys.length) return { ...base, kind: "device", action: act };
@@ -231,7 +234,10 @@ function toStepBase(f) {
       if (single === "climate" && (on("temperature") || on("hvac_mode"))) action = "climate.set_temperature";
       for (const k of OPTION_KEYS[single] || []) if (on(k)) data[k] = f.opts[k];
     }
-    return { type: "action", action, target: f.targets, data, restore: !!f.restore };
+    const out = { type: "action", action, target: f.targets, data, restore: !!f.restore };
+    // Nach einer Zeit rückgängig machen: nur wo es einen Gegendienst gibt (nicht bei "Position setzen" oder "Temperatur setzen")
+    if (f.undoOn && UNDO_SERVICES[action.split(".")[1]]) out.undo_after = Math.min(3600, Math.max(1, Math.round(Number(f.undoSeconds) || 60)));
+    return out;
   }
   // Weitere Aktion: nur Werte der Felder, die ausgefüllt sind; unbekannte Werte aus einem früheren Schritt bleiben erhalten
   const data = {};
@@ -584,7 +590,8 @@ export class ActionsUi {
       const domains = new Set(f.targets.map((e) => e.split(".")[0]));
       const word = this._t(cap(domains.size === 1 ? [...domains][0] : "", f.action));
       const opts = Object.entries(f.optsOn).filter(([, on]) => on).map(([k]) => this._optText(k, f.opts[k])).filter(Boolean);
-      return [word, names, ...opts].join(" · ");
+      const undo = f.undoOn && UNDO_SERVICES[toStep(f).action?.split(".")[1]] ? [this._t("undoSummary", { action: this._t(cap(domains.size === 1 ? [...domains][0] : "", UNDO_ACTION[f.action])), time: Number(f.undoSeconds) >= 60 ? this._t("durMin", { n: Number(f.undoSeconds) / 60 }) : this._t("durS", { n: Number(f.undoSeconds) }) })] : [];
+      return [word, names, ...opts, ...undo].join(" · ");
     }
     return `${this._serviceName(f.domain, f.service)} · ${names}`;
   }
@@ -852,7 +859,19 @@ export class ActionsUi {
       return `<div class="ag-ef ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldRestoreTone"))}</b><small>${esc(this._t("fldRestoreToneHint"))}</small></div>${this._toggle('data-wf="restore"', f.restore, "fldRestoreTone")}</div>${this._waitRow(f)}`;
     }
     const row = zone !== "main" ? "" : `<div class="ag-ef ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldRestore"))}</b><small>${esc(this._t(f.kind === "sound" ? "fldRestoreSoundHint" : "fldRestoreHint"))}</small></div>${this._toggle('data-wf="restore"', f.restore, "fldRestore")}</div>`;
-    return `${row}${this._waitRow(f)}`;
+    return `${row}${this._waitRow(f)}${this._undoRow(f)}`;
+  }
+
+  // "Danach wieder rückgängig machen" (1.37.0): Gerät schalten, zum Beispiel eine Steckdose mit Sirene: ein, nach N Sekunden aus
+  _undoRow(f) {
+    if (f.kind !== "device" || !UNDO_SERVICES[toStep(f, this.edit?.zone || "main").action?.split(".")[1]]) return "";
+    const domains = [...new Set(f.targets.map((e) => e.split(".")[0]))];
+    const back = UNDO_ACTION[f.action];
+    const label = this._t(cap(domains.length === 1 ? domains[0] : "", back));
+    const head = `<div class="ag-ef ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldUndo"))}</b><small>${esc(this._t("fldUndoHint", { action: label }))}</small></div>${this._toggle('data-wf="undo"', f.undoOn, "fldUndo")}</div>`;
+    if (!f.undoOn) return head;
+    const quick = [10, 30, 60, 120, 300].map((s) => `<button class="ag-chip ${Number(f.undoSeconds) === s ? "on" : ""}" data-wf="undosecs" data-value="${s}">${esc(s >= 60 ? this._t("durMin", { n: s / 60 }) : this._t("durS", { n: s }))}</button>`).join("");
+    return `${head}<div class="ag-ef"><div class="ag-ef-l">${esc(this._t("fldUndoAfter"))}</div><span class="ag-num"><input type="number" min="1" max="3600" data-wf="f" data-key="undoSeconds" value="${esc(f.undoSeconds)}" aria-label="${esc(this._t("fldUndoAfter"))}"><span class="ag-t2">s</span></span><div class="ag-zline">${quick}</div></div>`;
   }
 
   _rangeRow(attr, label, value, min, max, step, text) {
@@ -1631,6 +1650,12 @@ export class ActionsUi {
       form.until = !form.until;
       if (this.edit?.zone === "after") form.until = false; // nach dem Quittieren braucht ein Ton eine Dauer
       if (form.until) form.wait = false; // endet nie von selbst: darauf lässt sich nicht warten
+      this.renderEditor();
+    } else if (act === "undo") {
+      form.undoOn = !form.undoOn;
+      this.renderEditor();
+    } else if (act === "undosecs") {
+      form.undoSeconds = Number(el.dataset.value);
       this.renderEditor();
     } else if (act === "playsecs") {
       form.playSeconds = Number(el.dataset.value);

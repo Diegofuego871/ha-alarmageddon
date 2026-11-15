@@ -60,7 +60,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 149  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 150  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -257,6 +257,13 @@ WORKFLOW_TRIGGERS: Final = ("home", "away", "night", WORKFLOW_ALWAYS)
 WORKFLOW_STORE_KEY: Final = f"{DOMAIN}.workflow"
 BACKUPS_STORE_KEY: Final = f"{DOMAIN}.backups"
 MAX_BACKUPS: Final = 10  # Sicherungen in der Integration; die älteste fällt weg
+# Rückgängig nach einer Zeit (1.37.0): der Gegendienst zu einem Dienst eines Schritts "Gerät schalten". Nur wo es einen eindeutigen gibt
+# (ein, aus, auf, zu, ver- und entriegeln); "toggle" schaltet wieder um.
+UNDO_SERVICES: Final = {
+    "turn_on": "turn_off", "turn_off": "turn_on", "toggle": "toggle",
+    "open_cover": "close_cover", "close_cover": "open_cover", "open_valve": "close_valve", "close_valve": "open_valve",
+    "lock": "unlock", "unlock": "lock",
+}
 TEST_SECONDS: Final = 60  # ein Test endet spätestens nach so vielen Sekunden von selbst
 MAX_STEPS: Final = 40
 # Mitgelieferte Töne: Name und Länge in Sekunden (scripts/make_sounds.py)

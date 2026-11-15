@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.37.0] - 2026-11-15
+
+### Hinzugefügt
+
+- **Einen Geräteschritt nach einer Zeit rückgängig machen.** Der Schritt "Gerät schalten" hat eine neue, optionale Einstellung "Nach einer Zeit rückgängig machen": nach der eingestellten Zeit (1 Sekunde bis 1 Stunde) folgt das Gegenteil, zum Beispiel bei einer Steckdose mit Sirene: ein, nach 2 Minuten aus; auch öffnen und schliessen, verriegeln und entriegeln; "Umschalten" schaltet wieder um. Die Karte des Schritts zeigt es ("Ausschalten nach 2 min"). Die Zeit bestimmst allein du, sie zählt ab dem Aufruf, auch über ein Neuladen oder einen Neustart von Home Assistant (nach einem Neustart läuft nur der Rest; war die Zeit inzwischen um, schaltet es sofort zurück). Deaktivieren, Quittieren und das Ende eines Tests schalten sofort zurück: eine Steckdose mit Sirene bleibt nie länger an als der Alarm. Der Gegenaufruf ist wie jeder Aufruf begrenzt (10 Sekunden), ein Gerät, das nicht antwortet, hält nichts auf. Schritte ohne Gegenteil (Position setzen, Temperatur setzen, Szene, eigener Dienst) bieten es nicht an.
+
 ## [1.36.1] - 2026-11-15
 
 ### Geändert
@@ -1423,6 +1429,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.37.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.37.0
 [1.36.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.1
 [1.36.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.0
 [1.35.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.5

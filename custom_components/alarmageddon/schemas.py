@@ -46,6 +46,7 @@ from .const import (
     CONF_ZONE_PREFIX,
     MAX_CONFIRM_WINDOW,
     MAX_DELAY,
+    UNDO_SERVICES,
     MAX_STEPS,
     MODES,
     OPT_ALWAYS_OFF,
@@ -92,6 +93,8 @@ STEP_SCHEMAS = {
         vol.Optional("target", default=list): ENTITY_LIST,
         vol.Optional("data", default=dict): dict,
         vol.Optional("restore", default=False): bool,
+        # Nach so vielen Sekunden rückgängig machen (1.37.0): der Gegendienst (ein/aus, auf/zu, ver-/entriegeln) läuft nach genau dieser Zeit
+        vol.Optional("undo_after"): vol.All(vol.Coerce(int), vol.Range(min=1, max=MAX_DELAY)),
         # Auf das Ende warten (1.10.0): Schritte laufen standardmässig weiter, der nächste startet sofort; mit "wait" startet er
         # erst, wenn dieser fertig ist. "detach" ist die ältere Angabe (0.17.0, bis 1.9.0: ohne sie wurde gewartet); beide werden
         # gelesen (workflow.step_waits), das Panel schreibt nur noch "wait".
@@ -181,6 +184,11 @@ def valid_step(value: Any, delay: bool = False) -> dict[str, Any]:
     if not isinstance(value, dict) or value.get("type") not in STEP_SCHEMAS:
         raise vol.Invalid("unknown step type")
     step = STEP_SCHEMAS[value["type"]](value)
+    if step.get("undo_after") is not None:
+        # Nur wo es einen Gegendienst gibt: ein Dienst ohne ihn (Szene, eigener Dienst) bliebe ohne Wirkung, ohne dass es jemand merkt
+        _domain, _, service = str(step.get("action", "")).partition(".")
+        if UNDO_SERVICES.get(service) is None or _domain in ("scene", "script") or not step.get("target"):
+            raise vol.Invalid("this action cannot be undone after a time")
     if not (delay and step.get("delay")):
         step.pop("delay", None)
     if "volumes" in step:

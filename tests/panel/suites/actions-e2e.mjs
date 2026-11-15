@@ -397,6 +397,18 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: die Kopie ist unabhängig vom Original`, await s.ev("return r.host.actions.steps()[0].volume === 0.8"));
       check(`${tag}: Duplizieren ist eine ungespeicherte Änderung (Speichern möglich)`, await s.ev("const b=r.querySelector('.ag-foot .ag-btn.primary'); return !!b && !b.disabled"));
     }
+    // Rückgängig nach einer Zeit (1.37.0): Gerät schalten, zum Beispiel Steckdose mit Sirene: ein, nach N Sekunden aus
+    {
+      await s.ev("const a=r.host.actions; a._setSteps([{ type: 'action', action: 'switch.turn_on', target: ['switch.licht'], data: {}, restore: false }, { type: 'action', action: 'cover.set_cover_position', target: ['cover.rollladen_wohnzimmer'], data: { position: 30 }, restore: false }]); a.render(); return 1");
+      await s.tap('.ag-wf-main .ag-wf-step[data-index="0"] [data-wf="edit"]');
+      await s.waitFor("return r.getElementById('ag-step').open");
+      check(`${tag}: Gerät schalten: Zeile "Nach einer Zeit rückgängig machen" (EN: Reverse), ohne Zeit zuerst aus`, await s.ev("const d=r.getElementById('ag-step'); return !!d.querySelector('[data-wf=undo]') && !d.querySelector('[data-wf=undosecs]') && d.querySelector('[data-wf=undo]').getAttribute('aria-checked') === 'false'"));
+      await s.tap('#ag-step [data-wf="undo"]');
+      await s.tap('#ag-step [data-wf="undosecs"][data-value="120"]');
+      await s.tap('#ag-step [data-wf="apply"]');
+      check(`${tag}: Übernehmen speichert undo_after 120 und die Karte nennt Gegenteil und Zeit`, await s.ev("const st=r.host.actions.steps()[0]; const t=r.querySelector('.ag-wf-main .ag-wf-step .ag-t2').textContent; return st.undo_after === 120 && /2 min/.test(t) && /(Ausschalten|Turn off)/.test(t)"));
+      check(`${tag}: ohne Gegendienst (Position setzen) keine Zeile "rückgängig"`, await (async () => { await s.tap('.ag-wf-main .ag-wf-step[data-index="1"] [data-wf="edit"]'); await s.waitFor("return r.getElementById('ag-step').open"); const none = await s.ev("return !r.getElementById('ag-step').querySelector('[data-wf=undo]')"); await s.tap('#ag-step [data-wf="close"]'); return none; })());
+    }
     check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
   }

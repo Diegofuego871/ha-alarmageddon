@@ -24,6 +24,17 @@ ROOT = BASE.parents[1]
 
 # (Name, Datei, Text im Code, Ersatz, Tests, die es merken müssen)
 MUTATIONS = [
+    ("Rückgängig nach einer Zeit: Deaktivieren und Quittieren schalten nicht sofort zurück (Steckdose mit Sirene bliebe an)", "workflow.py",
+     "            await self._flush_undos(run)\n            await self._restore(run)", "            await self._restore(run)", "tests/test_undo_after.py -k ending_the_alarm"),
+    ("Rückgängig nach einer Zeit: nach einem Neustart von Home Assistant nicht fortgesetzt (Steckdose mit Sirene bliebe an)", "workflow.py",
+     '                for entry in list(saved.get("undo") or []):\n                    self._arm_undo(saved, entry)  # Restzeit; war die Zeit schon um, schaltet es sofort zurück',
+     "                pass", "tests/test_undo_after.py -k restart"),
+    ("Rückgängig nach einer Zeit: Szene oder Schritt ohne Gegendienst wird im Schritt zugelassen", "schemas.py",
+     '        if UNDO_SERVICES.get(service) is None or _domain in ("scene", "script") or not step.get("target"):', "        if False:",
+     "tests/test_undo_after.py -k schema"),
+    ("Rückgängig nach einer Zeit: ein echter Alarm übernimmt die vorgemerkten Gegendienste eines Tests nicht", "workflow.py",
+     "        for entry in list((inherited or {}).get(\"undo\") or []):\n            run.setdefault(\"undo\", []).append(entry)\n            self._arm_undo(run, entry)",
+     "        pass", "tests/test_undo_after.py -k real_alarm"),
     ("Test mit Geräteaktion endet vor dem Zeitfenster (die Wirkung wäre nicht zu sehen, das Zurückstellen käme sofort)", "workflow.py",
      '            return all(step.get("type") in ("sound", "chime", "dechime", "prealarm", "notify", "wait") for step in steps)',
      "            return True", "tests/test_delay_actions.py -k ends_when_the_tone_is_over"),
@@ -354,8 +365,8 @@ MUTATIONS = [
     ("Jeder Wechsel auf offen löst aus", "controller.py", "went_on = old.state == STATE_OFF and new.state == STATE_ON", "went_on = new.state == STATE_ON", "tests/test_security.py -k real_change"),
     # Ausfallsicherungen im Ablauf der Alarmaktionen (Code-Review 1.33.1): Zweige, die nur bei einem Fehler oder einer Berührung zweier Läufe laufen
     ("Stopp eines Nebenlaufs beendet auch einen echten Alarm", "workflow.py",
-     '        run = self._run\n        if run is None or not run.get("after"):\n            return\n        await self._end_test()\n',
-     '        run = self._run\n        if run is None:\n            return\n        await self._end_test()\n', "tests/test_workflow_failsafes.py -k side_run_never_touches"),
+     '        if run is None or not run.get("after"):\n            return\n        pending = list(run.get("undo") or [])\n        await self._end_test()\n',
+     '        if run is None:\n            return\n        pending = list(run.get("undo") or [])\n        await self._end_test()\n', "tests/test_workflow_failsafes.py -k side_run_never_touches"),
     ("Ein Fehler beim Beenden des Tests hält den echten Alarm auf", "workflow.py",
      "            except Exception:  # noqa: BLE001 - das Ende des Tests darf den echten Alarm nie verhindern\n",
      "            except KeyError:  # noqa: BLE001 - das Ende des Tests darf den echten Alarm nie verhindern\n", "tests/test_workflow_failsafes.py -k failing_end_of_the_test"),

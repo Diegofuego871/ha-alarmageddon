@@ -67,7 +67,7 @@ Was bei einem Alarm passiert, ist ein Ablauf aus Schritten, auf Wunsch je Modus.
 | Schritt | Macht |
 | --- | --- |
 | Push-Meldung | Kritische Alarmmeldung an die Alarm-Empfänger, mit eigenem Titel und Text (Platzhalter für Anlage, Sensor, Sensorart, Bereich, Uhrzeit, Modus und Alarmart; Rauch-, Wasser-, Gas- und Hitzesensoren bringen einen passenden Standardtext mit), wählbaren Knöpfen und auf Wunsch eigenen Empfängern (jeder Titel beginnt mit einem Emoji) |
-| Gerät schalten | Lichter, Steckdosen, Sirenen, Storen, Schlösser und mehr: ein, aus, öffnen, schliessen, mit Helligkeit oder Position |
+| Gerät schalten | Lichter, Steckdosen, Sirenen, Storen, Schlösser und mehr: ein, aus, öffnen, schliessen, mit Helligkeit oder Position; auf Wunsch nach einer eingestellten Zeit rückgängig (Steckdose mit Sirene: ein, nach 2 Minuten aus) |
 | Alarmton abspielen | Einer von fünf Tönen auf Medienplayern, mit Lautstärke, für eine Dauer oder bis zum Deaktivieren |
 | Warten | Hält die folgenden Schritte an, zum Beispiel zwischen "Sirene ein" und "Sirene aus" |
 | Alarm beenden (quittieren) | Beendet den Alarm nach den Schritten davor (zum Beispiel nach 3 Minuten), stellt die Geräte zurück und lässt die Anlage scharf; die Schritte danach laufen nicht mehr |
