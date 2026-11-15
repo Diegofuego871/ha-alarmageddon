@@ -16,6 +16,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 ### Behoben
 
 - **Dateiauswahl für eigene Töne auf dem iPhone, zweiter Versuch.** Das Auswahlfenster bot weiterhin die Fotomediathek und die Videoaufnahme an. Die Liste der erlaubten Dateien besteht jetzt nur noch aus reinen Endungen (".wav", ".mp3", ".flac") und nennt "audio/*" nicht mehr, das das iPhone ebenfalls als Wunsch nach Medien behandelt. M4A- und OGG-Dateien sind absichtlich nicht genannt (das iPhone behandelt M4A als Video); werden sie auf dem iPhone ausgegraut, wähle im Dateifenster "Alle Dateien" oder melde es.
+- **Die zwei Reiter im Protokoll sind gleich breit.** "Alarme" und "Alle Ereignisse" teilen sich die Leiste genau, auch auf dem Handy, statt dass der rechte breiter ist.
 
 ## [1.43.0] - 2026-11-15
 

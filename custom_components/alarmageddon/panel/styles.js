@@ -1025,6 +1025,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
    Breiten nach dem Inhalt statt gleich breit zu sein: so haben vier Reiter mit Symbol auch auf schmalen Handys Platz. */
 .ag-subs > button > svg { width: 16px; height: 16px; flex: none; }
 :host([narrow]) .ag-subs { grid-auto-columns: auto; }
+:host([narrow]) .ag-subs:not(:has(> button:nth-child(3))) { grid-auto-columns: minmax(0, 1fr); }
 :host([narrow]) .ag-subs > button { gap: 3px; padding: 0 4px; font-size: 13px; }
 :host([narrow]) .ag-subs > button > svg { width: 15px; height: 15px; }
 /* Feste Punkte des Ablaufs (1.14.0): "Anlage scharf geschaltet", "Alarm beginnt", "Alarm endet (quittiert)". Grösser und kräftiger als
