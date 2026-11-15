@@ -12,6 +12,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 ### Hinzugefügt
 
 - **Zonenfarben in den Aktionen.** Jede der sechs Zonen hat ihre eigene Farbe, so siehst du sofort, wohin ein Schritt gehört: Ausgangsverzögerung helles Orange, Eingangsverzögerung dunkles Orange, scharf geschaltet helles Rot, Alarm dunkles Rot, nach dem Quittieren helles Grün, beim Deaktivieren dunkles Grün. Die Schritte laufen von der Zonenfarbe nach neutral, die Verbindungslinie trägt die Farbe, und eine kleine Pille an jedem Schritt nennt die Zone in Worten (so geht es auch ohne Farben zu unterscheiden). Helles und dunkles Thema, Computer und Handy; die Schrift der Pille hat mindestens 3:1 Kontrast.
+- **Tondatei-Symbol für eigene Töne.** Jeder Ton in Konfiguration › Anlage › Eigene Töne trägt vorn ein kleines Dateisymbol mit Wellenform. Die Wellenform ergibt sich aus dem Ton, jeder sieht also anders aus, und beim Abspielen bewegen sich die Balken.
 
 ### Geändert
 

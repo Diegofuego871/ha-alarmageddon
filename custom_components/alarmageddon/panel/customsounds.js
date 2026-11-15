@@ -80,3 +80,23 @@ export async function uploadSound(host, root, ui, t) {
   host._data.custom_sounds = [...customList(host), data.sound].sort((a, b) => a.name.localeCompare(b.name, host._lang || "en"));
   return data.sound;
 }
+
+// Kennzeichen einer Tondatei: eine Dateiseite mit Eselsohr und einer kleinen Wellenform. Die Balken ergeben sich aus der Kennung des Tons,
+// jeder Ton hat also sein eigenes Bild (gleiche Kennung, gleiches Bild). Beim Abspielen bewegen sich die Balken.
+export function soundBadge(id, playing = false) {
+  let h = 2166136261;
+  for (const c of String(id)) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+  const heights = [];
+  for (let i = 0; i < 4; i++) {
+    h ^= h << 13;
+    h >>>= 0;
+    h ^= h >>> 17;
+    h ^= h << 5;
+    h >>>= 0;
+    heights.push(5 + (h % 12));
+  }
+  const bars = [...heights, ...heights.slice(0, 3).reverse()];
+  const rects = bars.map((v, i) => `<rect class="ag-wv" style="--d:${(i * 0.13).toFixed(2)}s" x="${9.2 + i * 3.4}" y="${(29 - v / 2).toFixed(1)}" width="2.2" height="${v}" rx="1.1"/>`).join("");
+  return `<span class="ag-sndbadge ${playing ? "playing" : ""}" aria-hidden="true"><svg width="38" height="44" viewBox="0 0 38 44">
+    <path class="ag-sf-page" d="M6 3h17l11 11v26a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z"/><path class="ag-sf-fold" d="M23 3v8a3 3 0 0 0 3 3h8"/>${rects}</svg></span>`;
+}

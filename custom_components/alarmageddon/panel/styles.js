@@ -953,7 +953,17 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-up-file { height: auto; min-height: 44px; padding: 8px 12px; }
 .ag-up-err { color: var(--ag-error); font-size: 13px; }
 .ag-up-err:empty { display: none; }
-.ag-csrow { align-items: center; }
+.ag-csrow { align-items: center; flex-wrap: nowrap; }
+.ag-csrow .ag-settx { min-width: 0; }
+/* Kennzeichen eines eigenen Tons: Dateiseite mit Wellenform; beim Abspielen schwingen die Balken */
+.ag-sndbadge { flex: none; display: grid; place-items: center; width: 40px; height: 46px; }
+.ag-sndbadge svg { overflow: visible; }
+.ag-sf-page { fill: var(--ag-primary-soft); stroke: var(--ag-primary); stroke-width: 1.5; stroke-linejoin: round; }
+.ag-sf-fold { fill: none; stroke: var(--ag-primary); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; opacity: .8; }
+.ag-wv { fill: var(--ag-primary); transform-box: fill-box; transform-origin: center; }
+.ag-sndbadge.playing .ag-wv { animation: ag-wave .9s ease-in-out infinite alternate; animation-delay: var(--d); }
+@keyframes ag-wave { from { transform: scaleY(.35); } to { transform: scaleY(1.25); } }
+@media (prefers-reduced-motion: reduce) { .ag-sndbadge.playing .ag-wv { animation: none; } }
 .ag-sv-copy { flex: none; width: 30px; height: 30px; margin: -4px -6px -4px -6px; color: var(--ag-text2); }
 .ag-sv-copy.done { color: var(--ag-success); }
 .ag-sv-copy.fail { color: var(--ag-error); }

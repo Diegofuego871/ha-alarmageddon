@@ -4,7 +4,7 @@
 
 const V = new URL(import.meta.url).search;
 const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter } = await import(`./common.js${V}`);
-const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo } = await import(`./customsounds.js${V}`);
+const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo, soundBadge } = await import(`./customsounds.js${V}`);
 
 const MAX = 3600;
 const DEFAULTS = { exit_delay: 0, entry_delay: 30, confirm_window: 60 };
@@ -212,7 +212,7 @@ export class SystemUi {
       }
       const u = usage(this.host, s.id);
       const playing = this.cs.playing === s.url;
-      return `<div class="ag-setrow ag-csrow" data-sound="${esc(s.id)}"><div class="ag-settx"><b>${esc(s.name)}</b><small>${esc(soundInfo(s))} · ${esc(t(u.steps ? "csUsed" : "csUnused", { n: u.steps }))}</small></div>
+      return `<div class="ag-setrow ag-csrow" data-sound="${esc(s.id)}">${soundBadge(s.id, playing)}<div class="ag-settx"><b>${esc(s.name)}</b><small>${esc(soundInfo(s))} · ${esc(t(u.steps ? "csUsed" : "csUnused", { n: u.steps }))}</small></div>
         <div class="ag-btnrow"><button class="ag-iconbtn ${playing ? "on" : ""}" data-sys="${playing ? "cs-stop" : "cs-play"}" data-url="${esc(s.url)}" aria-label="${esc(t(playing ? "pvStop" : "pvPlay"))}" title="${esc(t(playing ? "pvStop" : "pvPlay"))}">${ic(playing ? "stop" : "play", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-rename" data-id="${esc(s.id)}" aria-label="${esc(t("csRename"))}" title="${esc(t("csRename"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-delete" data-id="${esc(s.id)}" aria-label="${esc(t("csDelete"))}" title="${esc(t("csDelete"))}">${ic("trash", 18)}</button></div></div>`;
