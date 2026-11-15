@@ -69,6 +69,9 @@ for (const lang of ["de", "en"]) {
     await dlg("d.querySelector('.ag-sv-range [data-hours=\"720\"]').click(); return 1");
     await s.waitFor("const d=r.getElementById('ag-sensor'); return d.querySelectorAll('.ag-sv-chart .sv-track').length === 30");
     check(`${tag}: 30 Tage: 30 Zeilen, Hinweis, wie weit die Liste reicht`, (await dlg("return d.querySelector('.ag-sv-note')?.textContent || ''")).includes(t.from));
+    // 1.39.0: Reiter verteilen sich immer gleichmässig und kürzen zu langen Text mit "…" statt hart abzuschneiden
+    check(`${tag}: Reiter sind gleich breit und füllen die Leiste (kein Leerraum rechts)`, await dlg("const bar=d.querySelector('.ag-sv-tiles'); const b=[...bar.querySelectorAll('.ag-sv-tile')]; const w=b.map((x) => x.getBoundingClientRect().width); const last=b[b.length-1].getBoundingClientRect().right; return Math.max(...w) - Math.min(...w) <= 2 && bar.getBoundingClientRect().right - last <= 6"));
+    check(`${tag}: Beschriftung und Wert der Reiter kürzen mit Auslassungspunkten`, await dlg("return [...d.querySelectorAll('.ag-sv-tx small, .ag-sv-tx b')].every((e) => { const c=getComputedStyle(e); return c.textOverflow === 'ellipsis' && c.overflow === 'hidden'; })"));
     check(`${tag}: kein seitlicher Überlauf im Fenster`, await dlg("return d.scrollWidth <= d.clientWidth + 1 && [...d.querySelectorAll('.ag-sv-fix > *')].every((e) => e.getBoundingClientRect().right <= d.getBoundingClientRect().right + 1 || e.classList.contains('ag-sv-tiles'))"));
 
     // ----- Sprung zum Alarm im Protokoll -----

@@ -251,14 +251,14 @@ for (const lang of ["de", "en"]) {
     // Alarmton: Ton als Dropdown, Vorhören mit Hinweis, zweiter Player
     await s.tap('.ag-wf-step[data-index="4"] [data-wf="edit"]');
     await s.waitFor("return r.getElementById('ag-step').open && !!r.querySelector('#ag-step .ag-tone')");
-    check(`${tag}: Ton als Dropdown mit fünf Tönen`, await s.ev("return r.querySelectorAll('#ag-step select[data-key=\"sound\"] option').length === 5"));
+    check(`${tag}: Ton als Dropdown mit fünf Tönen`, await s.ev("return r.querySelectorAll('#ag-step select[data-key=\"sound\"] option:not([value=\"__upload\"])').length === 5"));
     // 1.26.0: ein einziger Knopf wie bei den Testknöpfen: erst Abspielen, beim Abspielen wird er zum Stopp-Knopf
     check(`${tag}: Vorschau: nur ein Knopf, zuerst Abspielen`, await s.ev("const t=r.querySelector('#ag-step .ag-tone'); return t.querySelectorAll('.ag-pv button').length === 1 && !!t.querySelector('[data-wf=\"pv-play\"]') && !t.querySelector('[data-wf=\"pv-pause\"]')"));
     await s.ev("const a=r.host.actions; a.previewing = a.edit.form && r.querySelector('#ag-step [data-wf=\"pv-play\"]').dataset.url; a.renderEditor(); return 1");
     check(`${tag}: beim Abspielen wird er zum Stopp-Knopf (derselbe Knopf, Stopp-Symbol)`, await s.waitFor("const t=r.querySelector('#ag-step .ag-tone'); return t.querySelectorAll('.ag-pv button').length === 1 && !!t.querySelector('[data-wf=\"pv-stop\"]') && !t.querySelector('[data-wf=\"pv-play\"]')"));
     await s.ev("r.querySelector('#ag-step [data-wf=\"pv-stop\"]').click(); return 1");
     check(`${tag}: Stopp beendet die Vorschau, der Knopf ist wieder Abspielen`, await s.waitFor("return !r.host.actions.previewing && !!r.querySelector('#ag-step [data-wf=\"pv-play\"]') && !r.querySelector('#ag-step [data-wf=\"pv-stop\"]')"));
-    check(`${tag}: Hinweis, dass nicht auf der Anlage gespielt wird`, await s.ev("return /Handy|phone/.test(r.querySelector('#ag-step .ag-pv-note').innerText)"));
+    check(`${tag}: Hinweis, dass nicht auf der Anlage gespielt wird`, await s.ev("return /Gerät|device/.test(r.querySelector('#ag-step .ag-pv-note').innerText)"));
     check(`${tag}: Zurückstellen an`, await s.ev("return r.querySelector('#ag-step [data-wf=\"restore\"]').getAttribute('aria-checked') === 'true'"));
     await (await s.el('#ag-step select[data-key="sound"]')).selectOption("klaxon");
     await s.tap('#ag-step [data-wf="eq"]');

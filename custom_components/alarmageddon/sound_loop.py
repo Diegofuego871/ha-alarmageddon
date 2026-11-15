@@ -24,7 +24,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
-from .const import ALL_SOUNDS, DOMAIN
+from .const import ALL_SOUNDS, DATA_CUSTOM_SOUNDS, DOMAIN
 
 LOOP_URL_PATH = "/alarmageddon_loop"
 # Längste Datei am Stück: 3 Minuten sind rund 8 MB. Längere Töne setzt der Ablauf aus solchen Stücken zusammen (jedes endet
@@ -47,11 +47,20 @@ def _unit(name: str) -> tuple[int, bytes]:
         return source.getframerate(), source.readframes(source.getnframes())
 
 
-def render(name: str, milliseconds: int) -> bytes:
+@lru_cache(maxsize=8)
+def _custom_unit(path: str, modified: float) -> tuple[int, bytes]:
+    """Eine Wiederholung eines eigenen Tons (beim Hochladen schon Mono mit 16 Bit); `modified` ersetzt die Einträge, wenn die Datei neu ist."""
+    with wave.open(path) as source:
+        if source.getnchannels() != 1 or source.getsampwidth() != 2:
+            raise ValueError("unexpected format of a custom sound")
+        return source.getframerate(), source.readframes(source.getnframes())
+
+
+def render(name: str, milliseconds: int, custom: Path | None = None) -> bytes:
     """WAV mit dem Ton in dieser Länge: Wiederholungen nahtlos aneinander, Anfang und Ende geblendet. Blockierend (Datei lesen)."""
-    if name not in ALL_SOUNDS or not 0 < milliseconds <= LOOP_MAX_SECONDS * 1000:
+    if (custom is None and name not in ALL_SOUNDS) or not 0 < milliseconds <= LOOP_MAX_SECONDS * 1000:
         raise ValueError("unknown sound or length")
-    rate, unit = _unit(name)
+    rate, unit = _unit(name) if custom is None else _custom_unit(str(custom), custom.stat().st_mtime)
     wanted = max(1, rate * milliseconds // 1000)
     samples = array("h")
     samples.frombytes((unit * (-(-wanted * 2 // len(unit))))[: wanted * 2])
@@ -87,17 +96,27 @@ class SoundLoopView(HomeAssistantView):
 
     async def get(self, request: web.Request, milliseconds: str, name: str) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
-        if name not in ALL_SOUNDS or not milliseconds.isdigit() or not 0 < int(milliseconds) <= LOOP_MAX_SECONDS * 1000:
+        registry = hass.data.get(DATA_CUSTOM_SOUNDS)
+        custom = registry.path(name) if registry is not None and registry.has(name) else None
+        if (name not in ALL_SOUNDS and custom is None) or not milliseconds.isdigit() or not 0 < int(milliseconds) <= LOOP_MAX_SECONDS * 1000:
             return web.Response(status=404)
         key = (name, int(milliseconds))
         cache: dict[tuple[str, int], bytes] = hass.data.setdefault(DATA_LOOP_CACHE, {})
         data = cache.get(key)
         if data is None:
-            data = await hass.async_add_executor_job(render, name, int(milliseconds))
+            data = await hass.async_add_executor_job(render, name, int(milliseconds), custom)
             cache[key] = data
             while len(cache) > CACHE_ENTRIES:
                 cache.pop(next(iter(cache)))
         return web.Response(body=data, content_type="audio/wav", headers={"Cache-Control": "no-store"})
+
+
+def forget(hass: HomeAssistant, name: str) -> None:
+    """Ein gelöschter eigener Ton verschwindet auch aus den Speichern: ein neuer Ton mit anderem Inhalt bekäme sonst alte Daten."""
+    cache: dict[tuple[str, int], bytes] = hass.data.get(DATA_LOOP_CACHE) or {}
+    for key in [k for k in cache if k[0] == name]:
+        cache.pop(key, None)
+    _custom_unit.cache_clear()
 
 
 def async_register(hass: HomeAssistant) -> None:

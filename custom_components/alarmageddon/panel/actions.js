@@ -5,6 +5,7 @@
 
 const V = new URL(import.meta.url).search;
 const { ic, esc, MODE_ICON, MODE_KEY, errText } = await import(`./common.js${V}`);
+const { isCustom, customList, customName, uploadHtml, uploadError, uploadSound } = await import(`./customsounds.js${V}`);
 
 // ----- Geräte und ihre Aktionen (wie die Routinen in Device Panel): Domäne -> Aktion -> Dienst -----
 const COMMON = { on: "turn_on", off: "turn_off", toggle: "toggle" };
@@ -584,7 +585,7 @@ export class ActionsUi {
     if (f.kind === "notify") return f.ntTitle || f.ntMessage ? [f.ntTitle, f.ntMessage].filter(Boolean).join(" – ") : this._t("stepNotifyHint");
     if (f.kind === "acknowledge") return this._t("stepAckHint");
     if (f.kind === "wait") return this._t("stepWaitSummary", { seconds: f.seconds });
-    if (isTone(f.kind)) return `${this._t(SOUND_KEY[f.sound] || "sndSiren")} · ${names}${f.setVolume ? ` · ${this._volumeText(f)}` : ""}${f.delay ? "" : ` · ${f.until ? this._t("fldPlayUntilShort") : this._t("durS", { n: f.playSeconds })}`}`;
+    if (isTone(f.kind)) return `${isCustom(f.sound) ? customName(this.host, f.sound) || this._t("customMissing") : this._t(SOUND_KEY[f.sound] || "sndSiren")} · ${names}${f.setVolume ? ` · ${this._volumeText(f)}` : ""}${f.delay ? "" : ` · ${f.until ? this._t("fldPlayUntilShort") : this._t("durS", { n: f.playSeconds })}`}`;
     if (f.kind === "scene") return names;
     if (f.kind === "device") {
       const domains = new Set(f.targets.map((e) => e.split(".")[0]));
@@ -918,14 +919,19 @@ export class ActionsUi {
     const all = [...(this.host._data?.sounds || []), ...(this.host._data?.prealarms || []), ...(this.host._data?.chimes || []), ...(this.host._data?.dechimes || [])];
     const own = this.host._data?.[TONE_LIST[f.kind] || "sounds"] || [];
     const sounds = own.some((s) => s.id === f.sound) ? own : [...own, ...all.filter((s) => s.id === f.sound)];
-    const current = sounds.find((s) => s.id === f.sound);
+    const custom = customList(this.host);
+    const current = sounds.find((s) => s.id === f.sound) || custom.find((s) => s.id === f.sound);
     const play = Boolean(this.previewing && current && this.previewing === current.url);
-    const tone = `<div class="ag-tone"><select class="ag-input" data-wf="f" data-key="sound" aria-label="${esc(this._t("fldTone"))}">${sounds.map((s) => `<option value="${s.id}" ${s.id === f.sound ? "selected" : ""}>${esc(this._t(SOUND_KEY[s.id] || s.id))}</option>`).join("")}</select>
+    // Eigene Töne (1.39.0): für jede Art wählbar; ein Ton, dessen Datei fehlt, bleibt sichtbar ausgewählt ("fehlt"), der Alarm spielt dann den Standardton
+    const missing = isCustom(f.sound) && !custom.some((s) => s.id === f.sound) ? `<option value="${esc(f.sound)}" selected>${esc(this._t("customMissing"))}</option>` : "";
+    const customGroup = `<optgroup label="${esc(this._t("customTones"))}">${custom.map((s) => `<option value="${esc(s.id)}" ${s.id === f.sound ? "selected" : ""}>${esc(s.name)}</option>`).join("")}${missing}<option value="__upload">${esc(this._t("uploadOption"))}</option></optgroup>`;
+    const upload = this.edit?.upload ? `<div class="ag-up-box">${uploadHtml((k, v) => this._t(k, v), this.host, this.edit.upload, (name) => `data-wf="${name}"`)}</div>` : "";
+    const tone = `<div class="ag-tone"><select class="ag-input" data-wf="f" data-key="sound" aria-label="${esc(this._t("fldTone"))}">${sounds.map((s) => `<option value="${s.id}" ${s.id === f.sound ? "selected" : ""}>${esc(this._t(SOUND_KEY[s.id] || s.id))}</option>`).join("")}${customGroup}</select>
         <div class="ag-pv" role="group" aria-label="${esc(this._t("pvNote"))}">
           ${play
             ? `<button class="ag-iconbtn on" data-wf="pv-stop" aria-label="${esc(this._t("pvStop"))}" title="${esc(this._t("pvStop"))}">${ic("stop", 18)}</button>`
             : `<button class="ag-iconbtn" data-wf="pv-play" data-url="${esc(current?.url || "")}" aria-label="${esc(this._t("pvPlay"))}" title="${esc(this._t("pvPlay"))}">${ic("play", 18)}</button>`}</div></div>
-      <div class="ag-pv-note">${ic("info", 14)} ${esc(this._t("pvNote"))}</div>`;
+      <div class="ag-pv-note">${ic("info", 14)} ${esc(this._t("pvNote"))}</div>${upload}`;
     const volume = `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldVolumeSet"))}</b>${f.setVolume ? "" : `<small>${esc(this._t("fldVolumeKeep"))}</small>`}</div>${this._toggle('data-wf="setvol"', f.setVolume, "fldVolumeSet")}</div>
       ${f.setVolume && !(f.perVolume && f.targets.length > 1) ? this._rangeRow('data-wf="volume"', this._t("fldVolume"), Math.round(f.volume * 100), 0, 100, 5, `${Math.round(f.volume * 100)} %`) : ""}
       ${f.setVolume && f.targets.length > 1 ? `<div class="ag-ef-row ag-pervol"><div class="ag-settx"><b>${esc(this._t("fldVolumePer"))}</b><small>${esc(this._t("fldVolumePerHint"))}</small></div>${this._toggle('data-wf="pervol"', f.perVolume, "fldVolumePer")}</div>` : ""}
@@ -1214,6 +1220,27 @@ export class ActionsUi {
         if (isTone(this.edit?.form?.kind)) this.renderEditor();
       }
     });
+  }
+
+  // Eigenen Ton hochladen, direkt aus dem Editor des Schritts; danach ist er für alle Schritte aller Anlagen wählbar
+  async _uploadSound() {
+    const ui = this.edit?.upload;
+    const form = this.edit?.form;
+    if (!ui || !form || ui.busy) return;
+    ui.busy = true;
+    ui.error = "";
+    const dlg = this._dlg();
+    dlg.querySelector('[data-wf="cs-go"]')?.setAttribute("disabled", "");
+    try {
+      const sound = await uploadSound(this.host, dlg, ui, (k, v) => this._t(k, v));
+      form.sound = sound.id;
+      this.edit.upload = null;
+      this.host._toast(this._t("upDone", { name: sound.name }));
+    } catch (err) {
+      ui.busy = false;
+      ui.error = uploadError((k, v) => this._t(k, v), err.code || "upload_failed");
+    }
+    if (this.edit) this.renderEditor();
   }
 
   _stopPreview() {
@@ -1688,6 +1715,11 @@ export class ActionsUi {
     } else if (act === "df" && el.hasAttribute("data-bool")) {
       form.data[el.dataset.key] = !form.data[el.dataset.key];
       this.renderEditor();
+    } else if (act === "cs-cancel") {
+      if (this.edit) this.edit.upload = null;
+      this.renderEditor();
+    } else if (act === "cs-go") {
+      this._uploadSound();
     } else if (act === "pv-play") {
       if (el.dataset.url) this._play(el.dataset.url);
       this.renderEditor();
@@ -1785,8 +1817,14 @@ export class ActionsUi {
         f.extra = {};
         this.renderEditor();
       } else if (key === "sound") {
-        f.sound = el.value;
         this._stopPreview();
+        if (el.value === "__upload") {
+          // "Eigenen Ton hochladen": das Formular erscheint unter dem Feld, der Ton bleibt, wie er war, bis der neue da ist
+          this.edit.upload = this.edit.upload || { name: "", error: "", busy: false };
+        } else {
+          f.sound = el.value;
+          if (this.edit) this.edit.upload = null;
+        }
         this.renderEditor();
       } else if (key === "ntTitle" || key === "ntMessage") {
         // Entspricht der Text dem Standard, bleibt das Feld leer (folgt der Sprache)
@@ -1795,6 +1833,10 @@ export class ActionsUi {
         const prev = this._dlg().querySelector("#ag-ntprev");
         if (prev) prev.innerHTML = this._ntPreview(f);
       } else f[key] = el.value;
+      return true;
+    }
+    if (act === "cs-name") {
+      if (this.edit?.upload) this.edit.upload.name = el.value;
       return true;
     }
     if (act === "scene") {

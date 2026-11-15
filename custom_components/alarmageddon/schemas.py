@@ -31,6 +31,7 @@ from .const import (
     CONF_TRIGGER_TIME,
     AFTER_STEP_TYPES,
     ALL_SOUNDS,
+    CUSTOM_SOUND_ID_RE,
     ARMED_STEP_TYPES,
     DISARMED_STEP_TYPES,
     ARMING_STEP_TYPES,
@@ -59,6 +60,8 @@ from .const import (
 )
 
 SECONDS = vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_DELAY))
+# Ein Ton: einer der mitgelieferten oder ein eigener (Kennung; ob die Datei da ist, zeigt sich beim Abspielen, dort gilt dann der Standardton)
+SOUND_NAME = vol.Any(vol.In(list(ALL_SOUNDS)), vol.Match(CUSTOM_SOUND_ID_RE))
 ENTITY_LIST = [cv.entity_id]
 # Werte eines Sensors: die Schalter (SENSOR_OPTIONS) und die eigene Eingangsverzögerung in Sekunden
 SENSOR_VALUES = vol.Schema({vol.Optional(vol.In(SENSOR_OPTIONS)): bool, vol.Optional(OPT_ALWAYS_OFF): bool, vol.Optional(OPT_ENTRY_DELAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_DELAY))})
@@ -105,7 +108,7 @@ STEP_SCHEMAS = {
         vol.Required("type"): "sound",
         vol.Required("players"): vol.All(ENTITY_LIST, vol.Length(min=1)),
         # Alarmtöne; Gong und Warnung (bis 1.14.0 hier wählbar, jetzt Töne des Voralarms) bleiben in gespeicherten Abläufen gültig
-        vol.Required("sound"): vol.In(list(ALL_SOUNDS)),
+        vol.Required("sound"): SOUND_NAME,
         vol.Optional("volume"): vol.Any(None, vol.All(vol.Coerce(float), vol.Range(min=0, max=1))),
         vol.Optional("volumes"): PLAYER_VOLUMES,
         vol.Optional("repeat", default=1): vol.All(vol.Coerce(int), vol.Range(min=1, max=50)),
@@ -121,7 +124,7 @@ STEP_SCHEMAS = {
         vol.Required("players"): vol.All(ENTITY_LIST, vol.Length(min=1)),
         # Eigene Töne (CHIMES, 1.15.0); ältere Wahl bleibt gültig (1.14.0 bot hier die Alarmtöne an). Das Panel bietet je Schritt nur
         # die eigenen Töne an; der Server prüft, dass es den Ton gibt.
-        vol.Optional("sound", default="tone_pip"): vol.In(list(ALL_SOUNDS)),
+        vol.Optional("sound", default="tone_pip"): SOUND_NAME,
         vol.Optional("volume"): vol.Any(None, vol.All(vol.Coerce(float), vol.Range(min=0, max=1))),
         vol.Optional("volumes"): PLAYER_VOLUMES,
         vol.Optional("duration", default=3): vol.All(vol.Coerce(int), vol.Range(min=1, max=CHIME_MAX_SECONDS)),
@@ -136,7 +139,7 @@ STEP_SCHEMAS = {
     "dechime": vol.Schema({
         vol.Required("type"): "dechime",
         vol.Required("players"): vol.All(ENTITY_LIST, vol.Length(min=1)),
-        vol.Optional("sound", default="off_fall"): vol.In(list(ALL_SOUNDS)),
+        vol.Optional("sound", default="off_fall"): SOUND_NAME,
         vol.Optional("volume"): vol.Any(None, vol.All(vol.Coerce(float), vol.Range(min=0, max=1))),
         vol.Optional("volumes"): PLAYER_VOLUMES,
         vol.Optional("duration", default=3): vol.All(vol.Coerce(int), vol.Range(min=1, max=CHIME_MAX_SECONDS)),
@@ -147,7 +150,7 @@ STEP_SCHEMAS = {
     "prealarm": vol.Schema({
         vol.Required("type"): "prealarm",
         vol.Required("players"): vol.All(ENTITY_LIST, vol.Length(min=1)),
-        vol.Optional("sound", default="pre_beep"): vol.In(list(ALL_SOUNDS)),
+        vol.Optional("sound", default="pre_beep"): SOUND_NAME,
         vol.Optional("volume"): vol.Any(None, vol.All(vol.Coerce(float), vol.Range(min=0, max=1))),
         vol.Optional("volumes"): PLAYER_VOLUMES,
         vol.Optional("duration", default=20): vol.All(vol.Coerce(int), vol.Range(min=1, max=PREALARM_MAX_SECONDS)),

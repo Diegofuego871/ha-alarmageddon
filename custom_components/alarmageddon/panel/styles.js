@@ -209,6 +209,8 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-dlg h3 { margin: 0; font-size: 19px; font-weight: 500; }
 /* Kapitel in Fenstern (Ansicht) sehen aus wie die der Konfiguration: die Regel für Fenstertitel darf sie nicht überstimmen */
 .ag-dlg .ag-chap-t { margin: 0 4px 10px; font-size: 17px; font-weight: 600; }
+/* Fenstertitel etwas grösser als die Kapiteltitel darunter, aber nicht fett */
+.ag-dlg .ag-dlg-body > h3 { font-size: 21px; font-weight: 400; }
 .ag-dlg .ag-chap > select.ag-input { width: 100%; }
 .ag-dlg-btns { display: flex; gap: 10px; justify-content: flex-end; }
 .ag-code { height: 52px; border-radius: 14px; border: 1px solid var(--ag-divider); background: var(--ag-bg); color: var(--ag-text); font: inherit; font-size: 24px; letter-spacing: .3em; text-align: center; }
@@ -889,8 +891,8 @@ dialog.ag-svdlg[open] { height: min(92vh, 860px); }
 .ag-seg > button.ag-sv-tile { justify-content: flex-start; gap: 10px; min-height: 52px; padding: 8px 12px; text-align: left; white-space: normal; color: var(--ag-text); }
 .ag-sv-ti { color: var(--ag-text2); display: grid; flex: none; }
 .ag-seg > button.ag-sv-tile.on .ag-sv-ti { color: var(--ag-primary); }
-.ag-sv-tx { min-width: 0; }
-.ag-sv-tx small { display: block; font-size: 12px; color: var(--ag-text2); line-height: 1.2; }
+.ag-sv-tx { min-width: 0; flex: 1; }
+.ag-sv-tx small { display: block; font-size: 12px; color: var(--ag-text2); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ag-sv-tx b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ag-sv-seg { display: inline-grid; grid-auto-flow: column; gap: 2px; padding: 3px; margin-top: 14px; border-radius: 13px; background: color-mix(in srgb, var(--ag-text) 6%, transparent); }
 .ag-sv-seg button { min-height: 34px; padding: 0 18px; border: 0; border-radius: 10px; background: transparent; color: var(--ag-text2); font: inherit; font-size: 13.5px; white-space: nowrap; cursor: pointer; }
@@ -936,6 +938,12 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-sv-drow { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--ag-divider); }
 .ag-sv-drow:last-child { border-bottom: 0; }
 .ag-sv-drow b { font-weight: 500; text-align: right; overflow-wrap: anywhere; min-width: 0; margin-left: auto; }
+.ag-up { display: grid; gap: 12px; }
+.ag-up-box { margin-top: 12px; }
+.ag-up-file { height: auto; min-height: 44px; padding: 8px 12px; }
+.ag-up-err { color: var(--ag-error); font-size: 13px; }
+.ag-up-err:empty { display: none; }
+.ag-csrow { align-items: center; }
 .ag-sv-copy { flex: none; width: 30px; height: 30px; margin: -4px -6px -4px -6px; color: var(--ag-text2); }
 .ag-sv-copy.done { color: var(--ag-success); }
 .ag-sv-copy.fail { color: var(--ag-error); }
@@ -950,9 +958,8 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-sv-ttl b { font-size: 18px; }
 :host([narrow]) .ag-sv-pill { grid-column: 1 / 3; justify-self: start; }
 :host([narrow]) .ag-sv-ha { grid-column: 3; min-height: 44px; }
-:host([narrow]) .ag-seg.ag-sv-tiles { display: flex; margin: 12px 0 0; overflow-x: auto; scrollbar-width: none; }
-:host([narrow]) .ag-sv-tiles::-webkit-scrollbar { display: none; }
-:host([narrow]) .ag-seg > button.ag-sv-tile { flex: 1 0 auto; min-width: 104px; max-width: 170px; padding: 8px 10px; }
+:host([narrow]) .ag-seg.ag-sv-tiles { display: grid; margin: 12px 0 0; }
+:host([narrow]) .ag-seg > button.ag-sv-tile { min-width: 0; padding: 8px 10px; }
 :host([narrow]) .ag-sv-ti { display: none; }
 :host([narrow]) .ag-sv-tx b { font-size: 13.5px; }
 :host([narrow]) .ag-sv-seg { display: grid; grid-auto-columns: 1fr; }

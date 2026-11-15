@@ -78,6 +78,8 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "backup_delete": {"backup_id": "x"},
     "add_code": {"entry_id": "ENTRY", "name": "Anna", "code": "2468"},
     "remove_code": {"entry_id": "ENTRY", "code_id": "x"},
+    "rename_sound": {"sound_id": "custom_000000000000", "name": "Neuer Name"},
+    "delete_sound": {"sound_id": "custom_000000000000"},
 }
 
 

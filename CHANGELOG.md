@@ -7,6 +7,19 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.39.0] - 2026-11-15
+
+### Added
+
+- **Your own sounds.** Wherever a sound is chosen (alarm tone, pre-alarm, arming tone, disarming tone) the list ends with "Upload your own sound …": give it a name, choose a file, done. The sound is then in the list of every step and every alarm system; a step only refers to it, copying a step never copies the file. In Configuration › System the new chapter "Your own sounds" lists them with play, rename and delete. Formats: WAV always; MP3, OGG, FLAC and M4A when ffmpeg is available in Home Assistant (otherwise the form says so). Limits: 20 sounds, 8 MB per file, 30 seconds, 12 MB in total. Only administrators upload. The format is detected from the content, never from the ending. Own sounds are part of the backup and come back with a restore.
+- **A deleted sound never silences an alarm.** The window asks before deleting a sound that is in use and names the number of steps and the alarm systems. Afterwards these steps play the standard sound of their kind (alarm tone, pre-alarm, arming tone, disarming tone) and show "Own sound deleted (standard sound plays)".
+
+### Changed
+
+- **Preview note.** It now reads "Preview plays on this device, not on the real alarm system." instead of naming phone or computer.
+- **Tabs of the sensor window** are always equally wide and fill the whole bar, also with only two tabs and on the phone. Text that does not fit is shortened with "…" instead of being cut off.
+- **Title of the window "View"** is slightly larger than the chapter titles below it, not bold. The same goes for the titles of other windows.
+
 ## [1.38.0] - 2026-11-15
 
 ### Added
@@ -1439,6 +1452,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.39.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.39.0
 [1.38.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.38.0
 [1.37.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.37.0
 [1.36.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.1

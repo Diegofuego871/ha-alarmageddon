@@ -4,6 +4,7 @@
 
 const V = new URL(import.meta.url).search;
 const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter } = await import(`./common.js${V}`);
+const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo } = await import(`./customsounds.js${V}`);
 
 const MAX = 3600;
 const DEFAULTS = { exit_delay: 0, entry_delay: 30, confirm_window: 60 };
@@ -21,6 +22,7 @@ export class SystemUi {
     this.backups = null; // in der Integration abgelegte Sicherungen (neueste zuerst), null = noch nicht geladen
     this.bkMax = 10;
     this.scope = "away"; // Modus, dessen Werte gerade angezeigt werden (Ansicht, nicht Teil des Entwurfs)
+    this.cs = { rename: null, text: "", error: "", upload: null, playing: null }; // Eigene Töne (1.39.0): Ansicht, nie Teil des Entwurfs
   }
 
   _t(key, vars) {
@@ -139,7 +141,7 @@ export class SystemUi {
         <div class="ag-subh">${esc(this._t("chapTimes"))}</div>${card(timesRows)}
         <div class="ag-subh">${esc(this._t("chapBehaviour"))}</div>${card(behaviourRows)}</div>`);
     const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + perMode
-      + this._schedulesHtml(modes) + this._codesHtml(d) + this._backupHtml() + this._deleteHtml();
+      + this._schedulesHtml(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._backupHtml() + this._deleteHtml();
     // Beim Tippen nie neu aufbauen (Cursor bliebe nicht stehen), nur bei Schaltern und Auswahl
     h._setHtml(form, html);
     h._placePills();
@@ -195,6 +197,83 @@ export class SystemUi {
     const on = Boolean(d?.ackCode) && hasCode;
     return `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("sysAckCode"))}</b><small>${esc(this._t(hasCode ? "sysAckCodeHint" : "sysAckCodeNone"))}</small></div>
       <button class="ag-toggle ${on ? "on" : ""}" data-sys="ackcode" role="switch" aria-checked="${on}" aria-label="${esc(this._t("sysAckCode"))}" ${hasCode ? "" : "disabled"}></button></div>`;
+  }
+
+  // Eigene Töne (1.39.0): gelten für alle Anlagen und alle Arten von Tönen; sofort gespeichert, nicht Teil des Entwurfs. Hochgeladen wird auch direkt im
+  // Editor eines Schritts; hier werden sie angehört, umbenannt und gelöscht.
+  _customSoundsHtml() {
+    const t = (k, v) => this._t(k, v);
+    const list = customList(this.host);
+    const rows = list.map((s) => {
+      if (this.cs.rename === s.id) {
+        return `<div class="ag-setrow ag-csrow"><div class="ag-settx"><input class="ag-input" type="text" maxlength="40" value="${esc(this.cs.text)}" data-sys="cs-name-edit" aria-label="${esc(t("upName"))}">
+          <small class="ag-dlg-err ag-up-err" aria-live="polite">${esc(this.cs.error)}</small></div>
+          <div class="ag-btnrow"><button class="ag-btn primary" data-sys="cs-rename-ok">${esc(t("save"))}</button><button class="ag-btn" data-sys="cs-rename-cancel">${esc(t("cancel"))}</button></div></div>`;
+      }
+      const u = usage(this.host, s.id);
+      const playing = this.cs.playing === s.url;
+      return `<div class="ag-setrow ag-csrow" data-sound="${esc(s.id)}"><div class="ag-settx"><b>${esc(s.name)}</b><small>${esc(soundInfo(s))} · ${esc(t(u.steps ? "csUsed" : "csUnused", { n: u.steps }))}</small></div>
+        <div class="ag-btnrow"><button class="ag-iconbtn ${playing ? "on" : ""}" data-sys="${playing ? "cs-stop" : "cs-play"}" data-url="${esc(s.url)}" aria-label="${esc(t(playing ? "pvStop" : "pvPlay"))}" title="${esc(t(playing ? "pvStop" : "pvPlay"))}">${ic(playing ? "stop" : "play", 18)}</button>
+          <button class="ag-iconbtn" data-sys="cs-rename" data-id="${esc(s.id)}" aria-label="${esc(t("csRename"))}" title="${esc(t("csRename"))}">${ic("pencil", 18)}</button>
+          <button class="ag-iconbtn" data-sys="cs-delete" data-id="${esc(s.id)}" aria-label="${esc(t("csDelete"))}" title="${esc(t("csDelete"))}">${ic("trash", 18)}</button></div></div>`;
+    }).join("");
+    const body = this.cs.upload
+      ? `<div class="ag-setrow ag-up-row">${uploadHtml(t, this.host, this.cs.upload, (name) => `data-sys="${name}"`)}</div>`
+      : `<div class="ag-setrow"><div class="ag-settx"><small>${esc(t("csHint"))}</small></div><div class="ag-btnrow"><button class="ag-btn" data-sys="cs-upload-open" ${list.length >= (this.host._data?.custom_sound_limits?.max || 20) ? "disabled" : ""}>${ic("plus", 18)}${esc(t("csUpload"))}</button></div></div>`;
+    return chapter(t("csTitle"), `<div class="ag-card ag-setlist ag-codes" data-cs="manage">${rows || `<div class="ag-setrow"><div class="ag-settx"><small>${esc(t("csEmpty"))}</small></div></div>`}${body}</div>`);
+  }
+
+  _csStopAudio() {
+    this._csAudio?.pause();
+    this._csAudio = null;
+    this.cs.playing = null;
+  }
+
+  async _csDelete(id) {
+    const h = this.host;
+    const sound = customList(h).find((s) => s.id === id);
+    if (!sound) return;
+    const u = usage(h, id);
+    const text = this._t(u.steps ? "csDeleteUsed" : "csDeleteText", { name: sound.name, n: u.steps, systems: u.systems.join(", ") });
+    if (!(await h._confirm(this._t("csDeleteTitle", { name: sound.name }), text, this._t("csDelete")))) return;
+    try {
+      const res = await h._hass.callWS({ type: "alarmageddon/delete_sound", sound_id: id });
+      h._data.custom_sounds = res.sounds;
+      if (this.cs.playing === sound.url) this._csStopAudio();
+    } catch (err) {
+      h._toast(this._t("errGeneric", { message: errText(err) }));
+    }
+    this.render();
+  }
+
+  async _csRenameOk() {
+    const h = this.host;
+    try {
+      const res = await h._hass.callWS({ type: "alarmageddon/rename_sound", sound_id: this.cs.rename, name: this.cs.text });
+      h._data.custom_sounds = res.sounds;
+      this.cs.rename = null;
+      this.cs.error = "";
+    } catch (err) {
+      this.cs.error = uploadError((k, v) => this._t(k, v), err?.code || "upload_failed");
+    }
+    this.render();
+  }
+
+  async _csUpload() {
+    const ui = this.cs.upload;
+    if (!ui || ui.busy) return;
+    ui.busy = true;
+    ui.error = "";
+    this.host._view?.querySelector('[data-sys="cs-go"]')?.setAttribute("disabled", "");
+    try {
+      const sound = await uploadSound(this.host, this.host._root, ui, (k, v) => this._t(k, v));
+      this.cs.upload = null;
+      this.host._toast(this._t("upDone", { name: sound.name }));
+    } catch (err) {
+      ui.busy = false;
+      ui.error = uploadError((k, v) => this._t(k, v), err.code || "upload_failed");
+    }
+    this.render();
   }
 
   _backupHtml() {
@@ -593,6 +672,42 @@ export class SystemUi {
       this.host._openDelete();
       return true;
     }
+    // Eigene Töne
+    if (act.startsWith("cs-")) {
+      if (act === "cs-play") {
+        this._csStopAudio();
+        const audio = new Audio(el.dataset.url);
+        audio.addEventListener("ended", () => {
+          if (this._csAudio === audio) this._csStopAudio();
+          this.render();
+        });
+        this._csAudio = audio;
+        this.cs.playing = el.dataset.url;
+        audio.play().catch(() => this._csStopAudio());
+        this.render();
+      } else if (act === "cs-stop") {
+        this._csStopAudio();
+        this.render();
+      } else if (act === "cs-rename") {
+        const s = customList(this.host).find((x) => x.id === el.dataset.id);
+        this.cs.rename = el.dataset.id;
+        this.cs.text = s?.name || "";
+        this.cs.error = "";
+        this.render();
+      } else if (act === "cs-rename-cancel") {
+        this.cs.rename = null;
+        this.render();
+      } else if (act === "cs-rename-ok") this._csRenameOk();
+      else if (act === "cs-delete") this._csDelete(el.dataset.id);
+      else if (act === "cs-upload-open") {
+        this.cs.upload = { name: "", error: "", busy: false };
+        this.render();
+      } else if (act === "cs-cancel") {
+        this.cs.upload = null;
+        this.render();
+      } else if (act === "cs-go") this._csUpload();
+      return true;
+    }
     const d = this.ensureDraft();
     const i = Number(el.dataset.index);
     if (act === "permode") {
@@ -683,6 +798,14 @@ export class SystemUi {
   }
 
   onInput(el) {
+    if (el.dataset.sys === "cs-name") {
+      if (this.cs.upload) this.cs.upload.name = el.value;
+      return true;
+    }
+    if (el.dataset.sys === "cs-name-edit") {
+      this.cs.text = el.value;
+      return true;
+    }
     if (el.dataset.sys === "import-file") {
       this.importFile(el);
       return true;

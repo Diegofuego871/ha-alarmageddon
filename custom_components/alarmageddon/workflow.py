@@ -19,6 +19,7 @@ from datetime import timedelta
 from functools import partial
 import logging
 import math
+import re
 from typing import Any
 
 from homeassistant.components.alarm_control_panel import AlarmControlPanelState
@@ -31,6 +32,9 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     ALL_SOUNDS,
+    CUSTOM_SOUND_ID_RE,
+    DATA_CUSTOM_SOUNDS,
+    MAX_CUSTOM_SECONDS,
     CONF_WORKFLOWS,
     CONF_WORKFLOWS_AFTER,
     CONF_WORKFLOWS_ARMED,
@@ -80,7 +84,8 @@ def step_budget(step: dict[str, Any]) -> float:
     if kind == "wait":
         return max(0, int(step.get("seconds", 0) or 0)) + WATCHDOG_GRACE
     if kind in ("sound", "chime", "dechime", "prealarm"):
-        length = ALL_SOUNDS.get(step.get("sound"), max(ALL_SOUNDS.values()))
+        # Ein eigener Ton (unbekannt in der Tabelle) ist höchstens MAX_CUSTOM_SECONDS lang; eine Wiederholung zählt als angefangener Ton
+        length = ALL_SOUNDS.get(step.get("sound"), MAX_CUSTOM_SECONDS if re.match(CUSTOM_SOUND_ID_RE, str(step.get("sound"))) else max(ALL_SOUNDS.values()))
         duration = step.get("duration")
         if duration is None:  # ältere Form: so oft wiederholen, jeder Aufruf höchstens SERVICE_TIMEOUT
             repeat = max(1, int(step.get("repeat", 1) or 1))
@@ -996,11 +1001,28 @@ class WorkflowRunner:
             return
         await asyncio.gather(*(self._undo_now(run, entry) for entry in entries), return_exceptions=True)
 
+    def _sound(self, name: Any, default: str) -> tuple[str, float] | None:
+        """
+        Name und Länge (eine Wiederholung) eines Tons. Ein eigener Ton, dessen Datei fehlt (gelöscht, nicht zurückgespielt), wird nie still
+        übergangen: ein Alarm muss klingen. Dann gilt der Standardton der Schrittart (Warnung im Log). Unbekannte Namen: None.
+        """
+        if name in ALL_SOUNDS:
+            return str(name), ALL_SOUNDS[name]
+        if isinstance(name, str) and re.match(CUSTOM_SOUND_ID_RE, name):
+            registry = self.hass.data.get(DATA_CUSTOM_SOUNDS)
+            length = registry.length(name) if registry is not None else None
+            if length:
+                return name, length
+            _LOGGER.warning("%s: the custom sound %s is missing; the default sound %s plays instead", self.entry.title, name, default)
+            return default, ALL_SOUNDS[default]
+        return None
+
     async def _play(self, step: dict[str, Any], resumable: bool = False) -> None:
         players = list(step.get("players", []))
-        sound = step.get("sound", "siren")
-        if not players or sound not in ALL_SOUNDS:
+        found = self._sound(step.get("sound", "siren"), {"prealarm": "pre_beep", "chime": "tone_pip", "dechime": "off_fall"}.get(str(step.get("type")), "siren"))
+        if not players or found is None:
             return
+        sound, length = found
         try:
             base = get_url(self.hass, allow_external=False, prefer_external=False)
         except NoURLAvailableError:
@@ -1013,7 +1035,7 @@ class WorkflowRunner:
         await self._set_volumes(step, players)
         duration = step.get("duration")
         if duration is None:  # ältere Form (Wiederholungen): so lang wie die Wiederholungen zusammen
-            duration = max(1, int(step.get("repeat", 1))) * ALL_SOUNDS[sound]
+            duration = max(1, int(step.get("repeat", 1))) * length
             resumable = False
         # Dauer in Sekunden, vom Nutzer eingestellt; 0 = so lange, bis deaktiviert wird: der Ablauf bricht den Schritt dann ab.
         # Ein abgewarteter Ton zählt seine Dauer ab dem ersten Start (nach Neuladen oder Neustart nur der Rest, siehe _remaining)
@@ -1089,9 +1111,10 @@ class WorkflowRunner:
         der Melodie abgeschnitten: bei 3 Sekunden spielt ein Ton von 1 Sekunde dreimal, einer von 2 Sekunden einmal.
         """
         players = list(step.get("players", []))
-        sound = step.get("sound", "off_fall" if step.get("type") == "dechime" else "tone_pip")
-        if not players or sound not in ALL_SOUNDS:
+        found = self._sound(step.get("sound", "off_fall" if step.get("type") == "dechime" else "tone_pip"), "off_fall" if step.get("type") == "dechime" else "tone_pip")
+        if not players or found is None:
             return
+        sound, length = found
         try:
             base = get_url(self.hass, allow_external=False, prefer_external=False)
         except NoURLAvailableError:
@@ -1103,7 +1126,6 @@ class WorkflowRunner:
         remembered = await self._remember(step, players)
         await self._set_volumes(step, players)
         # Ganze Wiederholungen in einer einzigen Datei (1.17.0): der Lautsprecher wird einmal gestartet
-        length = ALL_SOUNDS[sound]
         total = max(1, int(int(step.get("duration") or 3) // length)) * length
         try:
             await self._call("media_player", "play_media", {"entity_id": players, "media_content_id": loop_url(base, sound, total), "media_content_type": "music"})

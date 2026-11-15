@@ -7,6 +7,19 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.39.0] - 2026-11-15
+
+### Hinzugefügt
+
+- **Eigene Töne.** Überall, wo ein Ton gewählt wird (Alarmton, Voralarm, Aktivierungs- und Deaktivierungston), endet die Liste mit "Eigenen Ton hochladen …": Namen geben, Datei wählen, fertig. Der Ton steht danach in der Liste jedes Schritts und jeder Alarmanlage; ein Schritt verweist nur auf ihn, ein kopierter Schritt kopiert nie die Datei. In Konfiguration › Anlage listet das neue Kapitel "Eigene Töne" sie mit Abspielen, Umbenennen und Löschen. Formate: WAV immer; MP3, OGG, FLAC und M4A, wenn ffmpeg in Home Assistant vorhanden ist (sonst sagt das Formular es). Grenzen: 20 Töne, 8 MB je Datei, 30 Sekunden, 12 MB insgesamt. Hochladen dürfen nur Administratoren. Das Format wird am Inhalt erkannt, nie an der Endung. Eigene Töne gehören zur Sicherung und kommen beim Wiederherstellen zurück.
+- **Ein gelöschter Ton macht keinen Alarm stumm.** Vor dem Löschen eines genutzten Tons fragt das Fenster nach und nennt die Zahl der Schritte und die Alarmanlagen. Danach spielen diese Schritte den Standardton ihrer Art (Alarmton, Voralarm, Aktivierungs-, Deaktivierungston) und zeigen "Eigener Ton gelöscht (Standardton spielt)".
+
+### Geändert
+
+- **Hinweis zur Vorschau.** Er lautet jetzt "Vorschau spielt auf diesem Gerät und nicht auf der echten Anlage." statt Handy oder Computer zu nennen.
+- **Reiter im Sensorfenster** sind immer gleich breit und füllen die ganze Leiste, auch bei nur zwei Reitern und auf dem Handy. Text, der nicht passt, wird mit "…" gekürzt statt abgeschnitten.
+- **Titel des Fensters "Ansicht"** ist etwas grösser als die Kapiteltitel darunter, nicht fett. Dasselbe gilt für die Titel der anderen Fenster.
+
 ## [1.38.0] - 2026-11-15
 
 ### Hinzugefügt
@@ -1439,6 +1452,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.39.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.39.0
 [1.38.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.38.0
 [1.37.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.37.0
 [1.36.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.1

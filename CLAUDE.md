@@ -144,6 +144,11 @@ Umsetzung:
   Stunde lang (`ARM_BUTTONS_VALID`), nur vom Handy eines Empfängers dieser Meldung, für den Modus des gescheiterten Versuchs
   (nie aus dem Ereignis des Handys) und ohne Code. Jede dieser Bedingungen hat einen Test in `tests/test_arm_buttons.py`
   und eine Zeile in `scripts/mutation_check.py`.
+- Eigene Töne (seit 1.39.0, `custom_sounds.py`): Hochladen nur für Administratoren; das Format kommt aus den ersten Bytes (`sniff`), nie aus
+  der Endung; Nicht-WAV nur über ffmpeg mit fest vorgegebenem Format, Zeitgrenze und Länge `MAX_CUSTOM_SECONDS`; Grenzen für Anzahl, Grösse,
+  Länge, Abtastrate stehen in `const.py`. Fehlt die Datei eines eigenen Tons, spielt der Schritt den Standardton seiner Art (`workflow._sound`):
+  ein Alarm darf nie stumm bleiben. Der Wächter rechnet für eigene Töne mit `MAX_CUSTOM_SECONDS`. Tests in `tests/test_custom_sounds.py`,
+  Zeilen in `scripts/mutation_check.py`; Sicherungen tragen die Töne und prüfen sie beim Zurückholen (`valid_backup_sounds`).
 - Jede Änderung am Zustandsautomaten oder an der Szenario-Engine braucht
   Tests für: Deaktivieren während Verzögerung, Neustart während Alarm,
   Sensor fällt im scharfen Zustand aus.

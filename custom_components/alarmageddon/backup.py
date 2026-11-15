@@ -16,6 +16,8 @@ Zielanlage bleiben unverändert.
 
 from __future__ import annotations
 
+import copy
+import hashlib
 import uuid
 from typing import Any
 
@@ -26,7 +28,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import BACKUPS_STORE_KEY, CONF_CODE_ACK_REQUIRED, CONF_CODE_ARM_REQUIRED, DOMAIN, MAX_BACKUPS
+from .const import BACKUPS_STORE_KEY, CONF_CODE_ACK_REQUIRED, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
+from .custom_sounds import valid_backup_sounds
 from .schemas import SYSTEM_OPTIONS_SCHEMA
 from .settings import async_get_settings, valid_notify, valid_presets
 from .systems import async_create_system, new_system_name
@@ -52,7 +55,9 @@ async def async_export(hass: HomeAssistant, integration_version: str | None) -> 
         "version": VERSION,
         "integration_version": integration_version,
         "created": dt_util.utcnow().isoformat(),
-        "settings": {"presets": settings.presets, "notify": settings.notify, "names_with_device": settings.names_with_device},
+        # Eigene Töne (1.39.0): die Schritte verweisen nur auf die Kennung, die Datei steckt hier (Base64), damit ein Wiederherstellen nichts vermisst
+        "settings": {"presets": settings.presets, "notify": settings.notify, "names_with_device": settings.names_with_device,
+                     "custom_sounds": await registry.async_export() if (registry := hass.data.get(DATA_CUSTOM_SOUNDS)) is not None else []},
         "systems": systems,
     }
 
@@ -79,6 +84,7 @@ def validate(data: Any) -> dict[str, Any]:
         "notify": valid_notify(settings["notify"]) if "notify" in settings else None,
         # Anzeige der Namen (1.12.0); ältere Sicherungen kennen sie nicht, dann bleibt die Einstellung, wie sie ist
         "names_with_device": settings["names_with_device"] if isinstance(settings.get("names_with_device"), bool) else None,
+        "custom_sounds": valid_backup_sounds(settings.get("custom_sounds")),
     }
 
 
@@ -104,7 +110,7 @@ def plan(hass: HomeAssistant, backup: dict[str, Any]) -> dict[str, Any]:
         for i, s in enumerate(backup["systems"])
     ]
     targets = [{"entry_id": e.entry_id, "title": e.title} for e in entries]
-    return {"systems": found, "missing": missing, "settings": any(backup.get(k) is not None for k in ("presets", "notify", "names_with_device")), "items": items, "targets": targets}
+    return {"systems": found, "missing": missing, "settings": any(backup.get(k) is not None for k in ("presets", "notify", "names_with_device")), "items": items, "targets": targets, "sounds": len(backup.get("custom_sounds") or [])}
 
 
 def _resolve(hass: HomeAssistant, backup: dict[str, Any], mapping: list[dict[str, Any]] | None) -> list[tuple[dict[str, Any], ConfigEntry | str]]:
@@ -146,6 +152,10 @@ async def async_restore(hass: HomeAssistant, backup: dict[str, Any], mapping: li
     result = plan(hass, backup)
     targets = _resolve(hass, backup, mapping)
     settings = await async_get_settings(hass)
+    # Eigene Töne zuerst: die Schritte der Anlagen verweisen auf sie (nur was fehlt wird zurückgeholt, Vorhandenes bleibt)
+    registry = hass.data.get(DATA_CUSTOM_SOUNDS)
+    if registry is not None and backup.get("custom_sounds"):
+        await registry.async_import(backup["custom_sounds"])
     if restore_settings and backup["notify"] is not None:
         await settings.async_set_notify(backup["notify"])
     if restore_settings and backup.get("names_with_device") is not None:
@@ -185,10 +195,27 @@ def _store(hass: HomeAssistant) -> Store:
     return Store(hass, 1, BACKUPS_STORE_KEY)
 
 
-async def _load(hass: HomeAssistant) -> list[dict[str, Any]]:
+async def _load_store(hass: HomeAssistant) -> tuple[list[dict[str, Any]], dict[str, str]]:
     data = await _store(hass).async_load()
     items = data.get("backups") if isinstance(data, dict) else None
-    return [b for b in (items or []) if isinstance(b, dict) and isinstance(b.get("id"), str) and isinstance(b.get("data"), dict)]
+    blobs = data.get("blobs") if isinstance(data, dict) and isinstance(data.get("blobs"), dict) else {}
+    return [b for b in (items or []) if isinstance(b, dict) and isinstance(b.get("id"), str) and isinstance(b.get("data"), dict)], {k: v for k, v in blobs.items() if isinstance(v, str)}
+
+
+async def _load(hass: HomeAssistant) -> list[dict[str, Any]]:
+    return (await _load_store(hass))[0]
+
+
+def _sounds_of(data: dict[str, Any]) -> list[dict[str, Any]]:
+    settings = data.get("settings")
+    sounds = settings.get("custom_sounds") if isinstance(settings, dict) else None
+    return [s for s in sounds if isinstance(s, dict)] if isinstance(sounds, list) else []
+
+
+async def _save_store(hass: HomeAssistant, items: list[dict[str, Any]], blobs: dict[str, str]) -> None:
+    # Töne, die keine Sicherung mehr nennt, fallen aus der Ablage: jede Datei steht nur einmal da, auch in zehn Sicherungen
+    used = {s.get("sha256") for b in items for s in _sounds_of(b["data"])}
+    await _store(hass).async_save({"backups": items, "blobs": {k: v for k, v in blobs.items() if k in used}})
 
 
 async def async_list_backups(hass: HomeAssistant) -> list[dict[str, Any]]:
@@ -201,22 +228,41 @@ async def async_list_backups(hass: HomeAssistant) -> list[dict[str, Any]]:
 
 async def async_create_backup(hass: HomeAssistant, integration_version: str | None, name: str = "") -> dict[str, Any]:
     data = await async_export(hass, integration_version)
-    items = await _load(hass)
+    items, blobs = await _load_store(hass)
     name = " ".join(name.split())[:60]
-    item = {"id": uuid.uuid4().hex[:12], "name": name, "created": data["created"], "data": data}
+    # Die Töne stehen einmal in der Ablage (nach ihrer Prüfsumme), die Sicherung nennt nur die Prüfsumme
+    stored = copy.deepcopy(data)
+    for sound in _sounds_of(stored):
+        digest = hashlib.sha256(sound["wav"].encode()).hexdigest()
+        blobs[digest] = sound.pop("wav")
+        sound["sha256"] = digest
+    item = {"id": uuid.uuid4().hex[:12], "name": name, "created": data["created"], "data": stored}
     items = [item, *items][:MAX_BACKUPS]
-    await _store(hass).async_save({"backups": items})
+    await _save_store(hass, items, blobs)
     return {"id": item["id"], "name": name, "created": item["created"], "systems": [s["title"] for s in data["systems"]]}
 
 
 async def async_get_backup(hass: HomeAssistant, backup_id: str) -> dict[str, Any] | None:
-    return next((b["data"] for b in await _load(hass) if b["id"] == backup_id), None)
+    items, blobs = await _load_store(hass)
+    data = next((b["data"] for b in items if b["id"] == backup_id), None)
+    if data is None:
+        return None
+    data = copy.deepcopy(data)
+    settings = data.get("settings")
+    if isinstance(settings, dict) and isinstance(settings.get("custom_sounds"), list):
+        restored = []
+        for sound in _sounds_of(data):
+            wav = sound.get("wav") or blobs.get(str(sound.get("sha256")))
+            if wav:
+                restored.append({"id": sound.get("id"), "name": sound.get("name"), "wav": wav})
+        settings["custom_sounds"] = restored
+    return data
 
 
 async def async_delete_backup(hass: HomeAssistant, backup_id: str) -> bool:
-    items = await _load(hass)
+    items, blobs = await _load_store(hass)
     rest = [b for b in items if b["id"] != backup_id]
     if len(rest) == len(items):
         return False
-    await _store(hass).async_save({"backups": rest})
+    await _save_store(hass, rest, blobs)
     return True

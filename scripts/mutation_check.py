@@ -192,7 +192,7 @@ MUTATIONS = [
     ("Ton am Stück ohne Ausblenden am Ende", "sound_loop.py",
      "        samples[-1 - i] = samples[-1 - i] * i // fade_out\n", "        pass\n", "tests/test_sound_loop.py -k starts_and_ends_in_silence"),
     ("Adresse der Töne nimmt beliebige Namen und Längen an", "sound_loop.py",
-     "        if name not in ALL_SOUNDS or not milliseconds.isdigit() or not 0 < int(milliseconds) <= LOOP_MAX_SECONDS * 1000:\n            return web.Response(status=404)\n", "", "tests/test_sound_loop.py -k without_login"),
+     "        if (name not in ALL_SOUNDS and custom is None) or not milliseconds.isdigit() or not 0 < int(milliseconds) <= LOOP_MAX_SECONDS * 1000:\n            return web.Response(status=404)\n", "", "tests/test_sound_loop.py -k without_login"),
     ("Knopf der Push-Meldung heisst wieder \"Sirene stumm\"", "notify.py", '"action_silence": "Alarmton stumm",', '"action_silence": "Sirene stumm",', "tests/test_tones.py -k push_button"),
     ("Lautstärke je Medienplayer wird übergangen", "workflow.py", '            level = own.get(player, step.get("volume"))\n', '            level = step.get("volume")\n', "tests/test_save_reload.py -k volume"),
     ("Zeiten abgeschalteter Modi fehlen in den Daten (Panel zeigt dauerhaft \"1 Änderung\")", "websocket_api.py",
@@ -412,6 +412,22 @@ MUTATIONS = [
     ("Code entfernen lässt \"Quittieren verlangt den Code\" stehen", "websocket_api.py",
      "        options[CONF_CODE_ACK_REQUIRED] = False\n    changed = hass.config_entries.async_update_entry(entry, options=options)", "    changed = hass.config_entries.async_update_entry(entry, options=options)",
      "tests/test_dashboard_card.py -k websocket_saves_the_setting"),
+    # Eigene Töne (1.39.0): Hochladen nur für Administratoren, Format am Inhalt, feste Grenzen, Standardton als Rückfall
+    ("Eigene Töne: Hochladen auch für Nutzer ohne Administratorrechte", "custom_sounds.py",
+     "        if user is None or not user.is_admin:\n            return web.json_response({\"error\": \"unauthorized\"}, status=401)",
+     "        if user is None:\n            return web.json_response({\"error\": \"unauthorized\"}, status=401)", "tests/test_custom_sounds.py -k only_administrators"),
+    ("Eigene Töne: zu hohe Abtastrate wird angenommen", "custom_sounds.py",
+     "            if not MIN_RATE <= rate <= MAX_CUSTOM_RATE:", "            if False:", "tests/test_custom_sounds.py -k not_a_usable_sound"),
+    ("Eigene Töne: zu lange Datei (über 30 Sekunden) wird angenommen", "custom_sounds.py",
+     "            if seconds > MAX_CUSTOM_SECONDS:", "            if False:", "tests/test_custom_sounds.py -k not_a_usable_sound"),
+    ("Eigene Töne: ffmpeg bekommt das Format nicht fest vorgegeben (Erkennung durch ffmpeg statt am Inhalt)", "custom_sounds.py",
+     '[ffmpeg, "-nostdin", "-v", "error", "-f", kind, "-i"', '[ffmpeg, "-nostdin", "-v", "error", "-i"', "tests/test_custom_sounds.py -k ffmpeg_gets_the_format"),
+    ("Eigene Töne: ffmpeg ohne Zeitgrenze", "custom_sounds.py",
+     "capture_output=True, timeout=FFMPEG_TIMEOUT, check=False)", "capture_output=True, check=False)", "tests/test_custom_sounds.py -k ffmpeg_gets_the_format"),
+    ("Eigene Töne: fehlende Datei übergeht den Schritt still statt den Standardton zu spielen (Alarm bliebe stumm)", "workflow.py",
+     "            return default, ALL_SOUNDS[default]\n        return None", "            return None\n        return None", "tests/test_custom_sounds.py -k falls_back_when_its_file_is_missing"),
+    ("Eigene Töne: Wiederherstellen übernimmt Einträge, die keine Töne sind", "custom_sounds.py",
+     "        if len(item[\"wav\"]) > MAX_UPLOAD_BYTES * 4 // 3 + 16:", "        if False:", "tests/test_custom_sounds.py -k too_big_is_dropped"),
 ]
 
 

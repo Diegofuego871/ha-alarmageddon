@@ -60,7 +60,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 151  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 152  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -277,6 +277,17 @@ CHIMES: Final = {"tone_pip": 1.0, "tone_double": 1.0, "tone_soft": 1.5, "tone_be
 # Deaktivierungston (1.27.0): das Gegenstück zum Aktivierungston für "Beim Deaktivieren", fallend statt steigend
 DECHIMES: Final = {"off_fall": 2.0, "off_confirm": 1.5, "off_bell": 2.0, "off_soft": 1.5, "off_double": 1.0}
 ALL_SOUNDS: Final = {**SOUNDS, **PREALARMS, **CHIMES, **DECHIMES}
+# Eigene Töne (1.39.0): vom Nutzer hochgeladen, überall dort wählbar, wo es einen Ton gibt. Eine Kennung "custom_" und 12 Hexzeichen.
+CUSTOM_SOUND_ID_RE: Final = r"^custom_[0-9a-f]{12}$"
+CUSTOM_URL_PATH: Final = "/alarmageddon_custom"
+CUSTOM_SOUNDS_STORE_KEY: Final = f"{DOMAIN}.custom_sounds"
+DATA_CUSTOM_SOUNDS: Final = f"{DOMAIN}_custom_sounds"
+MAX_CUSTOM_SOUNDS: Final = 20
+MAX_UPLOAD_BYTES: Final = 8 * 1024 * 1024  # Datei beim Hochladen (vor dem Umwandeln)
+MAX_CUSTOM_SECONDS: Final = 30  # Länge eines eigenen Tons; er wird für die gewählte Dauer wiederholt
+MAX_CUSTOM_RATE: Final = 48000
+MAX_CUSTOM_TOTAL_BYTES: Final = 12 * 1024 * 1024  # alle eigenen Töne zusammen
+MAX_CUSTOM_NAME: Final = 40
 PREALARM_MAX_SECONDS: Final = 600
 SOUNDS_URL_PATH: Final = "/alarmageddon_sounds"
 DATA_SOUNDS: Final = f"{DOMAIN}_sounds_registered"

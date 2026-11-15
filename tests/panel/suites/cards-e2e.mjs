@@ -30,6 +30,7 @@ for (const lang of ["de", "en"]) {
       // "Ansicht" sieht aus wie die Konfiguration: Abschnitte als Kapitel (fetter Titel, blauer Strich), keine kleinen grauen Beschriftungen
       await s.tap('[data-list="view"]');
       check(`${tag}: "Ansicht": Abschnitte sind Kapitel wie in der Konfiguration (17 px fett, blauer Strich), keine grauen Grossbuchstaben`, await s.ev(`const d=r.getElementById('ag-view'); const t=[...d.querySelectorAll('.ag-chap-t')]; const st=getComputedStyle(t[0]); const bar=getComputedStyle(t[0],'::before'); return t.length >= 6 && t.every((x) => getComputedStyle(x).fontSize === '17px' && getComputedStyle(x).fontWeight >= 600) && bar.width === '4px' && bar.backgroundColor !== 'rgba(0, 0, 0, 0)' && d.querySelectorAll('.ag-label').length === 0`));
+      check(`${tag}: "Ansicht": der Titel ist etwas grösser als die Kapiteltitel, aber nicht fett`, await s.ev("const d=r.getElementById('ag-view'); const h=getComputedStyle(d.querySelector('h3')); const c=getComputedStyle(d.querySelector('.ag-chap-t')); return parseFloat(h.fontSize) > parseFloat(c.fontSize) && parseFloat(h.fontSize) - parseFloat(c.fontSize) <= 6 && parseInt(h.fontWeight) < 600"));
       await s.tap('[data-list="vdone"]');
       check(`${tag}: Standard ist die Liste`, await s.ev("return !!r.querySelector('.ag-ltable') && !r.querySelector('.ag-mcards')"));
       await setLayout("cards");

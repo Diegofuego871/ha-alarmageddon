@@ -27,7 +27,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integrations
 from homeassistant.util import slugify
 
-from . import backup, last_change
+from . import backup, custom_sounds, last_change
 from .code import hash_code, match_code
 from .systems import async_create_system, new_system_name
 from .const import (
@@ -59,7 +59,12 @@ from .const import (
     CONF_WORKFLOW_END,
     CONF_WORKFLOWS_AFTER,
     CHIMES,
+    DATA_CUSTOM_SOUNDS,
     DECHIMES,
+    MAX_CUSTOM_SECONDS,
+    MAX_CUSTOM_SOUNDS,
+    MAX_CUSTOM_TOTAL_BYTES,
+    MAX_UPLOAD_BYTES,
     CONF_WORKFLOWS_ARMED,
     CONF_WORKFLOWS_DISARMED,
     CONF_WORKFLOWS_ARMING,
@@ -127,6 +132,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_backup_delete)
     websocket_api.async_register_command(hass, ws_add_code)
     websocket_api.async_register_command(hass, ws_remove_code)
+    websocket_api.async_register_command(hass, ws_rename_sound)
+    websocket_api.async_register_command(hass, ws_delete_sound)
 
 
 def _entry(hass: HomeAssistant, connection, msg: dict[str, Any]) -> ConfigEntry | None:
@@ -290,6 +297,9 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
         "chimes": [{"id": key, "seconds": seconds, "url": f"{SOUNDS_URL_PATH}/{key}.wav"} for key, seconds in CHIMES.items()],
         "dechimes": [{"id": key, "seconds": seconds, "url": f"{SOUNDS_URL_PATH}/{key}.wav"} for key, seconds in DECHIMES.items()],
         "prealarms": [{"id": key, "seconds": seconds, "url": f"{SOUNDS_URL_PATH}/{key}.wav"} for key, seconds in PREALARMS.items()],
+        # Eigene Töne des Nutzers (1.39.0): für alle Anlagen und alle Arten von Tönen wählbar
+        "custom_sounds": _custom_listing(hass),
+        "custom_sound_limits": {"max": MAX_CUSTOM_SOUNDS, "seconds": MAX_CUSTOM_SECONDS, "bytes": MAX_UPLOAD_BYTES, "total": MAX_CUSTOM_TOTAL_BYTES, "ffmpeg": custom_sounds.ffmpeg_binary(hass) is not None},
     })
 
 
@@ -900,6 +910,48 @@ async def ws_add_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -> N
     options[CONF_CODES] = [*(entry.options.get(CONF_CODES) or []), new]
     hass.config_entries.async_update_entry(entry, options=options)
     connection.send_result(msg["id"], {"id": new["id"]})
+
+
+def _custom_listing(hass: HomeAssistant) -> list[dict[str, Any]]:
+    registry = hass.data.get(DATA_CUSTOM_SOUNDS)
+    return registry.listing() if registry is not None else []
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/rename_sound", vol.Required("sound_id"): str, vol.Required("name"): vol.All(str, vol.Length(max=200))})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_rename_sound(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """Einen eigenen Ton umbenennen. Die Schritte verweisen auf die Kennung: nichts muss angepasst werden."""
+    registry = hass.data.get(DATA_CUSTOM_SOUNDS)
+    if registry is None:
+        connection.send_error(msg["id"], "not_found", "No custom sounds")
+        return
+    try:
+        await registry.async_rename(msg["sound_id"], msg["name"])
+    except custom_sounds.SoundError as err:
+        connection.send_error(msg["id"], err.code, "Cannot rename the sound")
+        return
+    connection.send_result(msg["id"], {"sounds": registry.listing()})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/delete_sound", vol.Required("sound_id"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_delete_sound(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Einen eigenen Ton löschen (das Panel fragt vorher und nennt die Schritte, die ihn nutzen). Ein Schritt, der ihn noch nennt, spielt danach den
+    Standardton seiner Art: ein Alarm klingt weiter.
+    """
+    registry = hass.data.get(DATA_CUSTOM_SOUNDS)
+    if registry is None:
+        connection.send_error(msg["id"], "not_found", "No custom sounds")
+        return
+    try:
+        await registry.async_delete(msg["sound_id"])
+    except custom_sounds.SoundError as err:
+        connection.send_error(msg["id"], err.code, "Unknown sound")
+        return
+    connection.send_result(msg["id"], {"sounds": registry.listing()})
 
 
 @websocket_api.websocket_command(
