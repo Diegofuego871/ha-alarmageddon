@@ -60,7 +60,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 157  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 158  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -282,6 +282,9 @@ CUSTOM_SOUND_ID_RE: Final = r"^custom_[0-9a-f]{12}$"
 CUSTOM_URL_PATH: Final = "/alarmageddon_custom"
 CUSTOM_SOUNDS_STORE_KEY: Final = f"{DOMAIN}.custom_sounds"
 DATA_CUSTOM_SOUNDS: Final = f"{DOMAIN}_custom_sounds"
+DATA_RECEPTION: Final = f"{DOMAIN}_reception"  # Aufzeichnung des Empfangs (reception.py)
+DATA_BLE_STAMPS: Final = f"{DOMAIN}_ble_stamps"  # Meldezeiten je Bluetooth-Empfänger, kurz gemerkt
+DATA_BLE_BEST: Final = f"{DOMAIN}_ble_best"  # zuletzt gezählter Empfänger je Bluetooth-Adresse (kein Hin und Her)
 MAX_CUSTOM_SOUNDS: Final = 20
 MAX_UPLOAD_BYTES: Final = 8 * 1024 * 1024  # Datei beim Hochladen (vor dem Umwandeln)
 MAX_CUSTOM_SECONDS: Final = 30  # Länge eines eigenen Tons; er wird für die gewählte Dauer wiederholt

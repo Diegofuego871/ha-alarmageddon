@@ -46,7 +46,7 @@ Alle Anlagen auf einen Blick: scharf schalten und deaktivieren, "Bereit für" je
 
 ### Sensoransicht
 
-Ein Tipp auf einen Sensor zeigt, was er getan hat: je Sensorart eine eigene Grafik über 3 Stunden bis 30 Tage (Türen und Fenster als Zeitleiste, Bewegung als Raster aus Tag und Stunde), darunter die Ereignisse mit Dauer und dem Zustand der Anlage in diesem Moment. Die Kacheln "Batterie" und "Empfang" zeigen deren Verlauf, die Batterie mit Warnschwelle, Batteriewechsel und Prognose.
+Ein Tipp auf einen Sensor zeigt, was er getan hat: je Sensorart eine eigene Grafik über 3 Stunden bis 30 Tage (Türen und Fenster als Zeitleiste, Bewegung als Raster aus Tag und Stunde), darunter die Ereignisse mit Dauer und dem Zustand der Anlage in diesem Moment. Die Kacheln "Batterie" und "Empfang" zeigen deren Verlauf, die Batterie mit Warnschwelle, Batteriewechsel und Prognose. "Empfang" gibt es auch für Bluetooth- und ZHA-Geräte ohne Empfangssensor: Alarmageddon liest den Wert von Home Assistant selbst (bei mehreren Bluetooth-Adaptern oder Proxys zählt der stärkste, ohne Hin und Her) und zeichnet den Verlauf selbst auf. Du siehst nur den Wert und die Grafik.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sensor-de.png" alt="Sensoransicht einer Tür: Verlauf über 7 Tage mit Kennzahlen und Ereignisliste" width="100%"></p>
 

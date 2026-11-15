@@ -436,6 +436,21 @@ MUTATIONS = [
      "tests/test_custom_sounds.py -k failure_while_saving"),
     ("Eigene Töne: ein HEIC-Foto geht als MP4 an ffmpeg", "custom_sounds.py",
      '    if raw[4:8] == b"ftyp" and raw[8:12] not in IMAGE_BRANDS:', '    if raw[4:8] == b"ftyp":', "tests/test_custom_sounds.py -k says_what_it_is"),
+    # Empfang (1.41.0): der stärkste Empfänger zählt, ohne Hin und Her; nur gültige Werte; nur lebende Geräte werden aufgezeichnet
+    ("Empfang: nicht der stärkste, sondern der schwächste Empfänger zählt", "reception.py",
+     "    best = max(fresh, key=lambda x: (x[1], -x[0]))", "    best = min(fresh, key=lambda x: (x[1], -x[0]))", "tests/test_reception.py -k strongest_receiver"),
+    ("Empfang: der Wert springt zwischen zwei fast gleich starken Empfängern hin und her", "reception.py",
+     "    if kept is not None and kept[1] >= best[1] - BLE_KEEP_DB:", "    if False:", "tests/test_reception.py -k does_not_make_the_value_jump"),
+    ("Empfang: ein Empfänger mit veralteter Meldung zählt mit", "reception.py",
+     "    fresh = [x for x in seen if x[0] - freshest <= BLE_WINDOW_S]", "    fresh = list(seen)", "tests/test_reception.py -k not_heard_the_device_for_long"),
+    ("Empfang: ungültige Werte (0 dBm) zählen als stärkster Wert", "reception.py",
+     "            if not isinstance(rssi, (int, float)) or not BLE_MIN < rssi < 0:", "            if not isinstance(rssi, (int, float)):", "tests/test_reception.py -k invalid_values_never_count"),
+    ("Empfang: unmögliche Werte kommen in den Verlauf", "reception.py",
+     "        if not plausible(kind, value):\n            return False", "        if False:\n            return False", "tests/test_reception.py -k implausible_values"),
+    ("Empfang: ein ausgefallenes Gerät wird weiter aufgezeichnet (der letzte Wert sagt nichts über jetzt)", "reception.py",
+     "            if not alive:", "            if False:", "tests/test_reception.py -k only_devices_that_are_alive"),
+    ("Empfang: die Anzeige folgt dem Einzelwert statt dem Median der letzten Minuten", "reception.py",
+     '        return {**signal, "value": round(statistics.median([*recent, float(signal["value"])]))}', "        return signal", "tests/test_reception.py -k median_of_the_last_minutes"),
 ]
 
 

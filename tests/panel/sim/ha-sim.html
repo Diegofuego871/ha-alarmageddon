@@ -55,6 +55,11 @@
     const [manufacturer, model, sw] = DEV[info.platform] || [null, null, null];
     Object.assign(info, { type: TYPE[info.device_class] || "other", manufacturer, model, sw_version: sw, signal: key in SIGNAL ? `sensor.${key}_signal` : null });
   }
+  // ZHA und Bluetooth (1.41.0): Empfang direkt vom Server, ohne Entität. ?ble=1: Küchenfenster hört der Server mit -61 dBm, die Terrassentür gerade nicht
+  if (params.get("ble") === "1") {
+    Object.assign(SENSORS["binary_sensor.fenster_kueche"], { signal: null, signal_live: { kind: "dbm", value: -61 } });
+    Object.assign(SENSORS["binary_sensor.terrassentuer"], { signal: null, signal_live: { kind: "dbm", value: null } });
+  }
   const BATT = { haustuer: 72, bewegung_flur: 83, rauchmelder_flur: 88, fenster_kueche: 78, fenster_wohnzimmer: 64, terrassentuer: 55, fenster_bad: 19, bewegung_garage: 44, wasser_keller: 91 };
 
   window.__systems = params.get("empty") ? [] : [

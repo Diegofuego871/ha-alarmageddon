@@ -196,8 +196,10 @@ export class ListUi {
       const st = h._state(id);
       const gone = !st || GONE.has(st.state) || info.missing;
       const battery = h._battery(id);
-      const sigState = info.signal ? h._state(info.signal) : null;
-      const sigVal = sigState ? Number(sigState.state) : NaN;
+      // ZHA und Bluetooth (1.41.0): der Server liefert den Wert (der stärkste Empfänger, geglättet); sonst der Sensor des Geräts
+      const live = info.signal_live;
+      const sigState = !live && info.signal ? h._state(info.signal) : null;
+      const sigVal = live ? (live.value ?? NaN) : sigState ? Number(sigState.state) : NaN;
       return {
         id, info, systems, gone, battery,
         name: h._name(id),
@@ -207,7 +209,7 @@ export class ListUi {
         occupied: st?.state === "on" && MOTION_CLASSES.has(info.device_class),
         open: st?.state === "on" && !MOTION_CLASSES.has(info.device_class),
         low: battery !== null && battery < h._lowBattery(),
-        signal: Number.isFinite(sigVal) ? { value: sigVal, unit: sigState.attributes.unit_of_measurement || "" } : null,
+        signal: Number.isFinite(sigVal) ? { value: sigVal, unit: live ? (live.kind === "dbm" ? "dBm" : "LQI") : sigState.attributes.unit_of_measurement || "" } : null,
         // Letzte echte Änderung (offen <-> zu) vom Server; HA setzt last_changed bei jedem Neustart zurück, das gilt hier nicht
         changed: h._data?.last_changes?.[id] || null,
       };

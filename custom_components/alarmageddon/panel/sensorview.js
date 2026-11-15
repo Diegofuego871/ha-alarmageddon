@@ -50,7 +50,7 @@ export class SensorView {
 
   tabs() {
     const info = this.info();
-    return ["state", ...(info.battery ? ["battery"] : []), ...(info.signal ? ["signal"] : []), "device"];
+    return ["state", ...(info.battery ? ["battery"] : []), ...(info.signal || info.signal_live ? ["signal"] : []), "device"];
   }
 
   open(id) {
@@ -184,7 +184,7 @@ export class SensorView {
     const tileValue = {
       state: () => `${stateText}${st?.last_changed ? ` ${this._t("since", { time: this.host._fmtTime(st.last_changed) })}` : ""}`,
       battery: () => this._entityValue(info.battery, "%"),
-      signal: () => this._entityValue(info.signal, ""),
+      signal: () => (info.signal_live ? this._liveValue(info.signal_live) : this._entityValue(info.signal, "")),
       device: () => [info.manufacturer, info.model].filter(Boolean).join(" ") || this._t("svDeviceNone"),
     };
     const tiles = this.tabs().map((tab) => `<button type="button" class="ag-sv-tile ${tab === this.tab ? "on" : ""}" data-sv="tab" data-tab="${tab}" role="tab" aria-selected="${tab === this.tab}">
@@ -237,6 +237,11 @@ export class SensorView {
       el.classList.remove("done", "fail");
       el.innerHTML = ic("copy", 16);
     }, 1600);
+  }
+
+  // Empfang von ZHA oder Bluetooth: der Wert kommt vom Server (1.41.0)
+  _liveValue(live) {
+    return live.value === null || live.value === undefined ? "–" : `${Math.round(live.value)} ${live.kind === "dbm" ? "dBm" : "LQI"}`;
   }
 
   _entityValue(entityId, fallbackUnit) {

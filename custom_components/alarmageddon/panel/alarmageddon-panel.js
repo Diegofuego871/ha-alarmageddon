@@ -405,7 +405,8 @@ class AlarmageddonPanel extends HTMLElement {
       const st = this._state(id);
       parts.push(st ? `${st.state}|${st.last_changed}` : "-");
       if (info.battery) parts.push(this._state(info.battery)?.state ?? "-");
-      if (info.signal) parts.push(this._state(info.signal)?.state ?? "-");
+      if (info.signal_live) parts.push(info.signal_live.value ?? "-");
+      else if (info.signal) parts.push(this._state(info.signal)?.state ?? "-");
     }
     return parts.join(",");
   }

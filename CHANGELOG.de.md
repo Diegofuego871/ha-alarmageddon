@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.41.0] - 2026-11-15
+
+### Hinzugefügt
+
+- **Empfang von Bluetooth- und ZHA-Geräten.** Geräte, deren Empfang nur Home Assistant selbst kennt (Bluetooth-Geräte, ZHA), zeigen jetzt auch ohne Empfangssensor einen Wert und einen Verlauf. Du siehst nur den Wert (dBm oder LQI) in der Liste und den Reiter "Empfang" mit dem Verlauf, nichts über Empfänger oder Technik. Bei mehreren Bluetooth-Adaptern oder Proxys zählt der **stärkste** Empfänger; der Wert springt nicht zwischen zwei fast gleich starken hin und her (der bisherige Empfänger bleibt, solange kein anderer mehr als 2 dB stärker ist; nur Empfänger, die das Gerät kürzlich gehört haben, zählen; ungültige Werte wie 0 dBm werden ignoriert). Der Wert folgt dem Median der letzten Minuten. Den Verlauf zeichnet das Panel selbst auf (jede Minute für überwachte Geräte, die leben: 5-Minuten-Blöcke für einen Tag, Stunden für 31 Tage), weil Home Assistant diese Werte nicht speichert. Ein Gerät, das gerade nicht gehört wird, behält den Reiter und zeigt "–". Geräte mit Empfangssensor funktionieren wie bisher.
+
 ## [1.40.0] - 2026-11-15
 
 ### Hinzugefügt
@@ -1469,6 +1475,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.41.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.41.0
 [1.40.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.40.0
 [1.39.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.39.0
 [1.38.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.38.0

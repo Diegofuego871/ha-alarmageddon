@@ -149,6 +149,10 @@ Umsetzung:
   Länge, Abtastrate stehen in `const.py`. Fehlt die Datei eines eigenen Tons, spielt der Schritt den Standardton seiner Art (`workflow._sound`):
   ein Alarm darf nie stumm bleiben. Der Wächter rechnet für eigene Töne mit `MAX_CUSTOM_SECONDS`. Tests in `tests/test_custom_sounds.py`,
   Zeilen in `scripts/mutation_check.py`; Sicherungen tragen die Töne und prüfen sie beim Zurückholen (`valid_backup_sounds`).
+- Empfang (seit 1.41.0, `reception.py`): Der Nutzer sieht nur Wert und Verlauf, nie Empfänger, Proxy oder Technik (Vorgabe des Nutzers, 2026-11-15). Bei Bluetooth
+  zählt der stärkste Empfänger, der bisherige bleibt bis `BLE_KEEP_DB` dB Unterschied (kein Hin und Her); ungültige Werte (0 dBm) und veraltete Empfänger
+  zählen nie. Interne Schnittstellen von HA und ZHA sind mit `try` gelesen: fehlt etwas, bleibt der Wert leer, nie ein Fehler in der Liste. Ausgefallene
+  Geräte werden nicht aufgezeichnet. Tests in `tests/test_reception.py`, Zeilen in `scripts/mutation_check.py`.
 - Jede Änderung am Zustandsautomaten oder an der Szenario-Engine braucht
   Tests für: Deaktivieren während Verzögerung, Neustart während Alarm,
   Sensor fällt im scharfen Zustand aus.

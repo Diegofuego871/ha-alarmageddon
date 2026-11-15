@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.41.0] - 2026-11-15
+
+### Added
+
+- **Signal strength of Bluetooth and ZHA devices.** Devices that report their signal only inside Home Assistant (Bluetooth devices, ZHA) now show a value and a history, even without a signal sensor. You see just the value (dBm or LQI) in the list and the tab "Signal" with the history, nothing about receivers or technology. With several Bluetooth adapters or proxies the **strongest** receiver counts; the value does not jump back and forth between two almost equally strong ones (the previous receiver stays unless another is more than 2 dB stronger; only receivers that heard the device recently count; invalid values such as 0 dBm are ignored). The value follows the median of the last minutes. The panel records the history itself (every minute for monitored devices that are alive: 5-minute blocks for a day, hours for 31 days), because Home Assistant does not store these values. A device that is not heard right now keeps the tab and shows "–". Devices with a signal sensor work as before.
+
 ## [1.40.0] - 2026-11-15
 
 ### Added
@@ -1469,6 +1475,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.41.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.41.0
 [1.40.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.40.0
 [1.39.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.39.0
 [1.38.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.38.0

@@ -27,7 +27,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integrations
 from homeassistant.util import slugify
 
-from . import backup, custom_sounds, last_change
+from . import backup, custom_sounds, last_change, reception
 from .code import hash_code, match_code
 from .systems import async_create_system, new_system_name
 from .const import (
@@ -60,6 +60,7 @@ from .const import (
     CONF_WORKFLOWS_AFTER,
     CHIMES,
     DATA_CUSTOM_SOUNDS,
+    DATA_RECEPTION,
     DECHIMES,
     MAX_CUSTOM_SECONDS,
     MAX_CUSTOM_SOUNDS,
@@ -186,6 +187,8 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str]) -> dict[str, dict[s
             "platform": reg.platform if reg else None,
             "battery": batteries.get(reg.device_id) if reg and reg.device_id else None,
             "signal": signals.get(reg.device_id) if reg and reg.device_id else None,
+            # ZHA und Bluetooth (seit 1.41.0): der Wert kommt direkt aus der Integration, ohne Entität; sonst None
+            "signal_live": reception.live_signal(hass, device),
             "manufacturer": device.manufacturer if device else None,
             "model": device.model if device else None,
             "sw_version": device.sw_version if device else None,
@@ -194,7 +197,7 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str]) -> dict[str, dict[s
     # Gewählte Sensoren, die es (gerade) nicht gibt, trotzdem zeigen: der Nutzer soll sie entfernen können
     for entity_id in extra - out.keys():
         out[entity_id] = {"name": entity_id, "device_class": None, "type": "other", "area": None, "platform": None, "battery": None,
-                          "signal": None, "manufacturer": None, "model": None, "sw_version": None, "device_id": None, "missing": True}
+                          "signal": None, "signal_live": None, "manufacturer": None, "model": None, "sw_version": None, "device_id": None, "missing": True}
     return out
 
 
@@ -1119,11 +1122,21 @@ async def ws_sensor_history(hass: HomeAssistant, connection, msg: dict[str, Any]
         reg = er.async_get(hass).async_get(entity_id)
         batteries, signals = device_sensors(hass)
         numeric = (batteries if kind == "battery" else signals).get(reg.device_id) if reg and reg.device_id else None
-        if numeric is None:
-            connection.send_error(msg["id"], "not_found", "No such sensor on this device")
-            return
-        settings = await async_get_settings(hass)
-        result = await async_numeric_history(hass, numeric, kind, hours, settings.notify["battery_threshold"])
+        result = None
+        if kind == "signal" and reg and reg.device_id:
+            # ZHA und Bluetooth: die eigene Aufzeichnung (der Recorder kennt den Wert nicht). Hat sie noch nichts, gilt der Sensor des Geräts.
+            device = dr.async_get(hass).async_get(reg.device_id)
+            log = hass.data.get(DATA_RECEPTION)
+            if log is not None and reception.live_signal(hass, device) is not None:
+                result = reception.history_response(hass, log, reg.device_id, hours, numeric)
+                if not result["points"] and numeric is not None:
+                    result = None
+        if result is None:
+            if numeric is None:
+                connection.send_error(msg["id"], "not_found", "No such sensor on this device")
+                return
+            settings = await async_get_settings(hass)
+            result = await async_numeric_history(hass, numeric, kind, hours, settings.notify["battery_threshold"])
     connection.send_result(msg["id"], result)
 
 
