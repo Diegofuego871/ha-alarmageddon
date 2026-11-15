@@ -373,6 +373,23 @@ for (const lang of ["de", "en"]) {
     const tn = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/test_notify').at(-1)");
     check(`${tag}: Testmeldung der Art`, tn?.kind === "battery_low", JSON.stringify(tn));
     check(`${tag}: kein Überlauf (Meldungen)`, await s.ev("return document.documentElement.scrollWidth <= window.innerWidth"));
+    // Lautstärke: sind die Werte je Medienplayer alle gleich, zeigt die Karte genau diesen Wert (nicht den alten des einfachen Reglers), und
+    // Übernehmen speichert ihn als gemeinsamen Wert. Vorher: Karte "75 %", Fenster und Wiedergabe "80 %".
+    {
+      const P = ["media_player.sonos_wohnzimmer", "media_player.sonos_kueche", "media_player.sonos_buero"];
+      const step = { type: "sound", players: P, sound: "siren", repeat: 5, restore: true, volume: 0.75, volumes: Object.fromEntries(P.map((p) => [p, 0.8])) };
+      await s.tap('[data-sub="actions"]');
+      await s.page.waitForTimeout(500);
+      const entryId = await s.ev("return r.host.actions.system.entry_id");
+      await s.sim(`window.__systems.find((x) => x.entry_id === ${JSON.stringify(entryId)}).workflows = { away: [${JSON.stringify(step)}] }; return 1`);
+      await s.ev("r.host.actions.draft = null; r.host.actions.trigger = 'away'; return r.host._fetch().then(() => { r.host.actions.render(); return 1; })");
+      await s.waitFor("return !!r.querySelector('.ag-wf-main .ag-wf-step .ag-t2')");
+      check(`${tag}: Lautstärke je Medienplayer alle 80 %: die Karte zeigt 80 %, nicht den alten gemeinsamen Wert 75 %`, await s.ev("const x=r.querySelector('.ag-wf-main .ag-wf-step .ag-t2').textContent; return x.includes('80 %') && !x.includes('75 %')"));
+      await s.tap('.ag-wf-main .ag-wf-step [data-wf="edit"]');
+      await s.waitFor("return r.getElementById('ag-step').open");
+      await s.tap('#ag-step [data-wf="apply"]');
+      check(`${tag}: Übernehmen speichert 80 % als gemeinsamen Wert (kein gemeinsamer Wert 75 % neben den 80 % je Player)`, await s.ev("const st=r.host.actions.steps()[0]; return st.volume === 0.8 && !st.volumes"));
+    }
     check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
   }

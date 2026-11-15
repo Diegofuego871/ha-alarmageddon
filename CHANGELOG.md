@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.35.5] - 2026-11-15
+
+### Fixed
+
+- **Volume of a tone: the card and the window disagreed.** If a tone step had its own volume for each media player and all of them were the same (for example 80 %), the card in the list still showed the old common value (75 %) that is no longer visible in the window, and saving kept that old value. The card now shows the value that really plays, and when applying the window the equal values become the common volume. Steps saved before this fix show the right value at once.
+
 ## [1.35.4] - 2026-11-15
 
 ### Fixed
@@ -1405,6 +1411,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.35.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.5
 [1.35.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.4
 [1.35.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.3
 [1.35.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.2

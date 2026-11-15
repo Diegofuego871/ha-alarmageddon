@@ -66,6 +66,15 @@ const ownVolumes = (f) => {
   const map = Object.fromEntries(f.targets.map((id) => [id, Number(f.volumes?.[id] ?? f.volume)]));
   return new Set(Object.values(map)).size > 1 ? map : null;
 };
+// Der gemeinsame Wert, der wirklich gilt: sind die Werte je Medienplayer alle gleich, ist das der gemeinsame Wert (die Karte und das Speichern
+// dürfen dann nicht den alten Wert des einfachen Reglers nehmen, der gar nicht mehr zu sehen ist)
+const effectiveVolume = (f) => {
+  if (f.perVolume && f.targets.length > 1) {
+    const values = f.targets.map((id) => Number(f.volumes?.[id] ?? f.volume));
+    if (new Set(values).size === 1) return values[0];
+  }
+  return Number(f.volume);
+};
 // Voralarm und Aktivierungston haben immer eine Dauer und stellen nichts zurück (anders als der Alarmton)
 const isShortTone = (kind) => kind === "chime" || kind === "dechime" || kind === "prealarm";
 // Aktionen während der Verzögerungen (1.19.0): "arming" (Scharfschalten beginnt, die Ausgangsverzögerung läuft) und "entry"
@@ -197,16 +206,16 @@ function toStepBase(f) {
   if (f.kind === "acknowledge") return { type: "acknowledge" };
   if (f.kind === "wait") return { type: "wait", seconds: Math.max(0, Math.round(Number(f.seconds) || 0)) };
   if (f.kind === "prealarm") {
-    return { type: "prealarm", players: f.targets, sound: f.sound, volume: f.setVolume ? Number(f.volume) : null, duration: Math.min(600, Math.max(1, Math.round(Number(f.playSeconds) || 20))), restore: f.restore !== false };
+    return { type: "prealarm", players: f.targets, sound: f.sound, volume: f.setVolume ? effectiveVolume(f) : null, duration: Math.min(600, Math.max(1, Math.round(Number(f.playSeconds) || 20))), restore: f.restore !== false };
   }
   if (f.kind === "dechime") {
-    return { type: "dechime", players: f.targets, sound: f.sound, volume: f.setVolume ? Number(f.volume) : null, duration: Math.min(300, Math.max(1, Math.round(Number(f.playSeconds) || 3))), restore: f.restore !== false };
+    return { type: "dechime", players: f.targets, sound: f.sound, volume: f.setVolume ? effectiveVolume(f) : null, duration: Math.min(300, Math.max(1, Math.round(Number(f.playSeconds) || 3))), restore: f.restore !== false };
   }
   if (f.kind === "chime") {
-    return { type: "chime", players: f.targets, sound: f.sound, volume: f.setVolume ? Number(f.volume) : null, duration: Math.min(300, Math.max(1, Math.round(Number(f.playSeconds) || 3))), restore: f.restore !== false };
+    return { type: "chime", players: f.targets, sound: f.sound, volume: f.setVolume ? effectiveVolume(f) : null, duration: Math.min(300, Math.max(1, Math.round(Number(f.playSeconds) || 3))), restore: f.restore !== false };
   }
   if (f.kind === "sound") {
-    return { type: "sound", players: f.targets, sound: f.sound, volume: f.setVolume ? Number(f.volume) : null, duration: f.until ? 0 : Math.min(3600, Math.max(1, Math.round(Number(f.playSeconds) || 1))), restore: !!f.restore };
+    return { type: "sound", players: f.targets, sound: f.sound, volume: f.setVolume ? effectiveVolume(f) : null, duration: f.until ? 0 : Math.min(3600, Math.max(1, Math.round(Number(f.playSeconds) || 1))), restore: !!f.restore };
   }
   if (f.kind === "scene") return { type: "action", action: `${f.targets[0].split(".")[0]}.turn_on`, target: [f.targets[0]], data: {}, restore: false };
   if (f.kind === "device") {
@@ -603,7 +612,7 @@ export class ActionsUi {
   // "70 %" oder, mit eigenen Werten je Medienplayer, die Spanne "30–70 %"
   _volumeText(f) {
     const own = ownVolumes(f);
-    if (!own) return `${Math.round(f.volume * 100)} %`;
+    if (!own) return `${Math.round(effectiveVolume(f) * 100)} %`;
     const values = Object.values(own).map((v) => Math.round(v * 100));
     return `${Math.min(...values)}–${Math.max(...values)} %`;
   }
