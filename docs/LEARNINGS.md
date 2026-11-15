@@ -166,7 +166,7 @@ hat dort einen echten Fehler oder Umweg gekostet.
   `bluetooth`): hassfest verlangt sie in `dependencies` oder
   `after_dependencies`. Für "nutzen, wenn vorhanden" `after_dependencies`.
   Lokal läuft hassfest nicht, erst in der CI: Manifest bei neuen Importen
-  selbst prüfen.
+  selbst prüfen. Seit 1.40.0 prüft `tests/test_manifest.py` das (1.39.0 scheiterte in hassfest an `ffmpeg`).
 - **Entitätsname:** Bei `has_entity_name` ohne eigenen Namen (`name` und
   `original_name` leer) heisst die Hauptentität wie das Gerät. Nicht auf
   `friendly_name` aus dem Zustand verlassen: der fehlt, wenn ein Zustand

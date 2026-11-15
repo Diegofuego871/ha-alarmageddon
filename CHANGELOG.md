@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **File choice for your own sounds on the iPhone.** The file dialog no longer offers the photo library and video recording, only files. The list of allowed endings no longer names ".m4a", ".aac" and ".ogg" (the iPhone treats them as video); "audio/*" still covers all audio files.
 - **Clear error messages when uploading a sound.** Instead of "The upload failed" the panel now says what is actually wrong: "This is a picture, not a sound" (also for iPhone photos in HEIC), "a document", "a text file", "The file has no sound track", "could not be read as a sound (damaged, or not a supported audio format)", or, when the request does not arrive, "The file could not be sent" with the hint to check the connection and that the file is on the device and not only in the cloud. If Home Assistant answers unexpectedly, the message names the status code and points to the Home Assistant log, where the cause is now written. A file that cannot be read never ends as a server error.
+- **Validation by Home Assistant (hassfest).** The integration declares ffmpeg as an optional dependency (`after_dependencies`); without it the validation of 1.39.0 failed. A new test checks every imported integration against the manifest, so this cannot happen again unnoticed.
 
 ## [1.39.0] - 2026-11-15
 

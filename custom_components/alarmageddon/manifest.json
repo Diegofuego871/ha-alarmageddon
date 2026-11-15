@@ -2,6 +2,7 @@
   "domain": "alarmageddon",
   "name": "Alarmageddon",
   "after_dependencies": [
+    "ffmpeg",
     "recorder"
   ],
   "codeowners": [
