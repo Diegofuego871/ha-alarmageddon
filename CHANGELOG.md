@@ -7,6 +7,16 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.38.0] - 2026-11-15
+
+### Added
+
+- **Copy button for every detail of a device.** In the window of a sensor, the tab "Device" shows a small button behind each detail (manufacturer, model, firmware, integration, area, entity). It copies the whole value, also the long entity name that the row cuts off, and shows a check mark. Where the browser does not allow the clipboard (companion app without HTTPS), a fallback is used.
+
+### Changed
+
+- **The tabs of the sensor window look like all other tabs.** "History", "Battery", "Signal" and "Device" at the top are one connected bar with a sliding capsule under the chosen tab, like everywhere else in the panel, instead of single tiles with a blue frame. Size and the two lines (label above, value below) stay.
+
 ## [1.37.0] - 2026-11-15
 
 ### Added
@@ -1429,6 +1439,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.38.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.38.0
 [1.37.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.37.0
 [1.36.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.1
 [1.36.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.0

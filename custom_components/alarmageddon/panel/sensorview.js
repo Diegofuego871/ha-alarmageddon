@@ -104,6 +104,8 @@ export class SensorView {
       this.data = null;
       this.render();
       this.load();
+    } else if (act === "copy") {
+      this._copy(el);
     } else if (act === "range") {
       this.hours[this.tab] = Number(el.dataset.hours);
       this.load();
@@ -194,11 +196,47 @@ export class SensorView {
           <div class="ag-sv-ttl"><b>${esc(info.name || this.id)}</b><small>${esc(sub)}</small></div>
           <span class="ag-sv-pill ${stateCls}">${esc(stateText)}</span>
           <button type="button" class="ag-btn ag-sv-ha" data-sv="ha">${ic("external", 18)}${esc(this._t("svOpenHa"))}</button></div>
-        <div class="ag-sv-tiles n${this.tabs().length}" role="tablist">${tiles}</div>
+        <div class="ag-seg ag-sv-tiles n${this.tabs().length}" data-seg="sv-tabs" role="tablist">${tiles}</div>
         ${body.fix}
       </div>
       <div class="ag-sv-list">${body.list}</div></div>`);
     if (body.busy) loaderStart(this.host._root, this.host);
+    // Die Reiter oben sind eine gewöhnliche Reiterleiste mit gleitender Kapsel wie im ganzen Panel: das Panel setzt die Kapsel
+    this.host._placePills?.();
+  }
+
+  // Wert in die Zwischenablage. Der Browser erlaubt `navigator.clipboard` im Panel (iframe) nicht überall (Companion App, kein HTTPS): dann der Weg
+  // über ein verstecktes Textfeld. Rückmeldung am Knopf selbst (Häkchen), ein Hinweis läge hinter dem Fenster.
+  async _copy(el) {
+    const value = el.dataset.value || "";
+    let ok = false;
+    try {
+      await this.host._root.ownerDocument.defaultView.navigator.clipboard.writeText(value);
+      ok = true;
+    } catch {
+      try {
+        const doc = this.host._root.ownerDocument;
+        const area = doc.createElement("textarea");
+        area.value = value;
+        area.setAttribute("readonly", "");
+        area.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+        (el.closest("dialog") || doc.body).appendChild(area);
+        area.select();
+        area.setSelectionRange(0, value.length);
+        ok = doc.execCommand("copy");
+        area.remove();
+      } catch {
+        ok = false;
+      }
+    }
+    el.classList.toggle("done", ok);
+    el.classList.toggle("fail", !ok);
+    el.innerHTML = ic(ok ? "check" : "alert", 16);
+    clearTimeout(el._copyTimer);
+    el._copyTimer = setTimeout(() => {
+      el.classList.remove("done", "fail");
+      el.innerHTML = ic("copy", 16);
+    }, 1600);
   }
 
   _entityValue(entityId, fallbackUnit) {
@@ -544,7 +582,8 @@ export class SensorView {
 
   _deviceHtml() {
     const info = this.info();
-    const row = (label, value) => (value ? `<div class="ag-sv-drow"><span class="ag-t2">${esc(label)}</span><b>${esc(value)}</b></div>` : "");
+    // Hinter jeder Angabe ein Knopf, der den ganzen Wert kopiert (auch wenn die Zeile ihn abschneidet oder umbricht)
+    const row = (label, value) => (value ? `<div class="ag-sv-drow"><span class="ag-t2">${esc(label)}</span><b>${esc(value)}</b><button type="button" class="ag-iconbtn ag-sv-copy" data-sv="copy" data-value="${esc(value)}" aria-label="${esc(this._t("svCopy", { name: label }))}" title="${esc(this._t("svCopy", { name: label }))}">${ic("copy", 16)}</button></div>` : "");
     const facts = [row(this._t("svDevMaker"), info.manufacturer), row(this._t("svDevModel"), info.model), row(this._t("svDevFirmware"), info.sw_version),
       row(this._t("svDevIntegration"), info.integration || info.platform), row(this._t("svDevArea"), info.area), row(this._t("svDevEntity"), this.id)].join("");
     const systems = (this.host._data?.systems || []).map((sys) => {

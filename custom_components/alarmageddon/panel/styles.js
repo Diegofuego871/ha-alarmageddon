@@ -885,13 +885,10 @@ dialog.ag-svdlg[open] { height: min(92vh, 860px); }
 .ag-sv-pill.off { background: var(--ag-subtle); color: var(--ag-text2); }
 .ag-sv-ha { flex: none; }
 /* Kacheln als Reiter: jede zeigt ihren aktuellen Wert, die gewählte bestimmt Grafik, Kennzahlen und Liste */
-.ag-sv-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
-.ag-sv-tiles.n3 { grid-template-columns: repeat(3, 1fr); }
-.ag-sv-tiles.n2 { grid-template-columns: repeat(2, 1fr); }
-.ag-sv-tile { border: 1px solid var(--ag-divider); border-radius: 14px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 52px; background: var(--ag-card); color: var(--ag-text); font: inherit; text-align: left; cursor: pointer; }
-.ag-sv-tile.on { border-color: var(--ag-primary); background: var(--ag-primary-soft); box-shadow: inset 0 0 0 1px var(--ag-primary); }
+.ag-seg.ag-sv-tiles { display: grid; width: 100%; box-sizing: border-box; margin-top: 16px; }
+.ag-seg > button.ag-sv-tile { justify-content: flex-start; gap: 10px; min-height: 52px; padding: 8px 12px; text-align: left; white-space: normal; color: var(--ag-text); }
 .ag-sv-ti { color: var(--ag-text2); display: grid; flex: none; }
-.ag-sv-tile.on .ag-sv-ti { color: var(--ag-primary); }
+.ag-seg > button.ag-sv-tile.on .ag-sv-ti { color: var(--ag-primary); }
 .ag-sv-tx { min-width: 0; }
 .ag-sv-tx small { display: block; font-size: 12px; color: var(--ag-text2); line-height: 1.2; }
 .ag-sv-tx b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -938,7 +935,10 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-sv-dcard { padding: 4px 16px; }
 .ag-sv-drow { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--ag-divider); }
 .ag-sv-drow:last-child { border-bottom: 0; }
-.ag-sv-drow b { font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+.ag-sv-drow b { font-weight: 500; text-align: right; overflow-wrap: anywhere; min-width: 0; margin-left: auto; }
+.ag-sv-copy { flex: none; width: 30px; height: 30px; margin: -4px -6px -4px -6px; color: var(--ag-text2); }
+.ag-sv-copy.done { color: var(--ag-success); }
+.ag-sv-copy.fail { color: var(--ag-error); }
 .ag-sv-chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .ag-sv-config { align-self: flex-start; margin-top: 8px; }
 /* Handy: ganzer Bildschirm, X oben rechts; Zustand und "In HA öffnen" in einer zweiten Zeile des Kopfs */
@@ -950,9 +950,9 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-sv-ttl b { font-size: 18px; }
 :host([narrow]) .ag-sv-pill { grid-column: 1 / 3; justify-self: start; }
 :host([narrow]) .ag-sv-ha { grid-column: 3; min-height: 44px; }
-:host([narrow]) .ag-sv-tiles, :host([narrow]) .ag-sv-tiles.n3, :host([narrow]) .ag-sv-tiles.n2 { display: flex; gap: 8px; margin: 12px -16px 0; padding: 0 16px; overflow-x: auto; scrollbar-width: none; }
+:host([narrow]) .ag-seg.ag-sv-tiles { display: flex; margin: 12px 0 0; overflow-x: auto; scrollbar-width: none; }
 :host([narrow]) .ag-sv-tiles::-webkit-scrollbar { display: none; }
-:host([narrow]) .ag-sv-tile { flex: 1 0 auto; min-width: 104px; max-width: 170px; padding: 8px 10px; }
+:host([narrow]) .ag-seg > button.ag-sv-tile { flex: 1 0 auto; min-width: 104px; max-width: 170px; padding: 8px 10px; }
 :host([narrow]) .ag-sv-ti { display: none; }
 :host([narrow]) .ag-sv-tx b { font-size: 13.5px; }
 :host([narrow]) .ag-sv-seg { display: grid; grid-auto-columns: 1fr; }

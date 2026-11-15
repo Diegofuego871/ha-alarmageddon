@@ -7,6 +7,16 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.38.0] - 2026-11-15
+
+### Hinzugefügt
+
+- **Kopieren-Knopf für jede Angabe zu einem Gerät.** Im Fenster eines Sensors zeigt der Reiter "Gerät" hinter jeder Angabe (Hersteller, Modell, Firmware, Integration, Bereich, Entität) einen kleinen Knopf. Er kopiert den ganzen Wert, auch den langen Namen der Entität, den die Zeile abschneidet, und zeigt ein Häkchen. Erlaubt der Browser die Zwischenablage nicht (Companion App ohne HTTPS), gilt ein Ersatzweg.
+
+### Geändert
+
+- **Die Reiter des Sensorfensters sehen aus wie alle anderen Reiter.** "Verlauf", "Batterie", "Empfang" und "Gerät" oben sind eine verbundene Leiste mit gleitender Kapsel unter dem gewählten Reiter, wie überall im Panel, statt einzelner Kacheln mit blauem Rahmen. Grösse und die zwei Zeilen (Beschriftung oben, Wert darunter) bleiben.
+
 ## [1.37.0] - 2026-11-15
 
 ### Hinzugefügt
@@ -1429,6 +1439,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.38.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.38.0
 [1.37.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.37.0
 [1.36.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.1
 [1.36.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.0
