@@ -59,8 +59,9 @@ for (const lang of ["de", "en"]) {
     await (await s.el('#ag-step [data-cs=file]')).setInputFiles({ name: "garage.wav", mimeType: "audio/wav", buffer: WAV });
     await s.tap('#ag-step [data-wf="cs-go"]');
     check(`${tag}: ein schon vergebener Name wird abgelehnt (${t.errTaken})`, await s.waitFor(`return r.getElementById('ag-step').querySelector('.ag-up-err').textContent.includes(${JSON.stringify(t.errTaken)})`));
+    check(`${tag}: der Name wird vor dem Hochladen geprüft (nichts gesendet) und die Datei bleibt gewählt, nur der Name ist zu ändern`, await s.ev("const e=r.getElementById('ag-step'); return !!e.querySelector('.ag-up-kept') && e.querySelector('.ag-up-kept').textContent.includes('garage.wav')") && await s.sim("return window.__uploads.every((u) => u.name !== 'haustür-sirene')"));
     await s.ev("const i=r.getElementById('ag-step').querySelector('[data-cs=name]'); i.value='  Garage   Tor  '; i.dispatchEvent(new Event('input', { bubbles: true })); return 1");
-    await (await s.el('#ag-step [data-cs=file]')).setInputFiles({ name: "garage.wav", mimeType: "audio/wav", buffer: WAV });
+
     await s.tap('#ag-step [data-wf="cs-go"]');
     check(`${tag}: der Ton ist hochgeladen und im Schritt gewählt, das Formular ist zu`, await s.waitFor("const e=r.getElementById('ag-step'); const sel=e.querySelector('[data-key=\"sound\"]'); return sel.selectedOptions[0].textContent === 'Garage Tor' && !e.querySelector('[data-cs=upload]')"));
     check(`${tag}: der Server hat Name und Datei bekommen (Name bereinigt)`, await s.sim("return window.__uploads.at(-1).name === 'Garage Tor' && window.__uploads.at(-1).file === 'garage.wav'"));

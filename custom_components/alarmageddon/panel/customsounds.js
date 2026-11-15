@@ -41,7 +41,7 @@ export function uploadHtml(t, host, ui, attr) {
   const accept = lim.ffmpeg ? ".wav,.mp3,.flac" : ".wav";
   return `<div class="ag-up" data-cs="upload">
     <div class="ag-ef"><div class="ag-ef-l">${esc(t("upName"))}</div><input class="ag-input" type="text" maxlength="40" value="${esc(ui.name || "")}" ${attr("cs-name")} data-cs="name" placeholder="${esc(t("upNamePh"))}" aria-label="${esc(t("upName"))}"></div>
-    <div class="ag-ef"><div class="ag-ef-l">${esc(t("upFile"))}</div><input class="ag-input ag-up-file" type="file" accept="${accept}" data-cs="file" aria-label="${esc(t("upFile"))}"></div>
+    <div class="ag-ef"><div class="ag-ef-l">${esc(t("upFile"))}</div><input class="ag-input ag-up-file" type="file" accept="${accept}" data-cs="file" aria-label="${esc(t("upFile"))}">${ui.file ? `<small class="ag-t2 ag-up-kept">${esc(t("upFileKept", { name: ui.file.name }))}</small>` : ""}</div>
     <div class="ag-pv-note">${ic("info", 14)} ${esc(t("upHint", { formats, seconds: lim.seconds, mb: Math.round(lim.bytes / 1048576) }))}${lim.ffmpeg ? "" : ` ${esc(t("upNoFfmpeg"))}`}</div>
     <div class="ag-dlg-err ag-up-err" aria-live="polite">${esc(ui.error || "")}</div>
     <div class="ag-btnrow"><button type="button" class="ag-btn primary" ${attr("cs-go")} ${ui.busy ? "disabled" : ""}>${ic("plus", 18)}${esc(t(ui.busy ? "upBusy" : "upGo"))}</button>
@@ -56,8 +56,13 @@ export function uploadError(t, code, status) {
 // Die gewählte Datei hochladen. Wirft einen Fehler mit `code` (Schlüssel des Servers oder "upload_failed").
 export async function uploadSound(host, root, ui, t) {
   const name = String(ui.name || "").trim();
-  const file = root.querySelector('[data-cs="file"]')?.files?.[0];
+  // Die Datei bleibt im Stand (ui.file), auch wenn das Formular nach einem Fehler neu gezeichnet wird: nur das Feld ändern, nicht neu wählen
+  const file = root.querySelector('[data-cs="file"]')?.files?.[0] || ui.file;
+  if (file) ui.file = file;
   if (!name) throw Object.assign(new Error("name_invalid"), { code: "name_invalid" });
+  // Name vorher prüfen (ohne Hochladen), wie der Server: Gross- und Kleinschreibung und Leerzeichen zählen nicht
+  const norm = (x) => String(x).split(/\s+/).filter(Boolean).join(" ").toLowerCase();
+  if (customList(host).some((x) => norm(x.name) === norm(name))) throw Object.assign(new Error("name_taken"), { code: "name_taken" });
   if (!file) throw Object.assign(new Error("no_file"), { code: "no_file" });
   if (file.size > limits(host).bytes) throw Object.assign(new Error("too_big"), { code: "too_big" });
   const body = new FormData();
