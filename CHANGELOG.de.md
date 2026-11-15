@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.43.3] - 2026-11-15
+
+### Geändert
+
+- **Reiter des Sensorfensters am Tablet und Computer: Symbol über Beschriftung und Wert.** Die vier Reiter sehen jetzt aus wie auf dem Handy (Symbol oben, mittig), mit Beschriftung und Wert in zwei Zeilen darunter, damit nichts verloren geht, wo Platz ist. Nur das Handy behält die Kurzform.
+
 ## [1.43.2] - 2026-11-15
 
 ### Behoben
@@ -1513,6 +1519,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.43.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.3
 [1.43.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.2
 [1.43.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.1
 [1.43.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.0

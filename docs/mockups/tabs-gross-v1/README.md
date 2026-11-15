@@ -4,7 +4,7 @@ Frage des Nutzers: Das Handy-Aussehen der Reiter (Symbol über Kurztext, seit 1.
 zeigen die echte Sensoransicht (HA-Nachbau, dunkel) am Computer (1280 px) und am Tablet (834 px); erfundene Daten.
 Quelle: `src/mock.mjs` (`node docs/mockups/tabs-gross-v1/src/mock.mjs`).
 
-**Noch nicht entschieden, noch nicht umgesetzt.**
+**Entschieden: Variante Y, umgesetzt in 1.43.3.**
 
 | Bilder | Variante |
 | --- | --- |

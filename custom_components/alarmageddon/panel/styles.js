@@ -903,11 +903,12 @@ dialog.ag-svdlg[open] { height: min(92vh, 860px); }
 .ag-sv-ha { flex: none; }
 /* Kacheln als Reiter: jede zeigt ihren aktuellen Wert, die gewählte bestimmt Grafik, Kennzahlen und Liste */
 .ag-seg.ag-sv-tiles { display: grid; width: 100%; box-sizing: border-box; margin-top: 16px; }
-.ag-seg > button.ag-sv-tile { justify-content: flex-start; gap: 10px; min-height: 52px; padding: 8px 12px; text-align: left; white-space: normal; color: var(--ag-text); }
+.ag-seg > button.ag-sv-tile { flex-direction: column; justify-content: center; align-items: center; gap: 5px; min-height: 68px; padding: 10px 8px; text-align: center; white-space: normal; color: var(--ag-text); }
 .ag-sv-ti { color: var(--ag-text2); display: grid; flex: none; }
 .ag-seg > button.ag-sv-tile.on .ag-sv-ti { color: var(--ag-primary); }
-.ag-sv-tx { min-width: 0; flex: 1; }
-.ag-sv-tx small { display: block; font-size: 12px; color: var(--ag-text2); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-sv-ti svg { width: 24px; height: 24px; }
+.ag-sv-tx { min-width: 0; max-width: 100%; text-align: center; }
+.ag-sv-tx small { display: block; text-align: center; font-size: 12px; color: var(--ag-text2); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ag-sv-tx b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ag-sv-seg { display: inline-grid; grid-auto-flow: column; gap: 2px; padding: 3px; margin-top: 14px; border-radius: 13px; background: color-mix(in srgb, var(--ag-text) 6%, transparent); }
 .ag-sv-seg button { min-height: 34px; padding: 0 18px; border: 0; border-radius: 10px; background: transparent; color: var(--ag-text2); font: inherit; font-size: 13.5px; white-space: nowrap; cursor: pointer; }

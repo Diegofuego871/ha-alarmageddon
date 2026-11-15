@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.43.3] - 2026-11-15
+
+### Changed
+
+- **Tabs of the sensor window on the tablet and the computer: symbol above label and value.** The four tabs now look like on the phone (symbol on top, centred), with label and value in two lines below, so nothing gets lost where there is room. Only the phone keeps the short form.
+
 ## [1.43.2] - 2026-11-15
 
 ### Fixed
@@ -1513,6 +1519,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.43.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.3
 [1.43.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.2
 [1.43.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.1
 [1.43.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.0
