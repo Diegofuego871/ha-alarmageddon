@@ -297,7 +297,7 @@ def _recorder(monkeypatch: pytest.MonkeyPatch, outcomes: list):
         if isinstance(outcome, Exception):
             raise outcome
         if outcome == 0:
-            Path(command[-1] if command[0] != sys.executable else command[5]).write_bytes(make_wav())
+            Path(command[-1] if cs.AV_SCRIPT not in command else command[command.index(cs.AV_SCRIPT) + 2]).write_bytes(make_wav())
         return subprocess.CompletedProcess(command, outcome, b"", b"")
 
     monkeypatch.setattr(cs.subprocess, "run", run)
