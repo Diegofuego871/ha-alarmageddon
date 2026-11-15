@@ -9,6 +9,10 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [1.43.1] - 2026-11-15
 
+### Geändert
+
+- **Alle Symbol-Kacheln der Seite "Anlage" sind gleich gross.** Die Symbole der Modi, des Hauptcodes, der Codes pro Person und der eigenen Töne (das Tondatei-Symbol) sind jetzt gleich gross (36 px, das Symbol darin 20 px), etwas grösser als bisher, und auf allen Seiten mit solchen Kacheln gleich (zum Beispiel in den Optionen eines Sensors).
+
 ### Behoben
 
 - **Dateiauswahl für eigene Töne auf dem iPhone, zweiter Versuch.** Das Auswahlfenster bot weiterhin die Fotomediathek und die Videoaufnahme an. Die Liste der erlaubten Dateien besteht jetzt nur noch aus reinen Endungen (".wav", ".mp3", ".flac") und nennt "audio/*" nicht mehr, das das iPhone ebenfalls als Wunsch nach Medien behandelt. M4A- und OGG-Dateien sind absichtlich nicht genannt (das iPhone behandelt M4A als Video); werden sie auf dem iPhone ausgegraut, wähle im Dateifenster "Alle Dateien" oder melde es.

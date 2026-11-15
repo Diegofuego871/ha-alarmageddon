@@ -127,7 +127,7 @@ export class SystemUi {
       <div class="ag-settx"><b>${esc(this._t("sysPerMode"))}</b><small>${esc(this._t(d.perMode ? "sysPerModeOn" : "sysPerModeHint"))}</small></div></div>${scopeSeg}</div>`;
     const card = (rows) => `<div class="ag-card ag-setlist">${rows}</div>`;
     // Je Modus ein Schalter (1.17.12, wie die übrigen Einstellungen: Schalter links, Symbol, Titel und Beschreibung), dazu "Immer aktiv"
-    const modeRow = (attr, on, icon, title, hint) => `<div class="ag-orow ag-moderow"><span class="ag-oav ${on ? "on" : ""}">${ic(icon, 18)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(hint)}</small></div>
+    const modeRow = (attr, on, icon, title, hint) => `<div class="ag-orow ag-moderow"><span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(hint)}</small></div>
         <button class="ag-toggle ${on ? "on" : ""}" ${attr} role="switch" aria-checked="${on}" aria-label="${esc(title)}"></button></div>`;
     const modesRow = ALL_MODES.map((m) => modeRow(`data-sys="mode" data-mode="${m}"`, d.modes[m], MODE_ICON[m], this._t(MODE_KEY[m]), this._t(MODE_HINT[m]))).join("")
       + modeRow('data-sys="always"', d.always, "flash", this._t("wfAlways"), this._t("sysModeAlwaysHint"))
@@ -180,13 +180,13 @@ export class SystemUi {
     const s = this.system;
     const users = this.host._data?.users || [];
     const userName = (id) => users.find((u) => u.id === id)?.name;
-    const rows = (s.codes || []).map((c) => `<div class="ag-coderow"><span class="ag-mini">${ic("hand", 16)}</span><span class="ag-grow"><b>${esc(c.name)}</b><small class="ag-t2">${esc(userName(c.user_id) || this._t("codeNoUser"))}</small></span>
+    const rows = (s.codes || []).map((c) => `<div class="ag-coderow"><span class="ag-oav">${ic("hand", 20)}</span><span class="ag-grow"><b>${esc(c.name)}</b><small class="ag-t2">${esc(userName(c.user_id) || this._t("codeNoUser"))}</small></span>
         <button class="ag-iconbtn" data-sys="code-del" data-id="${esc(c.id)}" aria-label="${esc(`${this._t("remove")}: ${c.name}`)}">${ic("trash", 18)}</button></div>`).join("");
     return chapter(this._t("sysCodes"), `<div class="ag-card ag-setlist ag-codes">
       <div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("sysCodesHint"))}</small></div>
         <button class="ag-btn" data-sys="code-add">${ic("plus", 18)}${esc(this._t("codeAdd"))}</button></div>
       ${rows}
-      <div class="ag-coderow"><span class="ag-mini">${ic("lockClosed", 16)}</span><span class="ag-grow"><b>${esc(this._t("sysCodeMain"))}</b><small class="ag-t2">${esc(this._t(s.main_code ? "sysCodeMainSet" : "sysCodeMainNone"))}</small></span>
+      <div class="ag-coderow"><span class="ag-oav">${ic("lockClosed", 20)}</span><span class="ag-grow"><b>${esc(this._t("sysCodeMain"))}</b><small class="ag-t2">${esc(this._t(s.main_code ? "sysCodeMainSet" : "sysCodeMainNone"))}</small></span>
         <button class="ag-btn" data-sys="code">${ic("cog", 18)}${esc(this._t("sysCodeOpen"))}</button></div>
       ${this._ackRow(d, Boolean(s.has_code))}</div>`);
   }

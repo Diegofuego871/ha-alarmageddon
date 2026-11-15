@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.43.1] - 2026-11-15
 
+### Changed
+
+- **All symbol tiles on the page "Alarm system" are equally big.** The symbols of the modes, of the main code, of the codes per person and of your own sounds (the sound-file symbol) are now the same size (36 px, the symbol inside 20 px), a little bigger than before, and the same on all pages with such tiles (for example the options of a sensor).
+
 ### Fixed
 
 - **File choice for your own sounds on the iPhone, second attempt.** The file dialog still offered the photo library and video recording. The list of allowed files now consists of plain endings only (".wav", ".mp3", ".flac") and no longer names "audio/*", which the iPhone also treats as a request for media. M4A and OGG files are not named on purpose (the iPhone treats M4A as video); if the iPhone greys them out, choose "All files" in the file dialog or tell us.

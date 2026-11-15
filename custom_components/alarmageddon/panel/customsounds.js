@@ -98,6 +98,6 @@ export function soundBadge(id, playing = false) {
   }
   const bars = [...heights, ...heights.slice(0, 3).reverse()];
   const rects = bars.map((v, i) => `<rect class="ag-wv" style="--d:${(i * 0.13).toFixed(2)}s" x="${9.2 + i * 3.4}" y="${(29 - v / 2).toFixed(1)}" width="2.2" height="${v}" rx="1.1"/>`).join("");
-  return `<span class="ag-sndbadge ${playing ? "playing" : ""}" aria-hidden="true"><svg width="38" height="44" viewBox="0 0 38 44">
+  return `<span class="ag-sndbadge ${playing ? "playing" : ""}" aria-hidden="true"><svg width="29" height="34" viewBox="0 0 38 44">
     <path class="ag-sf-page" d="M6 3h17l11 11v26a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z"/><path class="ag-sf-fold" d="M23 3v8a3 3 0 0 0 3 3h8"/>${rects}</svg></span>`;
 }

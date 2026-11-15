@@ -429,7 +429,7 @@ export class SensorsUi {
     const d = this.draft;
     const r = { id, name: h._name(id) };
     const meta = [this._t(label), info.area, info.integration].filter(Boolean).join(" · ");
-    const entryRow = `<div class="ag-orow"><span class="ag-oav ${d.entrySensors.has(id) ? "on" : ""}">${ic("timer", 18)}</span><div class="ag-otx"><b>${esc(this._t("colEntry"))}</b><small>${esc(this._t("optEntryHint"))}</small></div>${this._entryToggle(r)}</div>`;
+    const entryRow = `<div class="ag-orow"><span class="ag-oav ${d.entrySensors.has(id) ? "on" : ""}">${ic("timer", 20)}</span><div class="ag-otx"><b>${esc(this._t("colEntry"))}</b><small>${esc(this._t("optEntryHint"))}</small></div>${this._entryToggle(r)}</div>`;
     const mode = this.sheetMode(id);
     const delayRow = d.entrySensors.has(id) && mode !== "always" ? this._delayRow(id, mode) : "";
     const modeName = mode === "always" ? this._t("wfAlways") : mode ? this._t(MODE_KEY[mode]) : "";
@@ -448,7 +448,7 @@ export class SensorsUi {
         : (own
           ? `<button class="ag-origin own" data-sen="reset-opt" data-ent="${esc(id)}" data-key="${o.key}">${ic("undo", 14)} ${esc(this._t("originOwn"))} · ${esc(this._t("resetToPreset"))}</button>`
           : `<span class="ag-origin">${esc(o.key === "always_off" ? this._t("originDefaultOn") : this._t("originPreset", { type: typeLabel }))}</span>`);
-      return `<div class="ag-orow"><span class="ag-oav ${on ? "on" : ""}">${ic(o.icon, 18)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(o.text ?? this._t(o.hint))}</small>${origin}</div>
+      return `<div class="ag-orow"><span class="ag-oav ${on ? "on" : ""}">${ic(o.icon, 20)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(o.text ?? this._t(o.hint))}</small>${origin}</div>
         <button class="ag-toggle ${on ? "on" : ""}" data-sen="${mode ? "mopt" : "opt"}" ${mode ? `data-mode="${mode}"` : ""} data-ent="${esc(id)}" data-key="${o.key}" role="switch" aria-checked="${on}" aria-label="${esc(`${r.name}: ${title}`)}"></button></div>`;
     };
     // "Immer aktiv" ist eine Pille bei den Modi, darum keine eigene Zeile mehr in der Liste der Optionen
@@ -483,7 +483,7 @@ export class SensorsUi {
     else if (ownSensor) origin = `<button class="ag-origin own" data-sen="delay-reset" data-ent="${esc(id)}">${ic("undo", 14)} ${esc(this._t("originOwn"))} · ${esc(this._t("resetToSystem"))}</button>`;
     else origin = `<span class="ag-origin">${esc(this._t("originSystem", { n: val }))}</span>`;
     const own = ownMode || ownSensor;
-    return `<div class="ag-orow"><span class="ag-oav ${own ? "on" : ""}">${ic("timer", 18)}</span><div class="ag-otx"><b>${esc(this._t("senDelay"))}</b><small>${esc(this._t("senDelayHint"))}</small>${origin}</div>
+    return `<div class="ag-orow"><span class="ag-oav ${own ? "on" : ""}">${ic("timer", 20)}</span><div class="ag-otx"><b>${esc(this._t("senDelay"))}</b><small>${esc(this._t("senDelayHint"))}</small>${origin}</div>
       <span class="ag-num"><input type="number" min="0" max="3600" step="1" inputmode="numeric" data-sen="delay" ${mode ? `data-mode="${mode}"` : ""} data-ent="${esc(id)}" value="${esc(val)}" aria-label="${esc(`${this.host._name(id)}: ${this._t("senDelay")}`)}"><span class="ag-t2">${esc(this._t("seconds"))}</span></span></div>`;
   }
 

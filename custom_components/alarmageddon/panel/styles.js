@@ -324,7 +324,7 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-orow { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--ag-divider); }
 .ag-orow:last-child { border-bottom: 0; }
 .ag-orow .ag-toggle { margin: 6px 0 0; }
-.ag-oav { width: 34px; height: 34px; border-radius: 10px; background: var(--ag-subtle); color: var(--ag-text2); display: grid; place-items: center; flex: none; }
+.ag-oav { width: var(--ag-tile); height: var(--ag-tile); border-radius: 11px; background: var(--ag-subtle); color: var(--ag-text2); display: grid; place-items: center; flex: none; }
 .ag-oav.on { background: var(--ag-primary-soft); color: var(--ag-primary); }
 .ag-otx { flex: 1; min-width: 0; }
 .ag-otx b { font-weight: 500; display: block; }
@@ -623,6 +623,9 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 .ag-fc { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .ag-fc.warn { color: var(--ag-warning-text); }
 .ag-codes { margin-top: 16px; }
+/* Alle Symbol-Kacheln der Anlagen-Seite (Modi, Codes, Eigene Töne) sind gleich gross (1.43.2) */
+:host { --ag-tile: 36px; }
+.ag-coderow .ag-oav { background: var(--ag-subtle); color: var(--ag-text2); }
 .ag-coderow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--ag-divider); }
 .ag-coderow small { display: block; font-size: 12.5px; }
 .ag-schrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--ag-divider); }
@@ -956,7 +959,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-csrow { align-items: center; flex-wrap: nowrap; }
 .ag-csrow .ag-settx { min-width: 0; }
 /* Kennzeichen eines eigenen Tons: Dateiseite mit Wellenform; beim Abspielen schwingen die Balken */
-.ag-sndbadge { flex: none; display: grid; place-items: center; width: 40px; height: 46px; }
+.ag-sndbadge { flex: none; display: grid; place-items: center; width: var(--ag-tile); height: var(--ag-tile); }
 .ag-sndbadge svg { overflow: visible; }
 .ag-sf-page { fill: var(--ag-primary-soft); stroke: var(--ag-primary); stroke-width: 1.5; stroke-linejoin: round; }
 .ag-sf-fold { fill: none; stroke: var(--ag-primary); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; opacity: .8; }
