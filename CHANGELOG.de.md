@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.42.0] - 2026-11-15
+
+### Hinzugefügt
+
+- **Empfang von Thread-Geräten.** Geräte, die über Thread (Matter) funken, zeigen ihren Empfang jetzt wie Bluetooth-Geräte: einen Wert in der Liste und den Reiter "Empfang" mit dem Verlauf, nichts über Router oder Technik. Home Assistant zeigt diesen Wert nirgends; Alarmageddon liest ihn aus der Nachbartabelle des Geräts (der stärkste Nachbar zählt, bei einem Endgerät ist das sein Elternteil), ignoriert ungültige Werte und zeigt keinen Wert (der Reiter bleibt), solange Matter das Gerät nicht erreicht. Der Verlauf wird wie bei Bluetooth-Geräten aufgezeichnet. Matter-Geräte im WLAN haben keine solche Tabelle und bleiben bei ihrem Empfangssensor. Liefert dein Matter-Server die Tabelle nicht, bleibt der Empfang leer wie bisher.
+
 ## [1.41.0] - 2026-11-15
 
 ### Hinzugefügt
@@ -1479,6 +1485,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.42.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.42.0
 [1.41.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.41.0
 [1.40.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.40.0
 [1.39.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.39.0

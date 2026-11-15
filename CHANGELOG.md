@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.42.0] - 2026-11-15
+
+### Added
+
+- **Signal strength of Thread devices.** Devices that talk over Thread (Matter) now show their signal strength like Bluetooth devices: a value in the list and the tab "Signal" with the history, nothing about routers or technology. Home Assistant shows this value nowhere; Alarmageddon reads it from the neighbour table of the device (the strongest neighbour counts, for an end device that is its parent), ignores invalid values, and shows no value (but keeps the tab) while Matter cannot reach the device. The history is recorded like the one of Bluetooth devices. Matter devices on Wi-Fi have no such table and stay with their signal sensor. If your Matter server does not provide the table, the signal stays empty as before.
+
 ## [1.41.0] - 2026-11-15
 
 ### Added
@@ -1479,6 +1485,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.42.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.42.0
 [1.41.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.41.0
 [1.40.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.40.0
 [1.39.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.39.0

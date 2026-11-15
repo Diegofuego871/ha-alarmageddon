@@ -152,7 +152,7 @@ Umsetzung:
 - Empfang (seit 1.41.0, `reception.py`): Der Nutzer sieht nur Wert und Verlauf, nie Empfänger, Proxy oder Technik (Vorgabe des Nutzers, 2026-11-15). Bei Bluetooth
   zählt der stärkste Empfänger, der bisherige bleibt bis `BLE_KEEP_DB` dB Unterschied (kein Hin und Her); ungültige Werte (0 dBm) und veraltete Empfänger
   zählen nie. Interne Schnittstellen von HA und ZHA sind mit `try` gelesen: fehlt etwas, bleibt der Wert leer, nie ein Fehler in der Liste. Ausgefallene
-  Geräte werden nicht aufgezeichnet. Tests in `tests/test_reception.py`, Zeilen in `scripts/mutation_check.py`.
+  Geräte werden nicht aufgezeichnet. Thread (seit 1.42.0): stärkster Nachbar der Matter-Nachbartabelle, nicht erreichbares Gerät ohne Wert. Tests in `tests/test_reception.py`, Zeilen in `scripts/mutation_check.py`.
 - Jede Änderung am Zustandsautomaten oder an der Szenario-Engine braucht
   Tests für: Deaktivieren während Verzögerung, Neustart während Alarm,
   Sensor fällt im scharfen Zustand aus.

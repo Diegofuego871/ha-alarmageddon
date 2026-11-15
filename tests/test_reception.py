@@ -230,3 +230,67 @@ def test_the_remembered_receiver_is_forgotten_per_address(hass: HomeAssistant, b
     ble.heard = [("a", -60)]
     reception.ble_rssi(hass, ADDRESS)
     assert hass.data[DATA_BLE_BEST][ADDRESS] == "a"
+
+
+# ----- Thread (Matter) -----
+
+
+@pytest.fixture
+def thread(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch):
+    """Matter ist da; die Nachbartabelle des Geräts bestimmt der Test (`node.table`, `node.available`)."""
+    hass.config.components.add("matter")
+    node = SimpleNamespace(available=True, node_data=SimpleNamespace(attributes={}))
+    package = types.ModuleType("homeassistant.components.matter")
+    helpers = types.ModuleType("homeassistant.components.matter.helpers")
+    helpers.node_from_ha_device_id = lambda _hass, _id: node
+    monkeypatch.setitem(sys.modules, "homeassistant.components.matter", package)
+    monkeypatch.setitem(sys.modules, "homeassistant.components.matter.helpers", helpers)
+    monkeypatch.setattr("homeassistant.components.matter", package, raising=False)
+    return node
+
+
+def _matter_device(hass: HomeAssistant) -> dr.DeviceEntry:
+    return _bt_device(hass, with_address=False, domain="matter")
+
+
+def test_a_thread_device_shows_the_strongest_neighbour(hass: HomeAssistant, thread) -> None:
+    """Die Nachbartabelle des Geräts: bei einem Endgerät ist der stärkste Nachbar sein Elternteil."""
+    device = _matter_device(hass)
+    thread.node_data.attributes["0/53/7"] = [{"6": -78, "7": -80}, {"6": -64, "7": -66}, {"6": -91, "7": -90}]
+    assert reception.live_signal(hass, device) == {"kind": "dbm", "value": -64}
+
+
+def test_the_thread_table_also_works_with_named_fields_and_falls_back_to_the_last_value(hass: HomeAssistant, thread) -> None:
+    device = _matter_device(hass)
+    thread.node_data.attributes["0/53/7"] = [SimpleNamespace(averageRssi=None, lastRssi=-70), SimpleNamespace(averageRssi=-75, lastRssi=-60)]
+    assert reception.live_signal(hass, device)["value"] == -70
+
+
+def test_invalid_thread_values_never_count(hass: HomeAssistant, thread) -> None:
+    device = _matter_device(hass)
+    thread.node_data.attributes["0/53/7"] = [{"6": 0, "7": 0}, {"6": 127}, {"6": -72}]
+    assert reception.live_signal(hass, device)["value"] == -72
+    thread.node_data.attributes["0/53/7"] = [{"6": 0, "7": -70}]  # der mittlere Wert ist ungültig: der letzte gilt
+    assert reception.live_signal(hass, device)["value"] == -70
+    thread.node_data.attributes["0/53/7"] = [{"6": 0}, {"7": None}]
+    assert reception.live_signal(hass, device) == {"kind": "dbm", "value": None}, "die Tabelle ist da, aber ohne Messwert: der Reiter bleibt"
+
+
+def test_a_thread_device_that_matter_cannot_reach_has_no_value(hass: HomeAssistant, thread) -> None:
+    """Die Tabelle eines nicht erreichbaren Geräts ist veraltet: sie sagt nichts über jetzt."""
+    device = _matter_device(hass)
+    thread.node_data.attributes["0/53/7"] = [{"6": -64}]
+    thread.available = False
+    assert reception.live_signal(hass, device) == {"kind": "dbm", "value": None}
+
+
+def test_a_matter_device_without_a_thread_table_has_no_live_value(hass: HomeAssistant, thread) -> None:
+    """Ein Matter-Gerät im WLAN hat keine Nachbartabelle: es bleibt beim Sensor des Geräts."""
+    assert reception.live_signal(hass, _matter_device(hass)) is None
+
+
+def test_missing_matter_internals_leave_the_value_empty(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+    hass.config.components.add("matter")
+    device = _matter_device(hass)
+    monkeypatch.setitem(sys.modules, "homeassistant.components.matter", None)  # nicht importierbar
+    assert reception.live_signal(hass, device) is None

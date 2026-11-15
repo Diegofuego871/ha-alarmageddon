@@ -451,6 +451,13 @@ MUTATIONS = [
      "            if not alive:", "            if False:", "tests/test_reception.py -k only_devices_that_are_alive"),
     ("Empfang: die Anzeige folgt dem Einzelwert statt dem Median der letzten Minuten", "reception.py",
      '        return {**signal, "value": round(statistics.median([*recent, float(signal["value"])]))}', "        return signal", "tests/test_reception.py -k median_of_the_last_minutes"),
+    ("Empfang (Thread): nicht der stärkste, sondern der schwächste Nachbar zählt", "reception.py",
+     '    return {"kind": KIND_DBM, "value": max(values) if values and reachable else None}', '    return {"kind": KIND_DBM, "value": min(values) if values and reachable else None}', "tests/test_reception.py -k strongest_neighbour"),
+    ("Empfang (Thread): ungültige Werte der Nachbartabelle zählen", "reception.py",
+     "            if not isinstance(rssi, (int, float)) or not plausible(KIND_DBM, rssi):\n                rssi = _field(entry, _LAST_RSSI)",
+     "            if not isinstance(rssi, (int, float)):\n                rssi = _field(entry, _LAST_RSSI)", "tests/test_reception.py -k invalid_thread_values"),
+    ("Empfang (Thread): die veraltete Tabelle eines nicht erreichbaren Geräts zeigt einen Wert", "reception.py",
+     '    return {"kind": KIND_DBM, "value": max(values) if values and reachable else None}', '    return {"kind": KIND_DBM, "value": max(values) if values else None}', "tests/test_reception.py -k cannot_reach"),
 ]
 
 

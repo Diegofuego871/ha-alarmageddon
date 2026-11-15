@@ -8,7 +8,9 @@ Der Nutzer sieht nur einen Wert und den Verlauf, nicht, woher er kommt. Dahinter
    neue deutlich stärker ist; das Gerät hängt dann oft an einem schwächeren Proxy, und beim Wechsel springt der Wert. Alle Adapter und
    Proxys hören aber gleichzeitig mit (`async_scanner_devices_by_address`): wir nehmen den stärksten unter den frischen und bleiben bei
    dem bisherigen, solange er höchstens `BLE_KEEP_DB` schwächer ist (kein Hin und Her bei Rauschen).
-3. **Entität** des Geräts (WLAN, Zigbee2MQTT, Z-Wave …): Sache von `devices.device_sensors` und dem Recorder, hier nicht berührt.
+3. **Thread (Matter, seit 1.42.0):** die Nachbartabelle des Geräts (Thread-Diagnose, Attribut 0/53/7): der stärkste Nachbar (bei einem Endgerät
+   sein Elternteil) mit dem mittleren RSSI. Home Assistant zeigt diesen Wert nirgends als Entität.
+4. **Entität** des Geräts (WLAN, Zigbee2MQTT, Z-Wave …): Sache von `devices.device_sensors` und dem Recorder, hier nicht berührt.
 
 Was Home Assistant nur intern kennt (ZHA, Bluetooth), wird vorsichtig gelesen: fehlt es oder ändert sich die Schnittstelle, bleibt der Wert
 leer, statt dass die Liste scheitert. Der Recorder kennt diese Werte nicht, darum zeichnet `ReceptionLog` sie selbst auf (jede Minute für
@@ -157,6 +159,51 @@ def _zha(hass: HomeAssistant, device_id: str) -> dict[str, Any] | None:
     return None
 
 
+# -- Thread (Matter) -----------------------------------------------------------------------------------------------------------------
+
+THREAD_NEIGHBORS = "0/53/7"  # Endpunkt 0, Cluster ThreadNetworkDiagnostics (53), Attribut NeighborTable (7)
+# Felder eines Eintrags der Nachbartabelle (Tags der Matter-Spezifikation): 6 = averageRssi, 7 = lastRssi
+_AVERAGE_RSSI = ("averageRssi", "6")
+_LAST_RSSI = ("lastRssi", "7")
+
+
+def _field(entry: Any, names: tuple[str, ...]) -> Any:
+    """Feld eines Eintrags: der Matter-Server liefert Strukturen als Wörterbuch mit Tags oder als Objekt mit Namen."""
+    for name in names:
+        value = entry.get(name) if isinstance(entry, dict) else getattr(entry, name, None)
+        if value is not None:
+            return value
+    return None
+
+
+def _thread(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, Any] | None:
+    """
+    {"kind": "dbm", "value": Zahl oder None} aus der Nachbartabelle eines Thread-Geräts (Matter); None, wenn das Gerät kein Thread-Gerät ist
+    oder die Tabelle fehlt. Der stärkste Nachbar zählt (bei einem Endgerät sein Elternteil); der mittlere RSSI vor dem letzten. Ein Gerät,
+    das Matter gerade nicht erreicht, hat keinen Wert (die Tabelle ist dann veraltet), behält aber seinen Reiter.
+    """
+    if "matter" not in hass.config.components:
+        return None
+    try:
+        from homeassistant.components.matter.helpers import node_from_ha_device_id  # noqa: PLC0415
+
+        node = node_from_ha_device_id(hass, device.id)
+        table = node.node_data.attributes.get(THREAD_NEIGHBORS) if node is not None else None
+        if not isinstance(table, list):
+            return None
+        values: list[int] = []
+        for entry in table:
+            rssi = _field(entry, _AVERAGE_RSSI)
+            if not isinstance(rssi, (int, float)) or not plausible(KIND_DBM, rssi):
+                rssi = _field(entry, _LAST_RSSI)
+            if isinstance(rssi, (int, float)) and plausible(KIND_DBM, rssi):
+                values.append(round(rssi))
+        reachable = bool(getattr(node, "available", True))
+    except Exception:  # noqa: BLE001 - interne Schnittstelle von Matter
+        return None
+    return {"kind": KIND_DBM, "value": max(values) if values and reachable else None}
+
+
 # -- Quelle des Geräts ---------------------------------------------------------------------------------------------------------------
 
 
@@ -189,6 +236,9 @@ def live_signal(hass: HomeAssistant, device: dr.DeviceEntry | None, smooth: bool
             signal = {"kind": KIND_DBM, "value": rssi}
         elif signal is None:
             signal = {"kind": KIND_DBM, "value": None}
+    if not known and "matter" in _domains(hass, device) and (thread := _thread(hass, device)) is not None:
+        known = True
+        signal = thread
     if not known:
         return None
     log: ReceptionLog | None = hass.data.get(DATA_RECEPTION)
