@@ -82,6 +82,10 @@ Umsetzung:
   immer "ss"), präzise, ohne Füllwörter. Anführungszeichen: "".
 - Code-Kommentare und Docstrings auf Deutsch. Kommentare erklären das Warum,
   nicht das Was.
+- **Zeitangaben in Schweizer Zeit (Vorgabe des Nutzers, 2026-11-15):** Jede Uhrzeit, die dem Nutzer genannt wird (geplante CI-Prüfungen,
+  Zeitpunkte aus Logs, Release-Zeiten), steht in Schweizer Zeit (`Europe/Zurich`: im Winter MEZ = UTC+1, im Sommer MESZ = UTC+2), nie in
+  UTC. Bei `send_later` und geplanten Aufgaben die Zeit mit `[Europe/Zurich]` angeben und dem Nutzer die Schweizer Zeit nennen. Zeitstempel
+  in Commits, Logs und Dateien bleiben unverändert.
 
 ## Arbeitsweise
 
