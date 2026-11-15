@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.43.5] - 2026-11-15
+
+### Behoben
+
+- **Der Plus-Knopf und seine Linien in den Aktionen sehen sauber aus.** Die Linien sind dünner (1,5 px wie der Ring), alle im Blau des Knopfes (das kurze Stück über dem Abschluss-Punkt war grau-grün) und treffen den Ring oben und unten genau in der Mitte: Der gestrichelte Ring besteht jetzt aus 12 gleichen Strichen, je einer liegt genau oben und genau unten, es gibt dort keine Lücke, wo die Linie ankommt.
+
 ## [1.43.4] - 2026-11-15
 
 ### Geändert
@@ -1525,6 +1531,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.43.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.5
 [1.43.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.4
 [1.43.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.3
 [1.43.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.2

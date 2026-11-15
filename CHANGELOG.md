@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.43.5] - 2026-11-15
+
+### Fixed
+
+- **The plus button and its lines in the actions look clean.** The lines are thinner (1.5 px like the ring), all in the blue of the button (the short piece above the closing marker was grey-green), and they meet the ring exactly in the middle at the top and at the bottom: the dashed ring now consists of 12 equal dashes, one of them lies right at the top and right at the bottom, so there is no gap where the line arrives.
+
 ## [1.43.4] - 2026-11-15
 
 ### Changed
@@ -1525,6 +1531,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.43.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.5
 [1.43.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.4
 [1.43.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.3
 [1.43.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.2

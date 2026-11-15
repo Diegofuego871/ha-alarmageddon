@@ -410,7 +410,7 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-delayfixed { opacity: .5; margin-top: 12px; }
 .ag-wf-start { display: flex; align-items: center; gap: 10px; padding: 6px 20px 0 calc(var(--wf-x) - 14px); font-weight: 500; }
 .ag-wf-plus { display: flex; flex-direction: column; align-items: center; width: 28px; margin-left: calc(var(--wf-x) - 14px); }
-.ag-wf-seg { flex: none; width: 2px; height: 16px; background: var(--ag-divider); }
+.ag-wf-seg { flex: none; width: 1.5px; height: 16px; background: var(--ag-divider); }
 /* Alle Verbindungen sehen gleich aus (1.10.0): Schritte laufen standardmässig weiter; hält einer den nächsten auf, sagt es die Pille
    auf dem Schritt. Hinter dem letzten Plus der Aktionen nach dem Quittieren folgt nichts: dort endet die Linie, daneben ein Hinweis. */
 .ag-wf-plus { position: relative; }
@@ -418,7 +418,9 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-plushint { position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); width: max-content; max-width: min(520px, calc(100vw - 110px)); }
 .ag-wf-after { max-width: 820px; }
 .ag-waitpill { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; min-height: 28px; padding: 2px 10px; border-radius: 999px; background: var(--ag-warning-soft); color: var(--ag-warning-text); font-size: 12.5px; font-weight: 500; }
-.ag-wf-add { width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--ag-primary); background: var(--ag-card); color: var(--ag-primary); display: grid; place-items: center; cursor: pointer; padding: 0; flex: none; }
+.ag-wf-add { position: relative; width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--ag-card); color: var(--ag-primary); display: grid; place-items: center; cursor: pointer; padding: 0; flex: none; }
+/* Gestrichelter Ring aus 12 gleichen Strichen: je ein Strich liegt genau oben und genau unten, wo die Linien ihn treffen (ein CSS-Rand mit "dashed" liess dort eine Lücke) */
+.ag-wf-add::before { content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; background: repeating-conic-gradient(from -7.5deg, var(--ag-primary) 0 15deg, transparent 15deg 30deg); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px)); }
 .ag-wf-add:hover { background: var(--ag-primary-soft); }
 /* Läuft nebenher: gestrichelte Linie genau zwischen Karte und Plus (nie in die Karte hinein). Die Lücken sind deckend in der Seitenfarbe,
    so scheint die durchgehende Hauptlinie dahinter nicht durch und es entsteht keine doppelte Linie */
@@ -447,7 +449,7 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 @media (prefers-reduced-motion: reduce) { .ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"], .ag-btn[data-wf="test-stop"], .ag-iconbtn[data-sys="cs-stop"] { animation: none; } }
 /* Ende des Ablaufs: die Linie des Ablaufs endet an der Marke "Alarm endet" und läuft nie durch die Karten */
 .ag-wf-end { position: relative; max-width: 820px; }
-.ag-wf-end::before { content: ""; display: block; width: 2px; height: 12px; margin-left: calc(var(--wf-x) - 1px); background: var(--ag-divider); }
+.ag-wf-end::before { content: ""; display: block; width: 1.5px; height: 12px; margin-left: calc(var(--wf-x) - 0.75px); background: var(--ag-primary); }
 .ag-wf-end .ag-wf-start { padding-top: 0; }
 .ag-wf-endcard { margin: 8px 0 0; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
 .ag-wf-endcard .ag-wf-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -461,7 +463,6 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-disarmed { --z: #2e7d32; }
 .ag-wf-line .ag-wf-step { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
 .ag-wf-end .ag-wf-endcard { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
-.ag-wf-end::before { background: color-mix(in srgb, var(--z) 60%, var(--ag-divider)); }
 /* Die Linien zum Plus-Knopf haben seine Farbe (nicht die der Zone) und treffen ihn oben und unten genau in der Mitte */
 .ag-wf-seg { background: var(--ag-primary); align-self: center; }
 .ag-zone { display: flex; width: fit-content; max-width: 100%; align-items: center; margin-top: 8px; min-height: 24px; padding: 1px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; background: color-mix(in srgb, var(--z) 18%, transparent); color: color-mix(in srgb, var(--z) 55%, var(--ag-text)); }
