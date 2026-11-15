@@ -86,6 +86,18 @@ for (const lang of ["en", "de"]) {
       r.host._content.scrollTop += chap.getBoundingClientRect().top - (bar.getBoundingClientRect().bottom + 12);
     });
   } });
+  // Eigene Töne (1.39.0): das Kapitel in Konfiguration › Anlage, mit einem hochgeladenen Ton
+  await shot(lang, "sounds", { tab: "config", height: 800, query: "&sounds=1", prepare: async ({ page, frame }) => {
+    await click('[data-sub="system"]')({ frame });
+    await page.waitForTimeout(800);
+    // Die Überschrift des Kapitels knapp unter die feste Leiste rollen
+    await frame.evaluate(() => {
+      const r = document.querySelector("alarmageddon-panel").shadowRoot;
+      const chap = r.querySelector('[data-cs="manage"]').closest(".ag-chap");
+      const bar = r.querySelector(".ag-cfg");
+      r.host._content.scrollTop += chap.getBoundingClientRect().top - (bar.getBoundingClientRect().bottom + 12);
+    });
+  } });
   // Beendete Alarme sind zugeklappt (1.17.9): fürs Bild den neuesten aufklappen
   await shot(lang, "log", { tab: "log", prepare: click(".ag-inc-head") });
   await shot(lang, "mobile", { mobile: true });

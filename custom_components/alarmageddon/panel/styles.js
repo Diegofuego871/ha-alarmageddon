@@ -452,6 +452,16 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-endcard { margin: 8px 0 0; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
 .ag-wf-endcard .ag-wf-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .ag-wf-line > .ag-card { position: relative; z-index: 1; }
+/* Zonenfarben (1.40.0): jede Zone hat ihre Farbe; Schritte laufen von ihr (22 %) nach neutral, die Verbindungslinie trägt sie, die Pille nennt die Zone in Worten */
+.ag-wf-arming { --z: #ffb74d; }
+.ag-wf-entry { --z: #ef6c00; }
+.ag-wf-armed { --z: #ff8a80; }
+.ag-wf-main { --z: #d32f2f; }
+.ag-wf-after { --z: #81c784; }
+.ag-wf-disarmed { --z: #2e7d32; }
+.ag-wf-line .ag-wf-step { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
+.ag-wf-line .ag-wf-seg { background: color-mix(in srgb, var(--z) 60%, var(--ag-divider)); }
+.ag-zone { display: flex; width: fit-content; max-width: 100%; align-items: center; margin-top: 8px; min-height: 24px; padding: 1px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; background: color-mix(in srgb, var(--z) 18%, transparent); color: color-mix(in srgb, var(--z) 55%, var(--ag-text)); }
 /* contents: sonst klebt die Leiste nur innerhalb dieses Blocks und scrollt mit weg */
 .ag-wf-head { display: contents; }
 .ag-wf-head > .ag-tools { margin-bottom: 12px; }

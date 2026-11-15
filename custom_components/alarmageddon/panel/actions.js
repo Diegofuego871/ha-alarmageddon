@@ -613,7 +613,7 @@ export class ActionsUi {
     return `<div class="ag-card ag-wf-step" data-index="${i}">
       <button class="ag-handle" data-wf="grab" data-index="${i}" aria-label="${esc(this._t("stepGrab"))}" title="${esc(this._t("stepGrab"))}">${ic("grip", 20)}</button>
       <span class="ag-wf-icon k-${f.kind}">${ic(k.icon, 20)}</span>
-      <div class="ag-wf-text"><b>${esc(title)}</b> ${restore}<div class="ag-t2 ag-small">${esc(this._summary(f))}</div>${f.delay ? this._delayPill(zone) : this._waitPill(f)}</div>
+      <div class="ag-wf-text"><b>${esc(title)}</b> ${restore}<div class="ag-t2 ag-small">${esc(this._summary(f))}</div>${f.delay ? this._delayPill(zone) : this._waitPill(f)}<span class="ag-zone">${esc(this._t(`zone_${zone}`))}</span></div>
       <div class="ag-wf-btns">${this._stepTestBtn(i, zone)}
         <button class="ag-iconbtn" data-wf="edit" data-index="${i}" aria-label="${esc(this._t("stepEdit"))}">${ic("pencil", 18)}</button>
         <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this.steps(zone).length >= MAX_STEPS ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>

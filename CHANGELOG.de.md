@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.40.0] - 2026-11-15
+
+### Hinzugefügt
+
+- **Zonenfarben in den Aktionen.** Jede der sechs Zonen hat ihre eigene Farbe, so siehst du sofort, wohin ein Schritt gehört: Ausgangsverzögerung helles Orange, Eingangsverzögerung dunkles Orange, scharf geschaltet helles Rot, Alarm dunkles Rot, nach dem Quittieren helles Grün, beim Deaktivieren dunkles Grün. Die Schritte laufen von der Zonenfarbe nach neutral, die Verbindungslinie trägt die Farbe, und eine kleine Pille an jedem Schritt nennt die Zone in Worten (so geht es auch ohne Farben zu unterscheiden). Helles und dunkles Thema, Computer und Handy; die Schrift der Pille hat mindestens 3:1 Kontrast.
+
 ## [1.39.0] - 2026-11-15
 
 ### Hinzugefügt
@@ -1452,6 +1458,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.40.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.40.0
 [1.39.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.39.0
 [1.38.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.38.0
 [1.37.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.37.0

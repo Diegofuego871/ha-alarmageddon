@@ -5,7 +5,7 @@ Alarm, nach dem Quittieren, Deaktivieren)? Vorschlag des Nutzers: die einzelnen 
 dunkel, am Computer und auf dem Handy (390 px). Die Bilder sind die echte Seite des Panels (HA-Nachbau, dunkel), die Varianten liegen als
 zusätzliche Stile darüber; erfundene Daten. Quelle: `src/mock.mjs` (`node docs/mockups/aktionen-zonen-v1/src/mock.mjs`).
 
-**Noch nicht entschieden, noch nicht umgesetzt.**
+**Entschieden: Variante E, umgesetzt in 1.40.0.**
 
 ## Zonenfarben (in allen Varianten gleich)
 
