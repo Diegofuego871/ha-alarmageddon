@@ -36,7 +36,8 @@ export const soundInfo = (s) => `${fmtSeconds(Number(s.seconds) || 0)} · ${fmtS
 export function uploadHtml(t, host, ui, attr) {
   const lim = limits(host);
   const formats = lim.ffmpeg ? "WAV, MP3, OGG, FLAC, M4A" : "WAV";
-  const accept = lim.ffmpeg ? ".wav,.mp3,.ogg,.oga,.flac,.m4a,.aac,audio/*" : ".wav,audio/wav,audio/x-wav";
+  // Nur Audio, ohne Endungen wie .m4a/.aac: iOS ordnet sie dem MPEG-4-Typ zu (der als Film gilt) und bietet dann Fotomediathek und Videoaufnahme an
+  const accept = lim.ffmpeg ? ".wav,.mp3,.flac,audio/*" : ".wav,audio/wav,audio/x-wav";
   return `<div class="ag-up" data-cs="upload">
     <div class="ag-ef"><div class="ag-ef-l">${esc(t("upName"))}</div><input class="ag-input" type="text" maxlength="40" value="${esc(ui.name || "")}" ${attr("cs-name")} data-cs="name" placeholder="${esc(t("upNamePh"))}" aria-label="${esc(t("upName"))}"></div>
     <div class="ag-ef"><div class="ag-ef-l">${esc(t("upFile"))}</div><input class="ag-input ag-up-file" type="file" accept="${accept}" data-cs="file" aria-label="${esc(t("upFile"))}"></div>

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **Zone colours in the actions.** Each of the six zones has its own colour, so you see at a glance where a step belongs: exit delay light orange, entry delay dark orange, armed light red, alarm dark red, after acknowledging light green, on disarming dark green. The steps run from the zone colour to neutral, the connecting line carries the colour, and a small pill on every step names the zone in words (so it also works without telling colours apart). Light and dark theme, desktop and phone; the pill text keeps a contrast of at least 3:1.
 
+### Fixed
+
+- **File choice for your own sounds on the iPhone.** The file dialog no longer offers the photo library and video recording, only files. The list of allowed endings no longer names ".m4a", ".aac" and ".ogg" (the iPhone treats them as video); "audio/*" still covers all audio files.
+
 ## [1.39.0] - 2026-11-15
 
 ### Added
