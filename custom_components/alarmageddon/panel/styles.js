@@ -984,9 +984,15 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-sv-pill { grid-column: 1 / 3; justify-self: start; }
 :host([narrow]) .ag-sv-ha { grid-column: 3; min-height: 44px; }
 :host([narrow]) .ag-seg.ag-sv-tiles { display: grid; margin: 12px 0 0; }
-:host([narrow]) .ag-seg > button.ag-sv-tile { min-width: 0; padding: 8px 10px; }
-:host([narrow]) .ag-sv-ti { display: none; }
-:host([narrow]) .ag-sv-tx b { font-size: 13.5px; }
+/* Handy (1.44.0, Variante B der Mockups): Symbol über einem Kurztext; Verlauf und Gerät tragen ihr Wort, Batterie und Empfang den Wert */
+:host([narrow]) .ag-seg > button.ag-sv-tile { min-width: 0; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 8px 4px; text-align: center; min-height: 62px; }
+:host([narrow]) .ag-sv-ti { display: grid; }
+:host([narrow]) .ag-sv-ti svg { width: 22px; height: 22px; }
+:host([narrow]) .ag-sv-tx { flex: none; max-width: 100%; text-align: center; }
+:host([narrow]) .ag-sv-tx b, :host([narrow]) .ag-sv-tx small { font-size: 13px; }
+:host([narrow]) .ag-sv-tile[data-tab="state"] .ag-sv-tx b, :host([narrow]) .ag-sv-tile[data-tab="device"] .ag-sv-tx b { display: none; }
+:host([narrow]) .ag-sv-tile[data-tab="battery"] .ag-sv-tx small, :host([narrow]) .ag-sv-tile[data-tab="signal"] .ag-sv-tx small { display: none; }
+:host([narrow]) .ag-sv-tile[data-tab="state"] .ag-sv-tx small, :host([narrow]) .ag-sv-tile[data-tab="device"] .ag-sv-tx small { font-weight: 600; color: inherit; }
 :host([narrow]) .ag-sv-seg { display: grid; grid-auto-columns: 1fr; }
 :host([narrow]) .ag-sv-seg button { min-height: 40px; padding: 0 4px; }
 :host([narrow]) .ag-sv-kpis { gap: 18px; margin-top: 12px; }

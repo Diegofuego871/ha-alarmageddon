@@ -5,7 +5,7 @@ Frage des Nutzers: Auf kleinen Displays ist in den vier Reitern (Verlauf, Batter
 Die Bilder zeigen die echte Sensoransicht (HA-Nachbau, dunkel, 390 px), die Varianten liegen als zusätzliche Stile darüber; erfundene Daten.
 Quelle: `src/mock.mjs` (`node docs/mockups/tabs-handy-v1/src/mock.mjs`).
 
-**Noch nicht entschieden, noch nicht umgesetzt.**
+**Entschieden: Variante B, umgesetzt in 1.43.2.**
 
 | Bild | Variante |
 | --- | --- |
