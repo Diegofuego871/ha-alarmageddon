@@ -13,6 +13,10 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 - **Zonenfarben in den Aktionen.** Jede der sechs Zonen hat ihre eigene Farbe, so siehst du sofort, wohin ein Schritt gehört: Ausgangsverzögerung helles Orange, Eingangsverzögerung dunkles Orange, scharf geschaltet helles Rot, Alarm dunkles Rot, nach dem Quittieren helles Grün, beim Deaktivieren dunkles Grün. Die Schritte laufen von der Zonenfarbe nach neutral, die Verbindungslinie trägt die Farbe, und eine kleine Pille an jedem Schritt nennt die Zone in Worten (so geht es auch ohne Farben zu unterscheiden). Helles und dunkles Thema, Computer und Handy; die Schrift der Pille hat mindestens 3:1 Kontrast.
 
+### Geändert
+
+- **Abspiel-Knopf der eigenen Töne** (Konfiguration › Anlage › Eigene Töne): Solange ein Ton spielt, ist der Knopf rot und pulsiert, genau wie der Stopp-Knopf eines getesteten Schritts, und wird wieder normal, wenn der Ton endet oder gestoppt wird. Der Knopf "Testen" unten bei den Aktionen verhielt sich schon so; ein Test sichert das jetzt ab.
+
 ### Behoben
 
 - **Dateiauswahl für eigene Töne auf dem iPhone.** Das Auswahlfenster bietet die Fotomediathek und die Videoaufnahme nicht mehr an, nur noch Dateien. Die Liste der erlaubten Endungen nennt ".m4a", ".aac" und ".ogg" nicht mehr (das iPhone behandelt sie als Video); "audio/*" deckt weiterhin alle Audiodateien ab.

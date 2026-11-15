@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **Zone colours in the actions.** Each of the six zones has its own colour, so you see at a glance where a step belongs: exit delay light orange, entry delay dark orange, armed light red, alarm dark red, after acknowledging light green, on disarming dark green. The steps run from the zone colour to neutral, the connecting line carries the colour, and a small pill on every step names the zone in words (so it also works without telling colours apart). Light and dark theme, desktop and phone; the pill text keeps a contrast of at least 3:1.
 
+### Changed
+
+- **Play button of your own sounds** (Configuration › System › Your own sounds): while a sound plays, the button is red and pulses, exactly like the stop button of a tested step, and turns normal again when the sound ends or is stopped. The "Test" button at the bottom of the actions page already behaved this way; a test now covers it.
+
 ### Fixed
 
 - **File choice for your own sounds on the iPhone.** The file dialog no longer offers the photo library and video recording, only files. The list of allowed endings no longer names ".m4a", ".aac" and ".ogg" (the iPhone treats them as video); "audio/*" still covers all audio files.

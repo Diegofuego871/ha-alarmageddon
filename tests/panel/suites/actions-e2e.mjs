@@ -85,6 +85,7 @@ for (const lang of ["de", "en"]) {
     // Ganzer Ablauf: der Knopf unten wird zum Stopp
     await s.tap('.ag-foot [data-wf="test"]');
     check(`${tag}: Test des ganzen Ablaufs: unten Stopp, an den Schritten kein Stopp`, await s.waitFor("return !!r.querySelector('.ag-foot [data-wf=\"test-stop\"]') && !r.querySelector('[data-wf=\"test-step-stop\"]') && [...r.querySelectorAll('.ag-wf-main [data-wf=\"test-step\"]')].every((b) => !b.disabled)"));
+    check(`${tag}: der Stopp-Knopf unten ist rot und pulsiert, wie der am Schritt (1.40.0); nach dem Stopp ist "Testen" wieder normal`, await s.ev("const b=r.querySelector('.ag-foot [data-wf=\"test-stop\"]'); const c=getComputedStyle(b); const v=c.backgroundColor.match(/[\\d.]+/g).map(Number); const k=c.backgroundColor.startsWith('color(') ? 255 : 1; return v[0]*k > 150 && v[0]*k > 2*v[1]*k && c.color === 'rgb(255, 255, 255)' && c.animationName !== 'none'"));
     await s.tap('.ag-foot [data-wf="test-stop"]');
     await s.waitFor("return !!r.querySelector('.ag-foot [data-wf=\"test\"]') && !r.querySelector('.ag-foot [data-wf=\"test\"]').disabled");
 

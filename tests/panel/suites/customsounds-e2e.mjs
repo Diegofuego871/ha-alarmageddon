@@ -78,6 +78,13 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sub="system"]');
     await s.waitFor("return !!r.querySelector('[data-cs=manage]')");
     check(`${tag}: Kapitel "${lang === "de" ? "Eigene Töne" : "Your own sounds"}" listet beide Töne mit Grösse und Nutzung`, await s.ev(`const rows=[...r.querySelectorAll('[data-cs=manage] .ag-csrow')]; return rows.length === 2 && rows[0].textContent.includes('Garage Tor') && rows[0].textContent.includes(${JSON.stringify(t.used)}) && rows[1].textContent.includes('Haustür-Sirene') && rows[1].textContent.includes(${JSON.stringify(t.used)}) && /KB|MB/.test(rows[1].textContent)`));
+    // Abspielen: der Knopf wird rot (wie der Stopp-Knopf eines Schritts) und danach wieder normal (1.40.0)
+    await s.ev("const a=window.Audio; window.__realAudio=a; window.Audio = function () { const o = { play: () => Promise.resolve(), pause() {}, addEventListener() {}, set onended(f) { o._end = f; }, set src(v) {}, currentTime: 0 }; window.__fakeAudio = o; return o; }; return 1");
+    await s.tap('[data-cs=manage] .ag-csrow [data-sys="cs-play"]');
+    check(`${tag}: Eigene Töne: beim Abspielen ist der Knopf rot (Stopp), wie beim Test eines Schritts`, await s.waitFor("const b=r.querySelector('[data-cs=manage] [data-sys=\"cs-stop\"]'); return !!b && (() => { const v = getComputedStyle(b).backgroundColor.match(/[\\d.]+/g).map(Number); const k = getComputedStyle(b).backgroundColor.startsWith('color(') ? 255 : 1; return v[0] * k > 150 && v[0] * k > 2 * v[1] * k && v[0] * k > 2 * v[2] * k; })() && getComputedStyle(b).color === 'rgb(255, 255, 255)'"));
+    await s.tap('[data-cs=manage] [data-sys="cs-stop"]');
+    check(`${tag}: Eigene Töne: nach dem Stopp ist der Knopf wieder normal`, await s.waitFor("const b=r.querySelector('[data-cs=manage] .ag-csrow [data-sys=\"cs-play\"]'); return !!b && !/^rgb\\(239, 83, 80\\)$/.test(getComputedStyle(b).backgroundColor) && getComputedStyle(b).animationName === 'none' && !r.querySelector('[data-cs=manage] [data-sys=\"cs-stop\"]')"));
+    await s.ev("window.Audio = window.__realAudio; return 1");
     await s.tap('[data-cs=manage] [data-sound="custom_000000000002"] [data-sys="cs-rename"]');
     await s.ev("const i=r.querySelector('[data-cs=manage] [data-sys=cs-name-edit]'); i.value='Haustür-Sirene'; i.dispatchEvent(new Event('input', { bubbles: true })); return 1");
     await s.tap('[data-cs=manage] [data-sys="cs-rename-ok"]');

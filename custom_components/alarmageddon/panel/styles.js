@@ -441,10 +441,10 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-btns .ag-iconbtn[data-wf="delete"] { color: var(--ag-error); }
 .ag-wf-btns .ag-iconbtn:disabled { opacity: .3; cursor: default; }
 /* Läuft ein Test, ist der Stopp-Knopf rot und pulsiert: auf einen Blick zu sehen, wo man es wieder anhält */
-.ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"], .ag-btn[data-wf="test-stop"] { background: var(--ag-error); border-color: var(--ag-error); color: #fff; animation: ag-running 1.4s ease-out infinite; }
-.ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"]:hover, .ag-btn[data-wf="test-stop"]:hover { background: color-mix(in srgb, var(--ag-error) 88%, #000); }
+.ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"], .ag-btn[data-wf="test-stop"], .ag-iconbtn[data-sys="cs-stop"] { background: var(--ag-error); border-color: var(--ag-error); color: #fff; animation: ag-running 1.4s ease-out infinite; }
+.ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"]:hover, .ag-btn[data-wf="test-stop"]:hover, .ag-iconbtn[data-sys="cs-stop"]:hover { background: color-mix(in srgb, var(--ag-error) 88%, #000); }
 @keyframes ag-running { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ag-error) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 10px transparent; } }
-@media (prefers-reduced-motion: reduce) { .ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"], .ag-btn[data-wf="test-stop"] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"], .ag-btn[data-wf="test-stop"], .ag-iconbtn[data-sys="cs-stop"] { animation: none; } }
 /* Ende des Ablaufs: die Linie des Ablaufs endet an der Marke "Alarm endet" und läuft nie durch die Karten */
 .ag-wf-end { position: relative; max-width: 820px; }
 .ag-wf-end::before { content: ""; display: block; width: 2px; height: 12px; margin-left: calc(var(--wf-x) - 1px); background: var(--ag-divider); }
