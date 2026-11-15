@@ -1246,10 +1246,28 @@ export class ActionsUi {
       s.workflow_running = stop ? null : this.trigger;
       s.workflow_test = !stop;
       this.render();
-      if (!stop) setTimeout(() => h._fetch(), 61000);
+      if (!stop) this._watchTest();
     } catch (err) {
       h._toast(this._t("errGeneric", { message: errText(err) }));
     }
+  }
+
+  // Nach dem Start eines Tests nachfragen, bis er vorbei ist (Töne enden mit dem Ton, andere Tests mit dem Zeitfenster): der Stopp-Knopf
+  // bleibt nicht stehen. Höchstens 70 Sekunden, ein neuer Test ersetzt die Abfrage.
+  _watchTest() {
+    clearInterval(this._testWatch);
+    const started = Date.now();
+    this._testWatch = setInterval(async () => {
+      if (Date.now() - started > 70000 || !this.system?.workflow_running) {
+        clearInterval(this._testWatch);
+        return;
+      }
+      try {
+        await this.host._fetch();
+      } catch {
+        /* nächste Abfrage */
+      }
+    }, 2500);
   }
 
   // Einzelner Schritt: läuft wirklich auf den Geräten, darum vorher fragen

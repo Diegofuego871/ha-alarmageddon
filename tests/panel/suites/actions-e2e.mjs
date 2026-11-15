@@ -65,6 +65,14 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return r.getElementById('ag-confirm').open");
     await s.tap('#ag-confirm [data-c="yes"]');
     check(`${tag}: nur dieser Schritt gesendet`, await s.waitFor("return !!r.querySelector('.ag-wf-step [data-wf=\"test-step-stop\"]')") && await s.sim("const c=window.__calls.filter((x) => x.type === 'alarmageddon/test_workflow').at(-1); return c?.step?.type === 'wait' && c.trigger === 'away'"));
+    check(`${tag}: Stopp-Knopf des Tests ist rot und pulsiert (auf einen Blick zu erkennen)`, await s.ev("const b=r.querySelector('.ag-wf-step [data-wf=\"test-step-stop\"]'); const c=getComputedStyle(b); return c.backgroundColor === getComputedStyle(r.host).getPropertyValue('--ag-error').trim() || (c.backgroundColor.startsWith('rgb') && c.backgroundColor !== 'rgba(0, 0, 0, 0)' && c.animationName === 'ag-running')"));
+    // Ist der Ton vorbei, beendet der Server den Test: der Stopp-Knopf verschwindet von selbst, auch ohne Klick (Abfrage alle paar Sekunden)
+    await s.sim("for (const sys of window.__systems) { sys.workflow_running = null; sys.workflow_test = false; } return 1");
+    check(`${tag}: Test vom Server beendet: der Stopp-Knopf verschwindet von selbst`, await (async () => { for (let i = 0; i < 30; i += 1) { if (await s.ev("return !r.querySelector('[data-wf=\"test-step-stop\"]')")) return true; await s.page.waitForTimeout(500); } return false; })());
+    await s.tap('.ag-wf-step[data-index="2"] [data-wf="test-step"]');
+    await s.waitFor("return r.getElementById('ag-confirm').open");
+    await s.tap('#ag-confirm [data-c="yes"]');
+    await s.waitFor("return !!r.querySelector('.ag-wf-step [data-wf=\"test-step-stop\"]')");
     // 1.18.1: beim Schritt-Test wird dessen Play-Knopf zum Stopp-Knopf (nur bei diesem Schritt); unten gibt es keinen Stopp, "Test" ist gesperrt
     check(`${tag}: Stopp-Knopf nur am getesteten Schritt, die anderen Schritte und "Test" unten bleiben frei (ein neuer Test ersetzt den laufenden), unten kein Stopp`, await s.ev("const st=[...r.querySelectorAll('.ag-wf-main .ag-wf-step')]; return st[2].querySelector('[data-wf=\"test-step-stop\"]') && st.filter((c, k) => k !== 2).every((c) => c.querySelector('[data-wf=\"test-step\"]') && !c.querySelector('[data-wf=\"test-step\"]').disabled) && !r.querySelector('.ag-foot [data-wf=\"test-stop\"]') && r.querySelector('.ag-foot [data-wf=\"test\"]') && !r.querySelector('.ag-foot [data-wf=\"test\"]').disabled"));
     // Ein anderer Schritt lässt sich während des Tests testen: der neue Test ersetzt den laufenden, der Stopp-Knopf wandert

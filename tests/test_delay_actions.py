@@ -238,6 +238,27 @@ async def test_a_test_of_a_delay_tone_never_plays_longer_than_a_test_lasts(hass:
     await runner.async_stop()
 
 
+async def test_a_test_of_tones_ends_when_the_tone_is_over_but_a_device_test_waits_for_its_window(hass: HomeAssistant, freezer) -> None:
+    """
+    Der Stopp-Knopf im Panel bleibt nicht stehen, wenn der Ton längst gespielt ist: ein Test nur mit Tönen endet mit dem Ton. Ein Test mit
+    Geräteaktion bleibt bis zum Ende des Zeitfensters (der Nutzer soll die Wirkung sehen, danach wird zurückgestellt).
+    """
+    entry, played, _stopped, _on = await _setup(hass, exit_delay_home=2)
+    runner = entry.runtime_data.workflow
+    assert await runner.async_run("home", test=True, steps=[tone("chime", duration=3)])
+    await settle(hass)
+    assert len(played) == 1 and runner.running is not None and runner.running.get("test")
+    await advance(hass, freezer, 4)
+    await settle(hass)
+    assert runner.running is None
+    assert await runner.async_run("home", test=True, steps=[act(LIGHT)])
+    await settle(hass)
+    await advance(hass, freezer, 10)
+    await settle(hass)
+    assert runner.running is not None and runner.running.get("test")
+    await runner.async_stop()
+
+
 async def test_a_test_without_a_set_delay_plays_the_duration_of_the_step(hass: HomeAssistant) -> None:
     """Ist für den Modus keine Ausgangsverzögerung eingestellt (0), gilt die Dauer des Schritts; die Angabe "delay" hängt an keiner Verzögerung."""
     entry, played, _stopped, _on = await _setup(hass, exit_delay_home=0)

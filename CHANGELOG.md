@@ -7,6 +7,16 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.35.4] - 2026-11-15
+
+### Fixed
+
+- **A test of a tone ends when the tone is over.** The stop button of a tested step stayed visible until the time window of a test (60 seconds) was over, even if a short tone had ended long before. A test that only plays tones now ends with the tone, and the panel asks every few seconds, so the button disappears by itself. A test with a device action (a light, a siren switch) still stays until the end of the window, so you can see the effect before everything is put back.
+
+### Changed
+
+- **The stop button of a running test is red and pulses,** on the step and at the bottom ("Stop test"). You see at a glance that something is running and where to stop it. With "reduce motion" set on the device, it does not pulse.
+
 ## [1.35.3] - 2026-11-14
 
 ### Changed
@@ -1395,6 +1405,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.35.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.4
 [1.35.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.3
 [1.35.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.2
 [1.35.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.1

@@ -24,6 +24,9 @@ ROOT = BASE.parents[1]
 
 # (Name, Datei, Text im Code, Ersatz, Tests, die es merken müssen)
 MUTATIONS = [
+    ("Test mit Geräteaktion endet vor dem Zeitfenster (die Wirkung wäre nicht zu sehen, das Zurückstellen käme sofort)", "workflow.py",
+     '            return all(step.get("type") in ("sound", "chime", "dechime", "prealarm", "notify", "wait") for step in steps)',
+     "            return True", "tests/test_delay_actions.py -k ends_when_the_tone_is_over"),
     ("Test eines Tons mit der Verzögerung spielt länger als ein Test dauert (ohne Obergrenze TEST_SECONDS)", "workflow.py",
      '{**plain, "duration": min(configured, TEST_SECONDS)} if configured > 0 else plain', '{**plain, "duration": configured} if configured > 0 else plain',
      "tests/test_delay_actions.py -k never_plays_longer"),

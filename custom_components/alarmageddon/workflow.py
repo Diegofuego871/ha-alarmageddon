@@ -685,6 +685,9 @@ class WorkflowRunner:
         if error is None:
             if run.get("after"):
                 self._finish_after(run)
+            elif run.get("test") and self._sound_only(run):
+                # Test von Tönen: ist alles gespielt, endet der Test (der Stopp-Knopf im Panel verschwindet), nicht erst nach dem Zeitfenster
+                self._background(self._end_test_when_idle(run))
             return
         position = self._positions.get(trigger, 0)
         _LOGGER.error("%s: watchdog: the alarm actions (%s) stopped unexpectedly at step %s; continuing with the next step",
@@ -764,6 +767,22 @@ class WorkflowRunner:
             await future
         finally:
             unsub()
+
+    def _sound_only(self, run: dict[str, Any]) -> bool:
+        """Besteht der Test nur aus Tönen (und Meldung, Warten)? Bei Geräteaktionen bleibt er bis zum Ende des Zeitfensters: der Nutzer soll die Wirkung sehen."""
+        try:
+            steps = run.get("steps") or self.steps(run["trigger"])
+            return all(step.get("type") in ("sound", "chime", "dechime", "prealarm", "notify", "wait") for step in steps)
+        except Exception:  # noqa: BLE001 - ohne lesbare Schritte bleibt es beim Zeitfenster
+            return False
+
+    async def _end_test_when_idle(self, run: dict[str, Any]) -> None:
+        """Wartet, bis die Töne des Tests zu Ende gespielt sind (sie laufen nebenher), und beendet den Test dann. Nur ein Test, nie ein echter Ablauf."""
+        pending = {task for task in self._side_tasks if not task.done()}
+        if pending:
+            await asyncio.wait(pending)
+        if self._run is run and run.get("test"):
+            self.hass.async_create_task(self.async_stop())
 
     @callback
     def _test_over(self, _now: Any = None) -> None:

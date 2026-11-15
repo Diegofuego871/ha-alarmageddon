@@ -7,6 +7,16 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.35.4] - 2026-11-15
+
+### Behoben
+
+- **Der Test eines Tons endet, wenn der Ton vorbei ist.** Der Stopp-Knopf eines getesteten Schritts blieb stehen, bis das Zeitfenster eines Tests (60 Sekunden) um war, auch wenn ein kurzer Ton längst zu Ende war. Ein Test, der nur Töne spielt, endet jetzt mit dem Ton, und das Panel fragt alle paar Sekunden nach, damit der Knopf von selbst verschwindet. Ein Test mit Geräteaktion (Licht, Schalter einer Sirene) bleibt bis zum Ende des Zeitfensters, damit man die Wirkung sieht, bevor alles zurückgestellt wird.
+
+### Geändert
+
+- **Der Stopp-Knopf eines laufenden Tests ist rot und pulsiert,** am Schritt und unten ("Test stoppen"). Man sieht auf einen Blick, dass etwas läuft und wo man es anhält. Ist am Gerät "Bewegung reduzieren" eingestellt, pulsiert er nicht.
+
 ## [1.35.3] - 2026-11-14
 
 ### Geändert
@@ -1395,6 +1405,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.35.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.4
 [1.35.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.3
 [1.35.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.2
 [1.35.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.1
