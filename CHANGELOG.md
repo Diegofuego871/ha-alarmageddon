@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.36.1] - 2026-11-15
+
+### Changed
+
+- **More room for the sensors on a tablet.** On a tablet (an iPad in landscape, with or without the sidebar of Home Assistant; panel narrower than 1200 pixels) the overview now scrolls like on the phone: the header and the cards of the alarm system and the status scroll away, only the search and the filters stay at the top, and the gaps stay the same while scrolling. From about 14 inches (panel 1200 pixels and wider) nothing changes: header, cards and filters stay in place.
+
 ## [1.36.0] - 2026-11-15
 
 ### Added
@@ -1417,6 +1423,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.36.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.1
 [1.36.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.0
 [1.35.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.5
 [1.35.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.4

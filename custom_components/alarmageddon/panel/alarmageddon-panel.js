@@ -178,9 +178,13 @@ class AlarmageddonPanel extends HTMLElement {
     // "medium" (1.26.0): Tablet im Querformat, Fenster mit Seitenleiste von HA. Die Optionen eines Sensors öffnen dort wie auf dem
     // Handy als Fenster mit eigenem Scrollen: neben der Tabelle (420 px) fehlt unter 1300 px der Platz, das Blatt läge über ihr.
     const medium = this.clientWidth > 0 && this.clientWidth < 1300;
-    if (narrow === this.hasAttribute("narrow") && medium === this.hasAttribute("medium") && !initial) return;
+    // "compact" (1.36.1): Handy und Tablet (iPad im Querformat, auch mit Seitenleiste): die Übersicht scrollt wie auf dem Handy, Kopfzeile und Karten
+    // verschwinden, nur die Filter bleiben oben stehen. Ab etwa 14 Zoll (Panel 1200 px und breiter) bleibt alles wie am Computer.
+    const compact = this.clientWidth > 0 && this.clientWidth < 1200;
+    if (narrow === this.hasAttribute("narrow") && medium === this.hasAttribute("medium") && compact === this.hasAttribute("compact") && !initial) return;
     this.toggleAttribute("narrow", narrow);
     this.toggleAttribute("medium", medium);
+    this.toggleAttribute("compact", compact);
     if (!initial) this._render();
   }
 
@@ -659,10 +663,10 @@ class AlarmageddonPanel extends HTMLElement {
     this._stickyRaf = window.requestAnimationFrame(() => {
       // Übersicht: auch die Karten der Anlagen bleiben stehen, aber nur wenn das Fenster hoch genug ist (sonst bliebe zu wenig für die Liste)
       c.style.setProperty("--ag-ch", `${c.clientHeight}px`); // Höhe des Bereichs: das Blatt neben der Tabelle scrollt darin
-      const tall = c.clientHeight >= 760 && !this.hasAttribute("narrow");
+      const tall = c.clientHeight >= 760 && !this.hasAttribute("compact") && !this.hasAttribute("narrow");
       const v = this._view;
       const stickyOverview = this._tab === "overview" && v?.querySelector(":scope > .ag-ov-tools");
-      const narrowOv = this.hasAttribute("narrow") && stickyOverview;
+      const narrowOv = (this.hasAttribute("narrow") || this.hasAttribute("compact")) && stickyOverview;
       const items = [
         // Übersicht auf dem Handy: Kopfzeile und Karten scrollen weg, Suche, Filter und Tabellenkopf stehen ganz oben (Vorgabe des Nutzers)
         narrowOv ? null : c.querySelector(":scope > .ag-head"),

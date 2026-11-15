@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.36.1] - 2026-11-15
+
+### Geändert
+
+- **Mehr Platz für die Sensoren auf einem Tablet.** Auf einem Tablet (iPad im Querformat, mit oder ohne Seitenleiste von Home Assistant; Panel schmaler als 1200 Pixel) scrollt die Übersicht jetzt wie auf dem Handy: die Kopfzeile und die Kacheln der Alarmanlage und des Status scrollen weg, nur Suche und Filter bleiben oben stehen, und die Abstände bleiben beim Scrollen gleich. Ab etwa 14 Zoll (Panel 1200 Pixel und breiter) ändert sich nichts: Kopfzeile, Kacheln und Filter bleiben fest.
+
 ## [1.36.0] - 2026-11-15
 
 ### Hinzugefügt
@@ -1417,6 +1423,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.36.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.1
 [1.36.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.36.0
 [1.35.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.5
 [1.35.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.35.4
