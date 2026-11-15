@@ -428,6 +428,14 @@ MUTATIONS = [
      "            return default, ALL_SOUNDS[default]\n        return None", "            return None\n        return None", "tests/test_custom_sounds.py -k falls_back_when_its_file_is_missing"),
     ("Eigene Töne: Wiederherstellen übernimmt Einträge, die keine Töne sind", "custom_sounds.py",
      "        if len(item[\"wav\"]) > MAX_UPLOAD_BYTES * 4 // 3 + 16:", "        if False:", "tests/test_custom_sounds.py -k too_big_is_dropped"),
+    ("Eigene Töne: ein unerwarteter Fehler beim Lesen einer Datei wird nicht als \"nicht lesbar\" gemeldet (Serverfehler ohne Grund)", "custom_sounds.py",
+     "        except Exception as err:  # noqa: BLE001 - eine unlesbare Datei darf nie als Serverfehler enden", "        except ZeroDivisionError as err:",
+     "tests/test_custom_sounds.py -k unexpected_error_while_reading"),
+    ("Eigene Töne: ein Fehler beim Speichern gibt dem Panel keine lesbare Antwort", "custom_sounds.py",
+     "        except Exception:  # noqa: BLE001 - das Panel bekommt immer eine lesbare Antwort, die Einzelheiten stehen im Protokoll", "        except ZeroDivisionError:",
+     "tests/test_custom_sounds.py -k failure_while_saving"),
+    ("Eigene Töne: ein HEIC-Foto geht als MP4 an ffmpeg", "custom_sounds.py",
+     '    if raw[4:8] == b"ftyp" and raw[8:12] not in IMAGE_BRANDS:', '    if raw[4:8] == b"ftyp":', "tests/test_custom_sounds.py -k says_what_it_is"),
 ]
 
 

@@ -47,8 +47,8 @@ export function uploadHtml(t, host, ui, attr) {
       <button type="button" class="ag-btn" ${attr("cs-cancel")} ${ui.busy ? "disabled" : ""}>${esc(t("cancel"))}</button></div></div>`;
 }
 
-export function uploadError(t, code) {
-  const text = t(`upErr_${code}`);
+export function uploadError(t, code, status) {
+  const text = t(`upErr_${code}`, { status: status || "?" });
   return text === `upErr_${code}` ? t("upErr_upload_failed") : text;
 }
 
@@ -66,7 +66,8 @@ export async function uploadSound(host, root, ui, t) {
   try {
     res = await host._hass.fetchWithAuth("/api/alarmageddon/sounds", { method: "POST", body });
   } catch {
-    throw Object.assign(new Error("upload_failed"), { code: "upload_failed" });
+    // Die Anfrage kam nicht an (Verbindung weg) oder die Datei liess sich nicht lesen (zum Beispiel nur in der Cloud, nicht auf dem Gerät)
+    throw Object.assign(new Error("network"), { code: "network" });
   }
   let data = {};
   try {
@@ -74,7 +75,8 @@ export async function uploadSound(host, root, ui, t) {
   } catch {
     /* Antwort ohne Inhalt */
   }
-  if (!res.ok || !data.sound) throw Object.assign(new Error(data.error || "upload_failed"), { code: data.error || "upload_failed" });
+  // Ohne Fehlerschlüssel stammt die Antwort nicht von der Tonverwaltung (Proxy, Fehlerseite): den Statuscode zeigen
+  if (!res.ok || !data.sound) throw Object.assign(new Error(data.error || "server"), { code: data.error || "server", status: res.status });
   host._data.custom_sounds = [...customList(host), data.sound].sort((a, b) => a.name.localeCompare(b.name, host._lang || "en"));
   return data.sound;
 }

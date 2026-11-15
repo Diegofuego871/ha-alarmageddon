@@ -84,7 +84,7 @@ def test_every_pcm_wav_becomes_mono_with_16_bit(channels: int, width: int) -> No
         (make_wav(1, 96000), "rate"),
         (make_wav(1, 4000), "rate"),
         (b"RIFF\x00\x00\x00\x00WAVEfmt ", "invalid_sound"),
-        (b"das ist keine Tondatei", "invalid_sound"),
+        (b"das ist keine Tondatei", "is_text"),
         (b"", "invalid_sound"),
     ],
     ids=["zu lang", "zu kurz", "Rate zu hoch", "Rate zu tief", "abgeschnitten", "Text", "leer"],
@@ -102,7 +102,7 @@ def test_the_format_comes_from_the_content_and_never_from_the_ending() -> None:
     assert cs.sniff(b"MZ\x90\x00 programm.exe") is None and cs.sniff(b"#EXTM3U\nhttp://...") is None
     with pytest.raises(cs.SoundError) as err:
         cs.convert(b"#EXTM3U\nhttp://example.invalid/stream", "/usr/bin/ffmpeg")
-    assert err.value.code == "invalid_sound", "Listen und Adressen werden nie an ffmpeg gegeben"
+    assert err.value.code == "is_text", "Listen und Adressen werden nie an ffmpeg gegeben"
 
 
 def test_without_ffmpeg_only_wav_is_possible() -> None:
@@ -167,6 +167,65 @@ def test_an_ffmpeg_that_takes_too_long_is_refused(monkeypatch: pytest.MonkeyPatc
     assert err.value.code == "invalid_sound"
 
 
+@pytest.mark.parametrize(
+    ("raw", "code"),
+    [
+        (b"\xff\xd8\xff\xe0" + b"\x00" * 40, "is_image"),
+        (b"\x89PNG\r\n\x1a\n" + b"\x00" * 40, "is_image"),
+        (b"\x00\x00\x00\x18ftypheic" + b"\x00" * 40, "is_image"),  # HEIC-Foto vom iPhone, nicht M4A/MP4
+        (b"%PDF-1.7\n" + b"\x00" * 40, "is_document"),
+        ("Hallo Welt, das ist kein Ton\nÜmläute".encode(), "is_text"),
+        (b"\x01\x02\x03\x04\x05\x06" * 20, "invalid_sound"),
+    ],
+    ids=["JPEG", "PNG", "HEIC", "PDF", "Text", "Unbekannt"],
+)
+def test_a_file_that_is_not_a_sound_says_what_it_is(raw: bytes, code: str) -> None:
+    with pytest.raises(cs.SoundError) as err:
+        cs.convert(raw, "/usr/bin/ffmpeg")
+    assert err.value.code == code
+
+
+def test_a_video_without_a_sound_track_is_named_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    def run(command, **kwargs):
+        return subprocess.CompletedProcess(command, 1, b"", b"Output file does not contain any stream")
+
+    monkeypatch.setattr(cs.subprocess, "run", run)
+    with pytest.raises(cs.SoundError) as err:
+        cs.convert(b"\x00\x00\x00\x18ftypisom" + b"\x00" * 40, "/usr/bin/ffmpeg")
+    assert err.value.code == "no_audio"
+
+
+async def test_an_unexpected_error_while_reading_a_file_is_reported_as_unreadable_and_logged(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    await setup_alarm(hass)
+    reg = hass.data[DATA_CUSTOM_SOUNDS]
+
+    def boom(raw, ffmpeg):
+        raise RuntimeError("kaputt")
+
+    monkeypatch.setattr(cs, "convert", boom)
+    with pytest.raises(cs.SoundError) as err:
+        await reg.async_add("Test", make_wav(), None)
+    assert err.value.code == "invalid_sound"
+    assert "could not be read" in caplog.text, "der Grund steht im Protokoll von Home Assistant"
+
+
+async def test_a_failure_while_saving_answers_with_a_readable_key_and_logs_it(hass: HomeAssistant, hass_client, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    await setup_alarm(hass)
+    reg = hass.data[DATA_CUSTOM_SOUNDS]
+
+    def boom(self, key, wav):
+        raise OSError("Platte voll")
+
+    monkeypatch.setattr(type(reg), "_write", boom)
+    client = await hass_client()
+    form = aiohttp.FormData()
+    form.add_field("name", "Test")
+    form.add_field("file", make_wav(), filename="t.wav", content_type="audio/wav")
+    resp = await client.post("/api/alarmageddon/sounds", data=form)
+    assert resp.status == 500 and (await resp.json())["error"] == "server"
+    assert "Saving an uploaded sound failed" in caplog.text
+
+
 # ----- Hochladen (HTTP) -----
 
 
@@ -190,7 +249,7 @@ async def test_an_administrator_uploads_names_and_finds_the_sound(hass: HomeAssi
     [
         ("", make_wav(), 400, "name_invalid"),
         ("x" * 41, make_wav(), 400, "name_invalid"),
-        ("Ton", b"kein Ton", 400, "invalid_sound"),
+        ("Ton", b"kein Ton", 400, "is_text"),
         ("Ton", make_wav(MAX_CUSTOM_SECONDS + 5, 8000), 400, "too_long"),
         ("Ton", b"x" * (MAX_UPLOAD_BYTES + 10), 413, "too_big"),
     ],

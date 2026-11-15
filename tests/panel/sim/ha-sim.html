@@ -542,6 +542,10 @@
     window.__uploads.push({ name, file: file?.name, size: file?.size });
     if (!name || name.length > 40) return reply(400, { error: "name_invalid" });
     if (window.__customSounds.some((s) => s.name.toLowerCase() === name.toLowerCase())) return reply(400, { error: "name_taken" });
+    if (file && /network/.test(file.name)) throw new TypeError("Load failed");
+    if (file && /server/.test(file.name)) return reply(500, {});
+    if (file && /\.(jpe?g|png|heic)$/i.test(file.name)) return reply(400, { error: "is_image" });
+    if (file && /\.txt$/i.test(file.name)) return reply(400, { error: "is_text" });
     if (!file || !/\.(wav|mp3|ogg|flac|m4a)$/i.test(file.name) || file.size < 12) return reply(400, { error: "invalid_sound" });
     if (/too_long/.test(file.name)) return reply(400, { error: "too_long" });
     const id = `custom_${String(window.__customSounds.length + 1).padStart(12, "0")}`;

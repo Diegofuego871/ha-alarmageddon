@@ -1238,7 +1238,7 @@ export class ActionsUi {
       this.host._toast(this._t("upDone", { name: sound.name }));
     } catch (err) {
       ui.busy = false;
-      ui.error = uploadError((k, v) => this._t(k, v), err.code || "upload_failed");
+      ui.error = uploadError((k, v) => this._t(k, v), err.code || "upload_failed", err.status);
     }
     if (this.edit) this.renderEditor();
   }

@@ -58,6 +58,23 @@ class SoundError(Exception):
         self.code = code
 
 
+# Markenkennungen von HEIC/AVIF-Fotos: sie tragen wie MP4/M4A die Kennung "ftyp", sind aber Bilder (iPhone-Fotomediathek)
+IMAGE_BRANDS = (b"heic", b"heix", b"hevc", b"hevx", b"mif1", b"msf1", b"avif", b"avis")
+
+
+def what_is_it(raw: bytes) -> str | None:
+    """Was eine Datei ist, die kein Ton ist, für eine verständliche Fehlermeldung: "is_image", "is_document", "is_text" oder None."""
+    head = raw[:16]
+    if head[:3] == b"\xff\xd8\xff" or head[:8] == b"\x89PNG\r\n\x1a\n" or head[:4] == b"GIF8" or head[:2] == b"BM" or (head[:4] == b"RIFF" and raw[8:12] == b"WEBP"):
+        return "is_image"
+    if raw[4:8] == b"ftyp" and raw[8:12] in IMAGE_BRANDS:
+        return "is_image"
+    if head[:4] == b"%PDF":
+        return "is_document"
+    # Text: die ersten Bytes sind lesbare Zeichen (Umlaute und andere UTF-8-Folgen liegen über 127)
+    return "is_text" if raw and all(b >= 32 or b in (9, 10, 13) for b in raw[:512]) else None
+
+
 def sniff(raw: bytes) -> str | None:
     """Das Format an den ersten Bytes erkennen, nie an der Endung: "wav", "mp3", "ogg", "flac" oder "mov" (M4A/AAC)."""
     if raw[:4] == b"RIFF" and raw[8:12] == b"WAVE":
@@ -68,7 +85,7 @@ def sniff(raw: bytes) -> str | None:
         return "ogg"
     if raw[:4] == b"fLaC":
         return "flac"
-    if raw[4:8] == b"ftyp":
+    if raw[4:8] == b"ftyp" and raw[8:12] not in IMAGE_BRANDS:
         return "mov"
     return None
 
@@ -144,7 +161,7 @@ def convert(raw: bytes, ffmpeg: str | None) -> tuple[bytes, float]:
     """
     kind = sniff(raw)
     if kind is None:
-        raise SoundError("invalid_sound")
+        raise SoundError(what_is_it(raw) or "invalid_sound")
     if kind == "wav":
         return normalize_wav(raw)
     if not ffmpeg:
@@ -159,7 +176,8 @@ def convert(raw: bytes, ffmpeg: str | None) -> tuple[bytes, float]:
         except (subprocess.TimeoutExpired, OSError) as err:
             raise SoundError("invalid_sound") from err
         if done.returncode != 0 or not target.exists():
-            raise SoundError("invalid_sound")
+            # Ein Video ohne Tonspur: ffmpeg findet nichts, das es ausgeben könnte
+            raise SoundError("no_audio" if b"does not contain any stream" in (done.stderr or b"") else "invalid_sound")
         return normalize_wav(target.read_bytes())
 
 
@@ -221,7 +239,13 @@ class CustomSounds:
         if len(self.items) >= MAX_CUSTOM_SOUNDS:
             raise SoundError("too_many")
         self._check_name(title)
-        wav, seconds = await self.hass.async_add_executor_job(convert, raw, ffmpeg)
+        try:
+            wav, seconds = await self.hass.async_add_executor_job(convert, raw, ffmpeg)
+        except SoundError:
+            raise
+        except Exception as err:  # noqa: BLE001 - eine unlesbare Datei darf nie als Serverfehler enden
+            _LOGGER.warning("An uploaded sound could not be read (%s)", type(err).__name__, exc_info=True)
+            raise SoundError("invalid_sound") from err
         if self.total_bytes() + len(wav) > MAX_CUSTOM_TOTAL_BYTES:
             raise SoundError("no_space")
         key = sound_id or f"custom_{uuid.uuid4().hex[:12]}"
@@ -356,6 +380,9 @@ class SoundUploadView(HomeAssistantView):
             item = await reg.async_add(name, raw, ffmpeg_binary(hass))
         except SoundError as err:
             return web.json_response({"error": err.code}, status=400)
+        except Exception:  # noqa: BLE001 - das Panel bekommt immer eine lesbare Antwort, die Einzelheiten stehen im Protokoll
+            _LOGGER.exception("Saving an uploaded sound failed")
+            return web.json_response({"error": "server"}, status=500)
         return web.json_response({"sound": item})
 
 

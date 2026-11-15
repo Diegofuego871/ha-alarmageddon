@@ -3,8 +3,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { group: "Eigene Töne", up: "+ Eigenen Ton hochladen …", missing: "Eigener Ton gelöscht (Standardton spielt)", used: "in 1 Schritt(en) genutzt", unused: "nicht genutzt", errName: "Gib einen Namen", errFile: "Wähle eine Datei", errInvalid: "kein Ton", errTaken: "schon einen Ton mit diesem Namen", wavOnly: "Formate: WAV." },
-  en: { group: "Your own sounds", up: "+ Upload your own sound …", missing: "Own sound deleted (standard sound plays)", used: "used in 1 step(s)", unused: "not used", errName: "Enter a name", errFile: "Choose a file", errInvalid: "not a sound", errTaken: "already a sound with this name", wavOnly: "Formats: WAV." },
+  de: { errText: "Textdatei", errImage: "ein Bild", errServer: "Code 500", errNet: "nicht gesendet", group: "Eigene Töne", up: "+ Eigenen Ton hochladen …", missing: "Eigener Ton gelöscht (Standardton spielt)", used: "in 1 Schritt(en) genutzt", unused: "nicht genutzt", errName: "Gib einen Namen", errFile: "Wähle eine Datei", errInvalid: "kein Ton", errTaken: "schon einen Ton mit diesem Namen", wavOnly: "Formate: WAV." },
+  en: { errText: "text file", errImage: "a picture", errServer: "code 500", errNet: "could not be sent", group: "Your own sounds", up: "+ Upload your own sound …", missing: "Own sound deleted (standard sound plays)", used: "used in 1 step(s)", unused: "not used", errName: "Enter a name", errFile: "Choose a file", errInvalid: "not a sound", errTaken: "already a sound with this name", wavOnly: "Formats: WAV." },
 };
 const STEP = (kind, sound) => ({ type: kind, players: ["media_player.sonos_wohnzimmer"], sound, duration: 5, restore: true });
 const WAV = Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WAVE"), Buffer.alloc(40)]);
@@ -45,6 +45,16 @@ for (const lang of ["de", "en"]) {
     await (await s.el('#ag-step [data-cs=file]')).setInputFiles({ name: "notiz.txt", mimeType: "text/plain", buffer: Buffer.from("Hallo Welt, kein Ton") });
     await s.tap('#ag-step [data-wf="cs-go"]');
     check(`${tag}: eine Textdatei wird vom Server abgelehnt, der Name bleibt im Feld`, await s.waitFor(`const e=r.getElementById('ag-step'); return e.querySelector('.ag-up-err').textContent.length > 5 && e.querySelector('[data-cs=name]').value === 'Garage'`));
+    check(`${tag}: der Server nennt eine Textdatei beim Namen, nicht "fehlgeschlagen"`, await s.waitFor(`return r.getElementById('ag-step').querySelector('.ag-up-err').textContent.includes(${JSON.stringify(t.errText)})`));
+    await (await s.el('#ag-step [data-cs=file]')).setInputFiles({ name: "foto.jpg", mimeType: "application/octet-stream", buffer: Buffer.from("0123456789abcdef0123") });
+    await s.tap('#ag-step [data-wf="cs-go"]');
+    check(`${tag}: ein Foto wird als Bild benannt (iPhone-Fotomediathek)`, await s.waitFor(`return r.getElementById('ag-step').querySelector('.ag-up-err').textContent.includes(${JSON.stringify(t.errImage)})`));
+    await (await s.el('#ag-step [data-cs=file]')).setInputFiles({ name: "server.wav", mimeType: "application/octet-stream", buffer: Buffer.from("0123456789abcdef0123") });
+    await s.tap('#ag-step [data-wf="cs-go"]');
+    check(`${tag}: antwortet der Server ohne Fehlerschlüssel, steht der Statuscode da`, await s.waitFor(`return r.getElementById('ag-step').querySelector('.ag-up-err').textContent.includes(${JSON.stringify(t.errServer)})`));
+    await (await s.el('#ag-step [data-cs=file]')).setInputFiles({ name: "network.wav", mimeType: "application/octet-stream", buffer: Buffer.from("0123456789abcdef0123") });
+    await s.tap('#ag-step [data-wf="cs-go"]');
+    check(`${tag}: kommt die Anfrage nicht an, sagt die Meldung, dass die Datei nicht gesendet werden konnte`, await s.waitFor(`return r.getElementById('ag-step').querySelector('.ag-up-err').textContent.includes(${JSON.stringify(t.errNet)})`));
     await s.ev("const i=r.getElementById('ag-step').querySelector('[data-cs=name]'); i.value='haustür-sirene'; i.dispatchEvent(new Event('input', { bubbles: true })); return 1");
     await (await s.el('#ag-step [data-cs=file]')).setInputFiles({ name: "garage.wav", mimeType: "audio/wav", buffer: WAV });
     await s.tap('#ag-step [data-wf="cs-go"]');

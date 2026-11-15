@@ -16,6 +16,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 ### Behoben
 
 - **Dateiauswahl für eigene Töne auf dem iPhone.** Das Auswahlfenster bietet die Fotomediathek und die Videoaufnahme nicht mehr an, nur noch Dateien. Die Liste der erlaubten Endungen nennt ".m4a", ".aac" und ".ogg" nicht mehr (das iPhone behandelt sie als Video); "audio/*" deckt weiterhin alle Audiodateien ab.
+- **Verständliche Fehlermeldungen beim Hochladen eines Tons.** Statt "Das Hochladen ist fehlgeschlagen" sagt das Panel jetzt, was tatsächlich nicht stimmt: "Das ist ein Bild, kein Ton" (auch für iPhone-Fotos im Format HEIC), "ein Dokument", "eine Textdatei", "Die Datei hat keine Tonspur", "konnte nicht als Ton gelesen werden (beschädigt oder kein unterstütztes Audioformat)", oder, wenn die Anfrage nicht ankommt, "Die Datei konnte nicht gesendet werden" mit dem Hinweis, die Verbindung zu prüfen und dass die Datei auf dem Gerät liegt und nicht nur in der Cloud. Antwortet Home Assistant unerwartet, nennt die Meldung den Statuscode und verweist auf das Protokoll von Home Assistant, in dem die Ursache jetzt steht. Eine Datei, die sich nicht lesen lässt, endet nie als Serverfehler.
 
 ## [1.39.0] - 2026-11-15
 
