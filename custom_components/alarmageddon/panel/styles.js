@@ -457,9 +457,11 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-entry { --z: #ef6c00; }
 .ag-wf-armed { --z: #ff8a80; }
 .ag-wf-main { --z: #d32f2f; }
-.ag-wf-after { --z: #81c784; }
+.ag-wf-after, .ag-wf-end { --z: #81c784; }
 .ag-wf-disarmed { --z: #2e7d32; }
 .ag-wf-line .ag-wf-step { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
+.ag-wf-end .ag-wf-endcard { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
+.ag-wf-end::before { background: color-mix(in srgb, var(--z) 60%, var(--ag-divider)); }
 .ag-wf-line .ag-wf-seg { background: color-mix(in srgb, var(--z) 60%, var(--ag-divider)); }
 .ag-zone { display: flex; width: fit-content; max-width: 100%; align-items: center; margin-top: 8px; min-height: 24px; padding: 1px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; background: color-mix(in srgb, var(--z) 18%, transparent); color: color-mix(in srgb, var(--z) 55%, var(--ag-text)); }
 /* contents: sonst klebt die Leiste nur innerhalb dieses Blocks und scrollt mit weg */

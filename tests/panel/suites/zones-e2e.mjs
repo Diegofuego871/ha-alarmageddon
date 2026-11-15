@@ -38,6 +38,7 @@ for (const lang of ["de", "en"]) {
         check(`${tag}: Zone "${z}" hat ihre Farbe`, !!i && JSON.stringify(rgb(i.zone).slice(0, 3)) === JSON.stringify(COLORS[z]), JSON.stringify(i?.zone));
         check(`${tag}: Zone "${z}": Schritt mit Verlauf, Pille "${LABEL[lang][z]}" an jedem Schritt, Linie farbig`, !!i && i.grad && i.pill === LABEL[lang][z] && i.count && i.seg !== "rgba(0, 0, 0, 0)");
       }
+      check(`${tag}: der feste Block "Abschlussmeldung" hat denselben Verlauf wie die Schritte nach dem Quittieren`, await s.ev("const card=r.querySelector('.ag-wf-end .ag-wf-endcard'); const step=r.querySelector('.ag-wf-after .ag-wf-step'); return !!card && !!step && getComputedStyle(card).backgroundImage.includes('linear-gradient') && getComputedStyle(card).backgroundImage === getComputedStyle(step).backgroundImage"));
       check(`${tag}: die sechs Farben sind alle verschieden`, new Set(zones.map((z) => info[z]?.zone)).size === 6);
       // Lesbarkeit der Pillenschrift (3:1) auf der Pille über der Karte
       const lum = ([r, g, b]) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }).reduce((a, v, k) => a + v * [0.2126, 0.7152, 0.0722][k], 0);

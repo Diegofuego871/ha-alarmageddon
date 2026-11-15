@@ -13,6 +13,10 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 - **Die gewählte Datei bleibt erhalten, wenn der Name eines neuen Tons schon vergeben ist.** Der Name wird vor dem Hochladen geprüft (Gross- und Kleinschreibung und doppelte Leerzeichen zählen nicht). Ist er vergeben, bleibt das Formular, wie es ist, die Datei bleibt gewählt ("Gewählt: …") und du änderst nur den Namen. Das gilt auch nach jedem anderen Fehler beim Hochladen.
 
+### Geändert
+
+- **Der feste Block "Abschlussmeldung" ist eingefärbt wie die Aktionen nach dem Quittieren.** Er trägt denselben hellgrünen Verlauf und dieselbe Verbindungslinie wie die Schritte seiner Zone.
+
 ## [1.43.1] - 2026-11-15
 
 ### Geändert

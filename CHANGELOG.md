@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **The chosen file is kept when the name of a new sound is taken.** The name is checked before uploading (capitals and extra spaces do not count). If it is taken, the form stays as it is, the file remains chosen ("Chosen: …") and you only change the name. The same holds after any other error of the upload.
 
+### Changed
+
+- **The fixed block "Closing message" is coloured like the actions after acknowledging.** It carries the same light green gradient and connecting line as the steps of its zone.
+
 ## [1.43.1] - 2026-11-15
 
 ### Changed
