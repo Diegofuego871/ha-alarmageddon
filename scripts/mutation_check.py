@@ -458,6 +458,19 @@ MUTATIONS = [
      "            if not isinstance(rssi, (int, float)):\n                rssi = _field(entry, _LAST_RSSI)", "tests/test_reception.py -k invalid_thread_values"),
     ("Empfang (Thread): die veraltete Tabelle eines nicht erreichbaren Geräts zeigt einen Wert", "reception.py",
      '    return {"kind": KIND_DBM, "value": max(values) if values and reachable else None}', '    return {"kind": KIND_DBM, "value": max(values) if values else None}', "tests/test_reception.py -k cannot_reach"),
+    # PyAV statt ffmpeg-Programm (1.43.0): eigener Prozess, festes Format, Zeitgrenze, Rückfall, Vorrang
+    ("Eigene Töne (PyAV): läuft nicht abgeschottet (ohne -I)", "custom_sounds.py",
+     '        command = [sys.executable, "-I", "-c", AV_SCRIPT,', '        command = [sys.executable, "-c", AV_SCRIPT,', "tests/test_custom_sounds.py -k its_own_process"),
+    ("Eigene Töne (PyAV): das Eingangsformat ist nicht fest vorgegeben", "custom_sounds.py",
+     "str(source), str(target), kind, str(MAX_CUSTOM_SECONDS + 1)]", 'str(source), str(target), "auto", str(MAX_CUSTOM_SECONDS + 1)]', "tests/test_custom_sounds.py -k its_own_process"),
+    ("Eigene Töne (PyAV): ohne Zeitgrenze", "custom_sounds.py",
+     "capture_output=True, timeout=FFMPEG_TIMEOUT, check=False, cwd=tmp)", "capture_output=True, check=False, cwd=tmp)", "tests/test_custom_sounds.py -k its_own_process"),
+    ("Eigene Töne (PyAV): ein nicht benutzbares PyAV fällt nicht auf das ffmpeg-Programm zurück", "custom_sounds.py",
+     "        if done.returncode == AV_EXIT_UNUSABLE:\n            return None", '        if done.returncode == AV_EXIT_UNUSABLE:\n            raise SoundError("invalid_sound")', "tests/test_custom_sounds.py -k unusable_pyav"),
+    ("Eigene Töne (PyAV): eine Datei ohne Tonspur wird nicht als solche gemeldet", "custom_sounds.py",
+     "        if done.returncode == AV_EXIT_NO_AUDIO:", "        if False:", "tests/test_custom_sounds.py -k without_a_sound_track"),
+    ("Eigene Töne (PyAV): PyAV hat keinen Vorrang vor dem ffmpeg-Programm", "custom_sounds.py",
+     "    if av_available() and (wav := _convert_with_av(raw, kind)) is not None:", "    if False and (wav := _convert_with_av(raw, kind)) is not None:", "tests/test_custom_sounds.py -k its_own_process"),
 ]
 
 

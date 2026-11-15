@@ -4,13 +4,16 @@ gibt (Alarmton, Voralarm, Aktivierungs- und Deaktivierungston), in jeder Alarman
 einmal in der Ablage von Home Assistant (Kopieren eines Schritts dupliziert nichts).
 
 Beim Hochladen wird jede Datei in dasselbe Format gebracht wie die mitgelieferten Töne (Mono, 16 Bit, WAV): daraus baut sound_loop.py die Datei in der
-gewählten Länge (Wiederholung der Bytes). WAV liest Alarmageddon selbst; MP3, OGG, FLAC und M4A nur, wenn ffmpeg da ist. Alles, was hochgeladen
-wird, ist Eingabe von aussen: Grösse, Länge, Abtastrate und Anzahl sind begrenzt, ffmpeg bekommt nur ein festes Format und eine Zeitgrenze.
+gewählten Länge (Wiederholung der Bytes). WAV liest Alarmageddon selbst; MP3, OGG, FLAC und M4A wandelt PyAV (`av`, bringt Home Assistant für die
+Integration "stream" ohnehin mit, mit eingebauten FFmpeg-Bibliotheken), sonst das Programm ffmpeg (seit 1.43.0). Alles, was hochgeladen wird, ist
+Eingabe von aussen: Grösse, Länge, Abtastrate und Anzahl sind begrenzt, der Wandler bekommt nur ein festes Format und eine Zeitgrenze und läuft immer
+in einem eigenen Prozess: eine kaputte Datei darf höchstens diesen Prozess abstürzen lassen, nie Home Assistant.
 """
 
 from __future__ import annotations
 
 import base64
+import importlib.util
 import io
 import logging
 from pathlib import Path
@@ -154,18 +157,78 @@ def ffmpeg_binary(hass: HomeAssistant | None = None) -> str | None:
     return shutil.which("ffmpeg")
 
 
-def convert(raw: bytes, ffmpeg: str | None) -> tuple[bytes, float]:
-    """
-    Hochgeladene Datei in das Format der Töne bringen. Blockierend. WAV liest Alarmageddon selbst; die anderen Formate wandelt ffmpeg
-    um, mit festem Eingangsformat (kein Verfolgen von Listen oder Adressen), höchstens 31 Sekunden und einer Zeitgrenze.
-    """
-    kind = sniff(raw)
-    if kind is None:
-        raise SoundError(what_is_it(raw) or "invalid_sound")
-    if kind == "wav":
-        return normalize_wav(raw)
-    if not ffmpeg:
-        raise SoundError("ffmpeg_missing")
+# Das Skript, das PyAV im eigenen Prozess ausführt (Argumente: Eingabe, Ausgabe, Format, Höchstlänge in Sekunden). Fester Text, nie aus der Datei
+# gebildet. Endet mit 3, wenn die Datei keine Tonspur hat, und mit 4, wenn `av` nicht benutzbar ist (dann gilt das Programm ffmpeg).
+AV_EXIT_NO_AUDIO = 3
+AV_EXIT_UNUSABLE = 4
+AV_SCRIPT = """
+import sys, wave
+src, dst, fmt, limit = sys.argv[1], sys.argv[2], sys.argv[3], float(sys.argv[4])
+try:
+    import av
+    container = av.open(src, mode="r", format=fmt)
+except ImportError:
+    sys.exit(4)
+except Exception:
+    sys.exit(5)
+try:
+    stream = next((s for s in container.streams if s.type == "audio"), None)
+    if stream is None:
+        sys.exit(3)
+    rate = 44100
+    resampler = av.AudioResampler(format="s16", layout="mono", rate=rate)
+    total = 0
+    with wave.open(dst, "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        for packet in container.demux(stream):
+            for frame in packet.decode():
+                for piece in resampler.resample(frame):
+                    out.writeframes(bytes(piece.planes[0])[: piece.samples * 2])
+                    total += piece.samples
+                if total >= limit * rate:
+                    break
+            if total >= limit * rate:
+                break
+except SystemExit:
+    raise
+except Exception:
+    sys.exit(5)
+"""
+
+
+def av_available() -> bool:
+    """Ist PyAV in diesem Python installiert? (Ob es sich benutzen lässt, zeigt erst der Lauf: das Skript meldet es mit AV_EXIT_UNUSABLE.)"""
+    return importlib.util.find_spec("av") is not None
+
+
+def converter_available(hass: HomeAssistant | None = None) -> bool:
+    """Gibt es einen Wandler für MP3, OGG, FLAC und M4A: PyAV oder das Programm ffmpeg?"""
+    return av_available() or ffmpeg_binary(hass) is not None
+
+
+def _convert_with_av(raw: bytes, kind: str) -> bytes | None:
+    """Datei mit PyAV im eigenen Prozess in WAV wandeln. None: PyAV lässt sich nicht benutzen (dann ffmpeg). Sonst die WAV-Bytes oder SoundError."""
+    with tempfile.TemporaryDirectory(prefix="alarmageddon_") as tmp:
+        source, target = Path(tmp) / "in.bin", Path(tmp) / "out.wav"
+        source.write_bytes(raw)
+        command = [sys.executable, "-I", "-c", AV_SCRIPT, str(source), str(target), kind, str(MAX_CUSTOM_SECONDS + 1)]
+        try:
+            done = subprocess.run(command, capture_output=True, timeout=FFMPEG_TIMEOUT, check=False, cwd=tmp)  # noqa: S603 - Programm und Skript sind fest
+        except (subprocess.TimeoutExpired, OSError) as err:
+            raise SoundError("invalid_sound") from err
+        if done.returncode == AV_EXIT_UNUSABLE:
+            return None
+        if done.returncode == AV_EXIT_NO_AUDIO:
+            raise SoundError("no_audio")
+        if done.returncode != 0 or not target.exists():
+            raise SoundError("invalid_sound")
+        return target.read_bytes()
+
+
+def _convert_with_ffmpeg(raw: bytes, kind: str, ffmpeg: str) -> bytes:
+    """Datei mit dem Programm ffmpeg in WAV wandeln, mit festem Eingangsformat (kein Verfolgen von Listen oder Adressen) und Zeitgrenze."""
     with tempfile.TemporaryDirectory(prefix="alarmageddon_") as tmp:
         source, target = Path(tmp) / "in.bin", Path(tmp) / "out.wav"
         source.write_bytes(raw)
@@ -178,7 +241,25 @@ def convert(raw: bytes, ffmpeg: str | None) -> tuple[bytes, float]:
         if done.returncode != 0 or not target.exists():
             # Ein Video ohne Tonspur: ffmpeg findet nichts, das es ausgeben könnte
             raise SoundError("no_audio" if b"does not contain any stream" in (done.stderr or b"") else "invalid_sound")
-        return normalize_wav(target.read_bytes())
+        return target.read_bytes()
+
+
+def convert(raw: bytes, ffmpeg: str | None) -> tuple[bytes, float]:
+    """
+    Hochgeladene Datei in das Format der Töne bringen. Blockierend. WAV liest Alarmageddon selbst; die anderen Formate wandelt zuerst PyAV, wo es
+    sich benutzen lässt, sonst das Programm ffmpeg (beide in einem eigenen Prozess, mit festem Eingangsformat, höchstens 31 Sekunden und einer
+    Zeitgrenze). Ohne beides: "ffmpeg_missing".
+    """
+    kind = sniff(raw)
+    if kind is None:
+        raise SoundError(what_is_it(raw) or "invalid_sound")
+    if kind == "wav":
+        return normalize_wav(raw)
+    if av_available() and (wav := _convert_with_av(raw, kind)) is not None:
+        return normalize_wav(wav)
+    if not ffmpeg:
+        raise SoundError("ffmpeg_missing")
+    return normalize_wav(_convert_with_ffmpeg(raw, kind, ffmpeg))
 
 
 def clean_name(name: Any) -> str:

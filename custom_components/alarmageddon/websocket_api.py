@@ -302,7 +302,7 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
         "prealarms": [{"id": key, "seconds": seconds, "url": f"{SOUNDS_URL_PATH}/{key}.wav"} for key, seconds in PREALARMS.items()],
         # Eigene Töne des Nutzers (1.39.0): für alle Anlagen und alle Arten von Tönen wählbar
         "custom_sounds": _custom_listing(hass),
-        "custom_sound_limits": {"max": MAX_CUSTOM_SOUNDS, "seconds": MAX_CUSTOM_SECONDS, "bytes": MAX_UPLOAD_BYTES, "total": MAX_CUSTOM_TOTAL_BYTES, "ffmpeg": custom_sounds.ffmpeg_binary(hass) is not None},
+        "custom_sound_limits": {"max": MAX_CUSTOM_SOUNDS, "seconds": MAX_CUSTOM_SECONDS, "bytes": MAX_UPLOAD_BYTES, "total": MAX_CUSTOM_TOTAL_BYTES, "ffmpeg": custom_sounds.converter_available(hass)},
     })
 
 

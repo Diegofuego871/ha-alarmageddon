@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.43.0] - 2026-11-15
+
+### Changed
+
+- **MP3, OGG, FLAC and M4A no longer need the program ffmpeg.** Alarmageddon now converts these formats with PyAV, which Home Assistant brings along for the integration "stream" (it contains the FFmpeg libraries). So uploading works on any installation with the default configuration, without installing anything. The conversion runs in a separate process with a fixed format, a time limit and the same limits as before (30 seconds, 8 MB), so a damaged file can at most stop that process, never Home Assistant. If PyAV cannot be used, the program ffmpeg is the fallback as before; only without both, the upload form offers WAV only.
+
 ## [1.42.0] - 2026-11-15
 
 ### Added
@@ -1485,6 +1491,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.43.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.0
 [1.42.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.42.0
 [1.41.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.41.0
 [1.40.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.40.0

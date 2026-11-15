@@ -8,9 +8,11 @@ Administratoren dürfen hochladen, und ein Alarm klingt auch dann, wenn die Date
 from __future__ import annotations
 
 import base64
+import importlib.util
 import io
 from pathlib import Path
 import shutil
+import sys
 import subprocess
 import wave
 
@@ -224,6 +226,134 @@ async def test_a_failure_while_saving_answers_with_a_readable_key_and_logs_it(ha
     resp = await client.post("/api/alarmageddon/sounds", data=form)
     assert resp.status == 500 and (await resp.json())["error"] == "server"
     assert "Saving an uploaded sound failed" in caplog.text
+
+
+# ----- PyAV im eigenen Prozess (1.43.0) -----
+
+HAS_AV = importlib.util.find_spec("av") is not None
+
+
+@pytest.fixture(autouse=True)
+def no_pyav_unless_asked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Die bisherigen Tests prüfen den Weg über das Programm ffmpeg: dort gilt PyAV als nicht da; die Tests dieses Abschnitts schalten es ein."""
+    monkeypatch.setattr(cs, "av_available", lambda: False)
+
+
+def _with_pyav(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cs, "av_available", lambda: True)
+
+
+def _encode(fmt: str, seconds: float) -> bytes:
+    """Eine Sinuskurve in diesem Format, mit PyAV erzeugt (nur im Test)."""
+    import av  # noqa: PLC0415
+    import numpy as np  # noqa: PLC0415
+
+    codec, container = {"mp3": ("libmp3lame", "mp3"), "ogg": ("libvorbis", "ogg"), "flac": ("flac", "flac"), "m4a": ("aac", "ipod")}[fmt]
+    buffer = io.BytesIO()
+    with av.open(buffer, "w", format=container) as out:
+        stream = out.add_stream(codec, rate=44100)
+        stream.layout = "mono"
+        total = int(44100 * seconds)
+        samples = (np.sin(np.arange(total) * 2 * np.pi * 800 / 44100) * 12000).astype("int16")
+        for start in range(0, total, 1024):
+            frame = av.AudioFrame.from_ndarray(samples[start:start + 1024].reshape(1, -1), format="s16", layout="mono")
+            frame.sample_rate = 44100
+            frame.pts = start
+            for packet in stream.encode(frame):
+                out.mux(packet)
+        for packet in stream.encode(None):
+            out.mux(packet)
+    return buffer.getvalue()
+
+
+@pytest.mark.skipif(not HAS_AV, reason="PyAV fehlt")
+@pytest.mark.parametrize("fmt", ["mp3", "ogg", "flac", "m4a"])
+def test_pyav_converts_the_formats_without_the_ffmpeg_program(monkeypatch: pytest.MonkeyPatch, fmt: str) -> None:
+    _with_pyav(monkeypatch)
+    wav, seconds = cs.convert(_encode(fmt, 1.2), None)  # kein ffmpeg-Programm
+    with wave.open(io.BytesIO(wav)) as result:
+        assert (result.getnchannels(), result.getsampwidth()) == (1, 2)
+    assert 1.0 < seconds < 1.5
+
+
+@pytest.mark.skipif(not HAS_AV, reason="PyAV fehlt")
+def test_pyav_stops_at_the_length_limit_and_a_broken_file_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    _with_pyav(monkeypatch)
+    with pytest.raises(cs.SoundError) as long_error:
+        cs.convert(_encode("flac", 40), None)
+    assert long_error.value.code == "too_long"
+    with pytest.raises(cs.SoundError) as bad:
+        cs.convert(b"ID3\x03\x00" + b"\x01" * 500, None)
+    assert bad.value.code == "invalid_sound"
+
+
+def _recorder(monkeypatch: pytest.MonkeyPatch, outcomes: list):
+    """subprocess.run ersetzen: hält jeden Aufruf fest; `outcomes` je Aufruf: Rückgabecode, oder eine Ausnahme."""
+    calls: list = []
+
+    def run(command, **kwargs):
+        calls.append((list(command), kwargs))
+        outcome = outcomes[min(len(calls) - 1, len(outcomes) - 1)]
+        if isinstance(outcome, Exception):
+            raise outcome
+        if outcome == 0:
+            Path(command[-1] if command[0] != sys.executable else command[5]).write_bytes(make_wav())
+        return subprocess.CompletedProcess(command, outcome, b"", b"")
+
+    monkeypatch.setattr(cs.subprocess, "run", run)
+    return calls
+
+
+@pytest.mark.parametrize(("raw", "kind"), [(b"ID3\x03\x00" + b"\x00" * 50, "mp3"), (b"OggS" + b"\x00" * 50, "ogg"), (b"fLaC" + b"\x00" * 50, "flac")])
+def test_pyav_runs_in_its_own_process_with_a_fixed_format_and_a_time_limit(monkeypatch: pytest.MonkeyPatch, raw: bytes, kind: str) -> None:
+    """Eine kaputte Datei darf höchstens diesen Prozess abstürzen lassen, nie Home Assistant; das Format ist fest vorgegeben."""
+    _with_pyav(monkeypatch)
+    calls = _recorder(monkeypatch, [0])
+    cs.convert(raw, None)
+    command, kwargs = calls[0]
+    assert command[0] == sys.executable and "-I" in command and command[command.index("-c") + 1] == cs.AV_SCRIPT, "eigener, abgeschotteter Prozess mit festem Skript"
+    assert kind in command[5:], "das Eingangsformat ist fest vorgegeben"
+    assert kwargs["timeout"] == cs.FFMPEG_TIMEOUT, "ohne Zeitgrenze könnte eine Datei den Wandler endlos beschäftigen"
+    assert str(cs.MAX_CUSTOM_SECONDS + 1) in command, "die Länge ist begrenzt"
+
+
+def test_a_crashing_or_hanging_pyav_process_means_an_unreadable_file_not_an_error_in_home_assistant(monkeypatch: pytest.MonkeyPatch) -> None:
+    _with_pyav(monkeypatch)
+    for outcome in (-11, 1, subprocess.TimeoutExpired("x", 30), OSError("kein Speicher")):  # Absturz, Fehler, Zeitüberschreitung, Start nicht möglich
+        _recorder(monkeypatch, [outcome])
+        with pytest.raises(cs.SoundError) as err:
+            cs.convert(b"OggS" + b"\x00" * 50, None)
+        assert err.value.code == "invalid_sound"
+
+
+def test_a_file_without_a_sound_track_is_named_so_by_pyav(monkeypatch: pytest.MonkeyPatch) -> None:
+    _with_pyav(monkeypatch)
+    _recorder(monkeypatch, [cs.AV_EXIT_NO_AUDIO])
+    with pytest.raises(cs.SoundError) as err:
+        cs.convert(b"\x00\x00\x00\x18ftypisom" + b"\x00" * 40, None)
+    assert err.value.code == "no_audio"
+
+
+def test_an_unusable_pyav_falls_back_to_the_ffmpeg_program(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ist `av` da, lässt sich aber nicht laden (andere Bauart, kaputt), gilt das Programm ffmpeg; ohne beides bleibt nur WAV."""
+    _with_pyav(monkeypatch)
+    calls = _recorder(monkeypatch, [cs.AV_EXIT_UNUSABLE, 0])
+    cs.convert(b"OggS" + b"\x00" * 50, "/usr/bin/ffmpeg")
+    assert [c[0][0] for c in calls] == [sys.executable, "/usr/bin/ffmpeg"]
+    _recorder(monkeypatch, [cs.AV_EXIT_UNUSABLE])
+    with pytest.raises(cs.SoundError) as err:
+        cs.convert(b"OggS" + b"\x00" * 50, None)
+    assert err.value.code == "ffmpeg_missing"
+
+
+def test_a_converter_is_available_with_pyav_or_with_the_ffmpeg_program(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cs, "ffmpeg_binary", lambda _hass=None: None)
+    assert not cs.converter_available(hass)
+    _with_pyav(monkeypatch)
+    assert cs.converter_available(hass)
+    monkeypatch.setattr(cs, "av_available", lambda: False)
+    monkeypatch.setattr(cs, "ffmpeg_binary", lambda _hass=None: "/usr/bin/ffmpeg")
+    assert cs.converter_available(hass)
 
 
 # ----- Hochladen (HTTP) -----
