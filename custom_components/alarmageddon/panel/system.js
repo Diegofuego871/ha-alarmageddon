@@ -279,7 +279,7 @@ export class SystemUi {
         <button class="ag-btn" data-sys="export">${ic("arrowDown", 18)}${esc(this._t("bkExport"))}</button>
         <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden></div></div>
       <div class="ag-setrow ag-bklast"><div class="ag-settx ag-bklast-tx">${this._bkLastHtml()}</div>
-        <button class="ag-btn" data-sys="bk-open">${ic("restore", 18)}${esc(this._t("bkShow"))}</button></div></div>`);
+        <button class="ag-btn" data-sys="bk-open">${ic("restoreEye", 18)}${esc(this._t("bkShow"))}</button></div></div>`);
   }
 
   // "Letzte Sicherung: Datum, Name" (die Liste selbst steht im Popup)

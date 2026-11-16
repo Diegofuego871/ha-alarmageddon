@@ -12,6 +12,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 ### Geändert
 
 - **Der Knopf "Sichern" heisst jetzt "Backup erstellen".** "Sichern" wirkte, als würde er die Einstellungen der Seite speichern. Der Knopf, das Fenster "Backup erstellen" und die Hinweise sagen jetzt klar, dass eine Sicherungskopie angelegt wird (Meldung: "Backup erstellt.").
+- **Neues Symbol für "Sicherungen anzeigen".** Der Wiederherstellen-Pfeil trägt jetzt ein Auge in der Mitte; der Knopf liest sich so als "Sicherungen ansehen" und nicht als "wiederherstellen".
 
 ## [1.55.0] - 2026-11-16
 
