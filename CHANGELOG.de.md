@@ -7,19 +7,33 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.45.0] - 2026-11-16
+
+### Hinzugefügt
+
+- **Tasten als Auslöser.** Eine Routine nach Gerät kann jetzt einen Tastendruck nutzen: jede Taste eines Fernbedieners oder Dimmers (zum Beispiel eines Hue-Tasters; es sind die "event"-Entitäten von Home Assistant) mit jeder Art des Drückens (kurz, lang, doppelt ...). In der Geräteauswahl hilft der Filter "Tasten". Ein Druck zählt nur im Augenblick, in dem er geschieht, nie ein wiederhergestellter alter (nach dem Neuladen einer Integration kommt der alte Zeitpunkt zurück und löst nie aus), und er lässt sich nicht mit "muss N Sekunden gelten" verbinden.
+- **Vorschau des Ablaufs.** Am Ende des Editors einer Routine zeigt eine Grafik, was passiert: 1 Auslöser (mit Und/Oder-Baum oder den Zeiten), 2 Prüfung (die fünf Zustände der Anlage, die gewählten grün), danach JA zur Aktion (rot mit der Marke "Umgeht den Code" beim Deaktivieren) und NEIN zu "Übersprungen, steht im Protokoll". Sie folgt dem Entwurf beim Bearbeiten und ist reine Anzeige.
+
+### Entfernt
+
+- **Der Schalter "Deaktivieren per Routine erlauben" entfällt.** Die Bestätigung "Ich habe das verstanden" in der Routine genügt. Eine Routine, die deaktiviert, läuft jetzt immer (bei ausgeschaltetem Schalter wurde sie übersprungen); bitte prüfe deine Routinen, die deaktivieren. Gespeicherte Werte und Sicherungen von 1.44.0 bleiben benutzbar.
+
+### Geändert
+
+- Im Editor einer Routine steht der Papierkorb einer Gruppe neben "Alle (und) / Eine davon (oder)", und die Hinweise unter dem Bedingungsbaum haben mehr Abstand.
+
 ## [1.44.0] - 2026-11-16
 
 ### Hinzugefügt
 
-- **Routinen: nach Zeit oder nach Gerät.** Unter Konfiguration › Anlage wird aus dem Kapitel "Zeitplan" das Kapitel "Routinen". Eine Routine schaltet die Anlage (Anwesend, Abwesend oder Nacht scharf, oder deaktivieren), wenn ihr Auslöser eintritt. Der Auslöser ist ein **Zeitplan** (eine oder mehrere Zeiten, jede mit eigenen Wochentagen) oder ein **Gerät** von Home Assistant, zum Beispiel ein Smart Lock, das abschliesst. Bedingungen bei Geräten sind "Gerät ist Zustand" (Schloss, Schalter, Licht, Abdeckung, Tür- oder Bewegungsmelder, Person ...), "Tastendruck" (jede Taste eines Fernbedieners oder Dimmers, zum Beispiel eines Hue-Tasters, mit jeder Art des Drückens: kurz, lang, doppelt ...; es sind die "event"-Entitäten von Home Assistant; ein Druck zählt nur im Augenblick, in dem er geschieht, nie ein wiederhergestellter alter) und "Uhrzeit von–bis" (auch über Mitternacht, mit Wochentagen). Sie werden mit "Alle (und)" oder "Eine davon (oder)" verbunden, mit einer Ebene Gruppen wie bei Magic Push im Device Panel (bis zu 10 Bedingungen in bis zu 3 Gruppen), und können erst nach N Sekunden gelten. Die Geräteauswahl sucht nach Name, Bereich und Entitäts-ID (die Entitäts-ID wird nie angezeigt) und filtert nach Art und Bereich.
-- **Vorschau des Ablaufs.** Am Ende des Editors einer Routine zeigt eine Grafik, was passiert: 1 Auslöser (mit Und/Oder-Baum oder den Zeiten), 2 Prüfung (die fünf Zustände der Anlage, die gewählten grün), danach JA zur Aktion (rot mit der Marke "Umgeht den Code" beim Deaktivieren) und NEIN zu "Übersprungen, steht im Protokoll". Sie folgt dem Entwurf beim Bearbeiten und ist reine Anzeige.
+- **Routinen: nach Zeit oder nach Gerät.** Unter Konfiguration › Anlage wird aus dem Kapitel "Zeitplan" das Kapitel "Routinen". Eine Routine schaltet die Anlage (Anwesend, Abwesend oder Nacht scharf, oder deaktivieren), wenn ihr Auslöser eintritt. Der Auslöser ist ein **Zeitplan** (eine oder mehrere Zeiten, jede mit eigenen Wochentagen) oder ein **Gerät** von Home Assistant, zum Beispiel ein Smart Lock, das abschliesst. Bedingungen bei Geräten sind "Gerät ist Zustand" (Schloss, Schalter, Licht, Abdeckung, Tür- oder Bewegungsmelder, Person ...) und "Uhrzeit von–bis" (auch über Mitternacht, mit Wochentagen). Sie werden mit "Alle (und)" oder "Eine davon (oder)" verbunden, mit einer Ebene Gruppen wie bei Magic Push im Device Panel (bis zu 10 Bedingungen in bis zu 3 Gruppen), und können erst nach N Sekunden gelten. Die Geräteauswahl sucht nach Name, Bereich und Entitäts-ID (die Entitäts-ID wird nie angezeigt) und filtert nach Art und Bereich.
 - **Die Zustände, in denen eine Routine gilt.** Fünf Schalter je Routine: Ausgangsverzögerung, Anlage scharf, Eingangsverzögerung, Beim Alarm, Anlage deaktiviert (standardmässig nur der letzte). Der Zustand der Anlage im Moment des Auslösens entscheidet; sonst wird die Routine übersprungen und das steht im Protokoll ("Routine … übersprungen: gilt nicht im Zustand: …").
-- **Deaktivieren per Routine.** Eine Routine, die deaktiviert, umgeht den Code: Sie trägt die Marke "Umgeht den Code", braucht die Bestätigung "Ich habe das verstanden" (kein weiterer Schalter) und gilt bei Eingangsverzögerung oder Alarm nur, wenn du diese Zustände ausdrücklich wählst (mit roter Warnung).
+- **"Deaktivieren per Routine erlauben"** unter Konfiguration › Anlage (standardmässig aus, wie das Deaktivieren per Push-Aktion). Eine Routine, die deaktiviert, umgeht den Code: Sie trägt die Marke "Umgeht den Code", braucht die Bestätigung "Ich habe das verstanden" und gilt bei Eingangsverzögerung oder Alarm nur, wenn du diese Zustände ausdrücklich wählst (mit roter Warnung).
 
 ### Geändert
 
 - **Eine Routine läuft nur bei einem echten Wechsel.** Sie läuft, wenn ihre Bedingungen neu zutreffen: nicht solange sie zutreffen, nicht nach einem Neustart von Home Assistant und nicht bei der Rückkehr aus "nicht verfügbar" oder "unbekannt" (ein Funkabriss schaltet die Anlage nie). Eine Routine läuft nie zweimal innerhalb von 10 Sekunden und löst nie eine andere aus (Entitäten von Alarmageddon sind als Auslöser nicht erlaubt). Scharfschalten gilt nie bei Eingangsverzögerung oder Alarm.
-- **Zeitpläne sind zu Routinen geworden.** Beim ersten Start dieser Version wird jeder Zeitplan zu einer Routine mit dem Auslöser "Zeitplan", demselben Ziel und den Zuständen Ausgangsverzögerung, scharf und deaktiviert (was ein Zeitplan bisher tat: nie bei Eingangsverzögerung oder Alarm). Alte Sicherungen werden beim Wiederherstellen umgewandelt.
+- **Zeitpläne sind zu Routinen geworden.** Beim ersten Start dieser Version wird jeder Zeitplan zu einer Routine mit dem Auslöser "Zeitplan", demselben Ziel und den Zuständen Ausgangsverzögerung, scharf und deaktiviert (was ein Zeitplan bisher tat: nie bei Eingangsverzögerung oder Alarm). Wenn ein Zeitplan deaktivierte, wurde "Deaktivieren per Routine erlauben" für diese Anlage eingeschaltet, damit er weiterläuft. Alte Sicherungen werden beim Wiederherstellen umgewandelt.
 - Das Protokoll nennt die Routine ("Routine: Haus verlassen") als Herkunft des Scharfschaltens und Deaktivierens.
 
 ## [1.43.5] - 2026-11-15
@@ -1546,6 +1560,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.45.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.45.0
 [1.44.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.44.0
 [1.43.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.5
 [1.43.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.4

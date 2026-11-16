@@ -78,6 +78,7 @@ def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
             # Sicherungen bis 1.43 enthalten Zeitpläne: sie kommen als Routinen zurück
             if (converted := migrate_options(dict(options), hass.config.language)) is not None:
                 options = converted
+            options.pop("routines_disarm", None)
             if CONF_ROUTINES in options:
                 check_routines(hass, options[CONF_ROUTINES])
         except vol.Invalid as err:

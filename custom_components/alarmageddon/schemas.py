@@ -337,6 +337,7 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_AWAY_ENABLED): bool,
         vol.Optional(CONF_SCHEDULES): SCHEDULES,  # nur noch aus alten Sicherungen: wird beim Laden zu Routinen
         vol.Optional(CONF_ROUTINES): ROUTINES,
+        vol.Optional("routines_disarm"): bool,  # nur aus Sicherungen von 1.44.0 (der Schalter entfiel in 1.45.0): wird beim Einlesen verworfen
         vol.Optional(CONF_OPEN_SENSORS): vol.In(OPEN_SENSOR_MODES),
         vol.Optional(CONF_CODE_ARM_REQUIRED): bool,
         vol.Optional(CONF_CODE_ACK_REQUIRED): bool,

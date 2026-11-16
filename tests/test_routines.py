@@ -561,3 +561,15 @@ async def test_routine_entities_lists_buttons_with_their_event_types(hass: HomeA
     client = await hass_ws_client(hass)
     entities = {e["entity_id"]: e for e in (await _ws(client, type="alarmageddon/routine_entities"))["result"]["entities"]}
     assert entities[BUTTON]["states"] == EVENT_TYPES and entities[BUTTON]["domain"] == "event" and entities[BUTTON]["state"] == ""
+
+
+async def test_switch_from_1_44_0_is_dropped_everywhere(hass: HomeAssistant, hass_ws_client) -> None:
+    """Der Schalter "Deaktivieren per Routine erlauben" entfiel: gespeicherte Werte und Sicherungen von 1.44.0 bleiben benutzbar."""
+    entry = await setup_alarm(hass, routines_disarm=False, routines=[_rule("off", _times("06:45"), states=("armed",))])
+    assert "routines_disarm" not in entry.options
+    client = await hass_ws_client(hass)
+    backup = {"format": "alarmageddon", "version": 1, "systems": [{"title": "Haus", "options": {"routines_disarm": True, "routines": [_rule("away", _times("08:00"))]}}]}
+    result = await _ws(client, type="alarmageddon/import", data=backup)
+    assert result["success"], result
+    await hass.async_block_till_done()
+    assert "routines_disarm" not in entry.options and entry.options["routines"][0]["action"] == "away"

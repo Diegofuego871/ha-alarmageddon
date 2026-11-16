@@ -91,9 +91,12 @@ def _migrate_open_sensors(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 def _migrate_schedules(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Bis 1.43 gab es Zeitpläne; sie sind jetzt Routinen mit Auslöser Zeitplan (siehe routines.migrate_options)."""
-    options = migrate_options(dict(entry.options), hass.config.language)
-    if options is not None:
-        hass.config_entries.async_update_entry(entry, options=options)
+    options = dict(entry.options)
+    # Der Schalter "Deaktivieren per Routine erlauben" aus 1.44.0 entfiel in 1.45.0 (die Bestätigung in der Routine genügt)
+    dropped = options.pop("routines_disarm", None) is not None
+    migrated = migrate_options(options, hass.config.language)
+    if migrated is not None or dropped:
+        hass.config_entries.async_update_entry(entry, options=migrated if migrated is not None else options)
 
 
 async def _isolated(entry: ConfigEntry, awaitable: Awaitable[Any], what: str) -> Any:

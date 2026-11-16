@@ -7,19 +7,33 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.45.0] - 2026-11-16
+
+### Added
+
+- **Buttons as triggers.** A routine by device can now use a button press: every button of a remote or dimmer (for example a Hue dimmer switch; they are the "event" entities of Home Assistant) with each kind of press (short, long, double ...). In the device picker use the filter "Buttons". A press counts only at the moment it happens, never a restored old one (after reloading an integration the old time comes back and never triggers), and it cannot be combined with "must hold for N seconds".
+- **Preview of the flow.** At the end of the routine editor a graphic shows what happens: 1 trigger (with the and/or tree or the times), 2 check (the five alarm states, the chosen ones green), then YES to the action (red with the tag "Bypasses the code" when disarming) and NO to "Skipped, it is in the log". It follows the draft while you edit and is display only.
+
+### Removed
+
+- **The switch "Allow disarming by routine" is gone.** The confirmation "I understand this" in the routine is enough. A routine that disarms now always runs (it was skipped while the switch was off); check your routines that disarm. Stored values and backups of 1.44.0 stay usable.
+
+### Changed
+
+- In the routine editor the trash button of a group sits next to "all (and) / any of them (or)" and the notes below the condition tree have more space.
+
 ## [1.44.0] - 2026-11-16
 
 ### Added
 
-- **Routines: by time or by device.** In Configuration › Alarm system the chapter "Schedule" becomes "Routines". A routine switches the alarm system (arm Home, Away or Night, or disarm) when its trigger fires. The trigger is a **schedule** (one or more times, each with its own weekdays) or a **device** of Home Assistant, for example a smart lock that locks. Device conditions are "device is state" (lock, switch, light, cover, door or motion sensor, person ...), "button press" (every button of a remote or dimmer, for example a Hue dimmer switch, with each kind of press: short, long, double ...; they are the "event" entities of Home Assistant; a press counts only at the moment it happens, never a restored old one) and "time of day from–to" (also past midnight, with weekdays). They are combined with "all (and)" or "any of them (or)", with one level of groups, as with Magic Push in Device Panel (up to 10 conditions in up to 3 groups), and can be required to hold for N seconds. The device picker searches by name, area and entity ID (the entity ID is never shown) and filters by kind and area.
-- **Preview of the flow.** At the end of the routine editor a graphic shows what happens: 1 trigger (with the and/or tree or the times), 2 check (the five alarm states, the chosen ones green), then YES to the action (red with the tag "Bypasses the code" when disarming) and NO to "Skipped, it is in the log". It follows the draft while you edit and is display only.
+- **Routines: by time or by device.** In Configuration › Alarm system the chapter "Schedule" becomes "Routines". A routine switches the alarm system (arm Home, Away or Night, or disarm) when its trigger fires. The trigger is a **schedule** (one or more times, each with its own weekdays) or a **device** of Home Assistant, for example a smart lock that locks. Device conditions are "device is state" (lock, switch, light, cover, door or motion sensor, person ...) and "time of day from–to" (also past midnight, with weekdays). They are combined with "all (and)" or "any of them (or)", with one level of groups, as with Magic Push in Device Panel (up to 10 conditions in up to 3 groups), and can be required to hold for N seconds. The device picker searches by name, area and entity ID (the entity ID is never shown) and filters by kind and area.
 - **The states in which a routine applies.** Five switches per routine: exit delay, armed, entry delay, during the alarm, disarmed (only the last is on by default). The state of the alarm system at the moment of triggering decides; otherwise the routine is skipped and the log says so ("Routine … skipped: not allowed in this state: …").
-- **Disarming by routine.** A routine that disarms bypasses the code: it carries the tag "Bypasses the code", needs the confirmation "I understand this" in the routine (no further switch), and in an entry delay or alarm it only applies if you choose these states explicitly (with a red warning).
+- **"Allow disarming by routine"** in Configuration › Alarm system (off by default, like disarming by push action). A routine that disarms bypasses the code: it carries the tag "Bypasses the code", needs the confirmation "I understand this" in the routine, and in an entry delay or alarm it only applies if you choose these states explicitly (with a red warning).
 
 ### Changed
 
 - **A routine runs only on a real change.** It runs when its conditions newly come true: not while they stay true, not after a restart of Home Assistant, and not on the return from "unavailable" or "unknown" (a radio outage never switches the alarm system). A routine never runs twice within 10 seconds and never triggers another routine (entities of Alarmageddon are not accepted as triggers). Arming never applies during an entry delay or an alarm.
-- **Schedules became routines.** On the first start of this version every schedule is converted into a routine with the trigger "Schedule", the same target and the states exit delay, armed and disarmed (what a schedule did before: never in an entry delay or an alarm). Old backups are converted when restored.
+- **Schedules became routines.** On the first start of this version every schedule is converted into a routine with the trigger "Schedule", the same target and the states exit delay, armed and disarmed (what a schedule did before: never in an entry delay or an alarm). If a schedule disarmed, "Allow disarming by routine" was turned on for that alarm system so it keeps running. Old backups are converted when restored.
 - The log names the routine ("Routine: Leaving the house") as the origin of arming and disarming.
 
 ## [1.43.5] - 2026-11-15
@@ -1546,6 +1560,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.45.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.45.0
 [1.44.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.44.0
 [1.43.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.5
 [1.43.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.4
