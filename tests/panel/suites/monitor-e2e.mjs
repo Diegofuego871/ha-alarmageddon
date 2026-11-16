@@ -4,8 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { measure: "Messwerte", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
-  en: { measure: "Measurements", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
+  de: { unfoldAll: "Alle aufklappen", measure: "Messwerte", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
+  en: { unfoldAll: "Expand all", measure: "Measurements", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
 };
 const FRIDGE = "sensor.kuehlschrank_temperatur";
 
@@ -100,6 +100,10 @@ return from > last.offsetLeft + last.offsetWidth * 0.6 && from < last.offsetLeft
     check(`${tag}: andere Reiterleisten bleiben ungetönt`, await s.ev("return ![...r.querySelectorAll('.ag-seg:not([data-seg=\"wf-trigger\"])')].some((x) => x.style.background.includes('linear-gradient'))"));
     await s.tap('[data-trigger="monitor"]');
     check(`${tag}: zwei Regeln als Kapitel`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 2"));
+    check(`${tag}: Standard: alle Regeln zugeklappt (Kopf sichtbar, keine Abläufe)`, await s.ev("return [...r.querySelectorAll('.ag-mon-rule')].every((x) => x.classList.contains('folded') && !x.querySelector('.ag-wf-line') && x.querySelector('.ag-mon-head'))"));
+    check(`${tag}: der Knopf heisst "${t.unfoldAll}"`, await s.ev("return r.querySelector('[data-wf=\"mon-fold-all\"]').textContent.trim()") === t.unfoldAll);
+    await s.tap('[data-wf="mon-fold-all"]');
+    check(`${tag}: "${t.unfoldAll}" öffnet alle`, await s.waitFor("return [...r.querySelectorAll('.ag-mon-rule')].every((x) => !x.classList.contains('folded'))"));
     const rules = await s.ev(`return [...r.querySelectorAll('.ag-mon-rule')].map((x) => ({ name: x.querySelector('.ag-chap-t').textContent, sub: x.querySelector('.ag-mon-head small').textContent, out: x.querySelectorAll('.ag-wf-mon-out .ag-wf-step').length, ok: x.querySelectorAll('.ag-wf-mon-ok .ag-wf-step').length,
       outTitle: x.querySelector('.ag-wf-mon-out .ag-wf-start').textContent.trim(), okTitle: x.querySelector('.ag-wf-mon-ok .ag-wf-start').textContent.trim(), zOut: getComputedStyle(x.querySelector('.ag-wf-mon-out')).getPropertyValue('--z').trim(), zOk: getComputedStyle(x.querySelector('.ag-wf-mon-ok')).getPropertyValue('--z').trim(), tag: x.querySelector('.ag-tag.warn')?.textContent || '' }))`);
     check(`${tag}: Regel 1: Name, Bedingung in Worten, Dauer und Erinnerung`, rules[0].name === t.rule && /Kühlschrank Temperatur/.test(rules[0].sub) && /8 °C/.test(rules[0].sub) && /30/.test(rules[0].sub) && /2/.test(rules[0].sub), JSON.stringify(rules[0]));
@@ -258,6 +262,9 @@ return from > last.offsetLeft + last.offsetWidth * 0.6 && from < last.offsetLeft
     await s.tap('#ag-mon [data-wf="mon-cancel-form"]');
     await s.waitFor("return !r.getElementById('ag-mon').open");
     await s.tap('[data-wf="mon-dup"][data-rule="0"]');
+    await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 4");
+    check(`${tag}: die Kopie ist zugeklappt`, await s.ev("return r.querySelectorAll('.ag-mon-rule')[1].classList.contains('folded')"));
+    await s.tap('[data-wf="mon-fold"][data-rule="1"]');
     check(`${tag}: Kopieren: vierte Regel mit "${t.copy}" im Namen und denselben Schritten`, await s.waitFor(`const x=[...r.querySelectorAll('.ag-mon-rule')]; return x.length === 4 && x[1].querySelector('.ag-chap-t').textContent.includes(${JSON.stringify(t.copy)}) && x[1].querySelectorAll('.ag-wf-step').length === x[0].querySelectorAll('.ag-wf-step').length`));
     await s.tap('[data-wf="mon-del"][data-rule="1"]');
     check(`${tag}: Löschen: wieder drei Regeln`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 3"));

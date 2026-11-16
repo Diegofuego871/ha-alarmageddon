@@ -11,6 +11,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Hinzugefügt
 
+- **Überwachungsregeln sind standardmässig zugeklappt.** Man öffnet die gewünschten; "Alle aufklappen" / "Alle zuklappen" öffnet oder schliesst weiterhin alle.
 - **Das Protokoll nach Routine filtern.** Unter Protokoll › Alle Ereignisse gibt es eine neue Pille "Routinen" (alles, was eine Routine getan oder übersprungen hat) und, immer sichtbar unter den Pillen, ein Dropdown über die ganze Breite, in dem man eine Routine über ihren Titel wählt; dann erscheinen nur deren Ereignisse. Das Dropdown führt alle Routinen mit der Anzahl ihrer Ereignisse auf.
 
 ## [1.51.2] - 2026-11-16

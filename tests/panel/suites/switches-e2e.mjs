@@ -105,6 +105,8 @@ for (const lang of ["de", "en"]) {
     await mo.waitFor("return r.querySelectorAll('.ag-wf-step').length > 0");
     await mo.tap('[data-trigger="monitor"]');
     await mo.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 2");
+    await mo.ev("r.querySelector('[data-wf=\"mon-fold-all\"]').click(); return 1");
+    await mo.waitFor("return !!r.querySelector('.ag-mon-rule .ag-wf-step')");
     await auditM("Überwachung: Regeln", 2);
     await mo.ev("r.querySelector('[data-wf=\"mon-step-edit\"][data-rule=\"0\"][data-zone=\"out\"][data-index=\"0\"]').click(); return 1");
     await mo.waitFor("return r.getElementById('ag-monstep').open");

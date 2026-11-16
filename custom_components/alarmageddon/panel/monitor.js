@@ -77,7 +77,7 @@ export class MonitorUi {
     this.ents = null; // Geräte und Messwerte vom Server
     this.loading = false;
     this.q = ""; // Suche: Name der Regel, Name und Entität der Sensoren
-    this.folded = new Set(); // zugeklappte Regeln (nur Ansicht, nicht gespeichert)
+    this.opened = new Set(); // aufgeklappte Regeln; Standard: alle zu (nur Ansicht, nicht gespeichert)
     this.step = null; // Schritt im Fenster: { zone, rule, index, form, pick }
   }
 
@@ -230,7 +230,7 @@ export class MonitorUi {
         <button class="ag-btn primary" data-wf="mon-add" ${d.monitors.length >= MAX_MONITORS ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("monAdd"))}</button></div>
       ${d.monitors.length ? `<div class="ag-tools ag-mon-tools"><label class="list-search">${ic("search", 18)}<input type="search" data-wf="mon-search" placeholder="${esc(this._t("monSearch"))}" value="${esc(this.q)}" aria-label="${esc(this._t("monSearch"))}" autocomplete="off">
           <button type="button" class="ag-clear" data-wf="mon-search-clear" aria-label="${esc(this._t("clearSearch"))}" ${this.q ? "" : "hidden"}>${ic("close", 16)}</button></label>
-          <button class="ag-btn" data-wf="mon-fold-all">${esc(this._t(this.folded.size >= d.monitors.length ? "monUnfoldAll" : "monFoldAll"))}</button></div>` : ""}
+          <button class="ag-btn" data-wf="mon-fold-all">${esc(this._t(this.opened.size ? "monFoldAll" : "monUnfoldAll"))}</button></div>` : ""}
       <div class="ag-mon-list">${this._listHtml()}</div>`;
   }
 
@@ -260,7 +260,7 @@ export class MonitorUi {
       const plus = (at) => `<div class="ag-wf-plus ${at === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="mon-step-add" data-rule="${i}" data-zone="${zone}" data-at="${at}" aria-label="${esc(this._t("monStepAdd"))}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span></div>`;
       return `<div class="ag-wf-line ag-wf-mon-${zone}" data-zone="${zone}"><div class="ag-wf-start"><span class="ag-mini ${cls}">${ic(icon, 20)}</span>${esc(this._t(title))}</div>${plus(0)}${steps.map((st, k) => this._card(st, i, zone, k) + plus(k + 1)).join("")}</div>`;
     };
-    const folded = this.folded.has(m.id);
+    const folded = !this.opened.has(m.id);
     return `<section class="ag-mon-rule ${on ? "" : "dim"} ${folded ? "folded" : ""} ${m.color ? "coloured" : ""}" data-rule-id="${esc(m.id)}" ${m.color ? `style="--mc:${esc(m.color)}"` : ""}>
       <div class="ag-mon-head"><button class="ag-toggle ${on ? "on" : ""}" data-wf="mon-on" data-rule="${i}" role="switch" aria-checked="${on}" aria-label="${esc(`${m.name}: ${this._t("monActiveSwitch")}`)}"></button>
         <span class="ag-oav ${on ? "on" : ""}">${ic(this._ruleIcon(m), 20)}</span>
@@ -758,12 +758,12 @@ export class MonitorUi {
     else if (act === "mon-edit") this.open(i);
     else if (act === "mon-fold") {
       const id = d.monitors[i].id;
-      if (this.folded.has(id)) this.folded.delete(id);
-      else this.folded.add(id);
+      if (this.opened.has(id)) this.opened.delete(id);
+      else this.opened.add(id);
       this.ui.render();
     } else if (act === "mon-fold-all") {
-      if (this.folded.size >= d.monitors.length) this.folded.clear();
-      else this.folded = new Set(d.monitors.map((m) => m.id));
+      if (this.opened.size) this.opened.clear();
+      else this.opened = new Set(d.monitors.map((m) => m.id));
       this.ui.render();
     } else if (act === "mon-search-clear") {
       const input = this.host._view.querySelector('[data-wf="mon-search"]');

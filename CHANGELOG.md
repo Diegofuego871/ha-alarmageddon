@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Monitoring rules are collapsed by default.** Open the ones you want; "Expand all" / "Collapse all" still opens or closes everything.
 - **Filter the log by routine.** In Log › All events there is a new pill "Routines" (everything a routine did or skipped) and, always visible below the pills, a drop-down over the full width to pick one routine by its title; then only the events of that routine show. The drop-down lists all routines with the number of their events.
 
 ## [1.51.2] - 2026-11-16

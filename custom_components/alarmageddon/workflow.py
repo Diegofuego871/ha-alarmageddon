@@ -407,7 +407,7 @@ class WorkflowRunner:
         if left is None:
             plain = {key: value for key, value in step.items() if key != "delay"}
             configured = self._test_delay(step) if run.get("test") else 0
-            return {**plain, "duration": min(configured, TEST_SECONDS)} if configured > 0 else plain
+            return {**plain, "duration": configured} if configured > 0 else plain
         if left < 1:
             return None
         return {**step, "duration": math.ceil(left)}
@@ -459,8 +459,6 @@ class WorkflowRunner:
         es im Log, Automat und Alarm laufen weiter.
         """
         try:
-            if self._run is not None and self._run.get("phase") in SIDE_PHASES:
-                await self._stop_side_run()
             await self.async_run_disarmed(mode)
         except asyncio.CancelledError:
             raise
