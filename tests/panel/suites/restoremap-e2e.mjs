@@ -15,7 +15,8 @@ for (const lang of ["de", "en"]) {
     const t = T[lang];
     const s = await open(browser, { mobile, lang, tab: "config" });
     await s.tap('[data-sub="system"]');
-    await s.waitFor("return !!r.querySelector('[data-sys=\"import-file\"]')");
+    await s.tap('[data-sys="bk-open"]');
+    await s.waitFor("return !!r.querySelector('#ag-bklist [data-sys=\"import-file\"]')");
     const file = `${outDir}restoremap-test.json`;
     writeFileSync(file, JSON.stringify({ format: "alarmageddon", version: 1, settings: { presets: {} }, systems: [{ title: "Hütte", options: { workflows: { away: [{ type: "notify" }] } } }, { title: "Haus", options: {} }] }));
     await (await s.el('[data-sys="import-file"]')).setInputFiles(file);
@@ -73,6 +74,8 @@ for (const lang of ["de", "en"]) {
     // Als neue Anlage: die Sicherung einer gelöschten Anlage kommt zurück
     const s2 = await open(browser, { mobile, lang, tab: "config" });
     await s2.tap('[data-sub="system"]');
+    await s2.tap('[data-sys="bk-open"]');
+    await s2.waitFor("return !!r.querySelector('#ag-bklist [data-sys=\"import-file\"]')");
     await (await s2.el('[data-sys="import-file"]')).setInputFiles(file);
     await s2.waitFor("return r.getElementById('ag-codes').open && r.querySelectorAll('#ag-codes .ag-rrow').length === 2");
     await (await s2.el('#ag-codes .ag-rrow[data-ri="1"] select')).selectOption("skip");

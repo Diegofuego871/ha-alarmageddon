@@ -92,6 +92,11 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Code entfernt`, await s.waitFor("return !r.getElementById('ag-codes').open && ![...r.querySelectorAll('.ag-coderow')].some((x) => x.innerText.includes('Anna'))"));
 
     // ----- Sicherung -----
+    // Export und Import stehen seit 1.55.1 in der Fusszeile des Fensters "Sicherungen anzeigen"
+    check(`${tag}: Export und Import nicht mehr auf der Seite`, await s.ev("return !r.querySelector('.ag-sys-form [data-sys=\"export\"]') && !r.querySelector('.ag-sys-form [data-sys=\"import\"]')"));
+    await s.tap('[data-sys="bk-open"]');
+    await s.waitFor("return r.getElementById('ag-bklist').open");
+    check(`${tag}: Fusszeile des Fensters: Exportieren, Importieren und Schliessen`, await s.ev("const f=r.querySelector('#ag-bklist .ag-dlg-btns'); const b=[...f.querySelectorAll('button')].map((x) => x.dataset.sys); return b.join() === 'export,import,bk-close'"));
     const [download] = await Promise.all([s.page.waitForEvent("download", { timeout: 5000 }).catch(() => null), s.tap('[data-sys="export"]')]);
     check(`${tag}: Export lädt Datei`, !!download && /^alarmageddon-\d{4}-\d{2}-\d{2}\.json$/.test(download.suggestedFilename()), download?.suggestedFilename());
     const file = `${outDir}backup-test.json`;
@@ -105,6 +110,8 @@ for (const lang of ["de", "en"]) {
     // Die Datei wird asynchron gelesen: auf den dritten Aufruf warten, nicht sofort zählen
     const thirdCall = await s.page.waitForFunction(() => window.__calls.filter((c) => c.type === "alarmageddon/import").length === 3, null, { timeout: 5000 }).then(() => true, () => false);
     check(`${tag}: fremde Datei abgelehnt`, thirdCall && await s.waitFor("return !r.getElementById('ag-codes').open"));
+    await s.tap('#ag-bklist [data-sys="bk-close"]');
+    await s.waitFor("return !r.getElementById('ag-bklist').open");
 
     // ----- Sicherungen in der Integration: Sichern, Liste, Herunterladen, Wiederherstellen, Löschen, höchstens 10 -----
     const bkRows = () => s.ev("return r.querySelectorAll('.ag-bktable tr[data-bk]').length");

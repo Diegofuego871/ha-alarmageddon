@@ -275,9 +275,7 @@ export class SystemUi {
       <span class="ag-num ag-abkeep ${keepOk ? "" : "bad"}" title="${esc(this._t("bkAutoKeep"))}"><input type="number" min="1" max="50" step="1" inputmode="numeric" data-sys="ab-keep" value="${keepOk ? esc(auto.keep) : esc(Number.isFinite(auto.keep) ? auto.keep : "")}" aria-label="${esc(this._t("bkAutoKeep"))}"><span class="ag-t2">${esc(this._t("bkAutoKeepUnit"))}</span></span>
       <select class="ag-input" data-sys="ab-every" aria-label="${esc(this._t("bkAutoEvery"))}" ${auto.enabled ? "" : "disabled"}>${every}</select></div>`;
     return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes">${autoRow}<div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("bkHint"))}</small></div>
-      <div class="ag-btnrow"><button class="ag-btn primary" data-sys="bk-create">${ic("check", 18)}${esc(this._t("bkSave"))}</button>
-        <button class="ag-btn" data-sys="export">${ic("arrowDown", 18)}${esc(this._t("bkExport"))}</button>
-        <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden></div></div>
+      <div class="ag-btnrow"><button class="ag-btn primary" data-sys="bk-create">${ic("check", 18)}${esc(this._t("bkSave"))}</button></div></div>
       <div class="ag-setrow ag-bklast"><div class="ag-settx ag-bklast-tx">${this._bkLastHtml()}</div>
         <button class="ag-btn" data-sys="bk-open">${ic("restoreEye", 18)}${esc(this._t("bkShow"))}</button></div></div>`);
   }
@@ -297,12 +295,14 @@ export class SystemUi {
     return this.host._root.getElementById("ag-bklist");
   }
 
-  // Popup mit der Liste der Sicherungen (Handy: ganzer Bildschirm); die Einstellungen und Knöpfe bleiben auf der Seite
+  // Popup mit der Liste der Sicherungen (Handy: ganzer Bildschirm); Export und Import stehen in der Fusszeile, die Einstellungen und "Backup erstellen" bleiben auf der Seite
   openBackupList() {
     const dlg = this._bkDlg();
     if (this.backups === null && !this._bkLoading) this.loadBackups();
     dlg.innerHTML = `<div class="ag-dlg-body ag-bk-pop"><h3>${esc(this._t("bkListTitle"))}</h3><div class="ag-bkbody">${this._bkBody()}</div>
-      <div class="ag-dlg-btns"><button class="ag-btn primary" data-sys="bk-close">${esc(this._t("close"))}</button></div></div>`;
+      <div class="ag-dlg-btns ag-bkfoot"><button class="ag-btn" data-sys="export">${ic("arrowDown", 18)}${esc(this._t("bkExport"))}</button>
+        <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden>
+        <span class="ag-grow"></span><button class="ag-btn primary" data-sys="bk-close">${esc(this._t("close"))}</button></div></div>`;
     if (!dlg.open) dlg.showModal();
   }
 
@@ -825,7 +825,7 @@ export class SystemUi {
       this.importGo();
     } else if (act === "import") {
       // Dateiauswahl über einen echten Knopf (Tastatur), die Wahl kommt über onInput
-      this.host._view?.querySelector('[data-sys="import-file"]')?.click();
+      this._bkDlg()?.querySelector('[data-sys="import-file"]')?.click();
     } else if (act === "import-file") {
       return false;
     } else if (act === "code-add") {

@@ -256,6 +256,8 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 /* Drei Knöpfe passen nebeneinander (schmalere Polster); reicht der Platz auf einem sehr schmalen Handy nicht, brechen sie um statt abgeschnitten zu werden */
 :host([narrow]) dialog.ag-dlg > .ag-dlg-btns { gap: 8px; flex-wrap: wrap; }
 :host([narrow]) dialog.ag-dlg > .ag-dlg-btns .ag-btn { padding-left: 14px; padding-right: 14px; min-width: 0; }
+:host([narrow]) dialog.ag-dlg > .ag-dlg-btns.ag-bkfoot { flex-wrap: nowrap; gap: 6px; padding-left: 12px; padding-right: 12px; } /* Exportieren, Importieren, Schliessen in einer Zeile (390 px) */
+:host([narrow]) dialog.ag-dlg > .ag-dlg-btns.ag-bkfoot .ag-btn { padding-left: 10px; padding-right: 10px; gap: 5px; }
 :host([narrow]) .ag-dlg-body > .ag-dlg-btns { margin-top: auto; }
 :host([narrow]) dialog#ag-discard, :host([narrow]) dialog#ag-confirm { margin: auto 0 0; height: fit-content; max-height: 92vh; border-radius: 22px 22px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
 

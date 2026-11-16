@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **The button "Back up" is now "Create backup".** "Back up" suggested that it saves the settings of the page. The button, the window "Create backup" and the hints now say plainly that a backup copy is created (message: "Backup created.").
 - **New icon for "Show backups".** The restore arrow now carries an eye in its centre, so the button reads as "look at the backups" and not as "restore".
+- **"Export" and "Import" moved into the footer of the window "Show backups".** They no longer sit on the page next to "Create backup"; the hint on the page says where they are. On the phone the three footer buttons (Export, Import, Close) stay in one row.
 
 ## [1.55.0] - 2026-11-16
 

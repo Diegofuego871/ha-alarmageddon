@@ -13,6 +13,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 - **Der Knopf "Sichern" heisst jetzt "Backup erstellen".** "Sichern" wirkte, als würde er die Einstellungen der Seite speichern. Der Knopf, das Fenster "Backup erstellen" und die Hinweise sagen jetzt klar, dass eine Sicherungskopie angelegt wird (Meldung: "Backup erstellt.").
 - **Neues Symbol für "Sicherungen anzeigen".** Der Wiederherstellen-Pfeil trägt jetzt ein Auge in der Mitte; der Knopf liest sich so als "Sicherungen ansehen" und nicht als "wiederherstellen".
+- **"Exportieren" und "Importieren" stehen jetzt in der Fusszeile des Fensters "Sicherungen anzeigen".** Sie liegen nicht mehr auf der Seite neben "Backup erstellen"; der Hinweis auf der Seite sagt, wo sie sind. Auf dem Handy bleiben die drei Knöpfe der Fusszeile (Exportieren, Importieren, Schliessen) in einer Zeile.
 
 ## [1.55.0] - 2026-11-16
 
