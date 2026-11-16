@@ -3,6 +3,7 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
+- 1.55.1 (1.55.0 getaggt auf cf383fd): Knopf "Sichern" heisst "Backup erstellen" (`strings.js bkSave`, `bkNameTitle`, `bkHint`, `bkEmpty`, `bkSaved`), nur Texte.
 - 1.55.0 (1.54.0 getaggt auf 4aac0d6): Routinen und Sicherungsliste in eigenen Fenstern (`#ag-rtlist`, `#ag-bklist`; `routines.js listHtml/openList/refreshList`, `system.js openBackupList/_bkLastHtml`), Änderungen an Routinen bleiben Entwurf der Seite; automatische Sicherung (`system.js autoOf`, Entwurf `auto`) wird mit "Speichern" der Seite über `alarmageddon/save_auto_backup` gesichert, ungültige Anzahl sperrt Speichern; runde 44-px-Knöpfe (`.ag-wf-btns`) bei Regeln und Routinen, Schlüsselzeilen der Überwachung grösser. Tests: `routines-e2e`, `autobackup-e2e`, `hardening-e2e`, `monitor-e2e`.
 - 0.13.0: `controller.record(kind, **data)` (nur für die Aufzeichnung, nicht ins Ereignisprotokoll) wird von `workflow._record` (Schritt gestartet) und `Notifier._send` (Meldung) gerufen; Einträge `step` und `notified` entfallen nie wegen der Grenze.
 

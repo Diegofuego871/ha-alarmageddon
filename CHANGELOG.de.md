@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.55.1] - 2026-11-16
+
+### Geändert
+
+- **Der Knopf "Sichern" heisst jetzt "Backup erstellen".** "Sichern" wirkte, als würde er die Einstellungen der Seite speichern. Der Knopf, das Fenster "Backup erstellen" und die Hinweise sagen jetzt klar, dass eine Sicherungskopie angelegt wird (Meldung: "Backup erstellt.").
+
 ## [1.55.0] - 2026-11-16
 
 ### Geändert
@@ -1713,6 +1719,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.55.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.1
 [1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0
 [1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0
 [1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0

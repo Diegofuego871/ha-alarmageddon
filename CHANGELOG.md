@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.55.1] - 2026-11-16
+
+### Changed
+
+- **The button "Back up" is now "Create backup".** "Back up" suggested that it saves the settings of the page. The button, the window "Create backup" and the hints now say plainly that a backup copy is created (message: "Backup created.").
+
 ## [1.55.0] - 2026-11-16
 
 ### Changed
@@ -1713,6 +1719,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.55.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.1
 [1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0
 [1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0
 [1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0
