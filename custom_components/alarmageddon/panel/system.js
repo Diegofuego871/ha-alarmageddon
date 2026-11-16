@@ -275,7 +275,7 @@ export class SystemUi {
       <span class="ag-num ag-abkeep ${keepOk ? "" : "bad"}" title="${esc(this._t("bkAutoKeep"))}"><input type="number" min="1" max="50" step="1" inputmode="numeric" data-sys="ab-keep" value="${keepOk ? esc(auto.keep) : esc(Number.isFinite(auto.keep) ? auto.keep : "")}" aria-label="${esc(this._t("bkAutoKeep"))}"><span class="ag-t2">${esc(this._t("bkAutoKeepUnit"))}</span></span>
       <select class="ag-input" data-sys="ab-every" aria-label="${esc(this._t("bkAutoEvery"))}" ${auto.enabled ? "" : "disabled"}>${every}</select></div>`;
     return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes">${autoRow}<div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("bkHint"))}</small></div>
-      <div class="ag-btnrow"><button class="ag-btn primary" data-sys="bk-create">${ic("check", 18)}${esc(this._t("bkSave"))}</button></div></div>
+      <div class="ag-btnrow"><button class="ag-btn" data-sys="bk-create">${ic("plus", 18)}${esc(this._t("bkSave"))}</button></div></div>
       <div class="ag-setrow ag-bklast"><div class="ag-settx ag-bklast-tx">${this._bkLastHtml()}</div>
         <button class="ag-btn" data-sys="bk-open">${ic("restoreEye", 18)}${esc(this._t("bkShow"))}</button></div></div>`);
   }
