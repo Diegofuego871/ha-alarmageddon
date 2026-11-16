@@ -110,6 +110,9 @@ class AlarmageddonPanel extends HTMLElement {
     this._root.addEventListener("click", (ev) => this._onClick(ev));
     this._root.addEventListener("input", (ev) => this._onInput(ev));
     this._root.addEventListener("change", (ev) => this._onChange(ev));
+    // Wählt man ein Feld mit Inhalt an, steht der Cursor nach dem letzten Zeichen (Vorgabe des Nutzers, 2026-11-16), nicht davor
+    this._root.addEventListener("pointerdown", (ev) => { this._tapAt = Date.now(); this._tapEl = ev.target; }, true);
+    this._root.addEventListener("focusin", (ev) => this._caretToEnd(ev.target));
     this._root.addEventListener("pointerdown", (ev) => {
       this.sensors.onPointerDown(ev);
       if (this._tab === "config" && this._sub === "actions") this.actions.onPointerDown(ev);
@@ -1521,7 +1524,7 @@ class AlarmageddonPanel extends HTMLElement {
     } else if (act === "more") {
       // Sensor der Übersicht antippen öffnet die Sensoransicht (nach Home Assistant geht es dort mit "In HA öffnen");
       // der Pfeil an der Kachel der Anlage öffnet weiter die Alarm-Entität in Home Assistant
-      if (el.dataset.entity.startsWith("binary_sensor.")) this.sensorView.open(el.dataset.entity);
+      if (el.dataset.entity.startsWith("binary_sensor.") || this._sensor(el.dataset.entity).type === "measure") this.sensorView.open(el.dataset.entity); // Messwerte (1.54.0) haben dieselbe Ansicht
       else this._moreInfo(el.dataset.entity);
     } else if (act === "add") {
       this._openAdd();
@@ -1555,6 +1558,32 @@ class AlarmageddonPanel extends HTMLElement {
       this._pending = null;
       action?.();
     }
+  }
+
+  // Cursor ans Ende, wenn ein Feld den Fokus bekommt. Auf dem Handy setzt das Antippen den Cursor erst nach dem Fokus (an die Stelle des Fingers):
+  // darum zweimal, gleich und kurz danach. Nur solange nichts markiert ist; ein Wert wird nie verändert und löst kein "input" aus.
+  // Zahlenfelder (type=number) kennen setSelectionRange nicht: dort rückt das erneute Setzen des Werts den Cursor ans Ende.
+  _caretToEnd(el) {
+    const kinds = ["text", "search", "tel", "url", "email", "password", "number", "textarea"];
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) || !kinds.includes(el.type) || el.readOnly || el.disabled) return;
+    // Nur wenn der Fokus vom Antippen oder Klicken genau dieses Feldes kommt: setzt das Panel den Fokus selbst (zum Beispiel nach dem Einfügen einer Pille), bleibt dessen Cursor
+    if (Date.now() - (this._tapAt || 0) > 600 || this._tapEl !== el) return;
+    const place = () => {
+      if (el.getRootNode().activeElement !== el || !el.value) return;
+      try {
+        if (el.type === "number") {
+          const value = el.value;
+          el.value = "";
+          el.value = value;
+        } else if (el.selectionStart === el.selectionEnd && el.selectionStart !== el.value.length) {
+          el.setSelectionRange(el.value.length, el.value.length);
+        }
+      } catch {
+        /* Feldart ohne Auswahl: der Cursor bleibt, wo der Browser ihn setzt */
+      }
+    };
+    window.requestAnimationFrame(place);
+    window.setTimeout(place, 80);
   }
 
   _onInput(ev) {

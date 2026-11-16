@@ -4,8 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { unfoldAll: "Alle aufklappen", volume: "Lautstärke", measure: "Messwerte", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
-  en: { unfoldAll: "Expand all", volume: "Volume", measure: "Measurements", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
+  de: { unfoldAll: "Alle aufklappen", explOut: "bei über 8 °C", explOk1: "bei 7 °C oder tiefer", explOk3: "bei 5 °C oder tiefer", explNow: "Jetzt 5,4 °C", explBuffer: "Pufferzone", explZero: "Ohne Spanne gilt schon die Grenze selbst.", volume: "Lautstärke", measure: "Messwerte", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
+  en: { unfoldAll: "Expand all", explOut: "above 8 °C", explOk1: "at 7 °C or lower", explOk3: "at 5 °C or lower", explNow: "Now 5.4 °C", explBuffer: "buffer zone", explZero: "Without a margin the limit itself counts.", volume: "Volume", measure: "Measurements", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
 };
 const FRIDGE = "sensor.kuehlschrank_temperatur";
 
@@ -268,8 +268,32 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     check(`${tag}: Regel 1 zugeklappt vor dem Bearbeiten`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule')[0].classList.contains('folded')"));
     await s.tap('[data-wf="mon-edit"][data-rule="0"]');
     check(`${tag}: Bearbeiten: alles vorbelegt (Name, Grenze 8, Dauer 30 Minuten, Spanne 1, Erinnerung 2)`, await s.waitFor("const d=r.getElementById('ag-mon'); return d.open && d.querySelector('[data-wf=\"mon-name\"]').value === 'Kühlschrank zu warm' && d.querySelector('input[data-field=\"limit\"]').value === '8' && d.querySelector('[data-field=\"holdN\"]').value === '30' && d.querySelector('[data-wf=\"mon-holdunit\"]').value === 'm' && d.querySelector('[data-field=\"margin\"]').value === '1' && d.querySelector('[data-field=\"remind\"]').value === '2'"));
+    // Cursor: wählt man ein Feld mit Inhalt an, steht er nach dem letzten Zeichen (Text, Zahl), auch wenn man links antippt; kein "input"-Ereignis
+    await s.ev("window.__inputs = 0; r.getElementById('ag-mon').addEventListener('input', () => { window.__inputs++; }, true); return 1");
+    const nameBox = await (await s.el('#ag-mon [data-wf="mon-name"]')).boundingBox();
+    await s.page.mouse.click(nameBox.x + 3, nameBox.y + nameBox.height / 2);
+    await s.page.waitForTimeout(250);
+    check(`${tag}: Textfeld mit Inhalt: der Cursor steht nach dem letzten Zeichen, obwohl links angetippt`, await s.ev("const i=r.querySelector('#ag-mon [data-wf=\"mon-name\"]'); return r.activeElement === i && i.selectionStart === i.value.length && i.selectionEnd === i.value.length && i.value.length > 3"));
+    await s.tap('#ag-mon [data-wf="mon-field"][data-field="margin"]');
+    await s.page.waitForTimeout(250);
+    check(`${tag}: Zahlenfeld mit Inhalt: Fokus, Wert unverändert, kein "input"-Ereignis (Cursor ans Ende per Neusetzen)`, await s.ev("const i=r.querySelector('#ag-mon [data-wf=\"mon-field\"][data-field=\"margin\"]'); return r.activeElement === i && i.value === '1' && window.__inputs === 0"));
+    // Rückkehr-Spanne: Erklärung mit den Werten dieser Regel (über 8 °C, Spanne 1 °C, Sensor jetzt 5,4 °C), live beim Tippen
+    const explain = () => s.ev("return r.querySelector('#ag-mon .ag-mon-margin')?.innerText.replace(/\\s+/g, ' ').trim() || ''");
+    const ex1 = await explain();
+    check(`${tag}: Erklärung: löst aus bei über 8 °C, wieder in Ordnung bei 7 °C oder tiefer`, ex1.includes(t.explOut) && ex1.includes(t.explOk1), ex1);
+    check(`${tag}: Erklärung: drei Bereiche (in Ordnung, bleibt, ausserhalb), der aktuelle Wert liegt "in Ordnung"`, await s.ev("const z=[...r.querySelectorAll('#ag-mon .ag-mz > span')]; return z.map((x) => x.className.split(' ')[0]).join() === 'ok,keep,out' && z[0].classList.contains('now') && z.filter((x) => x.classList.contains('now')).length === 1"));
+    check(`${tag}: Erklärung nennt den aktuellen Wert des Sensors`, ex1.includes(t.explNow), ex1);
+    await (await s.el('#ag-mon [data-field="margin"]')).fill("3");
+    check(`${tag}: Spanne 3: sofort neu gerechnet (wieder in Ordnung bei 5 °C oder tiefer), 5,4 °C liegt jetzt in der Pufferzone`, await s.waitFor(`const e=r.querySelector('#ag-mon .ag-mon-margin').innerText.replace(/\\s+/g, ' '); return e.includes(${JSON.stringify(t.explOk3)}) && r.querySelector('#ag-mon .ag-mz > span.keep.now') && e.includes(${JSON.stringify(t.explBuffer)})`));
+    await (await s.el('#ag-mon [data-field="margin"]')).fill("0");
+    check(`${tag}: Spanne 0: zwei Bereiche, Hinweis "ohne Spanne gilt die Grenze selbst"`, await s.waitFor(`const e=r.querySelector('#ag-mon .ag-mon-margin').innerText; return r.querySelectorAll('#ag-mon .ag-mz > span').length === 2 && e.includes(${JSON.stringify(t.explZero)})`));
+    await (await s.el('#ag-mon [data-field="margin"]')).fill("1");
+    check(`${tag}: Spanne wieder 1: Erklärung wie am Anfang, kein Fokusverlust im Feld`, await s.waitFor(`return r.querySelector('#ag-mon .ag-mon-margin').innerText.includes(${JSON.stringify(t.explOk1)}) && r.activeElement?.dataset.field === 'margin'`));
+    // Kartentext: ab wann die Regel wieder in Ordnung ist (Grenze minus Spanne), auch auf der Karte
     await s.tap('#ag-mon [data-wf="mon-cancel-form"]');
+    if (await s.waitFor("return r.getElementById('ag-confirm')?.open", 800)) await s.tap('#ag-confirm [data-c="yes"]');
     await s.waitFor("return !r.getElementById('ag-mon').open");
+    check(`${tag}: Karte nennt den Rückkehr-Wert (${t.explOk1})`, await s.ev(`return r.querySelector('.ag-mon-rule .ag-mon-head small').textContent.includes(${JSON.stringify(t.explOk1)})`));
     check(`${tag}: nach dem Bleistift und Zurück ist die Karte aufgeklappt`, await s.waitFor("const x=r.querySelectorAll('.ag-mon-rule')[0]; return !x.classList.contains('folded') && !!x.querySelector('.ag-wf-line')"));
     await s.tap('[data-wf="mon-dup"][data-rule="0"]');
     await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 4");

@@ -7,6 +7,18 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.54.0] - 2026-11-16
+
+### Added
+
+- **Measured sensors in the panel overview and in the sensor view.** With monitoring switched on, the temperature, humidity and CO2 sensors of the monitoring appear in the overview with their value and unit (instead of a state word). A tap opens the same view as for the other sensors: tab "History" with the course of the values as a clean chart (nice axis in the unit of the sensor, the limits of the rules as dashed lines, the current value as a dot), the key figures (current, average, lowest, highest), the periods 3 hours to 30 days, plus battery, signal and device with the same charts as for the other sensors. Below the chart there are only the events of the monitoring ("Outside the limits", "Back to normal", with value and rule), never the single values. A rule that is running marks the sensor yellow and counts under "Problems". There is a filter "Measurements" in the type selection.
+- **Return margin explained with your values.** Below the field the rule editor shows, live while you type: at which values the rule triggers, from which value it is back to normal, the buffer zone in between (the rule keeps its state there) and the current value of the sensor, as bars in the colours of the monitoring. The card of the rule also names the value from which it is back to normal.
+
+### Changed
+
+- **Backups on the phone scroll from seven rows** (ten on the computer); all rows are equally high there.
+- **Cursor at the end of the text.** When you tap a field that already has content, the cursor stands after the last character, not before it (text, numbers and text areas in the whole panel).
+
 ## [1.53.0] - 2026-11-16
 
 ### Changed
@@ -1692,6 +1704,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0
 [1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0
 [1.52.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.52.0
 [1.51.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.51.0

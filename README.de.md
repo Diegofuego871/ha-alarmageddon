@@ -87,6 +87,8 @@ Jede Regel ist ein Kapitel mit ihrem Ablauf: "Ausserhalb der Grenzen" (orange) u
 
 Die Überwachung läuft immer, auch bei deaktivierter Anlage, und löst nie die Sirene oder den Alarm aus (Feuer und Wasser bleiben bei "Immer aktiv"). Ein Sensor, der nicht antwortet, zählt nie: Er löst keine Regel aus und beendet auch keine, ein Funkabriss meldet also nie "wieder in Ordnung". Eine laufende Regel meldet sich nach einem Neustart nicht noch einmal.
 
+Die Messwert-Sensoren der Überwachung (Temperatur, Luftfeuchtigkeit, CO2) stehen auch in der Übersicht des Panels mit ihrem Wert, und ein Tipp öffnet dieselbe Ansicht wie bei jedem Sensor: der Reiter "Verlauf" mit dem Werteverlauf, Batterie, Empfang und Gerät. Unter der Grafik stehen nur die Ereignisse der Überwachung ("Ausserhalb der Grenzen", "Wieder in Ordnung"), nie die einzelnen Werte. Der Editor einer Regel erklärt die Rückkehr-Spanne mit deinen eigenen Werten: bei welchem Wert die Regel auslöst, ab welchem sie wieder in Ordnung ist und wo die Pufferzone liegt.
+
 ### Bei einem Alarm
 
 Ein Alarm ist nicht zu übersehen: ein rotes Band mit dem Sensor, der ausgelöst hat, und den Knöpfen "Quittieren" (der Alarm endet, die Anlage bleibt scharf) und "Deaktivieren". Die Kachel der Anlage nennt, seit wann der Alarm läuft, was ihn ausgelöst hat und wer wann scharf geschaltet hat. Dieselben Knöpfe stehen in der Push-Meldung auf dem Sperrbildschirm.

@@ -202,8 +202,23 @@ export class MonitorUi {
     return this._t("monSeconds", { n });
   }
 
+  // Ab wann ein Messwert wieder in Ordnung ist (Grenze und Rückkehr-Spanne), nur bei genau einem Messwert in der Regel (sonst wird der Satz zu lang)
+  backText(m) {
+    const leaves = m.tree.items.flatMap((i) => (i.items ? i.items : [i])).filter((l) => l.kind === "value" && l.entity_id && Number.isFinite(num(l.limit)));
+    if (leaves.length !== 1) return "";
+    const l = leaves[0];
+    const u = this.unitOf(l.entity_id);
+    const margin = Number(m.margin) > 0 ? Number(m.margin) : 0;
+    const n = (v) => `${fmt(v)}${u ? ` ${u}` : ""}`;
+    const lo = num(l.limit);
+    if (l.op === "above") return this._t("monBackShort", { text: this._t("monMarginOk_above", { value: n(lo - margin) }) });
+    if (l.op === "below") return this._t("monBackShort", { text: this._t("monMarginOk_below", { value: n(lo + margin) }) });
+    const up = num(l.upper);
+    return Number.isFinite(up) && lo + margin <= up - margin ? this._t("monBackShort", { text: this._t("monMarginOk_outside", { from: n(lo + margin), to: n(up - margin) }) }) : "";
+  }
+
   ruleSub(m) {
-    const parts = [this.treeText(m.tree)];
+    const parts = [this.treeText(m.tree), this.backText(m)].filter(Boolean);
     if (m.hold) parts.push(this._t("monHoldShort", { time: this.durText(m.hold) }));
     if (m.remind) parts.push(this._t("monRemindShort", { n: m.remind }));
     return parts.join(" · ");
@@ -503,6 +518,50 @@ export class MonitorUi {
     return leaf ? this.unitOf(leaf.entity_id) : "";
   }
 
+  // Erklärung der Rückkehr-Spanne mit den Werten dieser Regel, live beim Tippen: wann die Regel auslöst, ab welchem Wert sie wieder in Ordnung ist,
+  // die Pufferzone dazwischen (dort bleibt sie, wie sie ist) und der aktuelle Wert des Sensors. Gleiche Rechnung wie monitor.value_met im Server.
+  _marginHtml() {
+    const lang = this.host._hass?.locale?.language || this.host._lang;
+    const m = Number(this.form.margin);
+    const margin = Number.isFinite(m) && m >= 0 ? m : 0;
+    const leaves = this._leaves().filter((l) => l.kind === "value" && l.entity_id && Number.isFinite(num(l.limit)) && (l.op !== "outside" || Number.isFinite(num(l.upper))));
+    if (!leaves.length) return `<span class="ag-t2">${esc(this._t("monMarginPick"))}</span>`;
+    const body = leaves.map((l) => {
+      const u = this.unitOf(l.entity_id);
+      const n = (v) => `${Number(v).toLocaleString(lang, { maximumFractionDigits: 2 })}${u ? ` ${u}` : ""}`;
+      const lo = num(l.limit);
+      const up = l.op === "outside" ? num(l.upper) : null;
+      const cur = Number(this.host._hass?.states?.[l.entity_id]?.state);
+      // Bereiche von unten nach oben: [Art, Text, gilt für den aktuellen Wert]
+      let zones;
+      let outText;
+      let okText;
+      if (l.op === "above") {
+        outText = this._t("monMarginOut_above", { limit: n(lo) });
+        okText = this._t("monMarginOk_above", { value: n(lo - margin) });
+        zones = [["ok", `≤ ${n(lo - margin)}`, (v) => v <= lo - margin], ...(margin > 0 ? [["keep", `${n(lo - margin)} – ${n(lo)}`, (v) => v > lo - margin && v <= lo]] : []), ["out", `> ${n(lo)}`, (v) => v > lo]];
+      } else if (l.op === "below") {
+        outText = this._t("monMarginOut_below", { limit: n(lo) });
+        okText = this._t("monMarginOk_below", { value: n(lo + margin) });
+        zones = [["out", `< ${n(lo)}`, (v) => v < lo], ...(margin > 0 ? [["keep", `${n(lo)} – ${n(lo + margin)}`, (v) => v >= lo && v < lo + margin]] : []), ["ok", `≥ ${n(lo + margin)}`, (v) => v >= lo + margin]];
+      } else {
+        outText = this._t("monMarginOut_outside", { from: n(lo), to: n(up) });
+        okText = this._t("monMarginOk_outside", { from: n(lo + margin), to: n(up - margin) });
+        zones = lo + margin > up - margin ? null : [["out", `< ${n(lo)}`, (v) => v < lo], ...(margin > 0 ? [["keep", `${n(lo)} – ${n(lo + margin)}`, (v) => v >= lo && v < lo + margin]] : []),
+          ["ok", `${n(lo + margin)} – ${n(up - margin)}`, (v) => v >= lo + margin && v <= up - margin], ...(margin > 0 ? [["keep", `${n(up - margin)} – ${n(up)}`, (v) => v > up - margin && v <= up]] : []), ["out", `> ${n(up)}`, (v) => v > up]];
+      }
+      const title = leaves.length > 1 ? `<b class="ag-mon-mname">${esc(this.deviceName(l.entity_id))}</b>` : "";
+      if (!zones) return `<div class="ag-mon-mleaf">${title}<p class="ag-mon-mrow">${ic("alert", 14)} ${esc(this._t("monMarginTooBig"))}</p></div>`;
+      const live = Number.isFinite(cur) && this.host._hass?.states?.[l.entity_id]?.state !== "";
+      const nowZone = live ? zones.find(([, , test]) => test(cur)) : null;
+      const label = { ok: this._t("monMarginZoneOk"), keep: this._t("monMarginZoneKeep"), out: this._t("monMarginZoneOut") };
+      const bar = `<div class="ag-mz" role="img" aria-label="${esc(this._t("monMarginBar"))}">${zones.map(([kind, text, test]) => `<span class="${kind} ${nowZone && nowZone[2] === test ? "now" : ""}"><b>${esc(label[kind])}</b><small>${esc(text)}</small></span>`).join("")}</div>`;
+      const now = live ? `<p class="ag-mon-mrow ag-mon-mnow">${esc(this._t("monMarginNow", { value: n(cur), zone: nowZone ? label[nowZone[0]] : "–" }))}${nowZone && nowZone[0] === "keep" ? ` ${esc(this._t("monMarginKeepHint"))}` : ""}</p>` : "";
+      return `<div class="ag-mon-mleaf">${title}<p class="ag-mon-mrow"><b>${esc(this._t("monMarginOutLabel"))}</b> ${esc(outText)}</p><p class="ag-mon-mrow"><b>${esc(this._t("monMarginOkLabel"))}</b> ${esc(okText)}${margin > 0 ? "" : ` <span class="ag-t2">${esc(this._t("monMarginZero"))}</span>`}</p>${bar}${now}</div>`;
+    }).join("");
+    return body;
+  }
+
   _num(field, value, unit, bad, min = 0) {
     return `<span class="ag-num ${bad ? "bad" : ""}"><input type="number" min="${min}" step="any" inputmode="decimal" data-wf="mon-field" data-field="${field}" value="${esc(value)}" aria-label="${esc(this._t(`mon_${field}`))}"><span class="ag-t2">${esc(unit)}</span></span>`;
   }
@@ -518,7 +577,8 @@ export class MonitorUi {
     const rows = `<div class="ag-card ag-setlist">
       <div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("monHold"))}</b><small>${esc(this._t("monHoldHint"))}</small></div>
         <span class="ag-num ${bad.has("hold") ? "bad" : ""}"><input type="number" min="0" step="any" inputmode="decimal" data-wf="mon-field" data-field="holdN" value="${esc(f.holdN)}" aria-label="${esc(this._t("monHold"))}">${unitSel}</span></div>
-      ${this._hasValue() ? `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("monMargin"))}</b><small>${esc(this._t("monMarginHint"))}</small></div>${this._num("margin", f.margin, this._marginUnit(), bad.has("margin"))}</div>` : ""}
+      ${this._hasValue() ? `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("monMargin"))}</b><small>${esc(this._t("monMarginHint"))}</small></div>${this._num("margin", f.margin, this._marginUnit(), bad.has("margin"))}</div>
+      <div class="ag-setrow ag-mon-marginrow"><div class="ag-mon-margin">${this._marginHtml()}</div></div>` : ""}
       <div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("monRemind"))}</b><small>${esc(this._t("monRemindHint"))}</small></div>${this._num("remind", f.remind, this._t("monUnitHours"), bad.has("remind"))}</div></div>`;
     return `<div class="ag-dlg-body ag-rt-ed"><h3>${esc(this._t(this.index >= 0 ? "monEditTitle" : "monNewTitle"))}</h3>
       ${chapter(this._t("monName"), nameField)}
@@ -983,6 +1043,9 @@ export class MonitorUi {
       mine.className = err.className;
       mine.textContent = err.textContent;
     }
+    const mineMargin = dlg.querySelector(".ag-mon-margin");
+    const newMargin = tmp.querySelector(".ag-mon-margin");
+    if (mineMargin && newMargin && mineMargin.innerHTML !== newMargin.innerHTML) mineMargin.innerHTML = newMargin.innerHTML;
     const btn = dlg.querySelector('[data-wf="mon-save-form"]');
     if (btn) btn.disabled = Boolean(err?.textContent);
     this.host._lastHtml.delete(dlg);

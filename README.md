@@ -87,6 +87,8 @@ Every rule is a chapter with its flow: "Outside the limits" (orange) and "Back t
 
 Monitoring runs always, also while the alarm system is disarmed, and never triggers the siren or the alarm (fire and water stay with "Always active"). A sensor that does not respond never counts: it neither triggers a rule nor ends it, so a radio loss never reports "back to normal". A running rule does not report again after a restart.
 
+The measured sensors of the monitoring (temperature, humidity, CO2) also appear in the panel overview with their value, and a tap opens the same view as for every sensor: the tab "History" with the course of the values, battery, signal and device. Below the chart there are only the events of the monitoring ("Outside the limits", "Back to normal"), never the single values. The editor of a rule explains the return margin with your own values: at which value the rule triggers, from which value it is back to normal and where the buffer zone lies.
+
 ### When there is an alarm
 
 An alarm cannot be overlooked: a red band with the sensor that triggered and the buttons "Acknowledge" (the alarm ends, the system stays armed) and "Disarm". The tile of the alarm system says since when the alarm has been running, what triggered it and who armed the system when. The same buttons are in the push notification on the lock screen.

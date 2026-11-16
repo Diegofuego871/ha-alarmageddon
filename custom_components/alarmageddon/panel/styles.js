@@ -1031,7 +1031,22 @@ dialog.ag-svdlg[open] { height: min(92vh, 860px); }
 .ag-sv-ev { display: inline-flex; align-items: center; gap: 8px; }
 .ag-sv-ev small { display: block; color: var(--ag-text2); font-size: 12px; }
 .ag-sv-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ag-warning); flex: none; }
-.ag-sv-dot.gone { background: var(--ag-text3); } .ag-sv-dot.alarm { background: var(--ag-error); }
+/* Erklärung der Rückkehr-Spanne (Überwachung): Bereiche des Messwerts als Balken, der aktuelle Bereich ist umrandet */
+.ag-mon-marginrow { display: block; }
+.ag-mon-margin { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+.ag-mon-mleaf { display: flex; flex-direction: column; gap: 6px; }
+.ag-mon-mname { font-size: 13px; }
+.ag-mon-mrow { margin: 0; font-size: 13px; color: var(--ag-text2); line-height: 1.4; } .ag-mon-mrow b { color: var(--ag-text); font-weight: 500; }
+.ag-mon-mnow { color: var(--ag-text); }
+.ag-mz { display: flex; gap: 3px; margin-top: 2px; }
+.ag-mz > span { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 8px; font-size: 12px; line-height: 1.25; box-shadow: inset 0 0 0 1.5px transparent; }
+.ag-mz > span b { font-weight: 500; } .ag-mz > span small { font-size: 11.5px; opacity: .85; overflow-wrap: anywhere; }
+.ag-mz > span.ok { background: var(--ag-success-soft); color: var(--ag-success); }
+.ag-mz > span.out { background: var(--ag-warning-soft); color: var(--ag-warning-text); }
+.ag-mz > span.keep { background: var(--ag-subtle); color: var(--ag-text2); background-image: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--ag-text) 6%, transparent) 5px 6px); }
+.ag-mz > span.now { box-shadow: inset 0 0 0 1.5px currentColor; }
+:host([narrow]) .ag-mz > span { padding: 6px; }
+.ag-sv-dot.gone { background: var(--ag-text3); } .ag-sv-dot.alarm { background: var(--ag-error); } .ag-sv-dot.mon-out { background: var(--ag-warning); } .ag-sv-dot.mon-ok { background: var(--ag-success); }
 .ag-sv-tag { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; border: 0; font: inherit; font-size: 12px; background: var(--ag-subtle); color: var(--ag-text2); white-space: nowrap; }
 .ag-sv-tag.arm { background: var(--ag-primary-soft); color: var(--ag-primary); }
 .ag-sv-tag.ok { background: var(--ag-success-soft); color: var(--ag-success); }
@@ -1186,6 +1201,9 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 @media (prefers-reduced-motion: reduce) { .ag-mon-fold { transition: none; } }
 /* Liste der Sicherungen: rollt für sich ab zehn Zeilen (Zeile 52 px, Kopf 46 px), der Kopf bleibt stehen */
 .ag-bkscroll { overflow: auto; max-height: calc(46px + 10 * 52px); }
+:host([narrow]) .ag-bkscroll { max-height: calc(59px + 7 * 62px); } /* Handy: sieben Zeilen sichtbar, danach Rollen (Vorgabe des Nutzers, 2026-11-16) */
+:host([narrow]) .ag-bkscroll .ag-table th { height: 59px; }
+:host([narrow]) .ag-bkscroll .ag-table td { height: 62px; } /* alle Zeilen gleich hoch (Name und Anlage untereinander), sonst stimmt die Zahl der sichtbaren Zeilen nicht */
 .ag-bkscroll .ag-table th { position: sticky; top: 0; z-index: 2; background: var(--ag-card); height: 46px; box-shadow: 0 1px 0 var(--ag-divider); }
 .ag-bkscroll .ag-table td { height: 52px; }
 .ag-bkscroll .ag-sortbtn { padding: 14px; }

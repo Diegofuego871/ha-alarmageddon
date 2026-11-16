@@ -6,9 +6,9 @@ const V = new URL(import.meta.url).search;
 const { DC, MODE_ICON, MODE_KEY, TYPES, errText, esc, ic } = await import(`./common.js${V}`);
 const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
-const RANGES = { state: [3, 12, 24, 168, 720], signal: [3, 12, 24, 168, 720], battery: [720, 2160, 8760] };
+const RANGES = { state: [3, 12, 24, 168, 720], value: [3, 12, 24, 168, 720], signal: [3, 12, 24, 168, 720], battery: [720, 2160, 8760] };
 const RANGE_LABEL = { 3: "svR3h", 12: "svR12h", 24: "svR1d", 168: "svR7d", 720: "svR30d", 2160: "svR90d", 8760: "svR1y" };
-const TAB_ICON = { state: "history", battery: "battery", signal: "signal", device: "chip" };
+const TAB_ICON = { state: "history", value: "history", battery: "battery", signal: "signal", device: "chip" };
 const MODES = ["home", "away", "night"];
 const HOUR = 3600000;
 
@@ -17,7 +17,7 @@ export class SensorView {
     this.host = host;
     this.id = null;
     this.tab = "state";
-    this.hours = { state: 24, signal: 168, battery: 2160 };
+    this.hours = { state: 24, value: 24, signal: 168, battery: 2160 };
     this.data = null;
     this.loading = false;
     this.error = null;
@@ -40,9 +40,26 @@ export class SensorView {
     return this.host._sensor(this.id) || {};
   }
 
+  // Messwert-Sensor (Temperatur, Luftfeuchtigkeit, CO2): Reiter "Verlauf" zeigt den Werteverlauf statt der Öffnungen
+  get measure() {
+    return this.info().type === "measure";
+  }
+
+  // Eine Regel der Überwachung ist für diesen Sensor gerade "ausserhalb"
+  _alarmActive() {
+    return this.host._systems().some((sys) => Object.values(sys.monitor_active || {}).some((a) => a?.entity_id === this.id));
+  }
+
+  _valueText(value, unit) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return "–";
+    const num = Number(value).toLocaleString(this._locale(), { maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 1 });
+    return `${num}${unit ? ` ${unit}` : ""}`;
+  }
+
   // Art der Darstellung: "open" (Tür, Fenster), "motion" (Bewegung, Belegung), sonst "alert" (Rauch, Wasser, Sabotage …)
   flavor() {
     const info = this.info();
+    if (info.type === "measure") return "value";
     if (info.type === "door" || info.type === "window") return "open";
     if (info.type === "motion") return "motion";
     return "alert";
@@ -50,12 +67,12 @@ export class SensorView {
 
   tabs() {
     const info = this.info();
-    return ["state", ...(info.battery ? ["battery"] : []), ...(info.signal || info.signal_live ? ["signal"] : []), "device"];
+    return [this.measure ? "value" : "state", ...(info.battery ? ["battery"] : []), ...(info.signal || info.signal_live ? ["signal"] : []), "device"];
   }
 
   open(id) {
     this.id = id;
-    this.tab = "state";
+    this.tab = this.measure ? "value" : "state";
     this.data = null;
     this.error = null;
     this.render();
@@ -165,6 +182,7 @@ export class SensorView {
   _stateText() {
     const st = this.host._state(this.id);
     if (!st || st.state === "unavailable" || st.state === "unknown") return [this._t("svGone"), "off"];
+    if (this.measure) return [this._valueText(st.state, this.info().unit || st.attributes?.unit_of_measurement), this._alarmActive() ? "act" : ""];
     const flavor = this.flavor();
     if (st.state === "on") return [this._t(flavor === "open" ? "svOpen" : flavor === "motion" ? "svActive" : "svTrig"), "act"];
     return [this._t(flavor === "open" ? "svClosed" : flavor === "motion" ? "svCalm" : "svOk"), ""];
@@ -182,6 +200,7 @@ export class SensorView {
     const sub = [typeKey ? this._t(typeKey) : "", info.area, info.integration || info.platform].filter(Boolean).join(" · ");
     const st = this.host._state(this.id);
     const tileValue = {
+      value: () => stateText,
       state: () => `${stateText}${st?.last_changed ? ` ${this._t("since", { time: this.host._fmtTime(st.last_changed) })}` : ""}`,
       battery: () => this._entityValue(info.battery, "%"),
       signal: () => (info.signal_live ? this._liveValue(info.signal_live) : this._entityValue(info.signal, "")),
@@ -501,8 +520,9 @@ export class SensorView {
   _numericHtml(d, seg, busy = false) {
     const s = d.summary;
     const battery = d.kind === "battery";
+    const value = d.kind === "value";
     const unit = d.unit || (battery ? "%" : "");
-    const fmt = (v) => (v === null || v === undefined ? "–" : `${Math.round(v)}${unit ? ` ${unit}` : ""}`);
+    const fmt = value ? (v) => this._valueText(v, unit) : (v) => (v === null || v === undefined ? "–" : `${Math.round(v)}${unit ? ` ${unit}` : ""}`);
     const wide = !this.narrow;
     let kpis;
     if (battery) {
@@ -510,11 +530,13 @@ export class SensorView {
       const leftText = left === null || left === undefined ? "–" : left <= 0 ? this._t("svNowLow") : left >= 60 ? this._t("svMonths", { n: Math.round(left / 30) }) : this._t("svDays", { n: Math.round(left) });
       kpis = [[fmt(s.current), this._t("svKCurrent")], [s.per_day === null || s.per_day === undefined ? "–" : `${s.per_day.toLocaleString(this._locale(), { maximumFractionDigits: 2 })} %`, this._t("svKPerDayUse")],
         [leftText, this._t("svKUntilWarn")], wide && [s.last_change ? this.host._fmtAgo(s.last_change) : "–", this._t("svKChanged")]];
+    } else if (value) {
+      kpis = [[fmt(s.current), this._t("svKCurrent")], [fmt(s.mean), this._t("svKMean")], [fmt(s.min), this._t("svKLowest")], wide && [fmt(s.max), this._t("svKHighest")]];
     } else {
       kpis = [[fmt(s.current), this._t("svKCurrent")], [fmt(s.mean), this._t("svKMean")], [fmt(s.min), this._t("svKWeakest")]];
     }
-    const chart = d.points.length < 2 ? `<div class="ag-sv-msg ag-t2">${esc(this._t("svNoValues"))}</div>` : this._line(d, this.narrow ? 358 : 832);
-    return { fix: `${seg}${this._kpis(kpis)}<div class="ag-sv-chart">${chart}${busy ? this._loader() : ""}</div>`, list: this._valuesHtml(d, fmt) };
+    const chart = d.points.length < 2 ? `<div class="ag-sv-msg ag-t2">${esc(this._t("svNoValues"))}</div>` : (d.kind === "value" ? this._valueLine(d, this.narrow ? 358 : 832) : this._line(d, this.narrow ? 358 : 832));
+    return { fix: `${seg}${this._kpis(kpis)}<div class="ag-sv-chart">${chart}${busy ? this._loader() : ""}</div>`, list: value ? this._monitorEventsHtml(d) : this._valuesHtml(d, fmt) };
   }
 
   // Linie mit Fläche: Batterie mit Schwelle der Warnung, Batteriewechsel und Prognose; Empfang in dBm mit den Zonen gut, mittel, schwach
@@ -583,6 +605,90 @@ export class SensorView {
     return `<table class="ag-sv-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
   }
 
+  // Schöne Achsenwerte: Schritt 1, 2 oder 5 mal Zehnerpotenz, drei bis fünf Linien über den Bereich der Werte
+  _niceTicks(lo, hi) {
+    const span = Math.max(hi - lo, 1e-6);
+    const raw = span / 3;
+    const pow = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 5, 10].map((m) => m * pow).find((x) => x >= raw) || raw;
+    const first = Math.floor(lo / step) * step;
+    const last = Math.ceil(hi / step) * step;
+    const ticks = [];
+    for (let v = first; v <= last + step / 2; v += step) ticks.push(Math.round(v / step) * step);
+    return { ticks, step };
+  }
+
+  // Werteverlauf eines Messwert-Sensors (Temperatur, Luftfeuchtigkeit, CO2): Linie mit Fläche, schöne Achse in der Einheit des Sensors,
+  // Grenzen der Regeln der Überwachung als gestrichelte Linien (nur, wenn sie nahe an den Werten liegen), letzter Wert als Punkt
+  _valueLine(d, W) {
+    const pts = d.points.map(([t, v]) => [new Date(t).getTime(), v]);
+    const now = new Date(d.now).getTime();
+    const start = new Date(d.start).getTime();
+    const values = pts.map((p) => p[1]);
+    const vmin = Math.min(...values);
+    const vmax = Math.max(...values);
+    const span = Math.max(vmax - vmin, Math.abs(vmax) * 0.05, 1);
+    // Grenzen, die nicht weiter als zwei Spannweiten von den Werten entfernt liegen
+    const limits = (d.limits || []).flatMap((l) => l.limits.map((value) => ({ rule: l.rule, value }))).filter((l) => l.value >= vmin - 2 * span && l.value <= vmax + 2 * span);
+    const lo = Math.min(vmin, ...limits.map((l) => l.value));
+    const hi = Math.max(vmax, ...limits.map((l) => l.value));
+    const { ticks, step } = this._niceTicks(lo - span * 0.05, hi + span * 0.05);
+    const min = ticks[0];
+    const max = ticks[ticks.length - 1];
+    const decimals = step >= 1 ? 0 : Math.min(2, Math.ceil(-Math.log10(step)));
+    const unit = d.unit ? ` ${d.unit}` : "";
+    const label = (v) => `${v.toLocaleString(this._locale(), { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+    const H = 150;
+    const L = Math.max(36, 14 + 7 * Math.max(...ticks.map((v) => label(v).length)));
+    const R = W - 6;
+    const top = 10;
+    const bottom = H - 22;
+    const x = (t) => L + ((t - start) / (now - start)) * (R - L);
+    const y = (v) => bottom - ((v - min) / (max - min)) * (bottom - top);
+    let s = "";
+    ticks.forEach((g, i) => {
+      s += `<line class="sv-grid" x1="${L}" y1="${y(g).toFixed(1)}" x2="${R}" y2="${y(g).toFixed(1)}"/>${this._txt(L - 6, y(g) + 4, i === ticks.length - 1 ? `${label(g)}${unit}` : label(g), "end")}`;
+    });
+    for (const l of limits) {
+      s += `<line class="sv-thr" x1="${L}" y1="${y(l.value).toFixed(1)}" x2="${R}" y2="${y(l.value).toFixed(1)}"/>${this._txt(R - 4, y(l.value) - 4, this._t("svLimit", { value: `${l.value.toLocaleString(this._locale())}${unit}` }), "end", "err")}`;
+    }
+    const path = pts.map(([t, v], i) => `${i ? "L" : "M"}${x(t).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    const [lastT, lastV] = pts[pts.length - 1];
+    s += `<path class="sv-area" d="${path} L${x(lastT).toFixed(1)},${bottom} L${x(pts[0][0]).toFixed(1)},${bottom} Z"/><path class="sv-line" d="${path}"/>`;
+    s += `<circle class="sv-dot" cx="${x(lastT).toFixed(1)}" cy="${y(lastV).toFixed(1)}" r="4.5"/>`;
+    const fmtDate = (t) => new Date(t).toLocaleDateString(this._locale(), d.hours <= 24 ? { hour: "2-digit", minute: "2-digit" } : { day: "numeric", month: "short" });
+    for (const [t, anchor] of [[start, "start"], [(start + now) / 2, "middle"], [now, "end"]]) s += this._txt(x(t), H - 6, d.hours <= 24 ? this._clock(t) : fmtDate(t), anchor);
+    return this._svg(W, H, s, this._t("svChartValue"));
+  }
+
+  // Ereignisse der Überwachung zu diesem Sensor (nie die Messwerte selbst: das wäre unübersichtlich): ausserhalb der Grenzen, wieder in Ordnung
+  _monitorEventsHtml(d) {
+    const events = d.events || [];
+    if (!events.length) return `<div class="ag-sv-msg ag-t2">${esc(this._t("svNoMonEvents"))}</div>`;
+    const narrow = this.narrow;
+    const multi = this.host._systems().length > 1;
+    const what = (e) => this._t(e.kind === "out" ? "svEvMonOut" : "svEvMonOk");
+    const val = (e) => (e.value ? `${e.value}${e.unit ? ` ${e.unit}` : ""}` : "–");
+    const tag = (e) => `<span class="ag-sv-tag">${esc(e.rule || "–")}${multi && e.system ? ` · ${esc(e.system)}` : ""}</span>`;
+    let day = "";
+    let body = "";
+    for (const e of events) {
+      const date = new Date(e.t);
+      if (date.toDateString() !== day) {
+        day = date.toDateString();
+        body += `<tr class="day"><td colspan="${narrow ? 3 : 4}">${esc(this._dayLabel(date))}</td></tr>`;
+      }
+      const dot = `<span class="ag-sv-dot mon-${e.kind}"></span>`;
+      body += narrow
+        ? `<tr data-kind="${e.kind}"><td>${esc(this._clock(e.t))}</td><td><span class="ag-sv-ev">${dot}<span>${esc(what(e))}<small>${esc(val(e))}</small></span></span></td><td class="r">${tag(e)}</td></tr>`
+        : `<tr data-kind="${e.kind}"><td>${esc(this._clock(e.t))}</td><td><span class="ag-sv-ev">${dot}${esc(what(e))}</span></td><td>${esc(val(e))}</td><td>${tag(e)}</td></tr>`;
+    }
+    const head = narrow
+      ? `<tr><th>${esc(this._t("svColTime"))}</th><th>${esc(this._t("svColEvent"))}</th><th class="r">${esc(this._t("svColRule"))}</th></tr>`
+      : `<tr><th class="c1">${esc(this._t("svColTime"))}</th><th>${esc(this._t("svColEvent"))}</th><th class="c3">${esc(this._t("svColValue"))}</th><th class="c4">${esc(this._t("svColRule"))}</th></tr>`;
+    return `<table class="ag-sv-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  }
+
   // ----- Gerät: nur zur Ansicht -----
 
   _deviceHtml() {
@@ -594,9 +700,11 @@ export class SensorView {
     const systems = (this.host._data?.systems || []).map((sys) => {
       const zones = MODES.filter((m) => (sys.zones?.[m] || []).includes(this.id));
       const always = this.host._optionOf ? this.host._optionOf(sys, this.id, "always", null) : false;
-      if (!zones.length && !always) return "";
+      const watched = sys.monitor_enabled === true && (sys.monitor_sensors || []).includes(this.id);
+      if (!zones.length && !always && !watched) return "";
       const chips = [...zones.map((m) => `<span class="ag-sv-tag arm">${ic(MODE_ICON[m], 12)}${esc(this._t(MODE_KEY[m]))}</span>`),
         ...(always ? [`<span class="ag-sv-tag arm">${ic("flash", 12)}${esc(this._t("optAlways"))}</span>`] : []),
+        ...(watched ? [`<span class="ag-sv-tag arm">${ic("eye", 12)}${esc(this._t("wfMonitor"))}</span>`] : []),
         ...((sys.entry_sensors || []).includes(this.id) ? [`<span class="ag-sv-tag">${ic("timer", 12)}${esc(this._t("optEntryShort"))}</span>`] : [])].join("");
       return `<div class="ag-sv-drow"><span class="ag-t2">${esc(sys.title)}</span><span class="ag-sv-chips">${chips}</span></div>`;
     }).join("");

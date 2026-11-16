@@ -48,7 +48,14 @@ for (const lang of ["de", "en"]) {
     }
     await s.tap('[data-sys="bk-sort"][data-key="name"]');
     check(`${tag}: Sortieren nach Name (ohne Namen zuerst)`, await s.waitFor("return !/Stand/.test(r.querySelector('.ag-bktable tr[data-bk] td').textContent)"));
-    check(`${tag}: die Liste ist ein Rollbereich: höchstens zehn Zeilen hoch, Kopf klebt oben beim Rollen`, await s.ev(`const w=r.querySelector('.ag-bkscroll'); const rowH=r.querySelector('.ag-bktable tr[data-bk]').getBoundingClientRect().height; if (!(w.scrollHeight > w.clientHeight + 20 && w.clientHeight <= 46 + 10 * rowH + 4)) return false; w.scrollTop = 300; const h=r.querySelector('.ag-bktable th').getBoundingClientRect(); return w.scrollTop > 0 && Math.abs(h.top - w.getBoundingClientRect().top) < 3`));
+    check(`${tag}: die Liste ist ein Rollbereich: höchstens ${mobile ? 'sieben' : 'zehn'} Zeilen hoch, Kopf klebt oben beim Rollen`, await s.ev(`const w=r.querySelector('.ag-bkscroll'); const rowH=r.querySelector('.ag-bktable tr[data-bk]').getBoundingClientRect().height; if (!(w.scrollHeight > w.clientHeight + 20 && w.clientHeight <= r.querySelector('.ag-bktable th').getBoundingClientRect().height + ${mobile ? 7 : 10} * rowH + 4)) return false; w.scrollTop = 300; const h=r.querySelector('.ag-bktable th').getBoundingClientRect(); return w.scrollTop > 0 && Math.abs(h.top - w.getBoundingClientRect().top) < 3`));
+    if (mobile) {
+      for (const [n, scrolls] of [[8, true], [7, false]]) {
+        await s.sim(`window.__backups = window.__backups.slice(0, ${n}); return 1`);
+        await s.ev("return r.host.systemUi.loadBackups().then(() => 1)");
+        check(`${tag}: Handy: ${n} Zeilen ${scrolls ? "rollen" : "rollen nicht"} (Rollbereich ab 8)`, await s.waitFor(`const w=r.querySelector('.ag-bkscroll'); return !!w && r.querySelectorAll('.ag-bktable tr[data-bk]').length === ${n} && (w.scrollHeight > w.clientHeight + 4) === ${scrolls}`));
+      }
+    }
     await s.sim("window.__backups = window.__backups.slice(0, 4); return 1");
     await s.ev("return r.host.systemUi.loadBackups().then(() => 1)");
     check(`${tag}: bis zehn Zeilen kein Rollen`, await s.waitFor("const w=r.querySelector('.ag-bkscroll'); return !!w && w.scrollHeight <= w.clientHeight + 1"));

@@ -366,6 +366,18 @@
           summary: { count, seconds: count * 60, longest: 120, last: events[0]?.start ?? null, busiest_hour: 18, per_day: msg.hours >= 24 ? Math.round((count / (msg.hours / 24)) * 10) / 10 : null,
             gone_count: events.filter((e) => e.kind === "gone").length, gone_seconds: 2400, available: 99.4, alarms: events.filter((e) => e.alarm).length } };
       }
+      if (msg.kind === "value") {
+        // Messwert (1.54.0): erfundener Verlauf mit einer Spitze über die Grenze; Ereignisse der Überwachung und Grenzen der Regeln
+        const unit = SENSORS[msg.entity_id]?.unit || "", base = unit === "ppm" ? 650 : unit === "%" ? 56 : 5, amp = unit === "ppm" ? 220 : unit === "%" ? 9 : 2.2, n = 72, points = [];
+        for (let i = 0; i <= n; i++) points.push([at(start + ((now - start) * i) / n), Math.round((base + amp * Math.sin(i / 6) + (i > 40 && i < 46 ? amp * 1.6 : 0)) * 10) / 10]);
+        const vs = points.map((p) => p[1]);
+        const hot = msg.entity_id === "sensor.kuehlschrank_temperatur";
+        return { kind: "value", hours: msg.hours, now: at(now), start: at(start), entity_id: msg.entity_id, unit, points,
+          summary: { current: vs[n], mean: Math.round((vs.reduce((a, b) => a + b, 0) / vs.length) * 10) / 10, min: Math.min(...vs), max: Math.max(...vs) },
+          limits: hot ? [{ rule: "Kühlschrank zu warm", op: "above", limits: [8] }] : [],
+          events: hot ? [{ t: at(now - 2 * H), kind: "ok", rule: "Kühlschrank zu warm", system: window.__systems[0].title, entry_id: window.__systems[0].entry_id, value: "6.1", unit },
+            { t: at(now - 3 * H), kind: "out", rule: "Kühlschrank zu warm", system: window.__systems[0].title, entry_id: window.__systems[0].entry_id, value: "9.2", unit }].filter((e) => new Date(e.t) > new Date(start)) : [] };
+      }
       const battery = msg.kind === "battery", n = 60, points = [];
       for (let i = 0; i <= n; i++) points.push([at(start + ((now - start) * i) / n), battery ? (i < 8 ? 30 - i : 100 - (i - 8) * 0.55) : -60 - (i % 7) * 3]);
       const values = points.map((p) => p[1]);

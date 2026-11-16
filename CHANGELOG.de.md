@@ -7,6 +7,18 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.54.0] - 2026-11-16
+
+### Hinzugefügt
+
+- **Messwert-Sensoren in der Übersicht und in der Sensoransicht.** Bei eingeschalteter Überwachung stehen die Temperatur-, Luftfeuchtigkeits- und CO2-Sensoren der Überwachung in der Übersicht, mit Wert und Einheit (statt eines Zustandsworts). Ein Tipp öffnet dieselbe Ansicht wie bei den anderen Sensoren: Reiter "Verlauf" mit dem Werteverlauf als saubere Grafik (schöne Achse in der Einheit des Sensors, die Grenzen der Regeln als gestrichelte Linien, der aktuelle Wert als Punkt), die Kennzahlen (aktuell, im Mittel, niedrigster, höchster Wert), die Zeiträume 3 Stunden bis 30 Tage, dazu Batterie, Empfang und Gerät mit denselben Grafiken wie bei den anderen Sensoren. Unter der Grafik stehen nur die Ereignisse der Überwachung ("Ausserhalb der Grenzen", "Wieder in Ordnung", mit Wert und Regel), nie die einzelnen Werte. Läuft eine Regel, ist der Sensor gelb markiert und zählt unter "Probleme". In der Arten-Auswahl gibt es den Filter "Messwerte".
+- **Rückkehr-Spanne mit deinen Werten erklärt.** Unter dem Feld zeigt der Editor der Regel live beim Tippen: bei welchen Werten die Regel auslöst, ab welchem Wert sie wieder in Ordnung ist, die Pufferzone dazwischen (dort bleibt die Regel in ihrem Zustand) und den aktuellen Wert des Sensors, als Balken in den Farben der Überwachung. Die Karte der Regel nennt ebenfalls den Wert, ab dem sie wieder in Ordnung ist.
+
+### Geändert
+
+- **Sicherungen auf dem Handy scrollen ab sieben Zeilen** (am Computer ab zehn); alle Zeilen sind dort gleich hoch.
+- **Cursor am Ende des Textes.** Tippt man ein Feld an, das schon Inhalt hat, steht der Cursor nach dem letzten Zeichen, nicht davor (Text, Zahlen und Textbereiche im ganzen Panel).
+
 ## [1.53.0] - 2026-11-16
 
 ### Geändert
@@ -1692,6 +1704,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0
 [1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0
 [1.52.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.52.0
 [1.51.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.51.0

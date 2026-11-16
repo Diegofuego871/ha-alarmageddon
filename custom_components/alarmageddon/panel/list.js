@@ -181,9 +181,12 @@ export class ListUi {
         const on = own !== undefined ? own : (presets[this.host._sensor(id).type || "other"] || []).includes("always");
         if (on) ids.add(id);
       }
+      // Messwert-Sensoren der Überwachung (Temperatur, Luftfeuchtigkeit, CO2): nur bei eingeschalteter Überwachung, nie in den Zonen
+      const watched = new Set(s.monitor_enabled === true ? s.monitor_sensors || [] : []);
+      for (const id of watched) ids.add(id);
       for (const id of ids) {
         if (!out.has(id)) out.set(id, []);
-        out.get(id).push({ entry: s.entry_id, title: s.title, modes: s.modes.filter((m) => (s.zones?.[m] || []).includes(id)) });
+        out.get(id).push({ entry: s.entry_id, title: s.title, modes: s.modes.filter((m) => (s.zones?.[m] || []).includes(id)), monitor: watched.has(id) });
       }
     }
     return out;
@@ -200,8 +203,13 @@ export class ListUi {
       const live = info.signal_live;
       const sigState = !live && info.signal ? h._state(info.signal) : null;
       const sigVal = live ? (live.value ?? NaN) : sigState ? Number(sigState.state) : NaN;
+      const measure = info.type === "measure";
+      // Eine Regel der Überwachung ist für diesen Sensor gerade "ausserhalb": sie läuft, bis der Wert wieder in Ordnung ist
+      const alarm = measure && h._systems().some((sys) => Object.values(sys.monitor_active || {}).some((a) => a?.entity_id === id));
       return {
-        id, info, systems, gone, battery,
+        id, info, systems, gone, battery, measure, alarm,
+        value: measure && !gone && Number.isFinite(Number(st?.state)) ? Number(st.state) : null,
+        unit: measure ? info.unit || st?.attributes?.unit_of_measurement || "" : "",
         name: h._name(id),
         area: info.area || this._t("noArea"),
         state: st?.state,
@@ -221,7 +229,7 @@ export class ListUi {
     if (this.sys && !r.systems.some((s) => s.entry === this.sys)) return false;
     if (this.area && r.area !== this.area) return false;
     if (this.type && (r.info.type || "other") !== this.type) return false;
-    if (filter === "problems" && !(r.gone || r.low)) return false;
+    if (filter === "problems" && !(r.gone || r.low || r.alarm)) return false;
     if (filter === "open" && !r.open) return false;
     if (filter === "occupied" && !r.occupied) return false;
     if (filter === "battery" && !r.low) return false;
@@ -238,7 +246,7 @@ export class ListUi {
       case "area": return r.area;
       case "systems": return r.systems.map((s) => s.title).join(" ");
       // Erst nach Rang (nicht erreichbar, offen, in Ordnung), dann nach dem angezeigten Text: "ruhig" und "zu" stehen je beieinander
-      case "state": return `${r.gone ? 0 : r.open || r.occupied ? 1 : 2}|${this._stateLabel(r)}`;
+      case "state": return `${r.gone ? 0 : r.open || r.occupied || r.alarm ? 1 : 2}|${this._stateLabel(r)}`;
       case "battery": return r.battery;
       case "forecast": {
         const d = r.info.battery ? this.host._forecast?.[r.info.battery] : null;
@@ -277,7 +285,7 @@ export class ListUi {
       ? `<select class="ag-select" data-list="sys" aria-label="${esc(this._t("allSystems"))}"><option value="">${esc(this._t("allSystems"))}</option>${systems.map((s) => `<option value="${esc(s.entry_id)}" ${this.sys === s.entry_id ? "selected" : ""}>${esc(s.title)}</option>`).join("")}</select>`
       : "";
     const areaSel = `<select class="ag-select" data-list="area" aria-label="${esc(this._t("allAreas"))}"><option value="">${esc(this._t("allAreas"))}</option>${areas.map((a) => `<option ${this.area === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select>`;
-    const typeSel = `<select class="ag-select" data-list="type" aria-label="${esc(this._t("allTypes"))}"><option value="">${esc(this._t("allTypes"))}</option>${TYPES.map(([k, , label]) => `<option value="${k}" ${this.type === k ? "selected" : ""}>${esc(this._t(label))}</option>`).join("")}</select>`;
+    const typeSel = `<select class="ag-select" data-list="type" aria-label="${esc(this._t("allTypes"))}"><option value="">${esc(this._t("allTypes"))}</option>${TYPES.map(([k, , label]) => `<option value="${k}" ${this.type === k ? "selected" : ""}>${esc(this._t(label))}</option>`).join("")}${this.rows().some((r) => r.measure) ? `<option value="measure" ${this.type === "measure" ? "selected" : ""}>${esc(this._t("filterMeasure"))}</option>` : ""}</select>`;
     return `<div class="ag-list-head"><h2 class="ag-h2">${esc(this._t("listTitle"))}</h2><span class="ag-t2 ag-list-count"></span></div>
       <div class="ag-tools">
         <label class="list-search">${ic("search", 18)}<input type="search" data-list="search" placeholder="${esc(this._t("search"))}" value="${esc(this.q)}" aria-label="${esc(this._t("search"))}">
@@ -313,13 +321,13 @@ export class ListUi {
     const known = new Set(TYPES.map(([k]) => k));
     const map = new Map();
     for (const r of rows) {
-      const keys = by === "system" ? r.systems.map((s) => s.title) : by === "type" ? [known.has(r.info.type) ? r.info.type : "other"] : [r.area];
+      const keys = by === "system" ? r.systems.map((s) => s.title) : by === "type" ? [known.has(r.info.type) || r.info.type === "measure" ? r.info.type : "other"] : [r.area];
       for (const k of keys) {
         if (!map.has(k)) map.set(k, []);
         map.get(k).push(r);
       }
     }
-    if (by === "type") return TYPES.filter(([k]) => map.has(k)).map(([k, icon, label]) => [this._t(label), map.get(k), icon]);
+    if (by === "type") return [...TYPES.filter(([k]) => map.has(k)).map(([k, icon, label]) => [this._t(label), map.get(k), icon]), ...(map.has("measure") ? [[this._t("filterMeasure"), map.get("measure"), "thermo"]] : [])];
     return [...map].sort((a, b) => a[0].localeCompare(b[0]));
   }
 
@@ -327,7 +335,7 @@ export class ListUi {
     const h = this.host;
     switch (col) {
       case "area": return esc(r.area);
-      case "systems": return r.systems.map((s) => `<span class="ag-ztag" title="${esc(s.title)}">${h._systems().length > 1 ? `${esc(s.title)}: ` : ""}${s.modes.length ? s.modes.map((m) => esc(this._t(ZONE_SHORT[m]))).join(" · ") : esc(this._t("optAlways"))}</span>`).join(" ");
+      case "systems": return r.systems.map((s) => `<span class="ag-ztag" title="${esc(s.title)}">${h._systems().length > 1 ? `${esc(s.title)}: ` : ""}${s.modes.length ? s.modes.map((m) => esc(this._t(ZONE_SHORT[m]))).join(" · ") : esc(this._t(s.monitor ? "wfMonitor" : "optAlways"))}</span>`).join(" ");
       case "state": return this._stateHtml(r);
       case "battery": return this._batteryHtml(r);
       case "forecast": return this._forecastHtml(r) || `<span class="ag-t2">–</span>`;
@@ -340,15 +348,23 @@ export class ListUi {
     return "";
   }
 
+  // Messwert: der Wert mit Einheit (eine Nachkommastelle, ohne überflüssige Null), nie ein Zustandswort
+  _valueText(r) {
+    if (r.value === null) return "–";
+    const num = r.value.toLocaleString(this.host._hass?.locale?.language || this.host._lang, { maximumFractionDigits: Math.abs(r.value) >= 100 ? 0 : 1 });
+    return `${num}${r.unit ? ` ${r.unit}` : ""}`;
+  }
+
   _stateLabel(r) {
     if (r.gone) return this._t("stUnavailable");
+    if (r.measure) return this._valueText(r);
     const motion = MOTION_CLASSES.has(r.info.device_class);
-    if (r.open || r.occupied) return this._t(motion ? "stDetected" : "stOpen");
+    if (r.open || r.occupied || r.alarm) return this._t(motion ? "stDetected" : "stOpen");
     return this._t(motion ? "stClear" : "stClosed");
   }
 
   _stateHtml(r) {
-    return `<span class="ag-tag ${r.gone ? "err" : r.open || r.occupied ? "warn" : "ok"}">${esc(this._stateLabel(r))}</span>`;
+    return `<span class="ag-tag ${r.gone ? "err" : r.open || r.occupied || r.alarm ? "warn" : r.measure ? "none" : "ok"}">${esc(this._stateLabel(r))}</span>`;
   }
 
   // Prognose aus alarmageddon/battery_forecast (kommt nach der Liste); ohne genug Verlauf nichts
@@ -389,7 +405,7 @@ export class ListUi {
     const head = `<tr>${th("name", this._t("colName"))}${cols.map((c) => th(c, this._t(COL_LABEL[c]))).join("")}<th></th></tr>`;
     const body = groups.map(([g, rows]) => `${g !== null ? `<tr class="grp"><td colspan="${cols.length + 2}">${esc(g)} · ${rows.length}</td></tr>` : ""}${rows.map((r) => {
       const [icon] = DC[r.info.device_class] || ["sensor"];
-      return `<tr class="ag-lrow ${r.gone ? "bad" : ""} ${!r.gone && (r.open || r.occupied) ? "act" : ""}" data-act="more" data-entity="${esc(r.id)}"><td><div class="ag-nm"><span class="ag-av ${r.gone ? "missing" : r.open || r.occupied ? "open" : ""}">${ic(r.gone ? "offline" : icon, 18)}</span><div>${esc(r.name)}<small>${esc(this._typeLabel(r))}</small></div></div></td>
+      return `<tr class="ag-lrow ${r.gone ? "bad" : ""} ${!r.gone && (r.open || r.occupied || r.alarm) ? "act" : ""}" data-act="more" data-entity="${esc(r.id)}"><td><div class="ag-nm"><span class="ag-av ${r.gone ? "missing" : r.open || r.occupied || r.alarm ? "open" : ""}">${ic(r.gone ? "offline" : icon, 18)}</span><div>${esc(r.name)}<small>${esc(this._typeLabel(r))}</small></div></div></td>
         ${cols.map((c) => `<td>${this._cell(c, r)}</td>`).join("")}<td style="width:40px"><span class="ag-cbtn">${ic("chevRight", 16)}</span></td></tr>`;
     }).join("")}`).join("");
     return `<div class="ag-card ag-table-wrap ag-stickwrap"><table class="ag-table ag-ltable">${head}${body}</table></div>`;
@@ -410,7 +426,7 @@ export class ListUi {
         on("integration") ? [this._t("colIntegration"), r.info.integration] : null,
         on("changed") ? [this._t("colChanged"), r.changed ? this.host._fmtAgo(r.changed) : ""] : null,
       ].filter(Boolean).map(([k, v]) => `<div><span class="ag-t2">${esc(k)}</span><b title="${esc(v || "")}">${esc(v || "–")}</b></div>`).join("");
-      return `<div class="ag-card ag-mcard ag-lcard ${!r.gone && (r.open || r.occupied) ? "act" : ""}" data-act="more" data-entity="${esc(r.id)}"><div class="ag-mcard-top"><span class="ag-av ${r.gone ? "missing" : r.open || r.occupied ? "open" : ""}">${ic(r.gone ? "offline" : icon, 18)}</span>
+      return `<div class="ag-card ag-mcard ag-lcard ${!r.gone && (r.open || r.occupied || r.alarm) ? "act" : ""}" data-act="more" data-entity="${esc(r.id)}"><div class="ag-mcard-top"><span class="ag-av ${r.gone ? "missing" : r.open || r.occupied || r.alarm ? "open" : ""}">${ic(r.gone ? "offline" : icon, 18)}</span>
         <div style="flex:1;min-width:0"><div class="ag-lname" title="${esc(r.name)}">${esc(r.name)}</div><div class="ag-t2 ag-small ag-lsub">${esc(this._typeLabel(r))} · ${esc(r.area)}</div></div>${this._stateHtml(r)}</div>
         ${on("systems") ? `<div class="ag-lz">${this._cell("systems", r)}</div>` : ""}<div class="ag-lmeta ${metaCount > 2 ? "two" : ""}">${meta}</div>${facts ? `<div class="ag-lfacts">${facts}</div>` : ""}</div>`;
     }).join("")}`).join("")}</div>`;
