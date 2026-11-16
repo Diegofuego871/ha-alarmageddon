@@ -76,7 +76,7 @@ for (const lang of ["de", "en"]) {
       && stateInfo.filter((x) => x.off).map((x) => x.v).join() === "pending,triggered", JSON.stringify(stateInfo));
     check(`${tag}: kein Sicherheitskasten beim Scharfschalten`, await s.ev("return !r.querySelector('.ag-rtsafety')"));
     await s.tap('[data-sys="rt-st"][data-value="armed"]');
-    check(`${tag}: Vorschau des Ablaufs: Auslöser, Prüfung mit den zwei gewählten Zuständen, Aktion und "Übersprungen"`, await s.ev("const f=r.querySelector('.ag-fl'); return !!f && f.querySelectorAll('.ag-fl-node').length === 4 && f.querySelectorAll('.ag-fl-band .on').length === 2 && f.querySelector('.ag-fl-node.go') && f.querySelectorAll('.ag-fl-leaf').length >= 3"));
+    check(`${tag}: Vorschau des Ablaufs: Auslöser, Prüfung mit den zwei gewählten Zuständen und Aktion, Hinweis auf Übersprungen`, await s.ev("const f=r.querySelector('.ag-fl'); return !!f && f.querySelectorAll('.ag-fl-node').length === 3 && f.querySelectorAll('.ag-fl-band .on').length === 2 && f.querySelector('.ag-fl-node.go') && f.querySelectorAll('.ag-fl-leaf').length >= 3"));
     await s.tap('[data-sys="rt-st"][data-value="disarmed"]');
     check(`${tag}: Vorschau folgt dem Entwurf (ein Zustand weniger)`, await s.ev("return r.querySelectorAll('.ag-fl-band .on').length === 1"));
     await s.tap('[data-sys="rt-st"][data-value="disarmed"]');

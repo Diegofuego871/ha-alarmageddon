@@ -422,17 +422,13 @@ export class RoutinesUi {
         + `<div class="ag-fl-s">${esc(this._hasEvent() ? this._t("rtFlowEventNote") : this._t("rtFlowEdgeNote"))}${!this._hasEvent() && Number(f._device.hold) > 0 ? ` ${esc(this._t("rtFlowHold", { seconds: f._device.hold }))}` : ""}</div>`;
     const band = STATES.map(([key, label]) => `<div class="${f.states.includes(key) && !(arm && ALARM_STATES.includes(key)) ? "on" : ""}">${esc(this._t(label))}</div>`).join("");
     const actionText = f.action === "off" ? this._t("rtThenOff") : this._t("rtThenArm", { mode: this._t(MODE_KEY[f.action]) });
+    const step = (n, cls, node, last = false) => `<div class="ag-fl-step ${cls}"><div class="ag-fl-rail"><span class="ag-fl-num">${n}</span><span class="ag-fl-line"></span></div>${node}</div>`;
     return `<div class="ag-fl">
-      <div class="ag-fl-node"><span class="ag-fl-ico">${ic("flash", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">1 · ${esc(this._t("rtTrigger"))}</div>${trigger}</div></div>
-      <div class="ag-fl-con"></div>
-      <div class="ag-fl-node"><span class="ag-fl-ico">${ic("tune", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">2 · ${esc(this._t("rtFlowCheck"))}</div><div class="ag-fl-t">${esc(this._t("rtFlowCheckQ"))}</div><div class="ag-fl-band">${band}</div></div></div>
-      <div class="ag-fl-split">
-        <div><div class="ag-fl-con short"></div><div class="ag-fl-yn y">${esc(this._t("rtFlowYes"))}</div>
-          <div class="ag-fl-node ${arm ? "go" : "act"}"><span class="ag-fl-ico">${ic(arm ? MODE_ICON[f.action] : "shieldOff", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">3 · ${esc(this._t("rtFlowAction"))}</div><div class="ag-fl-t">${esc(actionText)}</div>
-            ${f.action === "off" ? `<span class="ag-tag err">${ic("alert", 13)}${esc(this._t("rtBypass"))}</span>` : ""}</div></div></div>
-        <div><div class="ag-fl-con short grey"></div><div class="ag-fl-yn n">${esc(this._t("rtFlowNo"))}</div>
-          <div class="ag-fl-node stop"><span class="ag-fl-ico">${ic("groups", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtFlowInstead"))}</div><div class="ag-fl-t">${esc(this._t("rtFlowSkipped"))}</div><div class="ag-fl-s">${esc(this._t("rtFlowSkippedHint"))}</div></div></div></div>
-      </div></div>`;
+      ${step(1, "", `<div class="ag-fl-node"><span class="ag-fl-ico">${ic("flash", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtTrigger"))}</div>${trigger}</div></div>`)}
+      ${step(2, "", `<div class="ag-fl-node"><span class="ag-fl-ico">${ic("tune", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtFlowCheck"))}</div><div class="ag-fl-t">${esc(this._t("rtFlowCheckQ"))}</div><div class="ag-fl-band">${band}</div></div></div>`)}
+      ${step(3, arm ? "go" : "act", `<div class="ag-fl-node ${arm ? "go" : "act"}"><span class="ag-fl-ico">${ic(arm ? MODE_ICON[f.action] : "shieldOff", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtFlowAction"))}</div><div class="ag-fl-t">${esc(actionText)}</div>
+        ${f.action === "off" ? `<span class="ag-tag err" style="margin-top:6px">${ic("alert", 13)}${esc(this._t("rtBypass"))}</span>` : ""}</div></div>`)}
+      <div class="ag-fl-skip">${ic("info", 16)}<span>${esc(this._t("rtFlowSkipNote"))}</span></div></div>`;
   }
 
   editorHtml() {
