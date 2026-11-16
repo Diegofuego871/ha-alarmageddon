@@ -501,6 +501,8 @@ MUTATIONS = [
      '            return pulse == (leaf["entity_id"], leaf["event_type"])', "            return pulse is not None", "tests/test_routines.py -k button_press_arms"),
     ("Routine: Taste mit Haltezeit wird gespeichert", "routines.py",
      '        if trigger.get("hold") and any(x["kind"] == "event" for x in device_leaves):', "        if False:", "tests/test_routines.py -k rejects_hold_and_unknown"),
+    ("Routine: \"Anlage scharf\" gilt in jedem Modus, nicht nur in den gewählten", "routines.py",
+     '        if current == "armed" and rule.get("armed_modes") and ctl.mode not in rule["armed_modes"]:', "        if False:", "tests/test_routines.py -k only_in_chosen_modes"),
 ]
 
 

@@ -12,7 +12,10 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 ### Hinzugefügt
 
 - **Tasten als Auslöser.** Eine Routine nach Gerät kann jetzt einen Tastendruck nutzen: jede Taste eines Fernbedieners oder Dimmers (zum Beispiel eines Hue-Tasters; es sind die "event"-Entitäten von Home Assistant) mit jeder Art des Drückens (kurz, lang, doppelt ...). In der Geräteauswahl hilft der Filter "Tasten". Ein Druck zählt nur im Augenblick, in dem er geschieht, nie ein wiederhergestellter alter (nach dem Neuladen einer Integration kommt der alte Zeitpunkt zurück und löst nie aus), und er lässt sich nicht mit "muss N Sekunden gelten" verbinden.
-- **Vorschau des Ablaufs.** Am Ende des Editors einer Routine zeigt eine Grafik, was passiert: 1 Auslöser (mit Und/Oder-Baum oder den Zeiten), 2 Prüfung (die fünf Zustände der Anlage, die gewählten grün), danach JA zur Aktion (rot mit der Marke "Umgeht den Code" beim Deaktivieren) und NEIN zu "Übersprungen, steht im Protokoll". Sie folgt dem Entwurf beim Bearbeiten und ist reine Anzeige.
+- **Vorschau des Ablaufs.** Am Ende des Editors einer Routine zeigt eine Grafik, was passiert: 1 Auslöser (mit Und/Oder-Baum oder den Zeiten), 2 Prüfung (die fünf Zustände der Anlage, die gewählten grün), danach 3 die Aktion. Die Karten tragen die Zonenfarben der Aktionen mit ihrem Verlauf (Scharfschalten hellrot, Deaktivieren dunkelgrün; beim Deaktivieren die Marke "Umgeht den Code"); ein Hinweis sagt, dass die Routine in jedem anderen Zustand übersprungen wird und das im Protokoll steht. Sie folgt dem Entwurf beim Bearbeiten und ist reine Anzeige.
+
+- **Scharf nur in gewählten Modi.** Unter "Anlage scharf" hat die Routine einen Schalter je Modus der Anlage: sie gilt dann nur, wenn die Anlage in einem der gewählten Modi scharf ist (zum Beispiel nur "Abwesend"). Sonst wird sie übersprungen und das steht im Protokoll.
+- **Routine duplizieren.** Ein Knopf neben dem Stift kopiert eine Routine (ausgeschaltet, mit freiem Namen "… (Kopie)"); die Kopie gilt, sobald du die Seite speicherst.
 
 ### Entfernt
 

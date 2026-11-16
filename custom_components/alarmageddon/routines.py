@@ -347,6 +347,10 @@ class RoutineEngine:
         if current not in rule.get("states", []):
             ctl.emit("routine_skipped", routine=name, action=action, reason="state", at=current)
             return
+        if current == "armed" and rule.get("armed_modes") and ctl.mode not in rule["armed_modes"]:
+            # "Anlage scharf" gilt nur in den gewählten Modi (zum Beispiel nur abwesend)
+            ctl.emit("routine_skipped", routine=name, action=action, reason="armed_mode", at=current)
+            return
         by = f"{text(self.hass, 'by_routine')}: {name}"
         self._fired[rule["id"]] = now
         if action == "off":

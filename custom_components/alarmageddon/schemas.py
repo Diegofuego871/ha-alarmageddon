@@ -299,12 +299,14 @@ _DEVICE_TRIGGER = vol.Schema(
 ROUTINE_SCHEMA = vol.Schema(
     {
         vol.Required("id"): vol.All(str, vol.Length(min=1, max=32)),
-        vol.Required("name"): vol.All(str, vol.Length(min=1, max=40)),
+        vol.Required("name"): vol.All(str, vol.Length(min=1, max=45)),
         vol.Optional("enabled", default=True): bool,
         vol.Required("action"): vol.In(ROUTINE_ACTIONS),
         vol.Required("states"): vol.All([vol.In(ROUTINE_STATES)], vol.Length(min=1, max=len(ROUTINE_STATES))),
         vol.Required("trigger"): vol.Any(_SCHEDULE_TRIGGER, _DEVICE_TRIGGER),
         vol.Optional("unsafe", default=False): bool,
+        # Nur bei "armed": in welchen Modi die Anlage scharf sein muss; leer = in jedem
+        vol.Optional("armed_modes", default=list): vol.All([vol.In(("home", "away", "night"))], vol.Length(max=3)),
     }
 )
 ROUTINES = vol.All([ROUTINE_SCHEMA], vol.Length(max=MAX_ROUTINES))

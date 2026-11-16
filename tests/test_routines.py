@@ -573,3 +573,36 @@ async def test_switch_from_1_44_0_is_dropped_everywhere(hass: HomeAssistant, has
     assert result["success"], result
     await hass.async_block_till_done()
     assert "routines_disarm" not in entry.options and entry.options["routines"][0]["action"] == "away"
+
+
+async def test_armed_routine_only_in_chosen_modes(hass: HomeAssistant, freezer) -> None:
+    """"Anlage scharf" gilt nur in den gewählten Modi: anwesend scharf wird übersprungen, abwesend scharf schaltet."""
+    await _at(hass, freezer, MONDAY, 6, 0)
+    rule = {**_rule("off", _times("06:45"), states=("armed",)), "armed_modes": ["away"]}
+    entry = await setup_alarm(hass, exit_delay_home=0, exit_delay_away=0, routines=[rule])
+    await call(hass, "alarm_arm_home")
+    await _at(hass, freezer, MONDAY, 6, 45)
+    assert state(hass) == AlarmControlPanelState.ARMED_HOME
+    assert _events(entry)[0]["kind"] == "routine_skipped" and _events(entry)[0]["reason"] == "armed_mode"
+    await call(hass, "alarm_disarm")
+    await call(hass, "alarm_arm_away")
+    await _at(hass, freezer, (2026, 11, 10), 6, 45)
+    assert state(hass) == AlarmControlPanelState.DISARMED
+
+
+async def test_armed_modes_are_validated(hass: HomeAssistant, hass_ws_client) -> None:
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    bad = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[{**_rule("off", _times("06:45"), states=("armed",)), "armed_modes": ["garage"]}])
+    assert bad["success"] is False
+    ok = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[{**_rule("off", _times("06:45"), states=("armed",)), "armed_modes": ["away", "night"]}])
+    assert ok["success"]
+
+
+async def test_routine_name_may_have_45_characters(hass: HomeAssistant, hass_ws_client) -> None:
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    ok = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[_rule("away", _times("08:00"), name="x" * 45)])
+    assert ok["success"]
+    bad = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[_rule("away", _times("08:00"), name="x" * 46)])
+    assert bad["success"] is False

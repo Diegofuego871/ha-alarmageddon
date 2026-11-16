@@ -127,9 +127,9 @@ async def test_system_settings_come_back_exactly_as_the_panel_saved_them(hass: H
     payload = {
         "mode_settings": {mode: dict(times) for mode in ("home", "away", "night")},
         "per_mode_settings": False, "home_enabled": True, "away_enabled": True, "night_enabled": night, "always_enabled": False,
-        "routines": [{"id": "k3j2h1g0", "name": "Morgens", "enabled": True, "action": "away", "states": ["disarmed"], "unsafe": False,
+        "routines": [{"id": "k3j2h1g0", "name": "Morgens", "enabled": True, "action": "away", "states": ["disarmed"], "unsafe": False, "armed_modes": [],
                       "trigger": {"type": "schedule", "times": [{"time": "08:00", "days": [0, 1, 2, 3, 4]}]}},
-                     {"id": "a1b2c3d4", "name": "Abends", "enabled": False, "action": "off", "states": ["armed"], "unsafe": True,
+                     {"id": "a1b2c3d4", "name": "Abends", "enabled": False, "action": "off", "states": ["armed"], "unsafe": True, "armed_modes": [],
                       "trigger": {"type": "device", "hold": 5, "tree": {"op": "or", "items": [
                           {"kind": "state", "entity_id": "lock.haustuer", "state": "unlocked"},
                           {"op": "and", "items": [{"kind": "state", "entity_id": "person.anna", "state": "home"}, {"kind": "time", "from": "22:00", "to": "06:00", "days": [5, 6]}]}]}}}],

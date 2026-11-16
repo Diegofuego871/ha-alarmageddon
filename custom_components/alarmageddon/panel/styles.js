@@ -653,17 +653,16 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 .ag-fl-step { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; }
 .ag-fl-rail { display: flex; flex-direction: column; align-items: center; }
 .ag-fl-num { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #fff; background: var(--ag-primary); box-shadow: 0 2px 6px color-mix(in srgb, var(--ag-primary) 35%, transparent); flex: none; }
-.ag-fl-step.go .ag-fl-num { background: var(--ag-success); box-shadow: 0 2px 6px color-mix(in srgb, var(--ag-success) 35%, transparent); }
-.ag-fl-step.act .ag-fl-num { background: var(--ag-error); box-shadow: 0 2px 6px color-mix(in srgb, var(--ag-error) 35%, transparent); }
+.ag-fl-step.arm .ag-fl-num { background: #ff8a80; box-shadow: 0 2px 6px color-mix(in srgb, #ff8a80 45%, transparent); }
+.ag-fl-step.off .ag-fl-num { background: #2e7d32; box-shadow: 0 2px 6px color-mix(in srgb, #2e7d32 40%, transparent); }
 .ag-fl-line { flex: 1; width: 2px; margin: 4px 0; border-radius: 2px; background: linear-gradient(var(--ag-primary), color-mix(in srgb, var(--ag-primary) 25%, transparent)); }
 .ag-fl-step:last-of-type .ag-fl-line { display: none; }
-.ag-fl-node { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; margin-bottom: 14px; border-radius: 18px; border: 1px solid var(--ag-divider); background: var(--ag-card); box-shadow: 0 1px 3px rgba(0, 0, 0, .05); }
+.ag-fl-node { --z: var(--ag-primary); display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; margin-bottom: 14px; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--z) 30%, var(--ag-divider)); background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); box-shadow: 0 1px 3px rgba(0, 0, 0, .05); }
+/* Die Aktion trägt die Zonenfarbe der Aktionen: scharf geschaltet hellrot, deaktiviert dunkelgrün (wie "Anlage scharf geschaltet" und "Beim Deaktivieren") */
+.ag-fl-node.arm { --z: #ff8a80; }
+.ag-fl-node.off { --z: #2e7d32; }
 .ag-fl-step:last-of-type .ag-fl-node { margin-bottom: 0; }
-.ag-fl-node.go { border-color: color-mix(in srgb, var(--ag-success) 45%, transparent); background: linear-gradient(135deg, var(--ag-success-soft), var(--ag-card)); }
-.ag-fl-node.act { border-color: color-mix(in srgb, var(--ag-error) 45%, transparent); background: linear-gradient(135deg, var(--ag-error-soft), var(--ag-card)); }
-.ag-fl-ico { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--ag-primary-soft); color: var(--ag-primary); flex: none; }
-.ag-fl-node.go .ag-fl-ico { background: color-mix(in srgb, var(--ag-success) 16%, #fff); color: var(--ag-success); }
-.ag-fl-node.act .ag-fl-ico { background: color-mix(in srgb, var(--ag-error) 14%, #fff); color: var(--ag-error); }
+.ag-fl-ico { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--ag-card) 78%, transparent); color: color-mix(in srgb, var(--z) 80%, #000); flex: none; }
 .ag-fl-body { min-width: 0; flex: 1; }
 .ag-fl-t { font-weight: 600; line-height: 1.35; }
 .ag-fl-s { font-size: 13px; color: var(--ag-text2); margin-top: 4px; }
@@ -682,6 +681,7 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 :host([narrow]) .ag-fl-band > div { flex: 1 1 28%; }
 :host([narrow]) .ag-fl-step { grid-template-columns: 26px minmax(0, 1fr); gap: 8px; }
 :host([narrow]) .ag-fl-node { padding: 12px; }
+.ag-rtsub { padding-left: 22px; border-left: 3px solid var(--ag-primary-soft); margin-left: 10px; }
 /* Routinen (1.44.0): Liste, Editor mit Bedingungsbaum, Geräteauswahl */
 .ag-rtrow.dim > :not(.ag-toggle):not(.ag-btnrow) { opacity: .55; }
 /* Schalter, Symbol und Text nahe beieinander (Grundregel: Schalter links, Text nahe rechts davon), wie die Modus-Zeilen */

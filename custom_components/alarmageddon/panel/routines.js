@@ -14,7 +14,7 @@ const MAX_TIMES = 8;
 const MAX_LEAVES = 10;
 const MAX_GROUPS = 3;
 const HOLD_MAX = 3600;
-const NAME_MAX = 40;
+const NAME_MAX = 45;
 
 // Zustände der Anlage, in denen eine Routine gelten kann (Reihenfolge wie im Ablauf)
 const STATES = [
@@ -164,15 +164,16 @@ export class RoutinesUi {
     if (r.states.some((s) => ALARM_STATES.includes(s)) && r.action === "off") tags.push(["err", this._t("rtInAlarmTag"), true]);
     const names = STATES.filter((s) => r.states.includes(s[0]));
     if (r.states.length === 1 && r.states[0] === "disarmed") tags.push(["none", this._t("rtOnlyDisarmed")]);
-    else if (r.states.length === 1 && r.states[0] === "armed") tags.push(["none", this._t("rtOnlyArmed")]);
-    else tags.push(["none", this._t("rtIn", { states: names.map((s) => this._t(s[1])).join(", ") })]);
+    else if (r.states.length === 1 && r.states[0] === "armed") tags.push(["none", this._armedLabel(r) === this._t("rtStArmed") ? this._t("rtOnlyArmed") : this._t("rtIn", { states: this._armedLabel(r) })]);
+    else tags.push(["none", this._t("rtIn", { states: names.map((s) => (s[0] === "armed" ? this._armedLabel(r) : this._t(s[1]))).join(", ") })]);
     if (r.action !== "off" && !modes.includes(r.action)) tags.push(["warn", this._t("rtModeOff"), true]);
     const icon = r.trigger.type === "schedule" ? "clock" : DEVICE_ICON[(r.trigger.tree.items[0]?.items?.[0] || r.trigger.tree.items[0])?.entity_id?.split(".")[0]] || "sensor";
     return `<div class="ag-setrow ag-csrow ag-rtrow ${on ? "" : "dim"}"><button class="ag-toggle ${on ? "on" : ""}" data-sys="rt-on" data-index="${i}" role="switch" aria-checked="${on}" aria-label="${esc(this._t("rtActive"))}"></button>
       <span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span>
       <div class="ag-settx"><b>${esc(r.name)}</b><small>${esc(this.whenText(r))}</small><small>→ ${esc(this.thenText(r))}</small>
         <div class="ag-rttags">${tags.map(([cls, text, warn]) => `<span class="ag-tag ${cls}">${warn ? ic("alert", 13) : ""}${esc(text)}</span>`).join("")}</div></div>
-      <div class="ag-btnrow"><button class="ag-iconbtn" data-sys="rt-edit" data-index="${i}" aria-label="${esc(this._t("rtEdit"))}">${ic("pencil", 18)}</button>
+      <div class="ag-btnrow"><button class="ag-iconbtn" data-sys="rt-dup" data-index="${i}" aria-label="${esc(this._t("rtDuplicate"))}" title="${esc(this._t("rtDuplicate"))}" ${this.draft.routines.length >= MAX_ROUTINES ? "disabled" : ""}>${ic("copy", 18)}</button>
+        <button class="ag-iconbtn" data-sys="rt-edit" data-index="${i}" aria-label="${esc(this._t("rtEdit"))}">${ic("pencil", 18)}</button>
         <button class="ag-iconbtn" data-sys="rt-del" data-index="${i}" aria-label="${esc(this._t("rtDelete"))}">${ic("trash", 18)}</button></div></div>`;
   }
 
@@ -188,6 +189,7 @@ export class RoutinesUi {
       states: ["disarmed"],
       trigger: { type: "device", tree: { op: "and", items: [] }, hold: 0 },
       unsafe: false,
+      armed_modes: [],
       // Nur im Editor: die Zeiten des Auslösers Zeitplan (beim Wechsel des Auslösers bleiben beide Entwürfe erhalten)
       _times: [{ time: "08:00", days: [0, 1, 2, 3, 4] }],
       _device: { tree: { op: "and", items: [] }, hold: 0 },
@@ -244,6 +246,23 @@ export class RoutinesUi {
     return node;
   }
 
+  // Modi, in denen "Anlage scharf" gilt: eine leere Liste heisst in jedem Modus der Anlage (die eingeschalteten)
+  _enabledModes() {
+    return ALL_MODES.filter((m) => this.draft.modes[m]);
+  }
+
+  _armedModes(r = this.form) {
+    const all = this._enabledModes();
+    const own = (r.armed_modes || []).filter((m) => all.includes(m));
+    return own.length ? own : all;
+  }
+
+  _armedLabel(r) {
+    const all = this._enabledModes();
+    const own = (r.armed_modes || []).filter((m) => all.includes(m));
+    return own.length && own.length < all.length ? `${this._t("rtStArmed")} (${own.map((m) => this._t(MODE_KEY[m])).join(", ")})` : this._t("rtStArmed");
+  }
+
   // Tasten gelten nur im Augenblick des Drückens: eine Haltezeit ergibt dort keinen Sinn
   _hasEvent() {
     return this._leaves().some((l) => l.kind === "event");
@@ -275,6 +294,7 @@ export class RoutinesUi {
       if (!this._hasEvent() && (!Number.isInteger(hold) || hold < 0 || hold > HOLD_MAX)) bad.push("hold");
     }
     if (!f.states.length) bad.push("states");
+    if (f.states.includes("armed") && !this._armedModes().length) bad.push("armedModes");
     if (f.action === "off" && !f.unsafe) bad.push("unsafe");
     return bad;
   }
@@ -282,7 +302,7 @@ export class RoutinesUi {
   // Die Routine, wie der Server sie bekommt (ohne die Hilfsfelder des Editors)
   build() {
     const f = this.form;
-    const out = { id: f.id, name: f.name.trim(), enabled: f.enabled !== false, action: f.action, states: STATES.map((s) => s[0]).filter((s) => f.states.includes(s)), unsafe: f.action === "off" };
+    const out = { id: f.id, name: f.name.trim(), enabled: f.enabled !== false, action: f.action, states: STATES.map((s) => s[0]).filter((s) => f.states.includes(s)), unsafe: f.action === "off", armed_modes: f.states.includes("armed") && this._armedModes().length < this._enabledModes().length ? this._armedModes() : [] };
     if (f.trigger.type === "schedule") out.trigger = { type: "schedule", times: f._times.map((t) => ({ time: t.time, days: [...t.days].sort((a, b) => a - b) })) };
     else {
       const leaf = (l) => (l.kind === "time" ? { kind: "time", from: l.from, to: l.to, days: [...(l.days || [])].sort((a, b) => a - b) }
@@ -381,8 +401,13 @@ export class RoutinesUi {
     const rows = STATES.map(([key, label, hint, icon]) => {
       const locked = arm && ALARM_STATES.includes(key);
       const on = f.states.includes(key) && !locked;
-      return `<div class="ag-setrow ${locked ? "dim" : ""}"><button class="ag-toggle ${on ? "on" : ""}" data-sys="rt-st" data-value="${key}" role="switch" aria-checked="${on}" aria-label="${esc(this._t(label))}" ${locked ? "disabled" : ""}></button>
+      const row = `<div class="ag-setrow ${locked ? "dim" : ""}"><button class="ag-toggle ${on ? "on" : ""}" data-sys="rt-st" data-value="${key}" role="switch" aria-checked="${on}" aria-label="${esc(this._t(label))}" ${locked ? "disabled" : ""}></button>
         <span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span><div class="ag-settx"><b>${esc(this._t(label))}</b><small>${esc(locked ? this._t("rtStNever") : this._t(hint))}</small></div></div>`;
+      // "Anlage scharf": darunter ein Schalter je Modus der Anlage (in welchen Modi sie scharf sein muss)
+      if (key !== "armed" || !on) return row;
+      const picked = this._armedModes();
+      return row + this._enabledModes().map((m) => `<div class="ag-setrow ag-rtsub"><button class="ag-toggle ${picked.includes(m) ? "on" : ""}" data-sys="rt-am" data-value="${m}" role="switch" aria-checked="${picked.includes(m)}" aria-label="${esc(this._t(MODE_KEY[m]))}"></button>
+        <span class="ag-oav ${picked.includes(m) ? "on" : ""}">${ic(MODE_ICON[m], 20)}</span><div class="ag-settx"><b>${esc(this._t(MODE_KEY[m]))}</b><small>${esc(this._t("rtArmedModeHint", { mode: this._t(MODE_KEY[m]) }))}</small></div></div>`).join("");
     }).join("");
     const warn = !arm && f.states.some((s) => ALARM_STATES.includes(s))
       ? `<p class="ag-chap-h ag-rtred">${ic("alert", 14)} ${esc(this._t("rtAlarmWarn"))}</p>` : "";
@@ -420,13 +445,13 @@ export class RoutinesUi {
       ? `<div class="ag-fl-t">${esc(this._t("rtFlowWhenTime"))}</div><div class="ag-fl-tree">${f._times.map((t) => `<span class="ag-fl-leaf">${ic("clock", 16)}<span>${esc(this._t("rtAtTime", { days: this.daysText(t.days), time: t.time || "–" }))}</span></span>`).join("")}</div>`
       : `<div class="ag-fl-t">${esc(this._t("rtFlowWhenDevice"))}</div>${this._flowTree(f._device.tree)}`
         + `<div class="ag-fl-s">${esc(this._hasEvent() ? this._t("rtFlowEventNote") : this._t("rtFlowEdgeNote"))}${!this._hasEvent() && Number(f._device.hold) > 0 ? ` ${esc(this._t("rtFlowHold", { seconds: f._device.hold }))}` : ""}</div>`;
-    const band = STATES.map(([key, label]) => `<div class="${f.states.includes(key) && !(arm && ALARM_STATES.includes(key)) ? "on" : ""}">${esc(this._t(label))}</div>`).join("");
+    const band = STATES.map(([key, label]) => `<div class="${f.states.includes(key) && !(arm && ALARM_STATES.includes(key)) ? "on" : ""}">${esc(key === "armed" ? this._armedLabel({ armed_modes: this._armedModes() }) : this._t(label))}</div>`).join("");
     const actionText = f.action === "off" ? this._t("rtThenOff") : this._t("rtThenArm", { mode: this._t(MODE_KEY[f.action]) });
     const step = (n, cls, node, last = false) => `<div class="ag-fl-step ${cls}"><div class="ag-fl-rail"><span class="ag-fl-num">${n}</span><span class="ag-fl-line"></span></div>${node}</div>`;
     return `<div class="ag-fl">
       ${step(1, "", `<div class="ag-fl-node"><span class="ag-fl-ico">${ic("flash", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtTrigger"))}</div>${trigger}</div></div>`)}
       ${step(2, "", `<div class="ag-fl-node"><span class="ag-fl-ico">${ic("tune", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtFlowCheck"))}</div><div class="ag-fl-t">${esc(this._t("rtFlowCheckQ"))}</div><div class="ag-fl-band">${band}</div></div></div>`)}
-      ${step(3, arm ? "go" : "act", `<div class="ag-fl-node ${arm ? "go" : "act"}"><span class="ag-fl-ico">${ic(arm ? MODE_ICON[f.action] : "shieldOff", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtFlowAction"))}</div><div class="ag-fl-t">${esc(actionText)}</div>
+      ${step(3, arm ? "arm" : "off", `<div class="ag-fl-node ${arm ? "arm" : "off"}"><span class="ag-fl-ico">${ic(arm ? MODE_ICON[f.action] : "shieldOff", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtFlowAction"))}</div><div class="ag-fl-t">${esc(actionText)}</div>
         ${f.action === "off" ? `<span class="ag-tag err" style="margin-top:6px">${ic("alert", 13)}${esc(this._t("rtBypass"))}</span>` : ""}</div></div>`)}
       <div class="ag-fl-skip">${ic("info", 16)}<span>${esc(this._t("rtFlowSkipNote"))}</span></div></div>`;
   }
@@ -439,7 +464,7 @@ export class RoutinesUi {
     const message = bad.has("name") ? this._t("rtErrName") : bad.has("nameTaken") ? this._t("rtErrNameTaken") : bad.has("times") ? this._t("rtErrTimes")
       : bad.has("noDevice") ? this._t("rtErrNoDevice") : bad.has("emptyGroup") ? this._t("rtEmptyGroup") : bad.has("window") ? this._t("rtErrWindow")
       : bad.has("tooMany") ? this._t("rtErrTooMany") : bad.has("hold") ? this._t("invalidNumber", { min: 0, max: HOLD_MAX }) : bad.has("states") ? this._t("rtErrStates")
-      : bad.has("unsafe") ? this._t("rtErrUnsafe") : "";
+      : bad.has("armedModes") ? this._t("rtErrArmedModes") : bad.has("unsafe") ? this._t("rtErrUnsafe") : "";
     const nameField = `<input class="ag-input ag-rtname ${bad.has("name") || bad.has("nameTaken") ? "bad" : ""}" data-sys="rt-name" maxlength="${NAME_MAX}" value="${esc(f.name)}" placeholder="${esc(this._t("rtNamePh"))}" aria-label="${esc(this._t("rtName"))}">`;
     const when = f.trigger.type === "schedule" ? chapter(this._t("rtWhenTitle"), this._timesHtml(bad)) : chapter(this._t("rtIfTitle"), this._treeHtml(bad));
     return `<div class="ag-dlg-body ag-rt-ed"><h3>${esc(this._t(this.index >= 0 ? "rtEditTitle" : "rtNewTitle"))}</h3>
@@ -503,7 +528,19 @@ export class RoutinesUi {
     const f = this.form;
     if (act === "rt-add") this.open(-1);
     else if (act === "rt-edit") this.open(i);
-    else if (act === "rt-del") {
+    else if (act === "rt-dup") {
+      // Kopie gleich hinter dem Original, ausgeschaltet (sie soll nicht doppelt schalten, bis sie angepasst ist); sie gilt erst nach dem Speichern der Seite
+      const copy = clone(d.routines[i]);
+      const taken = new Set(d.routines.map((r) => r.name.trim().toLowerCase()));
+      const suffix = ` (${this._t("rtCopySuffix")})`;
+      const base = `${copy.name.slice(0, NAME_MAX - suffix.length - 4)}`;
+      let name = `${base}${suffix}`;
+      for (let n = 2; taken.has(name.toLowerCase()); n += 1) name = `${base} (${this._t("rtCopySuffix")} ${n})`;
+      Object.assign(copy, { id: newId(), name, enabled: false });
+      d.routines.splice(i + 1, 0, copy);
+      this.ui.saveState = null;
+      this.ui.render();
+    } else if (act === "rt-del") {
       d.routines.splice(i, 1);
       this.ui.saveState = null;
       this.ui.render();
@@ -559,6 +596,11 @@ export class RoutinesUi {
     } else if (act === "rt-st") {
       const s = el.dataset.value;
       f.states = f.states.includes(s) ? f.states.filter((x) => x !== s) : [...f.states, s];
+      this.renderDlg();
+    } else if (act === "rt-am") {
+      const m = el.dataset.value;
+      const cur = this._armedModes();
+      f.armed_modes = cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m];
       this.renderDlg();
     } else if (act === "rt-unsafe") {
       f.unsafe = !f.unsafe;

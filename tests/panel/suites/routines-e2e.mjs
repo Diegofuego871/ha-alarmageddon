@@ -6,11 +6,11 @@ import { check, done, launch, open, outDir } from "../lib.mjs";
 const T = {
   de: {
     unlocked: "aufgeschlossen", bypass: "Umgeht den Code", disarmOff: "Deaktivieren per Routine ist aus", taken: "diesen Namen schon", noDevice: "mindestens ein Gerät",
-    emptyGroup: "mindestens eine Bedingung", unsafe: "den Code umgeht", short: "Kurzes Drücken", noDay: "mindestens einen Tag", saved: "Gespeichert", skipped: "Routine \"Heimkommen\" übersprungen: gilt nicht im Zustand: Beim Alarm",
+    emptyGroup: "mindestens eine Bedingung", unsafe: "den Code umgeht", copy: "Kopie", short: "Kurzes Drücken", noDay: "mindestens einen Tag", saved: "Gespeichert", skipped: "Routine \"Heimkommen\" übersprungen: gilt nicht im Zustand: Beim Alarm",
   },
   en: {
     unlocked: "unlocked", bypass: "Bypasses the code", disarmOff: "Disarming by routine is off", taken: "already has this name", noDevice: "at least one device",
-    emptyGroup: "at least one condition", unsafe: "bypasses the code", short: "Short press", noDay: "at least one day", saved: "Saved", skipped: "Routine \"Heimkommen\" skipped: not allowed in this state: During the alarm",
+    emptyGroup: "at least one condition", unsafe: "bypasses the code", copy: "copy", short: "Short press", noDay: "at least one day", saved: "Saved", skipped: "Routine \"Heimkommen\" skipped: not allowed in this state: During the alarm",
   },
 };
 
@@ -76,10 +76,14 @@ for (const lang of ["de", "en"]) {
       && stateInfo.filter((x) => x.off).map((x) => x.v).join() === "pending,triggered", JSON.stringify(stateInfo));
     check(`${tag}: kein Sicherheitskasten beim Scharfschalten`, await s.ev("return !r.querySelector('.ag-rtsafety')"));
     await s.tap('[data-sys="rt-st"][data-value="armed"]');
-    check(`${tag}: Vorschau des Ablaufs: Auslöser, Prüfung mit den zwei gewählten Zuständen und Aktion, Hinweis auf Übersprungen`, await s.ev("const f=r.querySelector('.ag-fl'); return !!f && f.querySelectorAll('.ag-fl-node').length === 3 && f.querySelectorAll('.ag-fl-band .on').length === 2 && f.querySelector('.ag-fl-node.go') && f.querySelectorAll('.ag-fl-leaf').length >= 3"));
+    check(`${tag}: Vorschau des Ablaufs: Auslöser, Prüfung mit den zwei gewählten Zuständen und Aktion, Hinweis auf Übersprungen`, await s.ev("const f=r.querySelector('.ag-fl'); return !!f && f.querySelectorAll('.ag-fl-node').length === 3 && f.querySelectorAll('.ag-fl-band .on').length === 2 && f.querySelector('.ag-fl-node.arm') && f.querySelectorAll('.ag-fl-leaf').length >= 3"));
     await s.tap('[data-sys="rt-st"][data-value="disarmed"]');
     check(`${tag}: Vorschau folgt dem Entwurf (ein Zustand weniger)`, await s.ev("return r.querySelectorAll('.ag-fl-band .on').length === 1"));
     await s.tap('[data-sys="rt-st"][data-value="disarmed"]');
+    const nModes = await s.ev("return r.querySelectorAll('[data-sys=\"rt-am\"]').length");
+    check(`${tag}: "Anlage scharf" an: darunter ein Schalter je Modus, alle an`, nModes >= 2 && await s.ev("return [...r.querySelectorAll('[data-sys=\"rt-am\"]')].every((b) => b.getAttribute('aria-checked') === 'true')"));
+    await s.tap('[data-sys="rt-am"]');
+    check(`${tag}: ein Modus abgewählt: Vorschau nennt die übrigen`, await s.waitFor("return /\\(/.test(r.querySelector('.ag-fl-band .on').textContent)"));
     check(`${tag}: Vorschau reine Anzeige: nichts in ihr ist bedienbar`, await s.ev("return !r.querySelector('.ag-fl button, .ag-fl input, .ag-fl select, .ag-fl [data-sys]')"));
     await s.page.screenshot({ path: `${outDir}routines-editor-${lang}-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });
     check(`${tag}: kein Überlauf im Editor`, await s.ev("const d=r.getElementById('ag-step'); return d.scrollWidth <= d.clientWidth + 1 && document.documentElement.scrollWidth <= window.innerWidth"));
@@ -88,16 +92,17 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Editor zu, vier Routinen, Änderung offen`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 4 && r.host.systemUi.dirtyCount() === 1"));
     await s.tap('[data-sys="save"]');
     check(`${tag}: gespeichert`, await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`, 30000));
+    const ARMED_N = nModes - 1;
     const sent = (await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_system').at(-1)"))?.routines?.[3];
     check(`${tag}: Routine gesendet: Name, Ziel, Zustände, Baum mit Gruppe und Haltezeit, ohne Hilfsfelder`, sent?.name === "Haus verlassen" && sent.action === "away" && sent.unsafe === false
-      && JSON.stringify(sent.states) === JSON.stringify(["armed", "disarmed"]) && sent.trigger.type === "device" && sent.trigger.hold === 5 && sent.trigger.tree.op === "and"
+      && JSON.stringify(sent.states) === JSON.stringify(["armed", "disarmed"]) && sent.armed_modes.length === ARMED_N && sent.trigger.type === "device" && sent.trigger.hold === 5 && sent.trigger.tree.op === "and"
       && sent.trigger.tree.items[0].entity_id === "lock.haustuer" && sent.trigger.tree.items[1].op === "or" && sent.trigger.tree.items[1].items[0].state === "not_home"
       && sent.trigger.tree.items[1].items[1].kind === "time" && sent.trigger.tree.items[1].items[1].from === "22:00" && !("_device" in sent) && !("_times" in sent), JSON.stringify(sent));
 
     // ----- Bestehende bearbeiten: Deaktivieren verlangt die Bestätigung -----
     await s.tap('[data-sys="rt-edit"][data-index="2"]');
     check(`${tag}: Heimkommen: Oder-Baum mit Gerät und Gruppe, Name steht drin`, await s.waitFor("return r.querySelector('[data-sys=\"rt-name\"]').value === 'Heimkommen' && r.querySelectorAll('.ag-rtleaf').length === 3 && !!r.querySelector('.ag-rtgroup')"));
-    check(`${tag}: Vorschau bei Deaktivieren: rote Aktion mit Marke`, await s.ev("return !!r.querySelector('.ag-fl-node.act .ag-tag.err')"));
+    check(`${tag}: Vorschau bei Deaktivieren: rote Aktion mit Marke`, await s.ev("return !!r.querySelector('.ag-fl-node.off .ag-tag.err')"));
     check(`${tag}: Sicherheitskasten da, bestätigt, speicherbar`, await s.ev("return !!r.querySelector('.ag-rtsafety') && r.querySelector('[data-sys=\"rt-unsafe\"]').getAttribute('aria-checked') === 'true' && !r.querySelector('[data-sys=\"rt-save\"]').disabled"));
     await s.tap('[data-sys="rt-unsafe"]');
     check(`${tag}: Bestätigung weg: Speichern gesperrt`, await s.waitFor(`return r.querySelector('[data-sys="rt-save"]').disabled && r.querySelector('.ag-rt-ed .ag-dlg-err').textContent.includes(${JSON.stringify(t.unsafe)})`));
@@ -108,6 +113,15 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Abbrechen mit offener Änderung fragt nach`, await s.waitFor("return r.getElementById('ag-confirm').open"));
     await s.tap('[data-c="yes"]');
     check(`${tag}: verworfen: Editor zu, Liste unverändert (vier Routinen, nichts offen)`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 4 && r.host.systemUi.dirtyCount() === 0"));
+
+    // ----- Duplizieren: Kopie hinter dem Original, ausgeschaltet, eindeutiger Name, erst nach dem Speichern gültig -----
+    const before = await s.ev("return r.querySelectorAll('.ag-rtrow').length");
+    await s.tap('[data-sys="rt-dup"][data-index="1"]');
+    check(`${tag}: Duplizieren: eine Zeile mehr, Kopie hinter dem Original, ausgeschaltet, Name mit "${t.copy}", Änderung offen`, await s.waitFor(`const rows=[...r.querySelectorAll('.ag-rtrow')]; return rows.length === ${before} + 1 && rows[2].querySelector('b').textContent.includes(${JSON.stringify(t.copy)}) && rows[2].classList.contains('dim') && r.host.systemUi.dirtyCount() === 1`));
+    await s.tap('[data-sys="rt-dup"][data-index="1"]');
+    check(`${tag}: zweite Kopie bekommt einen anderen Namen`, await s.ev(`const n=[...r.querySelectorAll('.ag-rtrow b')].map((b) => b.textContent); return n.length === ${before} + 2 && new Set(n.map((x) => x.toLowerCase())).size === n.length`));
+    await s.tap('[data-sys="cancel"]');
+    check(`${tag}: Abbrechen verwirft die Kopien`, await s.waitFor(`return r.querySelectorAll('.ag-rtrow').length === ${before} && r.host.systemUi.dirtyCount() === 0`));
 
     // ----- Tasten (Entität "event", zum Beispiel ein Hue-Taster): Auslöser im Augenblick des Drückens -----
     await s.tap('[data-sys="rt-add"]');
