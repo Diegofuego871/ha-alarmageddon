@@ -14,6 +14,8 @@ export const CSS = `
   --ag-warning: var(--warning-color, #f59e0b);
   --ag-error: var(--error-color, #e5484d);
   --ag-subtle: color-mix(in srgb, var(--ag-text) 5%, var(--ag-card));
+  --ag-tint-alarm: color-mix(in srgb, #e5654f 17%, var(--ag-card));
+  --ag-tint-monitor: color-mix(in srgb, #1f9d8f 17%, var(--ag-card));
   --ag-hover: color-mix(in srgb, var(--ag-text) 4%, var(--ag-card));
   --ag-primary-soft: color-mix(in srgb, var(--ag-primary) 14%, transparent);
   --ag-success-soft: color-mix(in srgb, var(--ag-success) 15%, transparent);

@@ -652,7 +652,30 @@ class AlarmageddonPanel extends HTMLElement {
 
   _placePills(still = false) {
     this._segSync?.(still);
+    this._tintSegs();
     this._stickySync();
+  }
+
+  // Reiterleiste der Aktionen mit "Überwachung" (Variante B der Mockups): die Spur ist links leicht rot getönt (Reiter, die alarmieren können)
+  // und rechts türkis (Überwachung), mit weichem Übergang erst gegen Ende des letzten Alarm-Reiters; so sieht man den Unterschied schon vor dem Wählen
+  _tintSegs() {
+    for (const seg of this._root?.querySelectorAll('[data-seg="wf-trigger"]') || []) {
+      const mon = seg.querySelector('[data-trigger="monitor"]');
+      const last = mon?.previousElementSibling;
+      if (!mon || !last || !seg.offsetWidth) {
+        seg.style.removeProperty("background");
+        continue;
+      }
+      // Umbruch (Handy: Reiter in zwei Zeilen): der Übergang läuft von oben nach unten, an der Zeile mit "Überwachung"
+      if (mon.offsetTop > last.offsetTop + 4) {
+        const y = mon.offsetTop;
+        seg.style.background = `linear-gradient(180deg, var(--ag-tint-alarm) 0, var(--ag-tint-alarm) ${Math.max(y - 4, 1)}px, var(--ag-tint-monitor) ${y + Math.round(mon.offsetHeight * 0.3)}px, var(--ag-tint-monitor) 100%)`;
+        continue;
+      }
+      const from = Math.round(last.offsetLeft + last.offsetWidth * 0.72);
+      const to = Math.round(mon.offsetLeft + mon.offsetWidth * 0.2);
+      seg.style.background = `linear-gradient(90deg, var(--ag-tint-alarm) 0, var(--ag-tint-alarm) ${from}px, var(--ag-tint-monitor) ${Math.max(to, from + 1)}px, var(--ag-tint-monitor) 100%)`;
+    }
   }
 
   // Kopfzeile, Unterreiter, Werkzeugleiste und Tabellenkopf bleiben beim Scrollen stehen: nur die Liste scrollt.

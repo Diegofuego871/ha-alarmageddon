@@ -91,6 +91,13 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !!r.querySelector('.ag-wf')");
     const tabs = await s.ev("return [...r.querySelectorAll('[data-seg=\"wf-trigger\"] > button')].map((b) => b.dataset.trigger)");
     check(`${tag}: Reiter Anwesend, Abwesend, Nacht, Immer aktiv und "${t.mode}" (der letzte)`, tabs.join() === "home,away,night,always,monitor", tabs.join());
+    check(`${tag}: Reiterleiste mit "${t.mode}": Spur getönt, Übergang erst gegen Ende von "Immer aktiv" bzw. an der Zeile von "${t.mode}" (Handy: zwei Zeilen)`, await s.ev(`const seg = r.querySelector('[data-seg="wf-trigger"]'); const bg = seg.style.background; const m = bg.match(/(\\d+)px/g) || [];
+const last = seg.querySelector('[data-trigger="always"]'); const mon = seg.querySelector('[data-trigger="monitor"]');
+if (!bg.includes('linear-gradient') || m.length < 2) return false;
+if (mon.offsetTop > last.offsetTop + 4) return bg.includes('180deg') && parseInt(m[0]) <= mon.offsetTop && parseInt(m[1]) > parseInt(m[0]);
+const from = parseInt(m[0]);
+return from > last.offsetLeft + last.offsetWidth * 0.6 && from < last.offsetLeft + last.offsetWidth && parseInt(m[1]) > from && parseInt(m[1]) <= mon.offsetLeft + 40;`));
+    check(`${tag}: andere Reiterleisten bleiben ungetönt`, await s.ev("return ![...r.querySelectorAll('.ag-seg:not([data-seg=\"wf-trigger\"])')].some((x) => x.style.background.includes('linear-gradient'))"));
     await s.tap('[data-trigger="monitor"]');
     check(`${tag}: zwei Regeln als Kapitel`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 2"));
     const rules = await s.ev(`return [...r.querySelectorAll('.ag-mon-rule')].map((x) => ({ name: x.querySelector('.ag-chap-t').textContent, sub: x.querySelector('.ag-mon-head small').textContent, out: x.querySelectorAll('.ag-wf-mon-out .ag-wf-step').length, ok: x.querySelectorAll('.ag-wf-mon-ok .ag-wf-step').length,
