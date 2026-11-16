@@ -94,7 +94,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Reiterleiste mit "${t.mode}": Spur getönt, Übergang erst gegen Ende von "Immer aktiv" bzw. an der Zeile von "${t.mode}" (Handy: zwei Zeilen)`, await s.ev(`const seg = r.querySelector('[data-seg="wf-trigger"]'); const bg = seg.style.background; const m = bg.match(/(\\d+)px/g) || [];
 const last = seg.querySelector('[data-trigger="always"]'); const mon = seg.querySelector('[data-trigger="monitor"]');
 if (!bg.includes('linear-gradient') || m.length < 2) return false;
-if (mon.offsetTop > last.offsetTop + 4) return bg.includes('180deg') && parseInt(m[0]) <= mon.offsetTop && parseInt(m[1]) > parseInt(m[0]);
+if ([...seg.children].some((c) => c.offsetTop > seg.children[0].offsetTop + 4)) return bg.includes('no-repeat') && bg.includes('18px') && !bg.includes('180deg');
 const from = parseInt(m[0]);
 return from > last.offsetLeft + last.offsetWidth * 0.6 && from < last.offsetLeft + last.offsetWidth && parseInt(m[1]) > from && parseInt(m[1]) <= mon.offsetLeft + 40;`));
     check(`${tag}: andere Reiterleisten bleiben ungetönt`, await s.ev("return ![...r.querySelectorAll('.ag-seg:not([data-seg=\"wf-trigger\"])')].some((x) => x.style.background.includes('linear-gradient'))"));
