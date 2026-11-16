@@ -1070,6 +1070,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-sv-drow:last-child { border-bottom: 0; }
 .ag-sv-drow b { font-weight: 500; text-align: right; overflow-wrap: anywhere; min-width: 0; margin-left: auto; }
 .ag-up { display: grid; gap: 12px; }
+.ag-up-row > .ag-up { flex: 1 1 0; min-width: 0; } .ag-up > * { min-width: 0; } /* das Formular bleibt in der Karte (schmales Fenster) */
 .ag-up-box { margin-top: 12px; }
 .ag-up-file { height: auto; min-height: 44px; padding: 8px 12px; }
 .ag-up-err { color: var(--ag-error); font-size: 13px; }
@@ -1210,7 +1211,11 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-bkwrap .ag-table td { height: 52px; }
 .ag-bkwrap .ag-sortbtn { padding: 14px; }
 .ag-rtempty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 34px 18px; text-align: center; } .ag-rtfoot { margin: 0 4px; }
-.ag-rtsum { align-items: center; }
+.ag-rtsum { align-items: center; flex-wrap: nowrap; } .ag-rtsum .ag-settx { flex: 1 1 0; min-width: 0; } /* Zusammenfassung links, Knopf rechts, auch auf dem Handy in einer Zeile */
+/* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */
+:host([narrow]) .ag-cs-pop .ag-csrow { flex-wrap: wrap; }
+:host([narrow]) .ag-cs-pop .ag-csrow .ag-settx { flex: 1 1 0; min-width: 0; }
+:host([narrow]) .ag-cs-pop .ag-csrow .ag-btnrow { flex: 0 0 100%; justify-content: flex-end; margin-top: 2px; }
 .ag-bklast { align-items: center; } .ag-bklast-tx { flex: 1; min-width: 0; } .ag-bklast-tx b { font-weight: 500; } .ag-bklast-v { color: var(--ag-text2); font-size: 13px; }
 .ag-bktable td.ag-bkdate { display: table-cell; font-size: 13px; white-space: nowrap; }
 .ag-bktable .ag-bkname { display: inline; }

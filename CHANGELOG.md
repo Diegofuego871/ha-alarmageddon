@@ -7,7 +7,16 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.56.0] - 2026-11-16
+
+### Changed
+
+- **Your own sounds open in their own window.** On the Plant page, the chapter "Your own sounds" shows only a summary ("1 own sound") and a button "Show sounds". The list (play, rename, delete) and the upload form are in the window (full screen on the phone), like the routines. With no sound yet, a card with a centred button "Upload sound" invites you to add one, otherwise the button sits in the footer. Changes are still saved at once. On the phone the buttons of a sound stand under its name, so the name has room.
+- **The upload form stays inside its card** in a narrow window (the fields no longer reach past the edge).
+
 ## [1.55.1] - 2026-11-16
+
+Not released; included in 1.56.0.
 
 ### Changed
 
@@ -1721,7 +1730,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.55.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.1
+[1.56.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.56.0
 [1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0
 [1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0
 [1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0

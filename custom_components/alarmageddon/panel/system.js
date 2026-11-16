@@ -160,6 +160,7 @@ export class SystemUi {
     h._placePills();
     this.renderFoot();
     this.rt.refreshList(); // ein offenes Popup der Routinen folgt dem Entwurf
+    this.refreshCsList(); // ebenso das Fenster der eigenen Töne
   }
 
   // ----- Codes pro Person (sofort gespeichert, nicht Teil des Entwurfs: ein Code soll nie im Panel liegen bleiben) -----
@@ -187,9 +188,23 @@ export class SystemUi {
       <button class="ag-toggle ${on ? "on" : ""}" data-sys="ackcode" role="switch" aria-checked="${on}" aria-label="${esc(this._t("sysAckCode"))}" ${hasCode ? "" : "disabled"}></button></div>`;
   }
 
-  // Eigene Töne (1.39.0): gelten für alle Anlagen und alle Arten von Tönen; sofort gespeichert, nicht Teil des Entwurfs. Hochgeladen wird auch direkt im
-  // Editor eines Schritts; hier werden sie angehört, umbenannt und gelöscht.
+  // Eigene Töne (1.39.0, Fenster seit 1.56.0): gelten für alle Anlagen und alle Arten von Tönen; sofort gespeichert, nicht Teil des Entwurfs.
+  // Hochgeladen wird auch direkt im Editor eines Schritts; hier werden sie angehört, umbenannt und gelöscht. Die Seite zeigt nur die Zusammenfassung,
+  // die Liste steht im Fenster (Handy: ganzer Bildschirm), wie bei den Routinen.
   _customSoundsHtml() {
+    const t = (k, v) => this._t(k, v);
+    const n = customList(this.host).length;
+    const summary = n ? t(n === 1 ? "csSummaryOne" : "csSummary", { count: n }) : t("csNone");
+    return chapter(t("csTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum"><span class="ag-oav ${n ? "on" : ""}">${ic("speaker", 20)}</span>
+      <div class="ag-settx"><b>${esc(summary)}</b></div><button class="ag-btn" data-sys="cs-open">${ic("speaker", 18)}${esc(t("csShow"))}</button></div></div>`, t("csHint"));
+  }
+
+  _csDlg() {
+    return this.host._root.getElementById("ag-cslist");
+  }
+
+  // Inhalt des Fensters: Zeilen im Design der Seite; leer: Karte mit Knopf in der Mitte, sonst Knopf in der Fusszeile; beim Hochladen das Formular unter den Zeilen
+  csListHtml() {
     const t = (k, v) => this._t(k, v);
     const list = customList(this.host);
     const rows = list.map((s) => {
@@ -205,10 +220,38 @@ export class SystemUi {
           <button class="ag-iconbtn" data-sys="cs-rename" data-id="${esc(s.id)}" aria-label="${esc(t("csRename"))}" title="${esc(t("csRename"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-delete" data-id="${esc(s.id)}" aria-label="${esc(t("csDelete"))}" title="${esc(t("csDelete"))}">${ic("trash", 18)}</button></div></div>`;
     }).join("");
-    const body = this.cs.upload
-      ? `<div class="ag-setrow ag-up-row">${uploadHtml(t, this.host, this.cs.upload, (name) => `data-sys="${name}"`)}</div>`
-      : `<div class="ag-setrow"><div class="ag-settx"><small>${esc(t("csHint"))}</small></div><div class="ag-btnrow"><button class="ag-btn" data-sys="cs-upload-open" ${list.length >= (this.host._data?.custom_sound_limits?.max || 20) ? "disabled" : ""}>${ic("plus", 18)}${esc(t("csUpload"))}</button></div></div>`;
-    return chapter(t("csTitle"), `<div class="ag-card ag-setlist ag-codes" data-cs="manage">${rows || `<div class="ag-setrow"><div class="ag-settx"><small>${esc(t("csEmpty"))}</small></div></div>`}${body}</div>`);
+    const full = list.length >= (this.host._data?.custom_sound_limits?.max || 20);
+    const add = (cls) => `<button class="ag-btn ${cls}" data-sys="cs-upload-open" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(t("csUpload"))}</button>`;
+    const up = this.cs.upload ? `<div class="ag-setrow ag-up-row">${uploadHtml(t, this.host, this.cs.upload, (name) => `data-sys="${name}"`)}</div>` : "";
+    const body = rows || up
+      ? `<div class="ag-card ag-setlist ag-codes" data-cs="manage">${rows}${up}</div>`
+      : `<div class="ag-card ag-rtempty" data-cs="manage"><span class="ag-t2">${esc(t("csEmpty"))}</span>${add("primary")}</div>`;
+    return `<div class="ag-dlg-body ag-cs-pop"><h3>${esc(t("csTitle"))}</h3>${body}
+      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="cs-close">${esc(t("close"))}</button>${rows && !up ? add("primary") : ""}</div></div>`;
+  }
+
+  openCsList() {
+    const dlg = this._csDlg();
+    this.refreshCsList(true);
+    if (dlg.open) return;
+    // Beim Schliessen (Knopf, X, Esc): Ton anhalten, halbfertiges Umbenennen und Hochladen verwerfen
+    dlg.addEventListener("close", () => {
+      this._csStopAudio();
+      this.cs.rename = null;
+      this.cs.upload = null;
+      this.cs.error = "";
+    }, { once: true });
+    dlg.showModal();
+  }
+
+  // Nach jeder Änderung: das offene Fenster folgt (Scrollstand bleibt)
+  refreshCsList(force = false) {
+    const dlg = this._csDlg();
+    if (!dlg || (!dlg.open && !force)) return;
+    const top = dlg.querySelector(".ag-dlg-body")?.scrollTop || 0;
+    dlg.innerHTML = this.csListHtml();
+    const again = dlg.querySelector(".ag-dlg-body");
+    if (again && top) again.scrollTop = top;
   }
 
   _csStopAudio() {
@@ -252,7 +295,7 @@ export class SystemUi {
     if (!ui || ui.busy) return;
     ui.busy = true;
     ui.error = "";
-    this.host._view?.querySelector('[data-sys="cs-go"]')?.setAttribute("disabled", "");
+    this._csDlg()?.querySelector('[data-sys="cs-go"]')?.setAttribute("disabled", "");
     try {
       const sound = await uploadSound(this.host, this.host._root, ui, (k, v) => this._t(k, v));
       this.cs.upload = null;
@@ -719,6 +762,14 @@ export class SystemUi {
       d.auto.enabled = !d.auto.enabled;
       this.saveState = null;
       this.render();
+      return true;
+    }
+    if (act === "cs-open") {
+      this.openCsList();
+      return true;
+    }
+    if (act === "cs-close") {
+      this._csDlg().close();
       return true;
     }
     if (act === "bk-open") {
