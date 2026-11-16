@@ -17,7 +17,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Schalter links, Text rechts davon`, await s.ev("const b=r.querySelector('[data-sys=\"ab-on\"]'); const x=b.closest('.ag-setrow').querySelector('.ag-settx'); return b.getBoundingClientRect().right <= x.getBoundingClientRect().left"));
     await (await s.el('[data-sys="ab-every"]')).selectOption("monthly");
     check(`${tag}: Abstand monatlich gespeichert (sofort, kein Entwurf der Seite)`, await s.waitFor("return window.parent.__autoBackup?.every === 'monthly' || true") && (await s.sim("return window.__autoBackup")).every === "monthly" && (await s.ev("return r.host.systemUi.dirtyCount() === 0")));
-    check(`${tag}: Feld "Sicherungen behalten": Standard 5, links vom Abstand, 1 bis 50`, await s.ev("const k=r.querySelector('[data-sys=\"ab-keep\"]'); const e=r.querySelector('[data-sys=\"ab-every\"]'); return k.value === '5' && k.min === '1' && k.max === '50' && k.getBoundingClientRect().right <= e.getBoundingClientRect().left + 1"));
+    check(`${tag}: Feld "Sicherungen behalten": Standard 5, links vom Abstand (Handy: darüber), 1 bis 50`, await s.ev("const k=r.querySelector('[data-sys=\"ab-keep\"]'); const e=r.querySelector('[data-sys=\"ab-every\"]'); return k.value === '5' && k.min === '1' && k.max === '50' && (k.getBoundingClientRect().right <= e.getBoundingClientRect().left + 1 || k.getBoundingClientRect().bottom <= e.getBoundingClientRect().top + 1)"));
     await (await s.el('[data-sys="ab-keep"]')).fill("12");
     check(`${tag}: 12 wird nach kurzer Pause gespeichert, der Hinweis nennt 12, das Feld behält den Fokus`, await s.waitFor("return window.parent.__autoBackup?.keep === 12 || true") && await s.waitFor("return /12/.test(r.querySelector('.ag-bkauto .ag-settx small').textContent) && r.activeElement?.dataset.sys === 'ab-keep'") && (await s.sim("return window.__autoBackup")).keep === 12);
     await (await s.el('[data-sys="ab-keep"]')).fill("51");
@@ -42,8 +42,10 @@ for (const lang of ["de", "en"]) {
     await s.ev("r.querySelector('[data-sys=\"bk-sort\"][data-key=\"date\"]').scrollIntoView({block:'center'}); return 1");
     await s.tap('[data-sys="bk-sort"][data-key="date"]');
     check(`${tag}: Datum nochmal: älteste oben`, await s.waitFor("return r.querySelector('.ag-bktable tr[data-bk]').dataset.bk === 'b13' && !!r.querySelector('.ag-bktable th[aria-sort=\"ascending\"]')"));
-    await s.tap('[data-sys="bk-sort"][data-key="systems"]');
-    check(`${tag}: Sortieren nach Alarmanlagen (aufsteigend: Garage zuerst)`, await s.waitFor("const f=r.querySelector('.ag-bktable tr[data-bk] td:nth-child(3)').textContent; return f === 'Garage'"));
+    if (!mobile) { // Auf dem Handy fehlt die Spalte (die Anlagen stehen unter dem Namen)
+      await s.tap('[data-sys="bk-sort"][data-key="systems"]');
+      check(`${tag}: Sortieren nach Alarmanlagen (aufsteigend: Garage zuerst)`, await s.waitFor("const f=r.querySelector('.ag-bktable tr[data-bk] td:nth-child(3)').textContent; return f === 'Garage'"));
+    }
     await s.tap('[data-sys="bk-sort"][data-key="name"]');
     check(`${tag}: Sortieren nach Name (ohne Namen zuerst)`, await s.waitFor("return !/Stand/.test(r.querySelector('.ag-bktable tr[data-bk] td').textContent)"));
     check(`${tag}: die Liste ist ein Rollbereich: höchstens zehn Zeilen hoch, Kopf klebt oben beim Rollen`, await s.ev(`const w=r.querySelector('.ag-bkscroll'); const rowH=r.querySelector('.ag-bktable tr[data-bk]').getBoundingClientRect().height; if (!(w.scrollHeight > w.clientHeight + 20 && w.clientHeight <= 46 + 10 * rowH + 4)) return false; w.scrollTop = 300; const h=r.querySelector('.ag-bktable th').getBoundingClientRect(); return w.scrollTop > 0 && Math.abs(h.top - w.getBoundingClientRect().top) < 3`));

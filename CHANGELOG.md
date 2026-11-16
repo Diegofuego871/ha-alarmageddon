@@ -22,6 +22,7 @@ Not released; included in 1.51.0.
 - **Monitoring rules can be collapsed and searched.** A round arrow at every rule collapses it to its header (the view only, nothing is saved), "Collapse all / Expand all" does it for all. The search field above filters by the name of the rule and by name and entity ID of the sensors and devices used in it.
 - **Preview of the message.** The window of a push step shows the notification as it arrives on the phone, with the placeholders resolved by the current values of the rule's first sensor; it follows every keystroke and shows the default text when yours is empty.
 - **A colour for every monitoring rule.** In the rule window, chapter "Appearance": one of ten colours or none; the card of the rule then takes the colour as a soft gradient. Only the look; the colour is part of the backup.
+- **The list of backups fits the phone.** There the column "Alarm systems" is dropped and the systems stand under the name.
 - **The list of backups is sortable and has its own date column.** Click a column header to sort by backup, date or alarm system; the default is by date, newest first. From ten rows on, the table scrolls on its own and the header stays visible.
 
 ## [1.49.0] - 2026-11-16

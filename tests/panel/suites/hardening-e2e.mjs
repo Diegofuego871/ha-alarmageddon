@@ -119,8 +119,8 @@ for (const lang of ["de", "en"]) {
     await makeBk("Vor dem Umbau");
     check(`${tag}: Sicherung mit Name abgelegt, Meldung, Name und Datum in der Liste`, await s.waitFor("return r.querySelectorAll('.ag-bktable tr[data-bk]').length === 1 && !!r.querySelector('.ag-toast') && r.querySelector('.ag-bktable .ag-bkname').textContent === 'Vor dem Umbau' && !!r.querySelector('.ag-bktable .ag-bkdate')"));
     await makeBk("");
-    check(`${tag}: zwei Sicherungen mit Datum und Anlagen, drei Knöpfe je Zeile`, await s.waitFor("const row=r.querySelector('.ag-bktable tr[data-bk]'); return r.querySelectorAll('.ag-bktable tr[data-bk]').length === 2 && /\\d{4}/.test(row.cells[0].textContent) && row.cells[1].textContent.includes('Haus') && row.querySelectorAll('.ag-iconbtn').length === 3"));
-    check(`${tag}: Tabelle im festen Kopf-Rahmen und passt in die Breite`, await s.ev("const w=r.querySelector('.ag-bktable').closest('.ag-stickwrap'); return !!w && !w.classList.contains('hscroll') && r.querySelector('.ag-bktable').scrollWidth <= w.clientWidth + 1"));
+    check(`${tag}: zwei Sicherungen mit Datum und Anlagen, drei Knöpfe je Zeile`, await s.waitFor("const row=r.querySelector('.ag-bktable tr[data-bk]'); return r.querySelectorAll('.ag-bktable tr[data-bk]').length === 2 && /\\d{4}/.test(row.cells[1].textContent) && row.cells[2].textContent.includes('Haus') && row.querySelectorAll('.ag-iconbtn').length === 3"));
+    check(`${tag}: Tabelle im festen Kopf-Rahmen und passt in die Breite`, await s.ev("const w=r.querySelector('.ag-bktable').closest('.ag-bkscroll'); return !!w && !w.classList.contains('hscroll') && r.querySelector('.ag-bktable').scrollWidth <= w.clientWidth + 1"));
     const [bkDownload] = await Promise.all([s.page.waitForEvent("download", { timeout: 5000 }).catch(() => null), s.tap('.ag-bktable tr[data-bk] [data-sys="bk-download"]')]);
     check(`${tag}: einzelne Sicherung herunterladen`, !!bkDownload && /^alarmageddon-\d{4}-\d{2}-\d{2}\.json$/.test(bkDownload.suggestedFilename()), bkDownload?.suggestedFilename());
     await s.tap('.ag-bktable tr[data-bk] [data-sys="bk-restore"]');

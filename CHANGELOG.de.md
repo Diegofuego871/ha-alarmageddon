@@ -22,6 +22,7 @@ Nicht veröffentlicht; enthalten in 1.51.0.
 - **Regeln der Überwachung lassen sich zuklappen und durchsuchen.** Ein runder Pfeil an jeder Regel klappt sie auf den Kopf zu (nur die Ansicht, nichts wird gespeichert), "Alle zuklappen / Alle aufklappen" tut es für alle. Das Suchfeld darüber filtert nach dem Namen der Regel sowie nach Name und Entitäts-ID der darin verwendeten Sensoren und Geräte.
 - **Vorschau der Meldung.** Das Fenster eines Push-Schritts zeigt die Meldung, wie sie aufs Handy kommt, mit den Platzhaltern aufgelöst durch die aktuellen Werte des ersten Sensors der Regel; sie folgt jedem Tastendruck und zeigt den Standardtext, wenn deiner leer ist.
 - **Eine Farbe für jede Regel der Überwachung.** Im Fenster der Regel, Kapitel "Darstellung": eine von zehn Farben oder keine; die Karte der Regel färbt sich dann mit einem sanften Farbverlauf ein. Nur das Aussehen; die Farbe gehört in die Sicherung.
+- **Die Liste der Sicherungen passt aufs Handy.** Dort entfällt die Spalte "Alarmanlagen", die Anlagen stehen unter dem Namen.
 - **Die Liste der Sicherungen ist sortierbar und hat eine eigene Spalte "Datum".** Ein Klick auf eine Spaltenüberschrift sortiert nach Sicherung, Datum oder Alarmanlage; Standard ist nach Datum, neueste oben. Ab zehn Zeilen rollt die Tabelle für sich, die Kopfzeile bleibt sichtbar.
 
 ## [1.49.0] - 2026-11-16

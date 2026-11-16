@@ -1193,5 +1193,13 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-push-t { margin-left: auto; }
 .ag-push b { font-weight: 600; overflow-wrap: anywhere; }
 .ag-push div[data-prev-body] { overflow-wrap: anywhere; font-size: 14px; }
+:host([narrow]) .ag-bktable td, :host([narrow]) .ag-bktable th { padding-left: 6px; padding-right: 6px; }
+:host([narrow]) .ag-bktable td.ag-bkdate { white-space: normal; font-size: 12px; min-width: 0; }
+:host([narrow]) .ag-bkscroll .ag-sortbtn { padding: 14px 6px; font-size: 10.5px; letter-spacing: 0; }
+:host([narrow]) .ag-bktable .ag-iconbtn { width: 34px; height: 34px; }
+:host([narrow]) .ag-bktable .ag-actrow { gap: 2px; }
+.ag-bksys-m { display: none; }
+:host([narrow]) .ag-bktable .ag-bksys { display: none; }
+:host([narrow]) .ag-bktable .ag-bksys-m { display: block; font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
 `;
 

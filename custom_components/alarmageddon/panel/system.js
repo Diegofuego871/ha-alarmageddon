@@ -290,14 +290,14 @@ export class SystemUi {
     const sort = this.bkSort || (this.bkSort = { key: "date", dir: "desc" });
     const val = { name: (b) => (b.name || "").toLowerCase(), date: (b) => b.created || "", systems: (b) => (b.systems || []).join(", ").toLowerCase() }[sort.key];
     const list = [...this.backups].sort((x, y) => (val(x) < val(y) ? -1 : val(x) > val(y) ? 1 : 0) * (sort.dir === "desc" ? -1 : 1) || (x.created < y.created ? 1 : -1));
-    const rows = list.map((b) => `<tr data-bk="${esc(b.id)}"><td>${b.name || !b.auto ? `<b class="ag-bkname">${esc(b.name || "–")}</b>` : ""}${b.auto ? `<span class="ag-tag none ag-bkauto-tag">${esc(this._t("bkAutoTag"))}</span>` : ""}</td><td class="ag-t2 ag-bkdate">${esc(date(b.created))}</td><td class="ag-t2">${esc((b.systems || []).join(", ") || "–")}</td>
+    const rows = list.map((b) => `<tr data-bk="${esc(b.id)}"><td>${b.name || !b.auto ? `<b class="ag-bkname">${esc(b.name || "–")}</b>` : ""}${b.auto ? `<span class="ag-tag none ag-bkauto-tag">${esc(this._t("bkAutoTag"))}</span>` : ""}<small class="ag-t2 ag-bksys-m">${esc((b.systems || []).join(", ") || "–")}</small></td><td class="ag-t2 ag-bkdate">${esc(date(b.created))}</td><td class="ag-t2 ag-bksys">${esc((b.systems || []).join(", ") || "–")}</td>
         <td class="ag-acts"><div class="ag-actrow">${btn("bk-download", "arrowLine", "bkDownload", b.id)}${btn("bk-restore", "restore", "bkRestoreOne", b.id)}${btn("bk-delete", "trash", "bkDelete", b.id)}</div></td></tr>`).join("");
     const th = (key, label) => {
       const on = sort.key === key;
       return `<th aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sortbtn ${on ? "on" : ""}" data-sys="bk-sort" data-key="${key}" title="${esc(this._t("sortBy", { column: label }))}">${esc(label)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;
     };
     return `<div class="ag-t2 ag-small" style="margin:10px 4px 6px">${esc(this._t("bkCount", { count: this.backups.filter((b) => !b.auto).length, max: this.bkMax }))}${this.backups.some((b) => b.auto) ? ` · ${esc(this._t("bkCountAuto", { count: this.backups.filter((b) => b.auto).length, max: this.bkMaxAuto }))}` : ""}</div>
-      <div class="ag-card ag-bkscroll"><table class="ag-table ag-bktable"><tr>${th("name", this._t("bkColName"))}${th("date", this._t("bkColDate"))}${th("systems", this._t("bkColSystems"))}<th></th></tr>${rows}</table></div>`;
+      <div class="ag-card ag-bkscroll"><table class="ag-table ag-bktable"><tr>${th("name", this._t("bkColName"))}${th("date", this._t("bkColDate"))}${th("systems", this._t("bkColSystems")).replace("<th ", '<th class="ag-bksys" ')}<th></th></tr>${rows}</table></div>`;
   }
 
   renderBackups() {
