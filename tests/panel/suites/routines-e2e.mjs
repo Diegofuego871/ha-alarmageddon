@@ -6,11 +6,11 @@ import { check, done, launch, open, outDir } from "../lib.mjs";
 const T = {
   de: {
     unlocked: "aufgeschlossen", bypass: "Umgeht den Code", disarmOff: "Deaktivieren per Routine ist aus", taken: "diesen Namen schon", noDevice: "mindestens ein Gerät",
-    emptyGroup: "mindestens eine Bedingung", unsafe: "den Code umgeht", noDay: "mindestens einen Tag", saved: "Gespeichert", skipped: "Routine \"Heimkommen\" übersprungen: gilt nicht im Zustand: Beim Alarm",
+    emptyGroup: "mindestens eine Bedingung", unsafe: "den Code umgeht", short: "Kurzes Drücken", noDay: "mindestens einen Tag", saved: "Gespeichert", skipped: "Routine \"Heimkommen\" übersprungen: gilt nicht im Zustand: Beim Alarm",
   },
   en: {
     unlocked: "unlocked", bypass: "Bypasses the code", disarmOff: "Disarming by routine is off", taken: "already has this name", noDevice: "at least one device",
-    emptyGroup: "at least one condition", unsafe: "bypasses the code", noDay: "at least one day", saved: "Saved", skipped: "Routine \"Heimkommen\" skipped: not allowed in this state: During the alarm",
+    emptyGroup: "at least one condition", unsafe: "bypasses the code", short: "Short press", noDay: "at least one day", saved: "Saved", skipped: "Routine \"Heimkommen\" skipped: not allowed in this state: During the alarm",
   },
 };
 
@@ -36,14 +36,14 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Fokus bleibt im Namen beim Tippen`, await s.ev("return r.activeElement?.dataset.sys === 'rt-name'"));
     check(`${tag}: ohne Gerät gesperrt, Meldung nennt das Gerät`, await s.ev(`return r.querySelector('[data-sys="rt-save"]').disabled && r.querySelector('.ag-rt-ed .ag-dlg-err').textContent.includes(${JSON.stringify(t.noDevice)})`));
     await s.tap('[data-sys="rt-add-dev"][data-path=""]');
-    check(`${tag}: Geräteauswahl mit sechs Geräten`, await s.waitFor("return !!r.querySelector('.ag-rt-pick') && r.querySelectorAll('.ag-rtent').length === 6"));
+    check(`${tag}: Geräteauswahl mit sechs Geräten`, await s.waitFor("return !!r.querySelector('.ag-rt-pick') && r.querySelectorAll('.ag-rtent').length === 7"));
     check(`${tag}: die Entitäts-ID steht nirgends in der Liste`, await s.ev("return !/lock\\.haustuer|binary_sensor\\.|switch\\./.test(r.querySelector('.ag-rtlist').innerText)"));
     const q = await s.el('[data-sys="rt-q"]');
     await q.fill("lock.haus");
     check(`${tag}: Suche nach der Entitäts-ID findet das Schloss, angezeigt wird der Name`, await s.waitFor("const e=[...r.querySelectorAll('.ag-rtent')]; return e.length === 1 && e[0].querySelector('b').textContent === 'Haustür-Schloss' && !e[0].innerText.includes('lock.')"));
     check(`${tag}: Fokus bleibt im Suchfeld`, await s.ev("return r.activeElement?.dataset.sys === 'rt-q'"));
     await s.tap('[data-sys="rt-q-clear"]');
-    check(`${tag}: Leeren zeigt wieder alle`, await s.waitFor("return r.querySelectorAll('.ag-rtent').length === 6"));
+    check(`${tag}: Leeren zeigt wieder alle`, await s.waitFor("return r.querySelectorAll('.ag-rtent').length === 7"));
     await s.tap('[data-sys="rt-filter"][data-value="person"]');
     check(`${tag}: Filter Personen`, await s.waitFor("return r.querySelectorAll('.ag-rtent').length === 2"));
     await s.tap('[data-sys="rt-filter"][data-value="all"]');
@@ -59,7 +59,7 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="rt-add-group"]');
     check(`${tag}: leere Gruppe sperrt Speichern`, await s.waitFor(`return r.querySelector('[data-sys="rt-save"]').disabled && r.querySelector('.ag-rt-ed .ag-dlg-err').textContent.includes(${JSON.stringify(t.emptyGroup)})`));
     await s.tap('[data-sys="rt-add-dev"][data-path="1"]');
-    await s.waitFor("return r.querySelectorAll('.ag-rtent').length === 6");
+    await s.waitFor("return r.querySelectorAll('.ag-rtent').length === 7");
     await s.tap('[data-sys="rt-choose"][data-id="person.anna"]');
     await s.waitFor("return !!r.querySelector('.ag-rtgroup .ag-rtleaf')");
     await (await s.el('[data-sys="rt-state"][data-path="1.0"]')).selectOption("not_home");
@@ -102,6 +102,24 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Abbrechen mit offener Änderung fragt nach`, await s.waitFor("return r.getElementById('ag-confirm').open"));
     await s.tap('[data-c="yes"]');
     check(`${tag}: verworfen: Editor zu, Liste unverändert (vier Routinen, nichts offen)`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 4 && r.host.systemUi.dirtyCount() === 0"));
+
+    // ----- Tasten (Entität "event", zum Beispiel ein Hue-Taster): Auslöser im Augenblick des Drückens -----
+    await s.tap('[data-sys="rt-add"]');
+    await s.waitFor("return !!r.querySelector('.ag-rt-ed')");
+    await (await s.el('[data-sys="rt-name"]')).fill("Taste scharf");
+    await s.tap('[data-sys="rt-add-dev"][data-path=""]');
+    await s.waitFor("return r.querySelectorAll('.ag-rtent').length === 7");
+    await s.tap('[data-sys="rt-filter"][data-value="button"]');
+    check(`${tag}: Filter Tasten zeigt die Taste, gesucht nach Name`, await s.waitFor("const e=[...r.querySelectorAll('.ag-rtent')]; return e.length === 1 && e[0].querySelector('b').textContent.includes('Taste 1')"));
+    await s.tap('[data-sys="rt-choose"]');
+    check(`${tag}: Taste gewählt: Arten des Drückens im Klartext, kein Zustand`, await s.waitFor(`const o=[...r.querySelectorAll('[data-sys="rt-state"] option')].map((x) => x.textContent); return o.length === 3 && o.includes(${JSON.stringify(t.short)})`));
+    await (await s.el('[data-sys="rt-state"]')).selectOption("short_release");
+    check(`${tag}: Haltezeit bei Tasten ausgeblendet, speicherbar`, await s.ev("return r.querySelector('.ag-rthold').hidden && !r.querySelector('[data-sys=\"rt-save\"]').disabled"));
+    await s.tap('[data-sys="rt-save"]');
+    await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 5");
+    check(`${tag}: Zeile nennt die Taste und die Art`, await s.ev(`return [...r.querySelectorAll('.ag-rtrow')].at(-1).innerText.includes(${JSON.stringify(t.short)})`));
+    await s.tap('[data-sys="rt-del"][data-index="4"]');
+    await s.waitFor("return r.querySelectorAll('.ag-rtrow').length === 4");
 
     // ----- Auslöser Zeitplan, mehrere Zeiten, Namen eindeutig -----
     await s.tap('[data-sys="rt-add"]');

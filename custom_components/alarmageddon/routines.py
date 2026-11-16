@@ -43,6 +43,7 @@ from .const import (
     MAX_ROUTINE_LEAVES,
     MAX_ROUTINES,
     ROUTINE_COOLDOWN,
+    ROUTINE_EVENT_MAX_AGE,
 )
 from .controller import AlarmController
 from .notify import text
@@ -108,12 +109,19 @@ def check_routines(hass: HomeAssistant, routines: list[dict[str, Any]]) -> list[
             raise vol.Invalid("too many conditions")
         if any(x["kind"] == "time" and x["from"] == x["to"] for x in leaves):
             raise vol.Invalid("a time window needs two different times")
-        state_leaves = [x for x in leaves if x["kind"] == "state"]
-        if not state_leaves:
+        device_leaves = [x for x in leaves if x["kind"] in ("state", "event")]
+        if not device_leaves:
             raise vol.Invalid("a routine by device needs at least one device condition")
-        for leaf in state_leaves:
+        if trigger.get("hold") and any(x["kind"] == "event" for x in device_leaves):
+            raise vol.Invalid("a button press cannot be required to hold")
+        for leaf in device_leaves:
             domain = leaf["entity_id"].split(".")[0]
-            if domain not in LEAF_STATES or leaf["state"] not in LEAF_STATES[domain]:
+            if leaf["kind"] == "event":
+                known = hass.states.get(leaf["entity_id"])
+                types = known.attributes.get("event_types") if known is not None else None
+                if domain != "event" or (isinstance(types, list) and leaf["event_type"] not in types):
+                    raise vol.Invalid("this button or event is not supported")
+            elif domain not in LEAF_STATES or leaf["state"] not in LEAF_STATES[domain]:
                 raise vol.Invalid("this device or state is not supported")
             entry = registry.async_get(leaf["entity_id"])
             if entry is not None and entry.platform == DOMAIN:
@@ -185,12 +193,15 @@ def time_met(leaf: dict[str, Any], now: datetime) -> bool:
     return (on(today) and minute >= start) or (on((today - 1) % 7) and minute < end)
 
 
-def eval_tree(hass: HomeAssistant, tree: dict[str, Any], now: datetime) -> bool | None:
+def eval_tree(hass: HomeAssistant, tree: dict[str, Any], now: datetime, pulse: tuple[str, str] | None = None) -> bool | None:
     """Wahr, falsch oder None (nicht beurteilbar: Gerät nicht erreichbar). None zählt nie als erfüllt."""
 
     def leaf_value(leaf: dict[str, Any]) -> bool | None:
         if leaf["kind"] == "time":
             return time_met(leaf, now)
+        if leaf["kind"] == "event":
+            # Ein Tastendruck gilt nur im Augenblick, in dem er geschieht (pulse), nie danach
+            return pulse == (leaf["entity_id"], leaf["event_type"])
         state = hass.states.get(leaf["entity_id"])
         if state is None or state.state in INVALID:
             return None
@@ -245,7 +256,7 @@ class RoutineEngine:
         tree = trigger["tree"]
         leaves = tree_leaves(tree)
         self._last[rule["id"]] = eval_tree(self.hass, tree, dt_util.utcnow()) is True  # beim Start gilt nichts als neu
-        entities = sorted({x["entity_id"] for x in leaves if x["kind"] == "state"})
+        entities = sorted({x["entity_id"] for x in leaves if x["kind"] in ("state", "event")})
         if entities:
             self._unsubs.append(async_track_state_change_event(self.hass, entities, partial(self._on_state, rule)))
         # Ein Zeitfenster ändert sich zu seinen Rändern: dort neu auswerten
@@ -272,9 +283,28 @@ class RoutineEngine:
     @callback
     def _on_state(self, rule: dict[str, Any], event: Event[EventStateChangedData]) -> None:
         old, new = event.data["old_state"], event.data["new_state"]
+        if event.data["entity_id"].startswith("event."):
+            self._on_button(rule, old, new)
+            return
         # Nur ein echter Wechsel zwischen zwei bekannten Zuständen zählt, nicht die Rückkehr aus "nicht verfügbar" oder "unbekannt"
         real = old is not None and new is not None and old.state not in INVALID and new.state not in INVALID
         self._evaluate(rule, fire=real)
+
+    @callback
+    def _on_button(self, rule: dict[str, Any], old: Any, new: Any) -> None:
+        """
+        Taste oder anderes Ereignis (Entität "event": der Zustand ist der Zeitpunkt des letzten Ereignisses). Es zählt nur ein frisches Ereignis: nach dem
+        Neuladen einer Integration kommt der alte Zeitpunkt zurück und darf nie schalten.
+        """
+        if new is None or new.state in INVALID or (old is not None and old.state == new.state):
+            return
+        stamp = dt_util.parse_datetime(new.state)
+        age = (dt_util.utcnow() - stamp).total_seconds() if stamp is not None else None
+        if age is None or abs(age) > ROUTINE_EVENT_MAX_AGE:
+            return
+        pulse = (new.entity_id, str(new.attributes.get("event_type")))
+        if eval_tree(self.hass, rule["trigger"]["tree"], dt_util.utcnow(), pulse) is True:
+            self.hass.async_create_task(self.async_run(rule))
 
     @callback
     def _on_edge(self, rule: dict[str, Any], _now: Any) -> None:

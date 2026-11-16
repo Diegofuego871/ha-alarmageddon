@@ -1003,7 +1003,7 @@ async def ws_routine_entities(hass: HomeAssistant, connection, msg: dict[str, An
     out: list[dict[str, Any]] = []
     for state in hass.states.async_all():
         domain = state.entity_id.split(".")[0]
-        if domain not in LEAF_STATES:
+        if domain not in LEAF_STATES and domain != "event":
             continue
         reg = ent_reg.async_get(state.entity_id)
         if reg is not None and (reg.platform == DOMAIN or reg.disabled_by or reg.hidden_by):
@@ -1018,8 +1018,8 @@ async def ws_routine_entities(hass: HomeAssistant, connection, msg: dict[str, An
             "domain": domain,
             "area": area.name if area else "",
             "device_class": str(state.attributes.get("device_class") or ""),
-            "states": list(LEAF_STATES[domain]),
-            "state": state.state,
+            "states": [str(t) for t in (state.attributes.get("event_types") or [])] if domain == "event" else list(LEAF_STATES[domain]),
+            "state": "" if domain == "event" else state.state,
         })
     out.sort(key=lambda e: (e["name"].lower(), e["entity_id"]))
     connection.send_result(msg["id"], {"entities": out})

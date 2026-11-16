@@ -35,6 +35,8 @@ async def _ws(client, **msg):
 
 
 LOCK = "lock.haustuer"
+BUTTON = "event.dimmer_taste_1"
+EVENT_TYPES = ["initial_press", "short_release", "long_press"]
 PERSON = "person.anna"
 SWITCH = "switch.steckdose"
 
@@ -45,6 +47,10 @@ def _times(time: str, days=(0, 1, 2, 3, 4)) -> dict:
 
 def _is(entity: str, value: str) -> dict:
     return {"kind": "state", "entity_id": entity, "state": value}
+
+
+def _press(entity: str, event_type: str) -> dict:
+    return {"kind": "event", "entity_id": entity, "event_type": event_type}
 
 
 def _window(start: str, end: str, days=()) -> dict:
@@ -487,3 +493,71 @@ async def test_active_mode_cannot_be_switched_off(hass: HomeAssistant, hass_ws_c
     assert state(hass) == AlarmControlPanelState.ARMED_HOME
 
 
+
+
+# ----- Tasten (Entität "event", zum Beispiel ein Hue-Taster) -----
+
+
+def _fire_button(hass: HomeAssistant, event_type: str, age: float = 0, entity: str = BUTTON) -> None:
+    """Die Entität "event" nimmt den Zeitpunkt des Ereignisses als Zustand an und nennt die Art im Attribut."""
+    stamp = (dt_util.utcnow() - timedelta(seconds=age)).isoformat()
+    hass.states.async_set(entity, stamp, {"event_type": event_type, "event_types": EVENT_TYPES})
+
+
+async def test_button_press_arms(hass: HomeAssistant) -> None:
+    hass.states.async_set(BUTTON, "unknown", {"event_types": EVENT_TYPES})
+    await setup_alarm(hass, exit_delay_away=0, routines=[_rule("away", _device(_press(BUTTON, "short_release")), name="Taste scharf")])
+    _fire_button(hass, "initial_press")  # andere Art: nichts
+    await hass.async_block_till_done()
+    assert state(hass) == AlarmControlPanelState.DISARMED
+    _fire_button(hass, "short_release")
+    await hass.async_block_till_done()
+    assert state(hass) == AlarmControlPanelState.ARMED_AWAY
+    assert hass.states.get(ALARM).attributes["changed_by"] == "Routine: Taste scharf"
+
+
+async def test_old_button_event_never_triggers(hass: HomeAssistant) -> None:
+    """Nach dem Neuladen der Integration kommt der alte Zeitpunkt zurück: das ist kein Tastendruck."""
+    hass.states.async_set(BUTTON, "unavailable")
+    await setup_alarm(hass, exit_delay_away=0, routines=[_rule("away", _device(_press(BUTTON, "short_release")))])
+    _fire_button(hass, "short_release", age=3600)
+    await hass.async_block_till_done()
+    assert state(hass) == AlarmControlPanelState.DISARMED
+    _fire_button(hass, "short_release", age=1)
+    await hass.async_block_till_done()
+    assert state(hass) == AlarmControlPanelState.ARMED_AWAY
+
+
+async def test_button_with_condition(hass: HomeAssistant) -> None:
+    """Taste UND Schloss zu: ohne zweite Bedingung bleibt der Druck ohne Wirkung."""
+    hass.states.async_set(LOCK, "unlocked")
+    await setup_alarm(hass, exit_delay_away=0, routines=[_rule("away", _device(_press(BUTTON, "short_release"), _is(LOCK, "locked")))])
+    _fire_button(hass, "short_release")
+    await hass.async_block_till_done()
+    assert state(hass) == AlarmControlPanelState.DISARMED
+    hass.states.async_set(LOCK, "locked")
+    await hass.async_block_till_done()
+    assert state(hass) == AlarmControlPanelState.DISARMED  # der Druck ist vorbei, das Schloss allein genügt nicht
+    _fire_button(hass, "short_release", age=0.5)
+    await hass.async_block_till_done()
+    assert state(hass) == AlarmControlPanelState.ARMED_AWAY
+
+
+async def test_button_routine_rejects_hold_and_unknown_type(hass: HomeAssistant, hass_ws_client) -> None:
+    entry = await setup_alarm(hass)
+    hass.states.async_set(BUTTON, "unknown", {"event_types": EVENT_TYPES})
+    client = await hass_ws_client(hass)
+    for rule in (_rule("away", _device(_press(BUTTON, "short_release"), hold=5)), _rule("away", _device(_press(BUTTON, "nie_gehoert"))),
+                 _rule("away", _device(_press("light.flur", "short_release")))):
+        result = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[rule])
+        assert result["success"] is False, rule
+    ok = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[_rule("away", _device(_press(BUTTON, "long_press")))])
+    assert ok["success"]
+
+
+async def test_routine_entities_lists_buttons_with_their_event_types(hass: HomeAssistant, hass_ws_client) -> None:
+    await setup_alarm(hass)
+    hass.states.async_set(BUTTON, "unknown", {"event_types": EVENT_TYPES, "friendly_name": "Taste 1"})
+    client = await hass_ws_client(hass)
+    entities = {e["entity_id"]: e for e in (await _ws(client, type="alarmageddon/routine_entities"))["result"]["entities"]}
+    assert entities[BUTTON]["states"] == EVENT_TYPES and entities[BUTTON]["domain"] == "event" and entities[BUTTON]["state"] == ""

@@ -25,7 +25,7 @@ const STATES = [
   ["disarmed", "rtStDisarmed", "rtStDisarmedHint", "shieldOff"],
 ];
 const ALARM_STATES = ["pending", "triggered"];
-const DEVICE_ICON = { lock: "lockClosed", binary_sensor: "sensor", switch: "toggle", input_boolean: "toggle", light: "bulb", cover: "blinds", person: "person", device_tracker: "person" };
+const DEVICE_ICON = { lock: "lockClosed", binary_sensor: "sensor", switch: "toggle", input_boolean: "toggle", light: "bulb", cover: "blinds", person: "person", device_tracker: "person", event: "flash" };
 // Filter der Geräteauswahl: Art des Geräts
 const FILTERS = [
   ["all", "rtFilterAll", null],
@@ -33,6 +33,7 @@ const FILTERS = [
   ["sensor", "rtFilterSensor", ["binary_sensor"]],
   ["switch", "rtFilterSwitch", ["switch", "input_boolean", "light"]],
   ["cover", "rtFilterCover", ["cover"]],
+  ["button", "rtFilterButton", ["event"]],
   ["person", "rtFilterPerson", ["person", "device_tracker"]],
 ];
 const OPENING_CLASSES = ["door", "window", "opening", "garage_door"];
@@ -99,7 +100,7 @@ export class RoutinesUi {
     const dc = e?.device_class || this.host._hass?.states?.[id]?.attributes?.device_class || "";
     let kind = "";
     if (domain === "binary_sensor") kind = OPENING_CLASSES.includes(dc) ? "opening" : MOTION_CLASSES.includes(dc) ? "motion" : "";
-    const key = kind ? `rtSt_${state}_${kind}` : `rtSt_${state}`;
+    const key = domain === "event" ? `rtEv_${state}` : kind ? `rtSt_${state}_${kind}` : `rtSt_${state}`;
     const text = this._t(key);
     return text === key ? state : text;
   }
@@ -118,6 +119,7 @@ export class RoutinesUi {
       const days = leaf.days?.length && leaf.days.length < 7 ? ` (${this.daysText(leaf.days)})` : "";
       return this._t("rtLeafTime", { from: leaf.from, to: leaf.to }) + days;
     }
+    if (leaf.kind === "event") return this._t("rtLeafEvent", { device: this.deviceName(leaf.entity_id), event: this.stateText(leaf.entity_id, leaf.event_type) });
     return this._t("rtLeafState", { device: this.deviceName(leaf.entity_id), state: this.stateText(leaf.entity_id, leaf.state) });
   }
 
@@ -242,6 +244,11 @@ export class RoutinesUi {
     return node;
   }
 
+  // Tasten gelten nur im Augenblick des Drückens: eine Haltezeit ergibt dort keinen Sinn
+  _hasEvent() {
+    return this._leaves().some((l) => l.kind === "event");
+  }
+
   _leaves() {
     return this.form._device.tree.items.flatMap((i) => (i.items ? i.items : [i]));
   }
@@ -259,13 +266,13 @@ export class RoutinesUi {
       const tree = f._device.tree;
       const leaves = this._leaves();
       const groups = tree.items.filter((i) => i.items);
-      if (!leaves.some((l) => l.kind === "state")) bad.push("noDevice");
-      else if (leaves.some((l) => l.kind === "state" && (!l.entity_id || !l.state))) bad.push("noDevice");
+      const dev = leaves.filter((l) => l.kind !== "time");
+      if (!dev.length || dev.some((l) => !l.entity_id || !(l.kind === "event" ? l.event_type : l.state))) bad.push("noDevice");
       if (groups.some((g) => !g.items.length)) bad.push("emptyGroup");
       if (leaves.some((l) => l.kind === "time" && (!CLOCK_RE.test(l.from) || !CLOCK_RE.test(l.to) || l.from === l.to))) bad.push("window");
       if (leaves.length > MAX_LEAVES || groups.length > MAX_GROUPS) bad.push("tooMany");
       const hold = Number(f._device.hold);
-      if (!Number.isInteger(hold) || hold < 0 || hold > HOLD_MAX) bad.push("hold");
+      if (!this._hasEvent() && (!Number.isInteger(hold) || hold < 0 || hold > HOLD_MAX)) bad.push("hold");
     }
     if (!f.states.length) bad.push("states");
     if (f.action === "off" && !f.unsafe) bad.push("unsafe");
@@ -278,9 +285,10 @@ export class RoutinesUi {
     const out = { id: f.id, name: f.name.trim(), enabled: f.enabled !== false, action: f.action, states: STATES.map((s) => s[0]).filter((s) => f.states.includes(s)), unsafe: f.action === "off" };
     if (f.trigger.type === "schedule") out.trigger = { type: "schedule", times: f._times.map((t) => ({ time: t.time, days: [...t.days].sort((a, b) => a - b) })) };
     else {
-      const leaf = (l) => (l.kind === "time" ? { kind: "time", from: l.from, to: l.to, days: [...(l.days || [])].sort((a, b) => a - b) } : { kind: "state", entity_id: l.entity_id, state: l.state });
+      const leaf = (l) => (l.kind === "time" ? { kind: "time", from: l.from, to: l.to, days: [...(l.days || [])].sort((a, b) => a - b) }
+        : l.kind === "event" ? { kind: "event", entity_id: l.entity_id, event_type: l.event_type } : { kind: "state", entity_id: l.entity_id, state: l.state });
       const tree = f._device.tree;
-      out.trigger = { type: "device", hold: Number(f._device.hold) || 0, tree: { op: tree.op, items: tree.items.map((i) => (i.items ? { op: i.op, items: i.items.map(leaf) } : leaf(i))) } };
+      out.trigger = { type: "device", hold: this._hasEvent() ? 0 : Number(f._device.hold) || 0, tree: { op: tree.op, items: tree.items.map((i) => (i.items ? { op: i.op, items: i.items.map(leaf) } : leaf(i))) } };
     }
     return out;
   }
@@ -322,12 +330,14 @@ export class RoutinesUi {
         <small class="ag-t2 ag-rtnote">${esc(this._t("rtDaysAll"))}</small></div>`;
     }
     const domain = (leaf.entity_id || "").split(".")[0];
-    const options = this.ents?.byId[leaf.entity_id]?.states || (leaf.entity_id ? [leaf.state] : []);
+    const isEvent = leaf.kind === "event";
+    const value = isEvent ? leaf.event_type : leaf.state;
+    const options = this.ents?.byId[leaf.entity_id]?.states || (leaf.entity_id ? [value] : []);
     const missing = leaf.entity_id && this.ents && !this.ents.byId[leaf.entity_id];
     return `<div class="ag-rtleaf">
       <button class="ag-rtdev" data-sys="rt-pick" data-path="${path}" aria-label="${esc(this._t("rtChooseDevice"))}">${ic(DEVICE_ICON[domain] || "sensor", 18)}<b>${esc(leaf.entity_id ? this.deviceName(leaf.entity_id) : this._t("rtChooseDevice"))}</b></button>
-      <span class="ag-t2">${esc(this._t("rtIs"))}</span>
-      <select class="ag-input" data-sys="rt-state" data-path="${path}" aria-label="${esc(this._t("rtState"))}" ${leaf.entity_id ? "" : "disabled"}>${options.map((s) => `<option value="${esc(s)}" ${s === leaf.state ? "selected" : ""}>${esc(this.stateText(leaf.entity_id, s))}</option>`).join("")}</select>
+      <span class="ag-t2">${esc(this._t(isEvent ? "rtOnButton" : "rtIs"))}</span>
+      <select class="ag-input" data-sys="rt-state" data-path="${path}" aria-label="${esc(this._t("rtState"))}" ${leaf.entity_id ? "" : "disabled"}>${options.map((s) => `<option value="${esc(s)}" ${s === value ? "selected" : ""}>${esc(this.stateText(leaf.entity_id, s))}</option>`).join("")}</select>
       <button class="ag-iconbtn" data-sys="rt-del-leaf" data-path="${path}" aria-label="${esc(this._t("rtRemove"))}">${ic("trash", 18)}</button>
       ${missing ? `<small class="ag-warntext ag-rtnote">${ic("alert", 14)} ${esc(this._t("rtDeviceGone"))}</small>` : ""}</div>`;
   }
@@ -350,7 +360,8 @@ export class RoutinesUi {
     return `<div class="ag-card ag-rttree">
       <div class="ag-rtghead">${this._opSeg("", tree.op)}</div>
       ${items || `<div class="ag-t2 ag-rtnone">${esc(this._t("rtTreeEmpty"))}</div>`}${addBtns("")}
-      <div class="ag-setrow ag-rthold"><div class="ag-settx"><b>${esc(this._t("rtHold"))}</b><small>${esc(this._t("rtHoldHint"))}</small></div>
+      ${this._hasEvent() ? `<p class="ag-chap-h ag-rtedge">${esc(this._t("rtHoldEvent"))}</p>` : ""}
+      <div class="ag-setrow ag-rthold" ${this._hasEvent() ? "hidden" : ""}><div class="ag-settx"><b>${esc(this._t("rtHold"))}</b><small>${esc(this._t("rtHoldHint"))}</small></div>
         <span class="ag-num ${bad.has("hold") ? "bad" : ""}"><input type="number" min="0" max="${HOLD_MAX}" step="1" inputmode="numeric" data-sys="rt-hold" value="${esc(hold)}" aria-label="${esc(this._t("rtHold"))}"><span class="ag-t2">${esc(this._t("seconds"))}</span></span></div></div>
       <p class="ag-chap-h ag-rtedge">${esc(this._t("rtEdgeHint"))}</p>`;
   }
@@ -546,11 +557,16 @@ export class RoutinesUi {
     const e = this.ents?.byId[id];
     const states = e?.states || [];
     const list = this.pick.add ? this._list(this.pick.path) : null;
-    if (list) list.push({ kind: "state", entity_id: id, state: states[0] || "" });
+    const event = id.startsWith("event.");
+    const fresh = event ? { kind: "event", entity_id: id, event_type: states[0] || "" } : { kind: "state", entity_id: id, state: states[0] || "" };
+    if (list) list.push(fresh);
     else {
+      // Gerät gewechselt (auch von Zustand zu Taste): Art und Wert passen sich an
       const leaf = this._node(this.pick.path);
-      leaf.entity_id = id;
-      if (!states.includes(leaf.state)) leaf.state = states[0] || "";
+      const keep = (leaf.kind === "event" ? leaf.event_type : leaf.state);
+      for (const k of ["state", "event_type"]) delete leaf[k];
+      Object.assign(leaf, fresh);
+      if (states.includes(keep) && leaf.kind === (event ? "event" : "state")) leaf[event ? "event_type" : "state"] = keep;
     }
     this.pick = null;
     this.renderDlg();
@@ -577,7 +593,8 @@ export class RoutinesUi {
       this._node(el.dataset.path)[act === "rt-from" ? "from" : "to"] = el.value;
       this._refresh();
     } else if (act === "rt-state") {
-      this._node(el.dataset.path).state = el.value;
+      const node = this._node(el.dataset.path);
+      node[node.kind === "event" ? "event_type" : "state"] = el.value;
     } else if (act === "rt-hold") {
       f._device.hold = el.value === "" ? NaN : Number(el.value);
       this._refresh();

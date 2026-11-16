@@ -60,7 +60,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 173  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 174  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -317,6 +317,7 @@ MAX_ROUTINE_LEAVES: Final = 10  # Bedingungen je Routine mit Auslöser Gerät
 MAX_ROUTINE_GROUPS: Final = 3
 ROUTINE_HOLD_MAX: Final = 3600  # "muss mindestens N Sekunden gelten"
 ROUTINE_COOLDOWN: Final = 10  # Sekunden Sperre je Routine gegen Doppelauslösung
+ROUTINE_EVENT_MAX_AGE: Final = 10  # Sekunden: ein älteres Ereignis (nach Neuladen wiederhergestellt) löst nie aus
 ROUTINE_STATES: Final = ("arming", "armed", "pending", "triggered", "disarmed")
 ROUTINE_ACTIONS: Final = ("home", "away", "night", "off")
 

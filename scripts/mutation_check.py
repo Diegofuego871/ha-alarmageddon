@@ -492,9 +492,15 @@ MUTATIONS = [
     ("Routine: Deaktivieren ohne Bestätigung speicherbar", "routines.py",
      '        if (action == "off" or states & {"pending", "triggered"}) and not routine.get("unsafe"):', "        if False:", "tests/test_routines.py -k rejects_invalid"),
     ("Routine: Art oder Zustand des Geräts nicht geprüft", "routines.py",
-     "            if domain not in LEAF_STATES or leaf[\"state\"] not in LEAF_STATES[domain]:", "            if False:", "tests/test_routines.py -k rejects_invalid"),
+     "            elif domain not in LEAF_STATES or leaf[\"state\"] not in LEAF_STATES[domain]:", "            elif False:", "tests/test_routines.py -k rejects_invalid"),
     ("Routine: Sicherung mit ungeprüften Routinen wird angenommen", "backup.py",
      "                check_routines(hass, options[CONF_ROUTINES])", "                pass", "tests/test_routines.py -k bad_routine_is_rejected"),
+    ("Routine: ein altes Ereignis einer Taste (nach dem Neuladen wiederhergestellt) löst aus", "routines.py",
+     "        if age is None or abs(age) > ROUTINE_EVENT_MAX_AGE:", "        if age is None:", "tests/test_routines.py -k old_button_event"),
+    ("Routine: jede Art von Tastendruck löst aus, nicht nur die gewählte", "routines.py",
+     '            return pulse == (leaf["entity_id"], leaf["event_type"])', "            return pulse is not None", "tests/test_routines.py -k button_press_arms"),
+    ("Routine: Taste mit Haltezeit wird gespeichert", "routines.py",
+     '        if trigger.get("hold") and any(x["kind"] == "event" for x in device_leaves):', "        if False:", "tests/test_routines.py -k rejects_hold_and_unknown"),
 ]
 
 

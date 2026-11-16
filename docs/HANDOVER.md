@@ -75,6 +75,7 @@ Gruppen wie Magic Push, fünf Zustands-Schalter, Auslöser Zeitplan oder Gerät)
   Zuständen lösen aus (`INVALID` = unavailable/unknown/leer); Haltezeit `hold` über `async_call_later`, beendet, sobald der Baum wieder
   falsch ist; `async_run` prüft Sperre `ROUTINE_COOLDOWN` (10 s), Zustand beim Auslösen (`state_name`),
   Modus und Alarm; Ereignis `routine_skipped` mit `reason` state/mode/alarm und `at`. `changed_by` = "Routine: <Name>".
+- **Tasten (1.44.0):** Blatt `{kind:"event", entity_id, event_type}` für Entitäten `event` (Hue-Taster u. a.): gilt nur im Augenblick (`pulse` in `eval_tree`, `RoutineEngine._on_button`); nur frische Ereignisse (`ROUTINE_EVENT_MAX_AGE`, sonst löste ein wiederhergestellter Zustand nach dem Neuladen aus); keine Haltezeit mit Tasten; die Arten kommen aus dem Attribut `event_types`.
 - **WebSocket:** `save_system` nimmt `routines`; `data` liefert sie; neuer Befehl `routine_entities` (Geräte mit
   Name, Bereich, Zuständen, `device_class`; ohne Entitäten von Alarmageddon, deaktivierte und versteckte) steht in `COMMANDS` der
   Sicherheitstests. Der Schlüssel `schedules` bleibt im Schema `SYSTEM_OPTIONS_SCHEMA` nur für alte Sicherungen.
