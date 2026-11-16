@@ -59,7 +59,7 @@ Ausführlich, auch als Vorlage für Device Panel: `docs/INFO-DASHBOARD-KARTEN-DE
 - Tests: `tests/test_dashboard_card.py`, `tests/panel/sim/card-sim.html`, `tests/panel/suites/card-e2e.mjs`, 6 Zeilen in der Mutationsprobe.
 - **Offen:** das Aussehen im echten dunklen Dashboard (`dark` kommt seit 1.34.1 aus `hass.themes.darkMode`) und das Aussehen der Karten auf dem Handy in der Companion App sind nicht gegen ein echtes Home Assistant geprüft.
 
-## Überwachung (1.48.0, Stand 2026-11-16; 1.47.0 ist nicht getaggt und wird übersprungen)
+## Überwachung (1.48.0 getaggt auf 9ecdb0f; 1.48.1: Karten, Platzhalter-Pillen, Messwerte nur aus der Sensorliste; 1.47.0 übersprungen)
 
 Wunsch des Nutzers: Temperatur, Luftfeuchtigkeit, CO2 (Kühlschrank) und Ja/Nein-Sensoren überwachen, unabhängig vom Alarm, mit eigenem Ablauf. Entscheide: eigener Bereich, wie die anderen Modi ein- und ausschaltbar (**Standard aus**, Entscheid des Nutzers 2026-11-16); eigener Reiter "Überwachung" in den Aktionen; Variante B (jede Regel ein Kapitel mit Ablauf in Zonenfarben: ausserhalb orange `#ffb74d`, in Ordnung grün `#81c784`, Mockups `docs/mockups/ueberwachung-v1/`); Messwert-Sensoren stehen **nur bei eingeschalteter Überwachung** in der Sensortabelle und dort **ausgegraut** (keine Zone, nie "Immer aktiv", keine Eingangsverzögerung). "Stiller Alarm" bleibt unverändert (wird später vielleicht durch eine Regel mit "Anlage ist scharf" ersetzt: eigene Freigabe nötig); Feuer und Wasser bleiben bei "Immer aktiv".
 

@@ -7,6 +7,17 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.48.1] - 2026-11-16
+
+### Hinzugefügt
+
+- **Jede Regel steht in einer eigenen umrandeten Karte** (Kopf, "Ausserhalb der Grenzen" und "Wieder in Ordnung" zusammen), damit klar ist, welche Abläufe zusammengehören.
+- **Platzhalter sind antippbare Pillen.** Unter dem Titel und unter dem Text eines Push-Schritts hat jedes Feld seine eigene Reihe Pillen ({rule}, {sensor}, {value}, {unit}, {limit}, {since}, {name}); ein Antippen fügt den Platzhalter an der Schreibmarke dieses Feldes ein.
+
+### Geändert
+
+- **Eine Regel kann nur Messwerte aus der Sensorliste wählen** (Konfiguration › Sensoren › Sensoren hinzufügen, Filter "Messwerte"), nicht jeden Sensor von Home Assistant.
+
 ## [1.48.0] - 2026-11-16
 
 ### Hinzugefügt
@@ -17,9 +28,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
   - eine **Rückkehr-Spanne**: ein Wert gilt erst so weit innerhalb der Grenze als wieder in Ordnung, damit ein Wert, der um die Grenze flattert, nicht ständig neu meldet;
   - **Schritte**: Push-Meldung (eigener Titel und Text mit `{rule}`, `{sensor}`, `{value}`, `{unit}`, `{limit}`, `{since}`, `{name}`, eigene Empfänger, auf Wunsch kritisch), Gerät schalten, Warten;
   - eine optionale **Erinnerung** alle N Stunden, solange es anhält (wiederholt nur die Push-Schritte).
-- **Jede Regel steht in einer eigenen umrandeten Karte** (Kopf, "Ausserhalb der Grenzen" und "Wieder in Ordnung" zusammen), damit klar ist, welche Abläufe zusammengehören.
-- **Platzhalter sind antippbare Pillen.** Unter dem Titel und unter dem Text eines Push-Schritts hat jedes Feld seine eigene Reihe Pillen ({rule}, {sensor}, {value}, {unit}, {limit}, {since}, {name}); ein Antippen fügt den Platzhalter an der Schreibmarke dieses Feldes ein.
-- **Messwerte in der Sensorliste.** Bei eingeschalteter Überwachung bietet "Sensoren hinzufügen" auch Temperatur, Luftfeuchtigkeit, CO2 und andere Messwerte an (neuer Filter "Messwerte"). Eine Regel kann nur Messwerte aus dieser Liste wählen. Sie stehen ausgegraut in der Tabelle: keine Zone, nie immer aktiv, keine Eingangsverzögerung. Der Alarm sieht sie nie; die Wartungsprüfung (Batterie, nicht erreichbar) erfasst sie. Sie gehören wie die Regeln in die Sicherung.
+- **Messwerte in der Sensorliste.** Bei eingeschalteter Überwachung bietet "Sensoren hinzufügen" auch Temperatur, Luftfeuchtigkeit, CO2 und andere Messwerte an (neuer Filter "Messwerte"). Sie stehen ausgegraut in der Tabelle: keine Zone, nie immer aktiv, keine Eingangsverzögerung. Der Alarm sieht sie nie; die Wartungsprüfung (Batterie, nicht erreichbar) erfasst sie. Sie gehören wie die Regeln in die Sicherung.
 - **Sicher gebaut.** Ein Sensor, der nicht antwortet, zählt nie: Er löst keine Regel aus und beendet auch keine, ein Funkabriss meldet also nie "wieder in Ordnung". Eine laufende Regel meldet sich nach einem Neustart, einem Neuladen oder beim Speichern der Seite nicht noch einmal. Die Überwachung läuft auch bei deaktivierter Anlage und löst nie die Sirene oder den Alarm aus; kritische Ereignisse wie Feuer oder Wasser bleiben bei "Immer aktiv". Ein Gerät, das hängt, hält nichts auf (jeder Aufruf wartet höchstens 10 Sekunden), und ein fehlerhafter Schritt stoppt die übrigen nie.
 
 ### Geändert
@@ -1614,6 +1623,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.48.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.1
 [1.48.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.0
 [1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1
 [1.46.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.0

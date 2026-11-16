@@ -7,6 +7,17 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.48.1] - 2026-11-16
+
+### Added
+
+- **Every rule sits in its own framed card** (header, "Outside the limits" and "Back to normal" together), so it is clear which flows belong together.
+- **Placeholders are tappable pills.** Under the title and under the text of a push step each field has its own row of pills ({rule}, {sensor}, {value}, {unit}, {limit}, {since}, {name}); a tap inserts the placeholder at the cursor of that field.
+
+### Changed
+
+- **A rule can only choose measured values from the sensor list** (Configuration › Sensors › Add sensors, filter "Measurements"), not every sensor of Home Assistant.
+
 ## [1.48.0] - 2026-11-16
 
 ### Added
@@ -17,9 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - a **return margin**: a value only counts as normal again this far inside the limit, so a value flapping around the limit does not report again and again;
   - **steps**: push notification (own title and text with `{rule}`, `{sensor}`, `{value}`, `{unit}`, `{limit}`, `{since}`, `{name}`, own recipients, optionally critical), switch device, wait;
   - an optional **reminder** every N hours while it lasts (repeats only the push steps).
-- **Every rule sits in its own framed card** (header, "Outside the limits" and "Back to normal" together), so it is clear which flows belong together.
-- **Placeholders are tappable pills.** Under the title and under the text of a push step each field has its own row of pills ({rule}, {sensor}, {value}, {unit}, {limit}, {since}, {name}); a tap inserts the placeholder at the cursor of that field.
-- **Measured values in the sensor list.** With monitoring on, "Add sensors" also offers temperature, humidity, CO2 and other measured values (new filter "Measurements"). A rule can only choose measured values from this list. They stand in the table greyed out: no zone, never always active, no entry delay. The alarm never sees them; the maintenance check (battery, unreachable) covers them. They are part of the backup, like the rules.
+- **Measured values in the sensor list.** With monitoring on, "Add sensors" also offers temperature, humidity, CO2 and other measured values (new filter "Measurements"). They stand in the table greyed out: no zone, never always active, no entry delay. The alarm never sees them; the maintenance check (battery, unreachable) covers them. They are part of the backup, like the rules.
 - **Safe by design.** A sensor that does not respond never counts: it neither triggers a rule nor ends it, so a radio loss never reports "back to normal". A running rule does not report again after a restart, a reload or when the page is saved. Monitoring runs also while the alarm system is disarmed and never triggers the siren or the alarm; critical events like fire or water stay with "Always active". A device that hangs holds nothing back (each call waits at most 10 seconds), and a failing step never stops the others.
 
 ### Changed
@@ -1614,6 +1623,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.48.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.1
 [1.48.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.0
 [1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1
 [1.46.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.0
