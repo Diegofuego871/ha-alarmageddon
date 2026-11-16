@@ -457,6 +457,7 @@ BAD_RULES = {
     "name too long": _rule(_value(), name="x" * 46),
     "negative hold": _rule(_value(), hold=-1),
     "not a number": _rule({"kind": "value", "entity_id": TEMP, "op": "above", "limit": "nan"}),
+    "colour not offered": {**_rule(_value()), "color": "#123456"},
     "reminder too long": _rule(_value(), remind=100),
     "notify target not a service": _rule(_value(), out=[{"type": "notify", "targets": ["light.lampe"]}]),
 }
@@ -475,6 +476,21 @@ async def test_save_monitors_rejects_invalid(hass: HomeAssistant, hass_ws_client
     reply = await _ws(client, **_save(entry, [BAD_RULES[name]]))
     assert reply["success"] is False, reply
     assert "monitors" not in entry.options
+
+
+async def test_rule_colour_is_saved_and_part_of_the_backup(hass: HomeAssistant, hass_ws_client) -> None:
+    from custom_components.alarmageddon import backup
+    from custom_components.alarmageddon.const import MONITOR_COLORS
+
+    assert len(MONITOR_COLORS) == 10
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    reply = await _ws(client, **_save(entry, [{**_rule(_value()), "color": MONITOR_COLORS[3]}, _rule(_value(), name="Ohne", rid="m2")]))
+    assert reply["success"]
+    await hass.async_block_till_done()
+    assert entry.options["monitors"][0]["color"] == MONITOR_COLORS[3] and "color" not in entry.options["monitors"][1]
+    data = await backup.async_export(hass, "1.50.0")
+    assert backup.validate(data, hass)["systems"][0]["options"]["monitors"][0]["color"] == MONITOR_COLORS[3]
 
 
 async def test_save_monitors_rejects_duplicates_and_too_many(hass: HomeAssistant, hass_ws_client) -> None:

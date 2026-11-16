@@ -511,14 +511,14 @@ MUTATIONS = [
     ("Automatische Sicherung: gleiche Sicherung wird mehrfach abgelegt", "backup.py",
      '_same(newest["data"], stored):', "False:", "tests/test_auto_backup.py -k identical"),
     ("Automatische Sicherung: mehr als fünf bleiben liegen", "backup.py",
-     '    automatic = [b for b in items if b.get("auto")][:AUTO_BACKUP_KEEP]', '    automatic = [b for b in items if b.get("auto")][:999]', "tests/test_auto_backup.py -k only_five"),
+     '[:(await async_get_settings(hass)).auto_backup["keep"]]', '[:999]', "tests/test_auto_backup.py -k 'only_five or keep_count_is'"),
     ("Automatische Sicherung: sie verdrängt eigene Sicherungen", "backup.py",
      '    manual = [b for b in items if not b.get("auto")][:MAX_BACKUPS]', "    manual = [b for b in items][:MAX_BACKUPS]", "tests/test_auto_backup.py -k only_five"),
     ("Automatische Sicherung: ein Fehler dringt nach aussen", "backup.py",
      "    except Exception:  # noqa: BLE001 - nie ein Fehler nach aussen", "    except ZeroDivisionError:", "tests/test_auto_backup.py -k never_raises"),
     ("Automatische Sicherung: Schalter ohne Administratorrechte", "websocket_api.py",
-     '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS))})\n@websocket_api.require_admin\n',
-     '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS))})\n', "tests/test_security.py -k admin_only"),
+     '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS)), vol.Optional("keep"): vol.All(int, vol.Range(min=1, max=AUTO_BACKUP_KEEP_MAX))})\n@websocket_api.require_admin\n',
+     '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS)), vol.Optional("keep"): vol.All(int, vol.Range(min=1, max=AUTO_BACKUP_KEEP_MAX))})\n', "tests/test_security.py -k admin_only"),
     ('Überwachung: ein nicht erreichbarer Sensor beendet die Regel ("wieder in Ordnung" bei einem Funkabriss)', 'monitor.py',
      '        if result is False and rid in self._active:', '        if result is not True and rid in self._active:', 'tests/test_monitor.py -k unreachable_sensor_never_counts'),
     ('Überwachung: ein nicht erreichbarer Sensor setzt die Dauer nicht zurück (kein Beleg, dass es anhält)', 'monitor.py',
@@ -565,6 +565,8 @@ MUTATIONS = [
      '[:(await async_get_settings(hass)).auto_backup["keep"]]', '[:5]', 'tests/test_auto_backup.py -k keep_count_is'),
     ('Automatische Sicherung: Anzahl ausserhalb von 1 bis 50 wird angenommen', 'settings.py',
      'not 1 <= keep <= AUTO_BACKUP_KEEP_MAX', 'False', "tests/test_auto_backup.py -k 'keep_count_rejects or stored_keep'"),
+    ('Überwachung: eine Farbe ausserhalb der angebotenen wird angenommen', 'schemas.py',
+     'vol.Optional("color"): vol.In(MONITOR_COLORS)', 'vol.Optional("color"): str', 'tests/test_monitor.py -k save_monitors_rejects_invalid'),
 ]
 
 

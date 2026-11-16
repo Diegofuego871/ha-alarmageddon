@@ -102,6 +102,37 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: am Anfang keine Änderung und kein oranger Punkt`, await s.ev("return /(Keine Änderungen|No changes)/.test(r.querySelector('.ag-foot').innerText) && !r.querySelector('[data-trigger=\"monitor\"].has-edit') && !r.querySelector('[data-sub=\"actions\"].has-edit')"));
     check(`${tag}: der Schalter jeder Regel steht links, vor dem Namen`, await s.ev("return [...r.querySelectorAll('.ag-mon-head')].every((h) => h.querySelector('.ag-toggle').getBoundingClientRect().left < h.querySelector('.ag-chap-t').getBoundingClientRect().left)"));
 
+    // Zuklappen und Suche
+    await s.tap('[data-wf="mon-fold"][data-rule="0"]');
+    check(`${tag}: Regel zuklappen: Kopf bleibt, die Abläufe sind weg, die andere Regel bleibt offen, keine Änderung`, await s.waitFor("const x=[...r.querySelectorAll('.ag-mon-rule')]; return x[0].classList.contains('folded') && !x[0].querySelector('.ag-wf-line') && x[0].querySelector('.ag-mon-head') && !!x[1].querySelector('.ag-wf-line') && x[0].querySelector('.ag-mon-fold').getAttribute('aria-expanded') === 'false' && /(Keine Änderungen|No changes)/.test(r.querySelector('.ag-foot').innerText)"));
+    await s.tap('[data-wf="mon-fold"][data-rule="0"]');
+    check(`${tag}: wieder aufklappen`, await s.waitFor("return !!r.querySelectorAll('.ag-mon-rule')[0].querySelector('.ag-wf-line')"));
+    await s.tap('[data-wf="mon-fold-all"]');
+    check(`${tag}: "Alle zuklappen"`, await s.waitFor("return [...r.querySelectorAll('.ag-mon-rule')].every((x) => x.classList.contains('folded'))"));
+    await s.tap('[data-wf="mon-fold-all"]');
+    check(`${tag}: "Alle aufklappen"`, await s.waitFor("return [...r.querySelectorAll('.ag-mon-rule')].every((x) => !x.classList.contains('folded'))"));
+    const search = await s.el('[data-wf="mon-search"]');
+    await search.fill("kühlschranktür");
+    check(`${tag}: Suche nach dem Namen: nur die Regel "Kühlschranktür offen", Fokus bleibt im Feld`, await s.waitFor("const x=[...r.querySelectorAll('.ag-mon-rule')]; return x.length === 1 && /Kühlschranktür/.test(x[0].innerText) && r.activeElement?.dataset.wf === 'mon-search'"));
+    await search.fill("garagentor");
+    check(`${tag}: Suche nach dem Namen des Sensors (Garagentor) findet die Regel`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 1"));
+    await search.fill("binary_sensor.garage");
+    check(`${tag}: Suche nach der Entitäts-ID findet sie auch`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 1"));
+    await search.fill("sensor.kuehlschrank");
+    check(`${tag}: Suche "sensor.kuehlschrank" findet die andere Regel`, await s.waitFor("const x=[...r.querySelectorAll('.ag-mon-rule')]; return x.length === 1 && /zu warm/.test(x[0].innerText)"));
+    await search.fill("gibtesnicht");
+    check(`${tag}: nichts gefunden: Hinweis`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 0 && !!r.querySelector('.ag-mon-list .ag-empty')"));
+    await s.tap('[data-wf="mon-search-clear"]');
+    check(`${tag}: Leeren zeigt wieder beide, Fokus im Feld`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 2 && r.activeElement?.dataset.wf === 'mon-search'"));
+    // Mit Filter bleiben die Knöpfe an der richtigen Regel (Index der vollen Liste)
+    await search.fill("kühlschranktür");
+    await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 1");
+    await s.tap('[data-wf="mon-on"]');
+    check(`${tag}: gefilterte Regel ausschalten trifft die richtige (Nummer 2 der Liste)`, await s.ev("const d=r.host.actions.mon.draft.monitors; return d[0].enabled !== false && d[1].enabled === false"));
+    await s.tap('[data-wf="mon-cancel"]');
+    await (await s.el('[data-wf="mon-search"]')).fill("");
+    await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 2");
+
     // Schalter der Regel
     await s.tap('[data-wf="mon-on"][data-rule="1"]');
     check(`${tag}: Regel ausschalten: gedimmt, eine Änderung, orange Punkt am Reiter und am Unterreiter`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule.dim').length === 1 && /1/.test(r.querySelector('.ag-foot').innerText) && r.querySelector('[data-trigger=\"monitor\"]').classList.contains('has-edit') && r.querySelector('[data-sub=\"actions\"]').classList.contains('has-edit')"));
@@ -133,6 +164,12 @@ for (const lang of ["de", "en"]) {
     // Schritt bearbeiten: Push kritisch mit eigenem Empfänger
     await s.tap('[data-wf="mon-step-edit"][data-rule="0"][data-zone="out"][data-index="0"]');
     check(`${tag}: Push-Schritt: Titel und Text sind vorbelegt`, await s.waitFor("const d=r.getElementById('ag-monstep'); return d.open && d.querySelector('[data-field=\"title\"]').value === 'Kühlschrank zu warm' && /\{sensor\}/.test(d.querySelector('[data-field=\"message\"]').value)"));
+    check(`${tag}: Vorschau der Meldung: Platzhalter aufgelöst (Sensor, Wert 5.4 °C, Zeit), keine geschweiften Klammern`, await s.ev("const p=r.querySelector('#ag-monstep [data-prev]'); const b=p.querySelector('[data-prev-body]').textContent; return p.querySelector('[data-prev-title]').textContent === 'Kühlschrank zu warm' && /^Kühlschrank Temperatur: 5\\.4 °C, seit \\d/.test(b) && !/[{}]/.test(b)"));
+    await s.tap('#ag-monstep .ag-phpill[data-field="title"][data-ph="{rule}"]');
+    check(`${tag}: Vorschau zieht beim Einfügen eines Platzhalters mit`, await s.ev("return r.querySelector('#ag-monstep [data-prev-title]').textContent.includes('Kühlschrank zu warm') && r.querySelector('#ag-monstep [data-prev-title]').textContent.length > 'Kühlschrank zu warm'.length"));
+    await (await s.el('#ag-monstep [data-field="message"]')).fill("");
+    check(`${tag}: ohne eigenen Text zeigt die Vorschau den Standardtext mit Grenze`, await s.waitFor("const b=r.querySelector('#ag-monstep [data-prev-body]').textContent; return /Kühlschrank Temperatur: 5\\.4 °C/.test(b) && /8 °C/.test(b)"));
+    await s.ev("const i=r.querySelector('#ag-monstep [data-field=\"message\"]'); i.value='{sensor}: {value} {unit}, seit {since}.'; i.dispatchEvent(new Event('input', {bubbles:true})); const t=r.querySelector('#ag-monstep [data-field=\"title\"]'); t.value='Kühlschrank zu warm'; t.dispatchEvent(new Event('input', {bubbles:true})); return 1");
     check(`${tag}: Platzhalter als Pillen unter Titel und unter Text (je eigene Reihe, sieben Stück)`, await s.ev("const d=r.getElementById('ag-monstep'); const rows=[...d.querySelectorAll('.ag-ph')]; return rows.length === 2 && rows.every((x) => x.querySelectorAll('.ag-phpill').length === 7) && rows[0].querySelector('[data-field=\"title\"]') && rows[1].querySelector('[data-field=\"message\"]') && !!d.querySelector('.ag-ph .ag-phpill[title]')"));
     await s.ev("const i=r.querySelector('#ag-monstep [data-field=\"title\"]'); i.focus(); i.setSelectionRange(9, 9); return 1");
     await s.tap('#ag-monstep .ag-phpill[data-field="title"][data-ph="{value}"]');
@@ -222,6 +259,26 @@ for (const lang of ["de", "en"]) {
     const final = await s.sim("return JSON.stringify(window.__systems[0].monitors.map((m) => [m.name, m.hold, m.margin, m.remind, m.tree.op, m.tree.items.map((i) => i.kind + (i.op ? ':' + i.op : '') + (i.limit !== undefined ? ':' + i.limit : '') + (i.upper !== undefined ? '-' + i.upper : '') + (i.modes ? ':' + i.modes.join('+') : ''))]))");
     check(`${tag}: der Server hat die neue Regel mit Grenzen, Modus, Dauer, Spanne und Erinnerung`, final.includes(JSON.stringify(["Keller feucht", 1800, 5, 4, "and", ["value:outside:40-70", "armed:away", "time"]])), final);
     check(`${tag}: nach dem Neuladen ohne orange Punkte (auch mit der neuen Regel)`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 3 && !r.querySelector('.has-edit') && /^(Keine Änderungen|No changes|Gespeichert|Saved)/.test(r.querySelector('.ag-foot').innerText.trim())", 8000));
+
+    // Darstellung: Farbe der Karte (zehn Farben plus Standard)
+    await s.tap('[data-wf="mon-edit"][data-rule="0"]');
+    await s.waitFor("return r.getElementById('ag-mon').open");
+    check(`${tag}: Kapitel "Darstellung" mit Standard und zehn Farben, Standard gewählt`, await s.ev("const w=r.querySelectorAll('#ag-mon .ag-swatch'); return w.length === 11 && w[0].getAttribute('aria-checked') === 'true' && [...w].slice(1).every((b) => /^#[0-9a-f]{6}$/.test(b.dataset.value))"));
+    await s.tap('#ag-mon .ag-swatch[data-value="#29b6f6"]');
+    check(`${tag}: Blau gewählt (Haken), Fokus-Reihenfolge bleibt`, await s.waitFor("const b=r.querySelector('#ag-mon .ag-swatch[data-value=\"#29b6f6\"]'); return b.getAttribute('aria-checked') === 'true' && !!b.querySelector('svg') && r.querySelector('#ag-mon .ag-swatch[aria-checked=\"true\"]') === b"));
+    await s.tap('#ag-mon [data-wf="mon-save-form"]');
+    check(`${tag}: die Karte hat die Farbe als Verlauf und es gibt eine Änderung`, await s.waitFor("const x=r.querySelectorAll('.ag-mon-rule')[0]; return x.classList.contains('coloured') && getComputedStyle(x).backgroundImage.includes('linear-gradient') && getComputedStyle(x).getPropertyValue('--mc').trim() === '#29b6f6' && !r.querySelectorAll('.ag-mon-rule')[1].classList.contains('coloured') && /1/.test(r.querySelector('.ag-foot').innerText)"));
+    await s.tap('[data-wf="mon-save"]');
+    check(`${tag}: gespeichert, der Server hat die Farbe nur bei dieser Regel`, await s.waitFor("return /Gespeichert|Saved/.test(r.querySelector('.ag-foot').innerText)", 8000) && (await s.sim("return JSON.stringify(window.__systems[0].monitors.map((m) => m.color || null))")) === JSON.stringify(["#29b6f6", null, null]));
+    check(`${tag}: nach dem Neuladen noch gefärbt, kein oranger Punkt`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule')[0]?.classList.contains('coloured') && !r.querySelector('.has-edit')", 8000));
+    await s.tap('[data-wf="mon-edit"][data-rule="0"]');
+    await s.waitFor("return r.getElementById('ag-mon').open");
+    check(`${tag}: beim Bearbeiten ist Blau gewählt`, await s.ev("return r.querySelector('#ag-mon .ag-swatch[aria-checked=\"true\"]').dataset.value === '#29b6f6'"));
+    await s.tap('#ag-mon .ag-swatch[data-value=""]');
+    await s.tap('#ag-mon [data-wf="mon-save-form"]');
+    await s.tap('[data-wf="mon-save"]');
+    check(`${tag}: "Standard" entfernt die Farbe wieder (auch auf dem Server)`, await s.waitFor("return !r.querySelectorAll('.ag-mon-rule')[0].classList.contains('coloured')", 8000) && (await s.sim("return JSON.stringify(window.__systems[0].monitors.map((m) => m.color || null))")) === JSON.stringify([null, null, null]));
+    await s.waitFor("return !r.querySelector('.has-edit')", 8000);
 
     // Ohne Messwerte in der Sensorliste: die Auswahl sagt, wo man sie hinzufügt
     await s.sim("window.__systems[0].monitor_sensors = []; return 1");

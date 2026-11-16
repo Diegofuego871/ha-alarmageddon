@@ -7,7 +7,18 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.50.0] - 2026-11-16
+
+### Added
+
+- **Monitoring rules can be collapsed and searched.** A round arrow at every rule collapses it to its header (the view only, nothing is saved), "Collapse all / Expand all" does it for all. The search field above filters by the name of the rule and by name and entity ID of the sensors and devices used in it.
+- **Preview of the message.** The window of a push step shows the notification as it arrives on the phone, with the placeholders resolved by the current values of the rule's first sensor; it follows every keystroke and shows the default text when yours is empty.
+- **A colour for every monitoring rule.** In the rule window, chapter "Appearance": one of ten colours or none; the card of the rule then takes the colour as a soft gradient. Only the look; the colour is part of the backup.
+- **The list of backups is sortable and has its own date column.** Click a column header to sort by backup, date or alarm system; the default is by date, newest first. From ten rows on, the table scrolls on its own and the header stays visible.
+
 ## [1.49.0] - 2026-11-16
+
+Not released; included in 1.50.0.
 
 ### Added
 
@@ -1629,7 +1640,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.49.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.49.0
+[1.50.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.50.0
 [1.48.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.1
 [1.48.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.0
 [1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1

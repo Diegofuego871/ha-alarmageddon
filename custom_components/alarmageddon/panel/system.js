@@ -286,10 +286,18 @@ export class SystemUi {
     const date = (iso) => (iso ? new Date(iso).toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" }) : "–");
     if (!this.backups.length) return `<div class="ag-t2 ag-small" style="margin:10px 4px 0">${esc(this._t("bkEmpty"))}</div>`;
     const btn = (act, icon, key, id) => `<button class="ag-iconbtn" data-sys="${act}" data-id="${esc(id)}" title="${esc(this._t(key))}" aria-label="${esc(this._t(key))}">${ic(icon, 18)}</button>`;
-    const rows = this.backups.map((b) => `<tr data-bk="${esc(b.id)}"><td><b class="ag-bkname">${esc(b.name || date(b.created))}</b>${b.auto ? `<span class="ag-tag none ag-bkauto-tag">${esc(this._t("bkAutoTag"))}</span>` : ""}${b.name ? `<small class="ag-t2 ag-bkdate">${esc(date(b.created))}</small>` : ""}</td><td class="ag-t2">${esc((b.systems || []).join(", ") || "–")}</td>
+    // Sortierbare Spalten (Standard: Datum, neueste oben); die Tabelle rollt für sich ab zehn Zeilen, der Kopf bleibt stehen
+    const sort = this.bkSort || (this.bkSort = { key: "date", dir: "desc" });
+    const val = { name: (b) => (b.name || "").toLowerCase(), date: (b) => b.created || "", systems: (b) => (b.systems || []).join(", ").toLowerCase() }[sort.key];
+    const list = [...this.backups].sort((x, y) => (val(x) < val(y) ? -1 : val(x) > val(y) ? 1 : 0) * (sort.dir === "desc" ? -1 : 1) || (x.created < y.created ? 1 : -1));
+    const rows = list.map((b) => `<tr data-bk="${esc(b.id)}"><td>${b.name || !b.auto ? `<b class="ag-bkname">${esc(b.name || "–")}</b>` : ""}${b.auto ? `<span class="ag-tag none ag-bkauto-tag">${esc(this._t("bkAutoTag"))}</span>` : ""}</td><td class="ag-t2 ag-bkdate">${esc(date(b.created))}</td><td class="ag-t2">${esc((b.systems || []).join(", ") || "–")}</td>
         <td class="ag-acts"><div class="ag-actrow">${btn("bk-download", "arrowLine", "bkDownload", b.id)}${btn("bk-restore", "restore", "bkRestoreOne", b.id)}${btn("bk-delete", "trash", "bkDelete", b.id)}</div></td></tr>`).join("");
+    const th = (key, label) => {
+      const on = sort.key === key;
+      return `<th aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sortbtn ${on ? "on" : ""}" data-sys="bk-sort" data-key="${key}" title="${esc(this._t("sortBy", { column: label }))}">${esc(label)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;
+    };
     return `<div class="ag-t2 ag-small" style="margin:10px 4px 6px">${esc(this._t("bkCount", { count: this.backups.filter((b) => !b.auto).length, max: this.bkMax }))}${this.backups.some((b) => b.auto) ? ` · ${esc(this._t("bkCountAuto", { count: this.backups.filter((b) => b.auto).length, max: this.bkMaxAuto }))}` : ""}</div>
-      <div class="ag-card ag-table-wrap ag-stickwrap"><table class="ag-table ag-bktable"><tr><th>${esc(this._t("bkColName"))}</th><th>${esc(this._t("bkColSystems"))}</th><th></th></tr>${rows}</table></div>`;
+      <div class="ag-card ag-bkscroll"><table class="ag-table ag-bktable"><tr>${th("name", this._t("bkColName"))}${th("date", this._t("bkColDate"))}${th("systems", this._t("bkColSystems"))}<th></th></tr>${rows}</table></div>`;
   }
 
   renderBackups() {
@@ -654,6 +662,12 @@ export class SystemUi {
     const act = el?.dataset.sys;
     if (!act) return false;
     // Automatische Sicherung: Schalter und Abstand gelten sofort (wie die Sicherung selbst), nicht als Entwurf der Seite
+    if (act === "bk-sort") {
+      const cur = this.bkSort || { key: "date", dir: "desc" };
+      this.bkSort = { key: el.dataset.key, dir: cur.key === el.dataset.key ? (cur.dir === "asc" ? "desc" : "asc") : el.dataset.key === "date" ? "desc" : "asc" };
+      this.renderBackups();
+      return true;
+    }
     if (act === "ab-on") {
       const cur = this.host._data?.auto_backup || { enabled: true, every: "weekly", keep: 5 };
       this.saveAutoBackup(!cur.enabled, cur.every, cur.keep);

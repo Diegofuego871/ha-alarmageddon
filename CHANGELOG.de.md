@@ -7,7 +7,18 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.50.0] - 2026-11-16
+
+### Hinzugefügt
+
+- **Regeln der Überwachung lassen sich zuklappen und durchsuchen.** Ein runder Pfeil an jeder Regel klappt sie auf den Kopf zu (nur die Ansicht, nichts wird gespeichert), "Alle zuklappen / Alle aufklappen" tut es für alle. Das Suchfeld darüber filtert nach dem Namen der Regel sowie nach Name und Entitäts-ID der darin verwendeten Sensoren und Geräte.
+- **Vorschau der Meldung.** Das Fenster eines Push-Schritts zeigt die Meldung, wie sie aufs Handy kommt, mit den Platzhaltern aufgelöst durch die aktuellen Werte des ersten Sensors der Regel; sie folgt jedem Tastendruck und zeigt den Standardtext, wenn deiner leer ist.
+- **Eine Farbe für jede Regel der Überwachung.** Im Fenster der Regel, Kapitel "Darstellung": eine von zehn Farben oder keine; die Karte der Regel färbt sich dann mit einem sanften Farbverlauf ein. Nur das Aussehen; die Farbe gehört in die Sicherung.
+- **Die Liste der Sicherungen ist sortierbar und hat eine eigene Spalte "Datum".** Ein Klick auf eine Spaltenüberschrift sortiert nach Sicherung, Datum oder Alarmanlage; Standard ist nach Datum, neueste oben. Ab zehn Zeilen rollt die Tabelle für sich, die Kopfzeile bleibt sichtbar.
+
 ## [1.49.0] - 2026-11-16
+
+Nicht veröffentlicht; enthalten in 1.50.0.
 
 ### Hinzugefügt
 
@@ -1629,7 +1640,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.49.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.49.0
+[1.50.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.50.0
 [1.48.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.1
 [1.48.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.0
 [1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1

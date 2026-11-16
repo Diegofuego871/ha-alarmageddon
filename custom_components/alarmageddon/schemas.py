@@ -25,6 +25,7 @@ from .const import (
     MAX_MONITORS,
     MONITOR_NUMERIC_DOMAINS,
     MAX_ROUTINES,
+    MONITOR_COLORS,
     MONITOR_HOLD_MAX,
     MONITOR_REMIND_MAX,
     MAX_ROUTINE_TIMES,
@@ -365,6 +366,8 @@ MONITOR_SCHEMA = vol.Schema({
     vol.Required("id"): vol.All(str, vol.Length(min=1, max=32)),
     vol.Required("name"): vol.All(str, vol.Length(min=1, max=45)),
     vol.Optional("enabled", default=True): bool,
+    # Darstellung im Panel: Farbe der Karte (fehlt = Standard)
+    vol.Optional("color"): vol.In(MONITOR_COLORS),
     vol.Required("tree"): MONITOR_TREE,
     # Wie lange die Bedingung gelten muss, bevor der Ablauf läuft (Sekunden)
     vol.Optional("hold", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=MONITOR_HOLD_MAX)),

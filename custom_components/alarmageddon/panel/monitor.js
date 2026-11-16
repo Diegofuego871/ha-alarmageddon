@@ -32,6 +32,8 @@ const VALUE_FILTERS = [["all", "monFilterAll", null], ["temperature", "dcTempera
 const PLACEHOLDERS = ["rule", "sensor", "value", "unit", "limit", "since", "name"];
 const STEP_KINDS = [["notify", "monStepNotify", "bell"], ["action", "monStepAction", "power"], ["wait", "monStepWait", "timer"]];
 
+// Farben der Regelkarte (Darstellung): dieselben Werte wie const.MONITOR_COLORS; der Name steht in strings.js (monColor_<Name>)
+const COLORS = [["#ef5350", "red"], ["#ff8a65", "orange"], ["#ffca28", "yellow"], ["#9ccc65", "green"], ["#26a69a", "teal"], ["#29b6f6", "blue"], ["#7986cb", "indigo"], ["#ab47bc", "violet"], ["#ec407a", "pink"], ["#90a4ae", "grey"]];
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const newId = () => `m${Math.random().toString(36).slice(2, 10)}`;
 const num = (v) => (v === "" || v === null || v === undefined ? NaN : Number(v));
@@ -55,7 +57,7 @@ const normLeaf = (l) => {
 };
 const normTree = (t) => ({ op: t.op, items: (t.items || []).map((i) => (i.items ? { op: i.op, items: i.items.map(normLeaf) } : normLeaf(i))) });
 export const normMonitor = (m) => ({
-  id: m.id, name: m.name, enabled: m.enabled !== false, tree: normTree(m.tree), hold: Number(m.hold) || 0, margin: Number(m.margin) || 0, remind: Number(m.remind) || 0,
+  id: m.id, name: m.name, enabled: m.enabled !== false, ...(m.color ? { color: m.color } : {}), tree: normTree(m.tree), hold: Number(m.hold) || 0, margin: Number(m.margin) || 0, remind: Number(m.remind) || 0,
   steps_out: (m.steps_out || []).map(normStep), steps_ok: (m.steps_ok || []).map(normStep),
 });
 const sortKeys = (x) => (Array.isArray(x) ? x.map(sortKeys) : x && typeof x === "object" ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, sortKeys(x[k])])) : x);
@@ -74,6 +76,8 @@ export class MonitorUi {
     this.pick = null; // Auswahl im Editor: { path, kind, q, filter }
     this.ents = null; // Geräte und Messwerte vom Server
     this.loading = false;
+    this.q = ""; // Suche: Name der Regel, Name und Entität der Sensoren
+    this.folded = new Set(); // zugeklappte Regeln (nur Ansicht, nicht gespeichert)
     this.step = null; // Schritt im Fenster: { zone, rule, index, form, pick }
   }
 
@@ -222,11 +226,28 @@ export class MonitorUi {
     const d = this.ensureDraft();
     if (!d) return "";
     if (this.ents === null && !this.loading) this.load();
-    const rules = d.monitors.map((m, i) => this._rule(m, i)).join("");
-    const empty = `<div class="ag-card ag-empty"><span class="ag-t2">${esc(this._t("monEmpty"))}</span></div>`;
     return `<div class="ag-mon-intro"><div class="ag-grow"><h3 class="ag-chap-t">${esc(this._t("monTitle"))}</h3><p class="ag-chap-h">${esc(this._t("monHint"))}</p></div>
         <button class="ag-btn primary" data-wf="mon-add" ${d.monitors.length >= MAX_MONITORS ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("monAdd"))}</button></div>
-      ${d.monitors.length ? rules : empty}`;
+      ${d.monitors.length ? `<div class="ag-tools ag-mon-tools"><label class="list-search">${ic("search", 18)}<input type="search" data-wf="mon-search" placeholder="${esc(this._t("monSearch"))}" value="${esc(this.q)}" aria-label="${esc(this._t("monSearch"))}" autocomplete="off">
+          <button type="button" class="ag-clear" data-wf="mon-search-clear" aria-label="${esc(this._t("clearSearch"))}" ${this.q ? "" : "hidden"}>${ic("close", 16)}</button></label>
+          <button class="ag-btn" data-wf="mon-fold-all">${esc(this._t(this.folded.size >= d.monitors.length ? "monUnfoldAll" : "monFoldAll"))}</button></div>` : ""}
+      <div class="ag-mon-list">${this._listHtml()}</div>`;
+  }
+
+  // Passt die Regel zur Suche? Name, Bedingung in Worten, Name und Entitäts-ID jedes Sensors oder Geräts darin
+  _matches(m) {
+    const q = this.q.trim().toLowerCase();
+    if (!q) return true;
+    const leaves = m.tree.items.flatMap((i) => (i.items ? i.items : [i])).filter((l) => l.entity_id);
+    const hay = [m.name, this.ruleSub(m), ...leaves.flatMap((l) => [l.entity_id, this.deviceName(l.entity_id)])].join(" ").toLowerCase();
+    return hay.includes(q);
+  }
+
+  _listHtml() {
+    const d = this.draft;
+    if (!d.monitors.length) return `<div class="ag-card ag-empty"><span class="ag-t2">${esc(this._t("monEmpty"))}</span></div>`;
+    const shown = d.monitors.map((m, i) => (this._matches(m) ? this._rule(m, i) : "")).join("");
+    return shown || `<div class="ag-card ag-empty"><span class="ag-t2">${esc(this._t("monNoMatch"))}</span></div>`;
   }
 
   _rule(m, i) {
@@ -239,14 +260,15 @@ export class MonitorUi {
       const plus = (at) => `<div class="ag-wf-plus ${at === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="mon-step-add" data-rule="${i}" data-zone="${zone}" data-at="${at}" aria-label="${esc(this._t("monStepAdd"))}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span></div>`;
       return `<div class="ag-wf-line ag-wf-mon-${zone}" data-zone="${zone}"><div class="ag-wf-start"><span class="ag-mini ${cls}">${ic(icon, 20)}</span>${esc(this._t(title))}</div>${plus(0)}${steps.map((st, k) => this._card(st, i, zone, k) + plus(k + 1)).join("")}</div>`;
     };
-    return `<section class="ag-mon-rule ${on ? "" : "dim"}" data-rule-id="${esc(m.id)}">
-      <div class="ag-mon-head"><button class="ag-toggle ${on ? "on" : ""}" data-wf="mon-on" data-rule="${i}" role="switch" aria-checked="${on}" aria-label="${esc(`${m.name}: ${this._t("monActiveSwitch")}`)}"></button>
+    const folded = this.folded.has(m.id);
+    return `<section class="ag-mon-rule ${on ? "" : "dim"} ${folded ? "folded" : ""} ${m.color ? "coloured" : ""}" data-rule-id="${esc(m.id)}" ${m.color ? `style="--mc:${esc(m.color)}"` : ""}>
+      <div class="ag-mon-head"><button class="ag-cbtn ag-mon-fold ${folded ? "" : "open"}" data-wf="mon-fold" data-rule="${i}" aria-expanded="${!folded}" aria-label="${esc(this._t(folded ? "monUnfold" : "monFold"))}" title="${esc(this._t(folded ? "monUnfold" : "monFold"))}">${ic("chevRight", 16)}</button><button class="ag-toggle ${on ? "on" : ""}" data-wf="mon-on" data-rule="${i}" role="switch" aria-checked="${on}" aria-label="${esc(`${m.name}: ${this._t("monActiveSwitch")}`)}"></button>
         <span class="ag-oav ${on ? "on" : ""}">${ic(this._ruleIcon(m), 20)}</span>
         <div class="ag-settx"><h3 class="ag-chap-t">${esc(m.name)}</h3><small>${esc(this.ruleSub(m))}</small>${tag ? `<div class="ag-rttags">${tag}</div>` : ""}</div>
         <div class="ag-btnrow"><button class="ag-iconbtn" data-wf="mon-dup" data-rule="${i}" ${full ? "disabled" : ""} aria-label="${esc(this._t("monDuplicate"))}" title="${esc(this._t("monDuplicate"))}">${ic("copy", 18)}</button>
           <button class="ag-iconbtn" data-wf="mon-edit" data-rule="${i}" aria-label="${esc(this._t("monEdit"))}" title="${esc(this._t("monEdit"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-wf="mon-del" data-rule="${i}" aria-label="${esc(this._t("monDelete"))}" title="${esc(this._t("monDelete"))}">${ic("trash", 18)}</button></div></div>
-      ${flow("out", m.steps_out, "alert", "warn", "monOutTitle")}${flow("ok", m.steps_ok, "check", "ok", "monOkTitle")}</section>`;
+      ${folded ? "" : flow("out", m.steps_out, "alert", "warn", "monOutTitle") + flow("ok", m.steps_ok, "check", "ok", "monOkTitle")}</section>`;
   }
 
   _ruleIcon(m) {
@@ -307,7 +329,7 @@ export class MonitorUi {
   // ----- Editor der Regel -----
 
   blank() {
-    return { id: newId(), name: "", enabled: true, tree: { op: "and", items: [] }, holdN: 30, holdUnit: "m", margin: 0, remind: 0, steps_out: [], steps_ok: [] };
+    return { id: newId(), name: "", enabled: true, color: "", tree: { op: "and", items: [] }, holdN: 30, holdUnit: "m", margin: 0, remind: 0, steps_out: [], steps_ok: [] };
   }
 
   open(index) {
@@ -388,7 +410,7 @@ export class MonitorUi {
 
   build() {
     const f = this.form;
-    return normMonitor({ id: f.id, name: f.name.trim(), enabled: f.enabled !== false, tree: f.tree, hold: this.holdSeconds(), margin: this._hasValue() ? num(f.margin) : 0, remind: num(f.remind), steps_out: f.steps_out, steps_ok: f.steps_ok });
+    return normMonitor({ id: f.id, name: f.name.trim(), enabled: f.enabled !== false, color: f.color || "", tree: f.tree, hold: this.holdSeconds(), margin: this._hasValue() ? num(f.margin) : 0, remind: num(f.remind), steps_out: f.steps_out, steps_ok: f.steps_ok });
   }
 
   _hasValue() {
@@ -466,6 +488,13 @@ export class MonitorUi {
   }
 
   // Einheit der Rückkehr-Spanne: die des ersten Messwerts der Regel
+  // Darstellung: eine von zehn Farben oder keine (Standard); die Karte der Regel färbt sich damit per Verlauf ein
+  _colorsHtml() {
+    const cur = this.form.color || "";
+    const sw = (value, label, style) => `<button type="button" class="ag-swatch ${cur === value ? "on" : ""}" data-wf="mon-color" data-value="${esc(value)}" role="radio" aria-checked="${cur === value}" aria-label="${esc(label)}" title="${esc(label)}" ${style}>${cur === value ? ic("check", 16) : ""}</button>`;
+    return `<div class="ag-swatches" role="radiogroup" aria-label="${esc(this._t("monAppearance"))}">${sw("", this._t("monColorNone"), "")}${COLORS.map(([hex, key]) => sw(hex, this._t(`monColor_${key}`), `style="--sw:${hex}"`)).join("")}</div>`;
+  }
+
   _marginUnit() {
     const leaf = this._leaves().find((l) => l.kind === "value" && l.entity_id);
     return leaf ? this.unitOf(leaf.entity_id) : "";
@@ -492,6 +521,7 @@ export class MonitorUi {
       ${chapter(this._t("monName"), nameField)}
       ${chapter(this._t("monIfTitle"), this._treeHtml(bad), this._t("monIfHint"))}
       ${chapter(this._t("monTimingTitle"), rows)}
+      ${chapter(this._t("monAppearance"), this._colorsHtml(), this._t("monAppearanceHint"))}
       <div class="ag-dlg-err ${message ? "show" : ""}" aria-live="polite">${esc(message)}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-wf="mon-cancel-form">${esc(this._t("cancel"))}</button>
         <button class="ag-btn primary" data-wf="mon-save-form" ${message ? "disabled" : ""}>${ic("check", 18)}${esc(this._t("apply"))}</button></div></div>`;
@@ -597,6 +627,34 @@ export class MonitorUi {
     return `<div class="ag-ph" role="group" aria-label="${esc(this._t("monPlaceholders"))}">${PLACEHOLDERS.map((k) => `<button type="button" class="ag-phpill" data-wf="mon-ph" data-field="${field}" data-ph="{${k}}" title="${esc(this._t(`monPh_${k}`))}">{${k}}</button>`).join("")}</div>`;
   }
 
+  // Vorschau der Meldung mit aufgelösten Platzhaltern: Werte des ersten Sensors oder Geräts der Regel, so wie sie jetzt sind
+  _previewValues() {
+    const rule = this.draft?.monitors?.[this.step?.rule];
+    const leaves = (rule?.tree?.items || []).flatMap((i) => (i.items ? i.items : [i])).filter((l) => (l.kind === "value" || l.kind === "state") && l.entity_id);
+    const leaf = leaves[0];
+    const st = leaf ? this.host._hass?.states?.[leaf.entity_id] : null;
+    const bad = !st || ["unavailable", "unknown"].includes(st.state);
+    const unit = leaf?.kind === "value" ? this.unitOf(leaf.entity_id) : "";
+    const num = Number(st?.state);
+    const limit = !leaf ? "" : leaf.kind === "value" ? (leaf.op === "outside" ? `${fmt(leaf.limit)}–${fmt(leaf.upper)}` : fmt(leaf.limit)) : leaf.state;
+    const when = new Date().toLocaleString(this.host._hass?.locale?.language || undefined, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    return { rule: rule?.name || "…", sensor: leaf ? this.deviceName(leaf.entity_id) : "…", value: bad ? "–" : leaf.kind === "value" && Number.isFinite(num) ? fmt(num) : leaf ? this.stateText(leaf.entity_id, st.state) : "", unit, limit, since: when, name: this.system?.title || "", kind: leaf?.kind || "" };
+  }
+
+  _previewHtml() {
+    const { form, zone } = this.step;
+    const v = this._previewValues();
+    const fill = (t) => t.replace(/\{(rule|sensor|value|unit|limit|since|name)\}/g, (_m, k) => v[k]).replace(/[ \t]{2,}/g, " ").trim();
+    const val = `${v.value} ${v.unit}`.trim();
+    const lim = v.kind === "value" ? this._t("monPrevLimit", { limit: `${v.limit} ${v.unit}`.trim() }) : "";
+    const title = form.title.trim() ? fill(form.title) : `${zone === "ok" ? "✅" : "⚠️"} ${v.rule}`;
+    const body = form.message.trim() ? fill(form.message) : this._t(zone === "ok" ? "monPrevOk" : "monPrevOut", { sensor: v.sensor, value: val, limit: lim, since: v.since });
+    return `<div class="ag-ef"><label class="ag-ef-l">${esc(this._t("monPreview"))}</label>
+      <div class="ag-push ${form.critical ? "crit" : ""}" data-prev><div class="ag-push-h"><span class="ag-push-ic">${ic("bell", 14)}</span><span>Alarmageddon</span><span class="ag-push-t">${esc(this._t("monPrevNow"))}</span>${form.critical ? `<span class="ag-tag err">${esc(this._t("monCritical"))}</span>` : ""}</div>
+        <b data-prev-title>${esc(title)}</b><div data-prev-body>${esc(body)}</div></div>
+      <span class="ag-ef-h">${esc(this._t("monPreviewHint"))}</span></div>`;
+  }
+
   insertPlaceholder(field, token) {
     const input = this.sdlg.querySelector(`[data-wf="mon-sf"][data-field="${field}"]`);
     if (!input || !this.step) return;
@@ -634,6 +692,7 @@ export class MonitorUi {
       body = `<div class="ag-ef"><label class="ag-ef-l">${esc(this._t("monTitleField"))}</label><input class="ag-input" data-wf="mon-sf" data-field="title" maxlength="100" value="${esc(form.title)}" placeholder="${esc(this._t("monTitlePh"))}">${this._phRow("title")}</div>
         <div class="ag-ef"><label class="ag-ef-l">${esc(this._t("monMessageField"))}</label><textarea class="ag-input" data-wf="mon-sf" data-field="message" maxlength="300" rows="3" placeholder="${esc(this._t("monMessagePh"))}">${esc(form.message)}</textarea>
           ${this._phRow("message")}</div>
+        ${this._previewHtml()}
         <div class="ag-ef"><label class="ag-ef-l">${esc(this._t("monRecipients"))}</label><div class="ag-rpills">${pills || `<span class="ag-t2 ag-small">${esc(this._t("monDefaultTargets"))}</span>`}</div>${select}<span class="ag-ef-h">${esc(this._t("monRecipientsHint"))}</span></div>
         <div class="ag-ef-row"><button class="ag-toggle ${form.critical ? "on" : ""}" data-wf="mon-critical" role="switch" aria-checked="${form.critical}" aria-label="${esc(this._t("monCriticalLabel"))}"></button>
           <div class="ag-settx"><b>${esc(this._t("monCriticalLabel"))}</b><small>${esc(this._t("monCriticalHint"))}</small></div></div>`;
@@ -697,6 +756,21 @@ export class MonitorUi {
     // Seite
     if (act === "mon-add") this.open(-1);
     else if (act === "mon-edit") this.open(i);
+    else if (act === "mon-fold") {
+      const id = d.monitors[i].id;
+      if (this.folded.has(id)) this.folded.delete(id);
+      else this.folded.add(id);
+      this.ui.render();
+    } else if (act === "mon-fold-all") {
+      if (this.folded.size >= d.monitors.length) this.folded.clear();
+      else this.folded = new Set(d.monitors.map((m) => m.id));
+      this.ui.render();
+    } else if (act === "mon-search-clear") {
+      const input = this.host._view.querySelector('[data-wf="mon-search"]');
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    }
     else if (act === "mon-on") {
       d.monitors[i].enabled = d.monitors[i].enabled === false;
       done();
@@ -740,6 +814,9 @@ export class MonitorUi {
       list.push(leaf);
       const path = el.dataset.path === "" ? String(list.length - 1) : `${el.dataset.path}.${list.length - 1}`;
       if (kind === "value" || kind === "state") this.pick = { path, kind, q: "", filter: "all" };
+      this.renderDlg();
+    } else if (act === "mon-color") {
+      this.form.color = el.dataset.value;
       this.renderDlg();
     } else if (act === "mon-add-group") {
       this.form.tree.items.push({ op: "and", items: [] });
@@ -822,6 +899,18 @@ export class MonitorUi {
   onInput(el) {
     const act = el.dataset.wf;
     if (!act || !act.startsWith("mon-")) return false;
+    if (act === "mon-search") {
+      // Nur die Liste neu zeichnen: das Suchfeld behält Fokus und Schreibmarke
+      this.q = el.value;
+      const view = this.host._view;
+      view.querySelector('[data-wf="mon-search-clear"]').hidden = !this.q;
+      const list = view.querySelector(".ag-mon-list");
+      if (list && this.draft) list.innerHTML = this._listHtml();
+      // Was die Seite jetzt zeigt, ist genau das, was ein Neuaufbau erzeugte: den Stand merken, sonst ersetzte der nächste Aufbau das Suchfeld
+      const body = view.querySelector(".ag-wf");
+      if (body) this.host._lastHtml.set(body, this.bodyHtml());
+      return true;
+    }
     if (act === "mon-q" && this.pick) {
       this.pick.q = el.value;
       this.dlg.querySelector('[data-wf="mon-q-clear"]').hidden = !el.value;
@@ -893,6 +982,13 @@ export class MonitorUi {
   _refreshStepMessage() {
     const dlg = this.sdlg;
     if (!dlg || !this.step || this.step.pick) return;
+    const prev = dlg.querySelector("[data-prev]");
+    if (prev && this.step.form.type === "notify") {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = this._previewHtml();
+      prev.querySelector("[data-prev-title]").textContent = tmp.querySelector("[data-prev-title]").textContent;
+      prev.querySelector("[data-prev-body]").textContent = tmp.querySelector("[data-prev-body]").textContent;
+    }
     const problem = this._stepProblem(this.step.form);
     const err = dlg.querySelector(".ag-dlg-err");
     if (err) {

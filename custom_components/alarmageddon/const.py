@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 190  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 194  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -346,4 +346,6 @@ MONITOR_HOLD_MAX: Final = 7 * 24 * 3600  # "muss mindestens so lange gelten", Se
 MONITOR_REMIND_MAX: Final = 72  # Erinnerung alle N Stunden, 0 = keine
 MONITOR_STORE_KEY: Final = f"{DOMAIN}.monitor"
 DATA_MONITOR: Final = f"{DOMAIN}_monitor"
+# Farben der Regelkarten im Panel (Darstellung, wählbar je Regel); die Karte färbt sich mit einem Verlauf ein
+MONITOR_COLORS: Final = ("#ef5350", "#ff8a65", "#ffca28", "#9ccc65", "#26a69a", "#29b6f6", "#7986cb", "#ab47bc", "#ec407a", "#90a4ae")
 MONITOR_NUMERIC_DOMAINS: Final = ("sensor", "number", "input_number")
