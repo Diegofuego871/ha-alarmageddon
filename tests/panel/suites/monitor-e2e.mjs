@@ -133,6 +133,13 @@ for (const lang of ["de", "en"]) {
     // Schritt bearbeiten: Push kritisch mit eigenem Empfänger
     await s.tap('[data-wf="mon-step-edit"][data-rule="0"][data-zone="out"][data-index="0"]');
     check(`${tag}: Push-Schritt: Titel und Text sind vorbelegt`, await s.waitFor("const d=r.getElementById('ag-monstep'); return d.open && d.querySelector('[data-field=\"title\"]').value === 'Kühlschrank zu warm' && /\{sensor\}/.test(d.querySelector('[data-field=\"message\"]').value)"));
+    check(`${tag}: Platzhalter als Pillen unter Titel und unter Text (je eigene Reihe, sieben Stück)`, await s.ev("const d=r.getElementById('ag-monstep'); const rows=[...d.querySelectorAll('.ag-ph')]; return rows.length === 2 && rows.every((x) => x.querySelectorAll('.ag-phpill').length === 7) && rows[0].querySelector('[data-field=\"title\"]') && rows[1].querySelector('[data-field=\"message\"]') && !!d.querySelector('.ag-ph .ag-phpill[title]')"));
+    await s.ev("const i=r.querySelector('#ag-monstep [data-field=\"title\"]'); i.focus(); i.setSelectionRange(9, 9); return 1");
+    await s.tap('#ag-monstep .ag-phpill[data-field="title"][data-ph="{value}"]');
+    check(`${tag}: Pille "{value}" im Titel fügt sie an der Schreibmarke ein, Fokus und Schreibmarke dahinter`, await s.ev("const i=r.querySelector('#ag-monstep [data-field=\"title\"]'); return i.value === 'Kühlschrank{value} zu warm' || /\\{value\\}/.test(i.value) && i.value.indexOf('{value}') === 9 && r.activeElement === i && i.selectionStart === 16"));
+    await s.tap('#ag-monstep .ag-phpill[data-field="message"][data-ph="{unit}"]');
+    check(`${tag}: Pille "{unit}" im Text geht in den Text, nicht in den Titel`, await s.ev("const t=r.querySelector('#ag-monstep [data-field=\"message\"]').value; return t.includes('{unit}') && !r.querySelector('#ag-monstep [data-field=\"title\"]').value.includes('{unit}')"));
+    check(`${tag}: der Entwurf kennt den eingefügten Platzhalter (Änderung wird gespeichert)`, await s.ev("const s=r.host.actions.mon.step.form; return s.title.includes('{value}') && s.message.includes('{unit}')"));
     await s.tap('#ag-monstep [data-wf="mon-critical"]');
     await (await s.el('#ag-monstep select[data-wf="mon-target-add"]')).selectOption("notify.mobile_app_tablet");
     check(`${tag}: Empfänger als Pille, "kritisch" an`, await s.waitFor("const d=r.getElementById('ag-monstep'); return /mobile_app_tablet/.test(d.querySelector('.ag-rpills').innerText) && d.querySelector('[data-wf=\"mon-critical\"]').getAttribute('aria-checked') === 'true'"));
@@ -158,8 +165,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Fokus bleibt beim Tippen im Namen`, await s.ev("return r.activeElement?.dataset.wf === 'mon-name'"));
     check(`${tag}: ohne Bedingung gesperrt, Meldung nennt den Sensor`, await s.ev(`const d=r.getElementById('ag-mon'); return d.querySelector('[data-wf="mon-save-form"]').disabled && d.querySelector('.ag-dlg-err').textContent.includes(${JSON.stringify(t.noDevice)})`));
     await s.tap('#ag-mon [data-wf="mon-add-leaf"][data-kind="value"][data-path=""]');
-    check(`${tag}: Auswahl der Messwerte: drei Sensoren, keine Türen`, await s.waitFor("const n=[...r.querySelectorAll('#ag-mon .ag-rtent b')].map((b) => b.textContent); return n.length === 3 && n.includes('Keller Luftfeuchtigkeit') && !n.includes('Garagentor')"));
-    check(`${tag}: die Sensoren der Liste stehen zuerst`, await s.ev("const n=[...r.querySelectorAll('#ag-mon .ag-rtent b')].map((b) => b.textContent); return n[2] === 'Wohnzimmer CO2'"));
+    check(`${tag}: Auswahl der Messwerte: nur die zwei Sensoren aus der Sensorliste (kein CO2, keine Türen, keine anderen Messwerte)`, await s.waitFor("const n=[...r.querySelectorAll('#ag-mon .ag-rtent b')].map((b) => b.textContent).sort(); return n.join('|') === 'Keller Luftfeuchtigkeit|Kühlschrank Temperatur'"));
     await s.tap('#ag-mon [data-wf="mon-filter"][data-value="humidity"]');
     check(`${tag}: Filter Luftfeuchtigkeit`, await s.waitFor("const n=[...r.querySelectorAll('#ag-mon .ag-rtent b')].map((b) => b.textContent); return n.length === 1 && n[0] === 'Keller Luftfeuchtigkeit'"));
     check(`${tag}: die Entitäts-ID steht nirgends in der Liste`, await s.ev("return !/sensor\\.|binary_sensor/.test(r.querySelector('#ag-mon .ag-rtlist').innerText)"));
@@ -216,6 +222,16 @@ for (const lang of ["de", "en"]) {
     const final = await s.sim("return JSON.stringify(window.__systems[0].monitors.map((m) => [m.name, m.hold, m.margin, m.remind, m.tree.op, m.tree.items.map((i) => i.kind + (i.op ? ':' + i.op : '') + (i.limit !== undefined ? ':' + i.limit : '') + (i.upper !== undefined ? '-' + i.upper : '') + (i.modes ? ':' + i.modes.join('+') : ''))]))");
     check(`${tag}: der Server hat die neue Regel mit Grenzen, Modus, Dauer, Spanne und Erinnerung`, final.includes(JSON.stringify(["Keller feucht", 1800, 5, 4, "and", ["value:outside:40-70", "armed:away", "time"]])), final);
     check(`${tag}: nach dem Neuladen ohne orange Punkte (auch mit der neuen Regel)`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 3 && !r.querySelector('.has-edit') && /^(Keine Änderungen|No changes|Gespeichert|Saved)/.test(r.querySelector('.ag-foot').innerText.trim())", 8000));
+
+    // Ohne Messwerte in der Sensorliste: die Auswahl sagt, wo man sie hinzufügt
+    await s.sim("window.__systems[0].monitor_sensors = []; return 1");
+    await s.ev("r.host._fetch(); return 1");
+    await s.waitFor("return r.host._data?.systems?.[0]?.monitor_sensors?.length === 0");
+    await s.tap('[data-wf="mon-add"]');
+    await s.tap('#ag-mon [data-wf="mon-add-leaf"][data-kind="value"][data-path=""]');
+    check(`${tag}: ohne Messwerte in der Sensorliste: Hinweis statt Liste`, await s.waitFor("const l=r.querySelector('#ag-mon .ag-rtlist'); return !!l && !l.querySelector('.ag-rtent') && /Sensoren|Sensors/.test(l.innerText)"));
+    await s.ev("r.getElementById('ag-mon').close(); return 1");
+    await s.tap('#ag-confirm [data-c="yes"]').catch(() => {});
 
     // ----- Reiterleiste ohne getrennte Modi -----
     await s.tap('[data-trigger="away"]');

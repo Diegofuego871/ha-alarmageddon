@@ -29,6 +29,7 @@ const ACTIONS = {
 };
 const DOMAIN_ICON = { switch: "toggle", light: "bulb", input_boolean: "toggle", fan: "power", siren: "bell", cover: "blinds", lock: "lockClosed", script: "script", scene: "script" };
 const VALUE_FILTERS = [["all", "monFilterAll", null], ["temperature", "dcTemperature", ["temperature"]], ["humidity", "dcHumidity", ["humidity"]], ["co2", "dcCo2", ["carbon_dioxide"]]];
+const PLACEHOLDERS = ["rule", "sensor", "value", "unit", "limit", "since", "name"];
 const STEP_KINDS = [["notify", "monStepNotify", "bell"], ["action", "monStepAction", "power"], ["wait", "monStepWait", "timer"]];
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -514,11 +515,11 @@ export class MonitorUi {
     const p = this.pick;
     const group = VALUE_FILTERS.find((x) => x[0] === p.filter)?.[2];
     const q = p.q.trim().toLowerCase();
+    // Messwerte nur aus der Sensorliste der Anlage (Konfiguration › Sensoren › Hinzufügen); Geräte mit Zuständen sind alle wählbar
     const mine = new Set(this.system?.monitor_sensors || []);
-    const list = this.ents.list.filter((e) => e.kind === p.kind && (!group || group.includes(e.device_class)) && (!q || `${e.name} ${e.area} ${e.entity_id}`.toLowerCase().includes(q)))
-      // Sensoren der Liste (Konfiguration › Sensoren) zuerst
-      .sort((a, b) => Number(mine.has(b.entity_id)) - Number(mine.has(a.entity_id)));
-    if (!list.length) return `<div class="ag-t2 ag-rtnone">${esc(this._t(this.ents.failed ? "rtLoadFailed" : "monNoDevices"))}</div>`;
+    const list = this.ents.list.filter((e) => e.kind === p.kind && (e.kind !== "value" || mine.has(e.entity_id)) && (!group || group.includes(e.device_class))
+      && (!q || `${e.name} ${e.area} ${e.entity_id}`.toLowerCase().includes(q)));
+    if (!list.length) return `<div class="ag-t2 ag-rtnone">${esc(this._t(this.ents.failed ? "rtLoadFailed" : p.kind === "value" && !mine.size ? "monNoValues" : "monNoDevices"))}</div>`;
     return list.slice(0, 200).map((e) => {
       const now = e.kind === "value" ? `${["unavailable", "unknown"].includes(e.state) ? "–" : e.state}${e.unit ? ` ${e.unit}` : ""}` : this.stateText(e.entity_id, e.state);
       return `<button class="ag-rtent" data-wf="mon-choose" data-id="${esc(e.entity_id)}"><span class="ag-oav">${ic(e.kind === "value" ? (e.device_class === "temperature" ? "thermo" : "gauge") : "sensor", 20)}</span>
@@ -591,6 +592,26 @@ export class MonitorUi {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  // Platzhalter als Pillen unter dem Feld: Antippen fügt sie an der Schreibmarke des Feldes ein (Titel und Text je eigene Reihe)
+  _phRow(field) {
+    return `<div class="ag-ph" role="group" aria-label="${esc(this._t("monPlaceholders"))}">${PLACEHOLDERS.map((k) => `<button type="button" class="ag-phpill" data-wf="mon-ph" data-field="${field}" data-ph="{${k}}" title="${esc(this._t(`monPh_${k}`))}">{${k}}</button>`).join("")}</div>`;
+  }
+
+  insertPlaceholder(field, token) {
+    const input = this.sdlg.querySelector(`[data-wf="mon-sf"][data-field="${field}"]`);
+    if (!input || !this.step) return;
+    const max = Number(input.maxLength) > 0 ? input.maxLength : Infinity;
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? start;
+    const value = input.value.slice(0, start) + token + input.value.slice(end);
+    if (value.length > max) return;
+    input.value = value;
+    this.step.form[field] = value;
+    input.focus();
+    input.setSelectionRange(start + token.length, start + token.length);
+    this._refreshStepMessage();
+  }
+
   stepHtml() {
     const { form, zone } = this.step;
     const problem = this._stepProblem(form);
@@ -610,9 +631,9 @@ export class MonitorUi {
       const short = (s) => s.replace(/^notify\./, "");
       const pills = form.targets.map((s) => `<span class="ag-rpill ${services.includes(s) ? "" : "gone"}">${ic("bell", 14)}<span>${esc(short(s))}</span><button type="button" class="ag-rx" data-wf="mon-target-del" data-target="${esc(s)}" aria-label="${esc(short(s))}">${ic("close", 14)}</button></span>`).join("");
       const select = free.length ? `<select class="ag-input" data-wf="mon-target-add" aria-label="${esc(this._t("monTargetAdd"))}"><option value="">${esc(this._t("monTargetAdd"))}</option>${free.map((s) => `<option value="${esc(s)}">${esc(short(s))}</option>`).join("")}</select>` : "";
-      body = `<div class="ag-ef"><label class="ag-ef-l">${esc(this._t("monTitleField"))}</label><input class="ag-input" data-wf="mon-sf" data-field="title" maxlength="100" value="${esc(form.title)}" placeholder="${esc(this._t("monTitlePh"))}"></div>
+      body = `<div class="ag-ef"><label class="ag-ef-l">${esc(this._t("monTitleField"))}</label><input class="ag-input" data-wf="mon-sf" data-field="title" maxlength="100" value="${esc(form.title)}" placeholder="${esc(this._t("monTitlePh"))}">${this._phRow("title")}</div>
         <div class="ag-ef"><label class="ag-ef-l">${esc(this._t("monMessageField"))}</label><textarea class="ag-input" data-wf="mon-sf" data-field="message" maxlength="300" rows="3" placeholder="${esc(this._t("monMessagePh"))}">${esc(form.message)}</textarea>
-          <span class="ag-ef-h">${esc(this._t("monPlaceholders"))}</span></div>
+          ${this._phRow("message")}</div>
         <div class="ag-ef"><label class="ag-ef-l">${esc(this._t("monRecipients"))}</label><div class="ag-rpills">${pills || `<span class="ag-t2 ag-small">${esc(this._t("monDefaultTargets"))}</span>`}</div>${select}<span class="ag-ef-h">${esc(this._t("monRecipientsHint"))}</span></div>
         <div class="ag-ef-row"><button class="ag-toggle ${form.critical ? "on" : ""}" data-wf="mon-critical" role="switch" aria-checked="${form.critical}" aria-label="${esc(this._t("monCriticalLabel"))}"></button>
           <div class="ag-settx"><b>${esc(this._t("monCriticalLabel"))}</b><small>${esc(this._t("monCriticalHint"))}</small></div></div>`;
@@ -777,6 +798,8 @@ export class MonitorUi {
       if (!(ACTIONS[domain] || []).some((a) => a[0] === this.step.form.service)) this.step.form.service = ACTIONS[domain][0][0];
       this.step.pick = null;
       this.renderStep();
+    } else if (act === "mon-ph") {
+      this.insertPlaceholder(el.dataset.field, el.dataset.ph);
     } else if (act === "mon-critical") {
       this.step.form.critical = !this.step.form.critical;
       this.renderStep();
