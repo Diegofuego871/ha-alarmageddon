@@ -59,6 +59,10 @@ Ausführlich, auch als Vorlage für Device Panel: `docs/INFO-DASHBOARD-KARTEN-DE
 - Tests: `tests/test_dashboard_card.py`, `tests/panel/sim/card-sim.html`, `tests/panel/suites/card-e2e.mjs`, 6 Zeilen in der Mutationsprobe.
 - **Offen:** das Aussehen im echten dunklen Dashboard (`dark` kommt seit 1.34.1 aus `hass.themes.darkMode`) und das Aussehen der Karten auf dem Handy in der Companion App sind nicht gegen ein echtes Home Assistant geprüft.
 
+## Automatische Sicherung (1.47.0)
+
+Einstellung `auto_backup` (an, wöchentlich) in `settings.py` (global, nicht Teil der Sicherung); `backup.async_run_auto_backup` (fällig, wenn die letzte automatische älter ist als der Abstand minus 1 h), geplant von `async_start_auto_backup` (täglich 03:17 und 5 Minuten nach dem Start; Start/Stopp wie die Wartung in `__init__.py`). Sicherungen tragen `auto: true`; eigene (10) und automatische (5, `AUTO_BACKUP_KEEP`) zählen getrennt; gleiche Inhalte werden übersprungen (`_same`). WS `save_auto_backup`; Panel `system.js` (Zeile in Kapitel Sicherung, sofort gespeichert). Tests `tests/test_auto_backup.py`, Suite `autobackup-e2e.mjs`, 7 Zeilen in der Mutationsprobe.
+
 ## Routinen (1.44.0, Stand 2026-11-16; ersetzen den Zeitplan). Tag v1.44.0 liegt auf 2f6cb6d; Tasten, Vorschau und der Wegfall des Schalters `routines_disarm` sind 1.45.0 (Tag auf 1914d64); `armed_modes`, Duplizieren, Vorschau in Zonenfarben und 45 Zeichen sind 1.46.0
 
 Wunsch des Nutzers: Geräte von HA (Smart Lock) schalten die Anlage, mehrere benannte Routinen, Zeitplan und Routinen werden eins.

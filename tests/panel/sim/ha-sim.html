@@ -193,7 +193,7 @@
         // Nach dem Speichern lädt HA die Anlage neu: sie fehlt kurz in der Antwort und hat danach eine neue Kennung (instance)
         version: "1.20.0",
         systems: window.__systems.filter((s) => !(window.__reload && window.__reload.id === s.entry_id && Date.now() < window.__reload.until)).map(({ code, pcodes, instance, ...s }) => ({ ...s, instance: instance || "i0" })), sensors,
-        users: [{ id: "u_anna", name: "Anna" }, { id: "u_diego", name: "Diego" }, { id: "u_gast", name: "Gast" }], presets: window.__presets, notify: window.__notify, display: { names_with_device: window.__namesWithDevice !== false },
+        users: [{ id: "u_anna", name: "Anna" }, { id: "u_diego", name: "Diego" }, { id: "u_gast", name: "Gast" }], presets: window.__presets, notify: window.__notify, display: { names_with_device: window.__namesWithDevice !== false }, auto_backup: window.__autoBackup || { enabled: true, every: "weekly" },
         // Letzte echte Änderung (offen <-> zu) vom Server; die meisten Sensoren haben (noch) keine
         last_changes: { "binary_sensor.haustuer": iso(5 * 86400e3), "binary_sensor.fenster_kueche": iso(2 * 3600e3) },
         notify_services: ["notify.mobile_app_diego", "notify.mobile_app_partnerin", "notify.mobile_app_tablet"],
@@ -262,7 +262,7 @@
     }
     if (msg.type === "alarmageddon/backups" || msg.type === "alarmageddon/backup_create" || msg.type === "alarmageddon/backup_get" || msg.type === "alarmageddon/backup_delete") {
       window.__backups = window.__backups || [];
-      const list = () => ({ backups: window.__backups.map((b) => ({ id: b.id, name: b.name || "", created: b.data.created, systems: b.data.systems.map((x) => x.title) })), max: 10 });
+      const list = () => ({ backups: window.__backups.map((b) => ({ id: b.id, name: b.name || "", created: b.data.created, auto: Boolean(b.auto), systems: b.data.systems.map((x) => x.title) })), max: 10, max_auto: 5 });
       if (msg.type === "alarmageddon/backup_create") {
         const data = await callWS({ type: "alarmageddon/export" });
         window.__backups = [{ id: "b" + Math.random().toString(36).slice(2, 8), name: String(msg.name || "").trim(), data }, ...window.__backups].slice(0, 10);
@@ -346,6 +346,10 @@
       return { kind: msg.kind, hours: msg.hours, now: at(now), start: at(start), entity_id: battery ? "sensor.haustuer_batterie" : "sensor.haustuer_signal", unit: battery ? "%" : "dBm", points,
         ...(battery ? { threshold: 20, changes: [points[8][0]] } : {}),
         summary: { current: values[n], mean: -66, min: Math.min(...values), max: Math.max(...values), ...(battery ? { per_day: -0.36, days_left: 140, last_change: points[8][0] } : {}) } };
+    }
+    if (msg.type === "alarmageddon/save_auto_backup") {
+      window.__autoBackup = { enabled: msg.enabled, every: msg.every };
+      return { auto_backup: window.__autoBackup };
     }
     if (msg.type === "alarmageddon/routine_entities") {
       return { entities: [

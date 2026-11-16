@@ -7,6 +7,16 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.47.0] - 2026-11-16
+
+### Added
+
+- **Automatic backup.** In Configuration › Alarm system › Backup a switch "Back up automatically" (on by default) and a choice "Daily / Weekly / Monthly" (weekly by default). The integration then stores the configuration of all alarm systems by itself, checked every night at 03:17 and shortly after Home Assistant starts (a missed backup is made up). The last 5 automatic backups are kept, in addition to your 10 own ones; in the list they carry the tag "Automatic". If nothing changed since the last automatic backup, no identical copy is stored, so the five show different states. Like every backup they never contain codes; the setting itself is not part of a backup. A failing automatic backup never disturbs the alarm systems.
+
+### Changed
+
+- **The preview of a routine says it in plain words.** "As soon as this happens" instead of "When the device newly matches", and "Only on a real change: not after a restart and not when a device comes back online".
+
 ## [1.46.1] - 2026-11-16
 
 ### Fixed
@@ -1583,6 +1593,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.47.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.47.0
 [1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1
 [1.46.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.0
 [1.45.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.45.0

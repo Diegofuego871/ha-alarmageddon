@@ -18,23 +18,27 @@ from __future__ import annotations
 
 import copy
 import hashlib
+from datetime import timedelta
+import logging
 import uuid
 from typing import Any
 
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later, async_track_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import BACKUPS_STORE_KEY, CONF_CODE_ACK_REQUIRED, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
+from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_KEEP, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
 from .custom_sounds import valid_backup_sounds
 from .routines import check_routines, migrate_options
 from .schemas import SYSTEM_OPTIONS_SCHEMA
 from .settings import async_get_settings, valid_notify, valid_presets
 from .systems import async_create_system, new_system_name
 
+_LOGGER = logging.getLogger(__name__)
 FORMAT = "alarmageddon"
 VERSION = 1
 ALLOWED = {str(key.schema) for key in SYSTEM_OPTIONS_SCHEMA.schema}
@@ -228,12 +232,12 @@ async def _save_store(hass: HomeAssistant, items: list[dict[str, Any]], blobs: d
 async def async_list_backups(hass: HomeAssistant) -> list[dict[str, Any]]:
     """Ohne den Inhalt: Kennung, Zeitpunkt und die Namen der gesicherten Anlagen."""
     return [
-        {"id": b["id"], "name": b.get("name") or "", "created": b.get("created"), "systems": [s.get("title") for s in b["data"].get("systems", []) if isinstance(s, dict)]}
+        {"id": b["id"], "name": b.get("name") or "", "created": b.get("created"), "auto": bool(b.get("auto")), "systems": [s.get("title") for s in b["data"].get("systems", []) if isinstance(s, dict)]}
         for b in await _load(hass)
     ]
 
 
-async def async_create_backup(hass: HomeAssistant, integration_version: str | None, name: str = "") -> dict[str, Any]:
+async def async_create_backup(hass: HomeAssistant, integration_version: str | None, name: str = "", auto: bool = False) -> dict[str, Any] | None:
     data = await async_export(hass, integration_version)
     items, blobs = await _load_store(hass)
     name = " ".join(name.split())[:60]
@@ -243,10 +247,61 @@ async def async_create_backup(hass: HomeAssistant, integration_version: str | No
         digest = hashlib.sha256(sound["wav"].encode()).hexdigest()
         blobs[digest] = sound.pop("wav")
         sound["sha256"] = digest
-    item = {"id": uuid.uuid4().hex[:12], "name": name, "created": data["created"], "data": stored}
-    items = [item, *items][:MAX_BACKUPS]
+    if auto and (newest := next((b for b in items if b.get("auto")), None)) is not None and _same(newest["data"], stored):
+        return None  # nichts hat sich geändert: keine zweite gleiche Sicherung (die fünf sollen verschiedene Stände zeigen)
+    item = {"id": uuid.uuid4().hex[:12], "name": name, "created": data["created"], "auto": auto, "data": stored}
+    items = [item, *items]
+    # Eigene und automatische Sicherungen zählen getrennt: zehn eigene und dazu die letzten fünf automatischen
+    manual = [b for b in items if not b.get("auto")][:MAX_BACKUPS]
+    automatic = [b for b in items if b.get("auto")][:AUTO_BACKUP_KEEP]
+    keep = {id(b) for b in (*manual, *automatic)}
+    items = [b for b in items if id(b) in keep]
     await _save_store(hass, items, blobs)
-    return {"id": item["id"], "name": name, "created": item["created"], "systems": [s["title"] for s in data["systems"]]}
+    return {"id": item["id"], "name": name, "created": item["created"], "auto": auto, "systems": [s["title"] for s in data["systems"]]}
+
+
+def _same(old: dict[str, Any], new: dict[str, Any]) -> bool:
+    """Gleicher Inhalt, ohne Zeitpunkt und Version der Integration."""
+    skip = ("created", "integration_version")
+    return {k: v for k, v in old.items() if k not in skip} == {k: v for k, v in new.items() if k not in skip}
+
+
+async def async_run_auto_backup(hass: HomeAssistant) -> None:
+    """
+    Legt eine automatische Sicherung ab, wenn sie fällig ist (Schalter an, die letzte automatische ist älter als der gewählte Abstand).
+    Nie ein Fehler nach aussen: eine Sicherung ist Zusatz und darf die Anlagen nie stören.
+    """
+    try:
+        cfg = (await async_get_settings(hass)).auto_backup
+        entries = loaded_entries(hass)
+        if not cfg["enabled"] or not entries:
+            return
+        newest = next((b for b in await _load(hass) if b.get("auto")), None)
+        created = dt_util.parse_datetime(newest["created"]) if newest and isinstance(newest.get("created"), str) else None
+        # Eine Stunde Spielraum: der Termin um 03:17 liegt nie knapp vor der Frist des Vortags
+        if created is not None and dt_util.utcnow() - created < timedelta(days=AUTO_BACKUP_DAYS[cfg["every"]]) - timedelta(hours=1):
+            return
+        await async_create_backup(hass, entries[0].runtime_data.version, "", auto=True)
+    except Exception:  # noqa: BLE001 - nie ein Fehler nach aussen
+        _LOGGER.exception("The automatic backup failed")
+
+
+async def async_start_auto_backup(hass: HomeAssistant) -> None:
+    """Eine Prüfung täglich um 03:17 und eine kurz nach dem Start (verpasste nachholen); eine Instanz für alle Anlagen."""
+    if DATA_AUTO_BACKUP in hass.data:
+        return
+
+    @callback
+    def tick(_now: Any) -> None:
+        hass.async_create_task(async_run_auto_backup(hass))
+
+    hass.data[DATA_AUTO_BACKUP] = [async_track_time_change(hass, tick, hour=3, minute=17, second=0), async_call_later(hass, AUTO_BACKUP_START_DELAY, tick)]
+
+
+@callback
+def async_stop_auto_backup(hass: HomeAssistant) -> None:
+    for unsub in hass.data.pop(DATA_AUTO_BACKUP, []):
+        unsub()
 
 
 async def async_get_backup(hass: HomeAssistant, backup_id: str) -> dict[str, Any] | None:

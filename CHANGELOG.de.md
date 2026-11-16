@@ -7,6 +7,16 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.47.0] - 2026-11-16
+
+### Hinzugefügt
+
+- **Automatische Sicherung.** Unter Konfiguration › Anlage › Sicherung gibt es einen Schalter "Automatisch sichern" (standardmässig an) und die Wahl "Täglich / Wöchentlich / Monatlich" (standardmässig wöchentlich). Die Integration legt die Konfiguration aller Anlagen dann selbst ab, geprüft jede Nacht um 03:17 und kurz nach dem Start von Home Assistant (eine verpasste Sicherung wird nachgeholt). Es bleiben die letzten 5 automatischen Sicherungen, zusätzlich zu deinen 10 eigenen; in der Liste tragen sie die Marke "Automatisch". Hat sich seit der letzten automatischen Sicherung nichts geändert, wird keine gleiche Kopie abgelegt, damit die fünf verschiedene Stände zeigen. Wie jede Sicherung enthalten sie nie Codes; die Einstellung selbst gehört nicht zur Sicherung. Eine fehlgeschlagene automatische Sicherung stört die Anlagen nie.
+
+### Geändert
+
+- **Die Vorschau einer Routine sagt es in einfachen Worten.** "Sobald Folgendes eintritt" statt "Wenn das Gerät neu zutrifft", und "Nur bei einer echten Änderung: nicht nach einem Neustart und nicht, wenn ein Gerät wieder erreichbar wird".
+
 ## [1.46.1] - 2026-11-16
 
 ### Behoben
@@ -1583,6 +1593,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.47.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.47.0
 [1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1
 [1.46.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.0
 [1.45.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.45.0

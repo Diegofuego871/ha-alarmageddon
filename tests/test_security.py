@@ -69,6 +69,7 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "routine_entities": {},
     "sensor_history": {"entity_id": "binary_sensor.fenster_kueche"},
     "save_display": {"names_with_device": False},
+    "save_auto_backup": {"enabled": False, "every": "daily"},
     "delete_recording": {"entry_id": "ENTRY", "recording": "2026-01-01T00:00:00+00:00"},
     "log": {},
     "export": {},

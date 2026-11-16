@@ -21,6 +21,7 @@ export class SystemUi {
     this.saving = false;
     this.backups = null; // in der Integration abgelegte Sicherungen (neueste zuerst), null = noch nicht geladen
     this.bkMax = 10;
+    this.bkMaxAuto = 5;
     this.scope = "away"; // Modus, dessen Werte gerade angezeigt werden (Ansicht, nicht Teil des Entwurfs)
     this.cs = { rename: null, text: "", error: "", upload: null, playing: null }; // Eigene Töne (1.39.0): Ansicht, nie Teil des Entwurfs
     this.rt = new RoutinesUi(this); // Routinen (1.44.0): Liste im Entwurf, Editor als Fenster
@@ -252,7 +253,12 @@ export class SystemUi {
 
   _backupHtml() {
     if (this.backups === null && !this._bkLoading) this.loadBackups();
-    return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("bkHint"))}</small></div>
+    const auto = this.host._data?.auto_backup || { enabled: true, every: "weekly" };
+    const every = ["daily", "weekly", "monthly"].map((k) => `<option value="${k}" ${auto.every === k ? "selected" : ""}>${esc(this._t(`bkEvery_${k}`))}</option>`).join("");
+    const autoRow = `<div class="ag-setrow ag-bkauto"><button class="ag-toggle ${auto.enabled ? "on" : ""}" data-sys="ab-on" role="switch" aria-checked="${auto.enabled}" aria-label="${esc(this._t("bkAuto"))}"></button>
+      <span class="ag-oav ${auto.enabled ? "on" : ""}">${ic("restore", 20)}</span><div class="ag-settx"><b>${esc(this._t("bkAuto"))}</b><small>${esc(this._t("bkAutoHint", { max: this.bkMaxAuto }))}</small></div>
+      <select class="ag-input" data-sys="ab-every" aria-label="${esc(this._t("bkAutoEvery"))}" ${auto.enabled ? "" : "disabled"}>${every}</select></div>`;
+    return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes">${autoRow}<div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("bkHint"))}</small></div>
       <div class="ag-btnrow"><button class="ag-btn primary" data-sys="bk-create">${ic("check", 18)}${esc(this._t("bkSave"))}</button>
         <button class="ag-btn" data-sys="export">${ic("arrowDown", 18)}${esc(this._t("bkExport"))}</button>
         <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden></div></div></div>
@@ -276,9 +282,9 @@ export class SystemUi {
     const date = (iso) => (iso ? new Date(iso).toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" }) : "–");
     if (!this.backups.length) return `<div class="ag-t2 ag-small" style="margin:10px 4px 0">${esc(this._t("bkEmpty"))}</div>`;
     const btn = (act, icon, key, id) => `<button class="ag-iconbtn" data-sys="${act}" data-id="${esc(id)}" title="${esc(this._t(key))}" aria-label="${esc(this._t(key))}">${ic(icon, 18)}</button>`;
-    const rows = this.backups.map((b) => `<tr data-bk="${esc(b.id)}"><td><b class="ag-bkname">${esc(b.name || date(b.created))}</b>${b.name ? `<small class="ag-t2 ag-bkdate">${esc(date(b.created))}</small>` : ""}</td><td class="ag-t2">${esc((b.systems || []).join(", ") || "–")}</td>
+    const rows = this.backups.map((b) => `<tr data-bk="${esc(b.id)}"><td><b class="ag-bkname">${esc(b.name || date(b.created))}</b>${b.auto ? `<span class="ag-tag none ag-bkauto-tag">${esc(this._t("bkAutoTag"))}</span>` : ""}${b.name ? `<small class="ag-t2 ag-bkdate">${esc(date(b.created))}</small>` : ""}</td><td class="ag-t2">${esc((b.systems || []).join(", ") || "–")}</td>
         <td class="ag-acts"><div class="ag-actrow">${btn("bk-download", "arrowLine", "bkDownload", b.id)}${btn("bk-restore", "restore", "bkRestoreOne", b.id)}${btn("bk-delete", "trash", "bkDelete", b.id)}</div></td></tr>`).join("");
-    return `<div class="ag-t2 ag-small" style="margin:10px 4px 6px">${esc(this._t("bkCount", { count: this.backups.length, max: this.bkMax }))}</div>
+    return `<div class="ag-t2 ag-small" style="margin:10px 4px 6px">${esc(this._t("bkCount", { count: this.backups.filter((b) => !b.auto).length, max: this.bkMax }))}${this.backups.some((b) => b.auto) ? ` · ${esc(this._t("bkCountAuto", { count: this.backups.filter((b) => b.auto).length, max: this.bkMaxAuto }))}` : ""}</div>
       <div class="ag-card ag-table-wrap ag-stickwrap"><table class="ag-table ag-bktable"><tr><th>${esc(this._t("bkColName"))}</th><th>${esc(this._t("bkColSystems"))}</th><th></th></tr>${rows}</table></div>`;
   }
 
@@ -294,6 +300,7 @@ export class SystemUi {
       const res = await this.host._hass.callWS({ type: "alarmageddon/backups" });
       this.backups = res.backups || [];
       this.bkMax = res.max || 10;
+      this.bkMaxAuto = res.max_auto || 5;
     } catch {
       this.backups = [];
     } finally {
@@ -642,6 +649,12 @@ export class SystemUi {
     }
     const act = el?.dataset.sys;
     if (!act) return false;
+    // Automatische Sicherung: Schalter und Abstand gelten sofort (wie die Sicherung selbst), nicht als Entwurf der Seite
+    if (act === "ab-on") {
+      const cur = this.host._data?.auto_backup || { enabled: true, every: "weekly" };
+      this.saveAutoBackup(!cur.enabled, cur.every);
+      return true;
+    }
     if (act === "delete") {
       this.host._openDelete();
       return true;
@@ -753,7 +766,23 @@ export class SystemUi {
     return true;
   }
 
+  async saveAutoBackup(enabled, every) {
+    const h = this.host;
+    try {
+      const res = await h._hass.callWS({ type: "alarmageddon/save_auto_backup", enabled, every });
+      if (h._data) h._data.auto_backup = res.auto_backup;
+      h._toast(this._t("bkAutoSaved"));
+    } catch (err) {
+      h._toast(this._t("saveFailed", { message: errText(err) }));
+    }
+    this.render();
+  }
+
   onInput(el) {
+    if (el.dataset.sys === "ab-every") {
+      this.saveAutoBackup(this.host._data?.auto_backup?.enabled !== false, el.value);
+      return true;
+    }
     if (el.dataset.sys === "cs-name") {
       if (this.cs.upload) this.cs.upload.name = el.value;
       return true;

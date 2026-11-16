@@ -16,6 +16,8 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 
 from .const import (
+    AUTO_BACKUP_DAYS,
+    AUTO_BACKUP_DEFAULT,
     DATA_SETTINGS,
     DATA_SETTINGS_LOCK,
     BATTERY_THRESHOLD_RANGE,
@@ -132,6 +134,12 @@ def valid_notify(value: Any) -> dict[str, Any]:
     return out
 
 
+def valid_auto_backup(value: Any) -> dict[str, Any]:
+    """Aus der Ablage gelesen oder vom Panel gesendet: unbekannte Werte fallen auf die Vorgabe (an, wöchentlich) zurück."""
+    raw = value if isinstance(value, dict) else {}
+    return {"enabled": raw.get("enabled") is not False, "every": raw.get("every") if raw.get("every") in AUTO_BACKUP_DAYS else AUTO_BACKUP_DEFAULT["every"]}
+
+
 class Settings:
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
@@ -142,6 +150,8 @@ class Settings:
             # Namen der Sensoren (1.12.0): an (Standard) = "Gerät - Sensor", aus = nur der Name des Sensors. Gilt überall, wo ein
             # Sensor genannt wird (Panel, Protokoll, Meldungen), siehe devices.display_name
             "names_with_device": True,
+            # Automatische Sicherung (1.47.0): an (Standard), wöchentlich; gilt für alle Anlagen, nicht Teil der Sicherung selbst
+            "auto_backup": dict(AUTO_BACKUP_DEFAULT),
             # Letzte echte Änderung (offen <-> zu) je Sensor, ISO-Zeit; intern, nicht in der Sicherung (Laufzeitdaten)
             "last_changes": {},
         }
@@ -177,6 +187,7 @@ class Settings:
         self.data["presets"] = valid_presets(self.data.get("presets"))
         self.data["notify"] = valid_notify(self.data.get("notify"))
         self.data["names_with_device"] = self.data.get("names_with_device") is not False
+        self.data["auto_backup"] = valid_auto_backup(self.data.get("auto_backup"))
         # Reste der früheren Update-Funktion (bis 0.27.0) beim Laden verwerfen
         self.data.pop("update", None)
         self.data.pop("update_notified", None)
@@ -206,6 +217,14 @@ class Settings:
     @property
     def notify(self) -> dict[str, Any]:
         return self.data["notify"]
+
+    @property
+    def auto_backup(self) -> dict[str, Any]:
+        return self.data["auto_backup"]
+
+    async def async_set_auto_backup(self, enabled: bool, every: str) -> None:
+        self.data["auto_backup"] = valid_auto_backup({"enabled": enabled, "every": every})
+        await self._async_write()
 
     @property
     def names_with_device(self) -> bool:

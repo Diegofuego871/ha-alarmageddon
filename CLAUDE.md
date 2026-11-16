@@ -143,6 +143,7 @@ Umsetzung:
   Neuladen und Neustart (`run["undo"]`, `workflow._arm_undo`); Deaktivieren, Quittieren und das Ende eines Tests schalten sofort zurück
   (`_flush_undos`), der Gegendienst ist wie jeder Aufruf begrenzt. Tests in `tests/test_undo_after.py`, Zeilen in `scripts/mutation_check.py`.
 - Deaktivieren per Push-Aktion ist standardmässig aus.
+- Automatische Sicherung (seit 1.47.0, `backup.async_run_auto_backup`): Standard an und wöchentlich (Entscheid des Nutzers, 2026-11-16); höchstens `AUTO_BACKUP_KEEP` automatische neben `MAX_BACKUPS` eigenen; sie ist Zusatz und wirft nie einen Fehler (ein Fehler steht im Log, die Anlagen laufen weiter); Codes sind nie enthalten. Tests in `tests/test_auto_backup.py`, Zeilen in `scripts/mutation_check.py`.
 - Routinen (seit 1.44.0, `routines.py`, ersetzen den Zeitplan; Entscheid des Nutzers, 2026-11-16): Eine Routine schaltet die Anlage nach Zeit oder
   wenn Geräte von HA etwas tun. Sie läuft nur bei einem **echten Wechsel** zwischen zwei bekannten Zuständen und neu erfüllter Bedingung (nie im
   Dauerzustand, nie nach einem Neustart, nie bei der Rückkehr aus "nicht verfügbar" oder "unbekannt": ein Funkabriss schaltet die Anlage nie).

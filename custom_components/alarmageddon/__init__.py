@@ -22,6 +22,7 @@ from .const import CONF_PER_MODE_SENSORS, CONF_SENSOR_MODES, CONF_SENSOR_OPTIONS
 from .controller import AlarmController
 from .events import EventLog, async_remove_events
 from .recording import AlarmRecorder, async_remove_recordings
+from .backup import async_start_auto_backup, async_stop_auto_backup
 from .maintenance import async_start_maintenance, async_stop_maintenance
 from .notify import Notifier
 from .panel import async_register_panel, async_remove_panel
@@ -159,6 +160,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
     except Exception:  # noqa: BLE001
         _LOGGER.exception("%s: the panel could not be registered; the alarm system runs without it", entry.title)
     await _isolated(entry, async_start_maintenance(hass, settings), "starting the maintenance check")
+    await _isolated(entry, async_start_auto_backup(hass), "starting the automatic backup")
     # Reste der früheren Update-Prüfung (bis 0.27.0): die Meldung unter "Reparaturen" verschwindet mit der Funktion
     ir.async_delete_issue(hass, DOMAIN, "update_available")
     return True
@@ -199,6 +201,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     # Oberfläche die Anlage und hinge. Es verschwindet erst, wenn die letzte Anlage entfernt wird (async_remove_entry).
     if not others:
         await _isolated(entry, async_stop_maintenance(hass), "stopping the maintenance check")
+        async_stop_auto_backup(hass)
     return True
 
 

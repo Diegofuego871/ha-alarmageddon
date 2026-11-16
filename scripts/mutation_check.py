@@ -503,6 +503,22 @@ MUTATIONS = [
      '        if trigger.get("hold") and any(x["kind"] == "event" for x in device_leaves):', "        if False:", "tests/test_routines.py -k rejects_hold_and_unknown"),
     ("Routine: \"Anlage scharf\" gilt in jedem Modus, nicht nur in den gewählten", "routines.py",
      '        if current == "armed" and rule.get("armed_modes") and ctl.mode not in rule["armed_modes"]:', "        if False:", "tests/test_routines.py -k only_in_chosen_modes"),
+    # ----- Automatische Sicherung (1.47.0) -----
+    ("Automatische Sicherung: der Schalter wird ignoriert", "backup.py",
+     '        if not cfg["enabled"] or not entries:', "        if not entries:", "tests/test_auto_backup.py -k switch_off"),
+    ("Automatische Sicherung: der gewählte Abstand wird ignoriert", "backup.py",
+     "        if created is not None and dt_util.utcnow()", "        if False and dt_util.utcnow()", "tests/test_auto_backup.py -k interval"),
+    ("Automatische Sicherung: gleiche Sicherung wird mehrfach abgelegt", "backup.py",
+     '_same(newest["data"], stored):', "False:", "tests/test_auto_backup.py -k identical"),
+    ("Automatische Sicherung: mehr als fünf bleiben liegen", "backup.py",
+     '    automatic = [b for b in items if b.get("auto")][:AUTO_BACKUP_KEEP]', '    automatic = [b for b in items if b.get("auto")][:999]', "tests/test_auto_backup.py -k only_five"),
+    ("Automatische Sicherung: sie verdrängt eigene Sicherungen", "backup.py",
+     '    manual = [b for b in items if not b.get("auto")][:MAX_BACKUPS]', "    manual = [b for b in items][:MAX_BACKUPS]", "tests/test_auto_backup.py -k only_five"),
+    ("Automatische Sicherung: ein Fehler dringt nach aussen", "backup.py",
+     "    except Exception:  # noqa: BLE001 - nie ein Fehler nach aussen", "    except ZeroDivisionError:", "tests/test_auto_backup.py -k never_raises"),
+    ("Automatische Sicherung: Schalter ohne Administratorrechte", "websocket_api.py",
+     '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS))})\n@websocket_api.require_admin\n',
+     '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS))})\n', "tests/test_security.py -k admin_only"),
 ]
 
 
