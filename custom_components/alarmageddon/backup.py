@@ -28,8 +28,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import BACKUPS_STORE_KEY, CONF_CODE_ACK_REQUIRED, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
+from .const import BACKUPS_STORE_KEY, CONF_CODE_ACK_REQUIRED, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
 from .custom_sounds import valid_backup_sounds
+from .routines import check_routines, migrate_options
 from .schemas import SYSTEM_OPTIONS_SCHEMA
 from .settings import async_get_settings, valid_notify, valid_presets
 from .systems import async_create_system, new_system_name
@@ -62,7 +63,7 @@ async def async_export(hass: HomeAssistant, integration_version: str | None) -> 
     }
 
 
-def validate(data: Any) -> dict[str, Any]:
+def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
     """Prüft eine Sicherung; wirft vol.Invalid mit einem Schlüssel als Meldung."""
     if not isinstance(data, dict) or data.get("format") != FORMAT:
         raise vol.Invalid("not_a_backup")
@@ -74,6 +75,11 @@ def validate(data: Any) -> dict[str, Any]:
             raise vol.Invalid("invalid_backup")
         try:
             options = SYSTEM_OPTIONS_SCHEMA(item.get("options") or {})
+            # Sicherungen bis 1.43 enthalten Zeitpläne: sie kommen als Routinen zurück
+            if (converted := migrate_options(dict(options), hass.config.language)) is not None:
+                options = converted
+            if CONF_ROUTINES in options:
+                check_routines(hass, options[CONF_ROUTINES])
         except vol.Invalid as err:
             raise vol.Invalid("invalid_backup") from err
         systems.append({"title": item["title"], "options": options})

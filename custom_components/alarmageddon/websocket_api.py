@@ -49,7 +49,8 @@ from .const import (
     CONF_EXIT_DELAY_PREFIX,
     CONF_ALWAYS_ENABLED,
     CONF_NIGHT_ENABLED,
-    CONF_SCHEDULES,
+    CONF_ROUTINES,
+    CONF_ROUTINES_DISARM,
     MODE_ENABLED_DEFAULT,
     MODE_ENABLED_KEY,
     CONF_PER_MODE_SENSORS,
@@ -90,7 +91,8 @@ from .const import (
 )
 from .devices import battery_of, device_sensors, display_name
 from .forecast import async_forecasts
-from .schemas import END_NOTIFY_SCHEMA, NOTIFY_TARGETS, SCHEDULES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
+from .routines import LEAF_STATES, check_routines
+from .schemas import END_NOTIFY_SCHEMA, NOTIFY_TARGETS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
 from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_get_stats, async_numeric_history, async_state_history
 from .settings import async_get_settings, sensor_type
 
@@ -122,6 +124,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_stop_workflow)
     websocket_api.async_register_command(hass, ws_acknowledge)
     websocket_api.async_register_command(hass, ws_delete_recording)
+    websocket_api.async_register_command(hass, ws_routine_entities)
     websocket_api.async_register_command(hass, ws_battery_forecast)
     websocket_api.async_register_command(hass, ws_sensor_history)
     websocket_api.async_register_command(hass, ws_log)
@@ -245,7 +248,8 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "entry_delay_max": {mode: ctl.longest_entry_delay(mode) for mode in ctl.modes},
                 "night_enabled": ctl.night_enabled,
                 "always_enabled": ctl.always_enabled,
-                "schedules": entry.options.get(CONF_SCHEDULES) or [],
+                "routines": entry.options.get(CONF_ROUTINES) or [],
+                "routines_disarm": bool(entry.options.get(CONF_ROUTINES_DISARM)),
                 "sensor_options": ctl.sensor_overrides,
                 "per_mode_sensors": bool(entry.options.get(CONF_PER_MODE_SENSORS)),
                 # Schalter "Einstellungen pro Modus" der Anlage; ohne gespeicherten Wert null (das Panel schaltet ein, wenn sich die Modi unterscheiden)
@@ -588,7 +592,8 @@ async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) 
         vol.Optional("always_enabled"): bool,
         vol.Optional("home_enabled"): bool,
         vol.Optional("away_enabled"): bool,
-        vol.Optional("schedules"): SCHEDULES,
+        vol.Optional("routines"): ROUTINES,
+        vol.Optional("routines_disarm"): bool,
         vol.Optional("open_sensors"): vol.In(OPEN_SENSOR_MODES),
         vol.Optional("confirm_window"): vol.All(vol.Coerce(int), vol.Range(min=5, max=MAX_CONFIRM_WINDOW)),
         vol.Optional("code_ack_required"): bool,
@@ -603,8 +608,14 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
     options = dict(entry.options)
     for mode, seconds in msg.get("exit_delay", {}).items():
         options[f"{CONF_EXIT_DELAY_PREFIX}{mode}"] = seconds
-    if "schedules" in msg:
-        options[CONF_SCHEDULES] = msg["schedules"]
+    if "routines" in msg:
+        try:
+            options[CONF_ROUTINES] = check_routines(hass, msg["routines"])
+        except vol.Invalid as err:
+            connection.send_error(msg["id"], "invalid_routines", str(err))
+            return
+    if "routines_disarm" in msg:
+        options[CONF_ROUTINES_DISARM] = msg["routines_disarm"]
     for key, conf in (("entry_delay", CONF_ENTRY_DELAY), ("confirm_window", CONF_CONFIRM_WINDOW)):
         if key in msg:
             # Kurzform: für alle Modi (der gemeinsame Wert bleibt der Rückfall)
@@ -983,6 +994,42 @@ async def ws_remove_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -
     connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/routine_entities"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_routine_entities(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Geräte, die eine Routine auslösen können (Schloss, Schalter, Tür, Person ...), mit Name, Bereich und ihren Zuständen. Nie Entitäten von
+    Alarmageddon selbst: eine Routine löst keine andere aus. Das Panel zeigt den Namen des Geräts; die Entitäts-ID dient nur der Suche.
+    """
+    ent_reg = er.async_get(hass)
+    dev_reg = dr.async_get(hass)
+    area_reg = ar.async_get(hass)
+    out: list[dict[str, Any]] = []
+    for state in hass.states.async_all():
+        domain = state.entity_id.split(".")[0]
+        if domain not in LEAF_STATES:
+            continue
+        reg = ent_reg.async_get(state.entity_id)
+        if reg is not None and (reg.platform == DOMAIN or reg.disabled_by or reg.hidden_by):
+            continue
+        area_id = reg.area_id if reg else None
+        if reg and not area_id and reg.device_id and (device := dev_reg.async_get(reg.device_id)):
+            area_id = device.area_id
+        area = area_reg.async_get_area(area_id) if area_id else None
+        out.append({
+            "entity_id": state.entity_id,
+            "name": display_name(hass, state.entity_id),
+            "domain": domain,
+            "area": area.name if area else "",
+            "device_class": str(state.attributes.get("device_class") or ""),
+            "states": list(LEAF_STATES[domain]),
+            "state": state.state,
+        })
+    out.sort(key=lambda e: (e["name"].lower(), e["entity_id"]))
+    connection.send_result(msg["id"], {"entities": out})
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/battery_forecast"})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -1028,7 +1075,7 @@ async def ws_export(hass: HomeAssistant, connection, msg: dict[str, Any]) -> Non
 async def ws_import(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """Sicherung einlesen. Mit dry_run nur prüfen und zeigen, welche Anlagen gefunden werden."""
     try:
-        data = backup.validate(msg["data"])
+        data = backup.validate(msg["data"], hass)
     except vol.Invalid as err:
         connection.send_error(msg["id"], str(err.msg), "Invalid backup")
         return

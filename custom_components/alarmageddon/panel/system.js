@@ -5,13 +5,13 @@
 const V = new URL(import.meta.url).search;
 const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter } = await import(`./common.js${V}`);
 const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo, soundBadge } = await import(`./customsounds.js${V}`);
+const { RoutinesUi } = await import(`./routines.js${V}`);
 
 const MAX = 3600;
 const DEFAULTS = { exit_delay: 0, entry_delay: 30, confirm_window: 60 };
 const WINDOW = [5, 600];
 const ALL_MODES = ["home", "away", "night"];
 const MODE_HINT = { home: "sysModeHomeHint", away: "sysModeAwayHint", night: "sysModeNightHint" };
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export class SystemUi {
   constructor(host) {
@@ -23,6 +23,7 @@ export class SystemUi {
     this.bkMax = 10;
     this.scope = "away"; // Modus, dessen Werte gerade angezeigt werden (Ansicht, nicht Teil des Entwurfs)
     this.cs = { rename: null, text: "", error: "", upload: null, playing: null }; // Eigene Töne (1.39.0): Ansicht, nie Teil des Entwurfs
+    this.rt = new RoutinesUi(this); // Routinen (1.44.0): Liste im Entwurf, Editor als Fenster
   }
 
   _t(key, vars) {
@@ -46,7 +47,8 @@ export class SystemUi {
       perMode: typeof s.per_mode_settings === "boolean" ? s.per_mode_settings : differ,
       per,
       modes: Object.fromEntries(ALL_MODES.map((m) => [m, (s.modes || ["home", "away"]).includes(m)])),
-      schedules: JSON.parse(JSON.stringify(s.schedules || [])),
+      routines: JSON.parse(JSON.stringify(s.routines || [])),
+      routinesDisarm: Boolean(s.routines_disarm), // Schalter "Deaktivieren per Routine erlauben" (Standard aus)
       always: s.always_enabled !== false, // "Immer aktiv" als Ganzes (Standard an)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
     };
@@ -84,7 +86,8 @@ export class SystemUi {
     for (const m of ALL_MODES) if (a.modes[m] !== d.modes[m]) n += 1;
     if (a.always !== d.always) n += 1;
     if (a.ackCode !== d.ackCode) n += 1;
-    if (JSON.stringify(a.schedules) !== JSON.stringify(d.schedules)) n += 1;
+    if (JSON.stringify(a.routines) !== JSON.stringify(d.routines)) n += 1;
+    if (a.routinesDisarm !== d.routinesDisarm) n += 1;
     return n;
   }
 
@@ -100,7 +103,6 @@ export class SystemUi {
       check(`${scope}.confirm_window`, v.confirm_window, WINDOW);
     }
     if (!ALL_MODES.some((m) => d.modes[m])) bad.push("modes");
-    if (d.schedules.some((r) => !TIME_RE.test(r.time || "") || !r.days?.length)) bad.push("schedules");
     return bad;
   }
 
@@ -141,37 +143,11 @@ export class SystemUi {
         <div class="ag-subh">${esc(this._t("chapTimes"))}</div>${card(timesRows)}
         <div class="ag-subh">${esc(this._t("chapBehaviour"))}</div>${card(behaviourRows)}</div>`);
     const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + perMode
-      + this._schedulesHtml(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._backupHtml() + this._deleteHtml();
+      + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._backupHtml() + this._deleteHtml();
     // Beim Tippen nie neu aufbauen (Cursor bliebe nicht stehen), nur bei Schaltern und Auswahl
     h._setHtml(form, html);
     h._placePills();
     this.renderFoot();
-  }
-
-  // ----- Zeitplan (Teil des Entwurfs) -----
-
-  _schedulesHtml(modes) {
-    const d = this.draft;
-    const days = this._t("schDays").split(",");
-    const actionLabel = (a) => (a === "off" ? this._t("schOff") : this._t("schArm", { mode: this._t(MODE_KEY[a]) }));
-    const rows = d.schedules.map((r, i) => {
-      const actions = ["off", ...ALL_MODES.filter((m) => modes.includes(m) || r.action === m)];
-      const off = r.action !== "off" && !modes.includes(r.action);
-      return `<div class="ag-schrow ${r.enabled === false ? "dim" : ""}">
-        <input type="time" class="ag-input ag-time" data-sys="sch-time" data-index="${i}" value="${esc(r.time)}" aria-label="${esc(this._t("schTime"))}">
-        <select class="ag-input" data-sys="sch-action" data-index="${i}" aria-label="${esc(this._t("schAction"))}">${actions.map((a) => `<option value="${a}" ${a === r.action ? "selected" : ""}>${esc(actionLabel(a))}</option>`).join("")}</select>
-        <div class="ag-days">${days.map((label, k) => {
-          const on = r.days.includes(k);
-          return `<button class="ag-day ${on ? "on" : ""}" data-sys="sch-day" data-index="${i}" data-day="${k}" aria-pressed="${on}">${esc(label)}</button>`;
-        }).join("")}</div>
-        <button class="ag-toggle ${r.enabled !== false ? "on" : ""}" data-sys="sch-on" data-index="${i}" role="switch" aria-checked="${r.enabled !== false}" aria-label="${esc(this._t("schOn"))}"></button>
-        <button class="ag-iconbtn" data-sys="sch-del" data-index="${i}" aria-label="${esc(this._t("schDelete"))}">${ic("trash", 18)}</button>
-        ${off ? `<small class="ag-warntext ag-schwarn">${ic("alert", 14)} ${esc(this._t("schModeOff"))}</small>` : ""}</div>`;
-    }).join("");
-    return chapter(this._t("schTitle"), `<div class="ag-card ag-setlist ag-codes ag-sched">
-      <div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("schHint"))}</small></div>
-        <button class="ag-btn" data-sys="sch-add">${ic("plus", 18)}${esc(this._t("schAdd"))}</button></div>
-      ${rows || `<div class="ag-coderow ag-t2">${esc(this._t("schEmpty"))}</div>`}</div>`);
   }
 
   // ----- Codes pro Person (sofort gespeichert, nicht Teil des Entwurfs: ein Code soll nie im Panel liegen bleiben) -----
@@ -620,7 +596,7 @@ export class SystemUi {
     else if (this.saveState && this.saveState !== "saved") status = `<span class="ag-err">${esc(this.saveState)}</span>`;
     else if (bad) {
       const first = badKeys[0];
-      const text = first === "modes" ? this._t("sysModesNone") : first === "schedules" ? this._t("schInvalid")
+      const text = first === "modes" ? this._t("sysModesNone")
         : first.endsWith(".confirm_window") ? this._t("invalidNumber", { min: 5, max: 600 }) : this._t("invalidNumber", { min: 0, max: MAX });
       status = `<span class="ag-err">${esc(text)}</span>`;
     }
@@ -641,9 +617,9 @@ export class SystemUi {
       // Alle Modi (auch abgeschaltete behalten ihre Werte)
       const mode_settings = Object.fromEntries(ALL_MODES.map((m) => [m, { ...d.per[m] }]));
       const saved = await h._hass.callWS({ type: "alarmageddon/save_system", entry_id: s.entry_id, mode_settings, per_mode_settings: d.perMode,
-        home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, schedules: d.schedules,
+        home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, routines: d.routines, routines_disarm: d.routinesDisarm,
         ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}) });
-      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, modes, schedules: JSON.parse(JSON.stringify(d.schedules)), code_ack_required: d.ackCode && Boolean(s.has_code) });
+      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, modes, routines: JSON.parse(JSON.stringify(d.routines)), routines_disarm: d.routinesDisarm, code_ack_required: d.ackCode && Boolean(s.has_code) });
       this.draft = null;
       this.saveState = "saved";
       this.host._markSaved(this); // Punkte "ungespeichert" verschwinden sofort
@@ -651,7 +627,7 @@ export class SystemUi {
       if (saved?.reload !== false) h._reloadWait();
       else h._fetch();
     } catch (err) {
-      const known = { no_mode: "errNoMode", mode_active: "errModeActive" }[err?.code];
+      const known = { no_mode: "errNoMode", mode_active: "errModeActive", invalid_routines: "rtSaveInvalid" }[err?.code];
       this.saveState = known ? this._t(known) : this._t("saveFailed", { message: errText(err) });
     } finally {
       this.saving = false;
@@ -708,8 +684,9 @@ export class SystemUi {
       } else if (act === "cs-go") this._csUpload();
       return true;
     }
+    // Routinen (1.44.0): Liste und Editor
+    if (act.startsWith("rt-")) return this.rt.onClick(el);
     const d = this.ensureDraft();
-    const i = Number(el.dataset.index);
     if (act === "permode") {
       d.perMode = !d.perMode;
       if (!d.perMode) {
@@ -729,25 +706,6 @@ export class SystemUi {
       this.render();
     } else if (act === "mode") {
       d.modes[el.dataset.mode] = !d.modes[el.dataset.mode];
-      this.saveState = null;
-      this.render();
-    } else if (act === "sch-add") {
-      const mode = ["away", "night", "home"].find((m) => d.modes[m]) || "away";
-      d.schedules.push({ id: Math.random().toString(36).slice(2, 10), enabled: true, action: mode, time: "08:00", days: [0, 1, 2, 3, 4] });
-      this.saveState = null;
-      this.render();
-    } else if (act === "sch-day") {
-      const day = Number(el.dataset.day);
-      const r = d.schedules[i];
-      r.days = r.days.includes(day) ? r.days.filter((x) => x !== day) : [...r.days, day].sort((a, b) => a - b);
-      this.saveState = null;
-      this.render();
-    } else if (act === "sch-on") {
-      d.schedules[i].enabled = d.schedules[i].enabled === false;
-      this.saveState = null;
-      this.render();
-    } else if (act === "sch-del") {
-      d.schedules.splice(i, 1);
       this.saveState = null;
       this.render();
     } else if (act === "cancel") {
@@ -835,20 +793,7 @@ export class SystemUi {
       this._codeError("");
       return true;
     }
-    if (el.dataset.sys === "sch-time" || el.dataset.sys === "sch-action") {
-      const d = this.ensureDraft();
-      const r = d.schedules[Number(el.dataset.index)];
-      if (el.dataset.sys === "sch-time") {
-        r.time = el.value;
-        this.saveState = null;
-        this.renderFoot(); // Uhrzeit: nicht neu aufbauen, sonst springt die Eingabe
-      } else {
-        r.action = el.value;
-        this.saveState = null;
-        this.render();
-      }
-      return true;
-    }
+    if (el.dataset.sys?.startsWith("rt-")) return this.rt.onInput(el);
     if (el.dataset.sys !== "num") return false;
     const d = this.ensureDraft();
     const v = el.value === "" ? NaN : Number(el.value);

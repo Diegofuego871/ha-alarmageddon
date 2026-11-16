@@ -19,9 +19,9 @@ Eine vollständige Alarmanlage für Home Assistant: ohne eine einzige Automation
 
 ## Warum Alarmageddon
 
-- **Keine Automationen nötig.** Alles, was eine Alarmanlage ausmacht, ist eingebaut: Zonen je Modus, Ein- und Ausgangsverzögerung, Sirene und Alarmton, Zeitplan, Codes pro Person, Bestätigung durch zwei Sensoren. Du verdrahtest nichts selbst, weder Automationen noch Helfer noch Skripte.
+- **Keine Automationen nötig.** Alles, was eine Alarmanlage ausmacht, ist eingebaut: Zonen je Modus, Ein- und Ausgangsverzögerung, Sirene und Alarmton, Routinen (nach Zeit oder Gerät), Codes pro Person, Bestätigung durch zwei Sensoren. Du verdrahtest nichts selbst, weder Automationen noch Helfer noch Skripte.
 - **Push-Meldungen kommen von selbst.** Alarm, Eingangsverzögerung, scharf und deaktiviert, Scharfschalten nicht möglich, Sensor nicht erreichbar, Batterie schwach: Du wählst nur, wer sie bekommt. Die Alarmmeldung bringt ihre Knöpfe mit ("Quittieren", "Deaktivieren", "Alarmton stumm"), auf Wunsch kritisch, damit sie auch im Stumm-Modus ertönt. Verhindert ein offenes Fenster das Scharfschalten, bietet die Meldung "Erneut versuchen" und "Trotzdem scharf schalten" an.
-- **Alles grafisch einstellbar.** Ein Seitenpanel für Sensoren, Zonen, Verzögerungen, Alarmaktionen, Benachrichtigungen, Zeitplan, Codes und Sicherung, am Computer wie auf dem Handy. Kein YAML. Was bei einem Alarm passiert, baust du als Ablauf aus Schritten zusammen und probierst jeden Schritt mit einem Knopf an den echten Geräten aus.
+- **Alles grafisch einstellbar.** Ein Seitenpanel für Sensoren, Zonen, Verzögerungen, Alarmaktionen, Benachrichtigungen, Routinen, Codes und Sicherung, am Computer wie auf dem Handy. Kein YAML. Was bei einem Alarm passiert, baust du als Ablauf aus Schritten zusammen und probierst jeden Schritt mit einem Knopf an den echten Geräten aus.
 - **Deine Sensoren werden überwacht, nicht nur benutzt.** Batteriestand mit Prognose, nicht erreichbare Sensoren, Signal, Firmware und die letzte Änderung jedes Sensors in einer Liste, dazu für jeden Sensor der Verlauf der letzten 30 Tage. Fällt ein Sensor im scharfen Zustand aus, wird das gemeldet oder zählt auf Wunsch als Alarm.
 - **Du siehst, was passiert ist.** Jeder Alarm wird mit Zeitachse aufgezeichnet: welcher Sensor wann angesprochen hat, welche Schritte liefen, welche Meldungen hinausgingen, wer quittiert hat.
 - **Gebaut, um im Zweifel zu alarmieren.** Verzögerungen und Alarme überstehen einen Neustart, nichts kann die Sirene aufhalten, und ein Wächter beaufsichtigt die Alarmaktionen. Siehe [Sicherheitsmechanismen](#sicherheitsmechanismen).
@@ -85,7 +85,7 @@ Ein Alarm ist nicht zu übersehen: ein rotes Band mit dem Sensor, der ausgelöst
 
 ### Protokoll und Zeitachse des Alarms
 
-Jeder Alarm wird vom ersten Auslösen bis zum Quittieren aufgezeichnet: welcher Sensor wann angesprochen hat, welche Schritte liefen, welche Meldungen hinausgingen. Alle anderen Ereignisse (scharf, deaktiviert, Zeitplan, Sensorausfälle) stehen im zweiten Reiter, mit Filter nach Zeitraum und CSV-Export. Beides bleibt ein Jahr; einen einzelnen Alarm kannst du löschen.
+Jeder Alarm wird vom ersten Auslösen bis zum Quittieren aufgezeichnet: welcher Sensor wann angesprochen hat, welche Schritte liefen, welche Meldungen hinausgingen. Alle anderen Ereignisse (scharf, deaktiviert, Routinen, Sensorausfälle) stehen im zweiten Reiter, mit Filter nach Zeitraum und CSV-Export. Beides bleibt ein Jahr; einen einzelnen Alarm kannst du löschen.
 
 Ein Alarm, wie er abläuft, mit erfundenen Daten (links das Handy, rechts der Computer):
 
@@ -103,7 +103,7 @@ Erscheint die Karte nicht im Auswahldialog: Home Assistant nach dem Update neu s
 
 ### Mehr
 
-- **Zeitplan:** zu festen Zeiten an gewählten Wochentagen scharf schalten oder deaktivieren. Ein laufender Alarm wird vom Zeitplan nie deaktiviert.
+- **Routinen:** zu festen Zeiten an gewählten Wochentagen scharf schalten oder deaktivieren, oder wenn ein Gerät etwas tut, zum Beispiel wenn das Smart Lock abschliesst. Mehrere Bedingungen lassen sich mit "und" und "oder" verbinden, auch in Gruppen. Jede Routine gilt nur in den Zuständen der Anlage, die du wählst.
 - **Codes pro Person:** jede Person bekommt ihren eigenen Code; das Protokoll zeigt, wer scharf geschaltet und deaktiviert hat.
 - **Modi:** "Anwesend", "Abwesend" und "Nacht", jeder ein- und ausschaltbar, jeder mit eigener Zone, eigenen Verzögerungen und Aktionen.
 - **Bestätigung durch zwei Sensoren:** ein Bewegungsmelder kann einen zweiten Sensor verlangen, bevor er auslöst, gegen Fehlalarme.
@@ -232,9 +232,14 @@ Details für alle, die es genau wissen wollen. Zum Öffnen anklicken.
 </details>
 
 <details>
-<summary><b>Zeitplan, Sicherung und HomeKit im Detail</b></summary>
+<summary><b>Routinen, Sicherung und HomeKit im Detail</b></summary>
 
-- **Zeitplan:** offene Sensoren verhindern das Scharfschalten wie sonst; ein Code ist nicht nötig; Zeiten, die bei ausgeschaltetem Home Assistant verpasst wurden, werden nicht nachgeholt. Deaktivieren nach Zeitplan heisst: zu dieser Zeit ist die Anlage aus, egal wer zu Hause ist.
+- **Routinen:** unter Konfiguration › Anlage. Der Auslöser ist ein **Zeitplan** (eine oder mehrere Zeiten mit Wochentagen) oder ein **Gerät** (ein Schloss, Schalter, Türsensor, eine Person ...; Bedingungen "Gerät ist Zustand" und "Uhrzeit", verbunden mit "und"/"oder", mit einer Ebene Gruppen, wahlweise "muss N Sekunden gelten"). Eine Routine läuft, wenn ihre Bedingungen neu zutreffen: nicht solange sie zutreffen, nicht nach einem Neustart von Home Assistant und nicht bei der Rückkehr aus "nicht verfügbar" (ein Funkabriss schaltet die Anlage nie). Je Routine wählen fünf Schalter die Zustände der Anlage, in denen sie laufen darf (Ausgangsverzögerung, scharf, Eingangsverzögerung, beim Alarm, deaktiviert; standardmässig nur der letzte); im Moment des Auslösens zählt der Zustand, sonst wird die Routine übersprungen und das steht im Protokoll. Scharfschalten gilt nie bei Eingangsverzögerung oder Alarm. Offene Sensoren verhindern das Scharfschalten wie sonst; ein Code ist nicht nötig. Eine Routine löst keine andere aus, und eine Routine läuft nie zweimal innerhalb von 10 Sekunden.
+- **Routinen im Panel:** jede Routine ist eine Zeile mit dem Auslöser in Klartext, dem Ziel und Marken ("Umgeht den Code", die Zustände, in denen sie gilt). Der Stift öffnet den Editor.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/routines-de.png" alt="Das Kapitel Routinen unter Konfiguration › Anlage, mit Routinen nach Zeit und nach Gerät" width="100%"></p>
+
+- **Deaktivieren per Routine** umgeht den Code: Wer den Auslöser bedienen kann, kann deaktivieren. Darum ist es standardmässig aus ("Deaktivieren per Routine erlauben" unter Konfiguration › Anlage), trägt die Marke "Umgeht den Code" und braucht in der Routine die Bestätigung "Ich habe das verstanden". Bei Eingangsverzögerung oder Alarm deaktiviert eine Routine nur, wenn du diese Zustände ausdrücklich wählst. Zeitpläne früherer Versionen sind beim Update zu Routinen geworden (Zustände: Ausgangsverzögerung, scharf, deaktiviert; wenn einer deaktivierte, wurde der Schalter oben für die Anlage eingeschaltet, damit er weiterläuft); alte Sicherungen werden beim Wiederherstellen umgewandelt.
 - **Sicherung:** bis zu 10 Sicherungen in der Integration, dazu Export und Import als Datei. Beim Wiederherstellen wählst du für jede Anlage der Sicherung, worauf sie angewendet wird: eine bestehende Anlage (gleich wie sie heisst), eine neue oder keine; die gemeinsamen Einstellungen lassen sich weglassen. Codes sind nie enthalten; die Sicherung von Home Assistant selbst enthält alles.
 - **HomeKit, Ausgangsverzögerung:** Apple Home zeigt während der Ausgangsverzögerung "Aus" mit dem Ziel "Abwesend". Für "Anwesend" und "Nacht" keine Ausgangsverzögerung verwenden (Standard).
 - **HomeKit, Eingangsverzögerung:** Apple Home zeigt weiter "scharf" und wechselt auf "Alarm", wenn der Alarm beginnt.

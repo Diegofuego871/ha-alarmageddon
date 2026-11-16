@@ -98,6 +98,17 @@ for (const lang of ["en", "de"]) {
       r.host._content.scrollTop += chap.getBoundingClientRect().top - (bar.getBoundingClientRect().bottom + 12);
     });
   } });
+  // Routinen (1.44.0): das Kapitel in Konfiguration › Anlage mit den Routinen des Nachbaus (Zeit und Gerät, Und/Oder)
+  await shot(lang, "routines", { tab: "config", height: 800, prepare: async ({ page, frame }) => {
+    await click('[data-sub="system"]')({ frame });
+    await page.waitForTimeout(800);
+    await frame.evaluate(() => {
+      const r = document.querySelector("alarmageddon-panel").shadowRoot;
+      const chap = r.querySelector(".ag-rt").closest(".ag-chap");
+      const bar = r.querySelector(".ag-cfg");
+      r.host._content.scrollTop += chap.getBoundingClientRect().top - (bar.getBoundingClientRect().bottom + 12);
+    });
+  } });
   // Beendete Alarme sind zugeklappt (1.17.9): fürs Bild den neuesten aufklappen
   await shot(lang, "log", { tab: "log", prepare: click(".ag-inc-head") });
   await shot(lang, "mobile", { mobile: true });

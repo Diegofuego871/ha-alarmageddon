@@ -15,8 +15,15 @@ from .const import (
     CONF_CONFIRM_WINDOW,
     CONF_ALWAYS_ENABLED,
     CONF_HOME_ENABLED,
+    CONF_ROUTINES,
+    CONF_ROUTINES_DISARM,
     CONF_SCHEDULES,
+    MAX_ROUTINES,
+    MAX_ROUTINE_TIMES,
     MAX_SCHEDULES,
+    ROUTINE_ACTIONS,
+    ROUTINE_HOLD_MAX,
+    ROUTINE_STATES,
     SCHEDULE_ACTIONS,
     CONF_ENTRY_DELAY,
     CONF_ENTRY_SENSORS,
@@ -274,6 +281,33 @@ SCHEDULE_SCHEMA = vol.Schema(
 )
 SCHEDULES = vol.All([SCHEDULE_SCHEMA], vol.Length(max=MAX_SCHEDULES))
 
+# ----- Routinen (1.44.0): Aufbau; was sich nur mit Home Assistant prüfen lässt (Entitäten, Werte je Art), prüft routines.check_routines -----
+CLOCK = vol.All(str, vol.Match(r"^([01]\d|2[0-3]):[0-5]\d$"))
+_STATE_LEAF = vol.Schema({vol.Required("kind"): "state", vol.Required("entity_id"): cv.entity_id, vol.Required("state"): vol.All(str, vol.Length(min=1, max=20))})
+_TIME_LEAF = vol.Schema({vol.Required("kind"): "time", vol.Required("from"): CLOCK, vol.Required("to"): CLOCK, vol.Optional("days", default=list): vol.All([vol.In(range(7))], vol.Length(max=7))})
+ROUTINE_LEAF = vol.Any(_STATE_LEAF, _TIME_LEAF)
+_AND_OR = vol.In(("and", "or"))
+ROUTINE_GROUP = vol.Schema({vol.Required("op"): _AND_OR, vol.Required("items"): vol.All([ROUTINE_LEAF], vol.Length(min=1, max=10))})
+ROUTINE_TREE = vol.Schema({vol.Required("op"): _AND_OR, vol.Required("items"): vol.All([vol.Any(ROUTINE_LEAF, ROUTINE_GROUP)], vol.Length(min=1, max=13))})
+_SCHEDULE_TRIGGER = vol.Schema(
+    {vol.Required("type"): "schedule", vol.Required("times"): vol.All([vol.Schema({vol.Required("time"): CLOCK, vol.Required("days"): _days})], vol.Length(min=1, max=MAX_ROUTINE_TIMES))}
+)
+_DEVICE_TRIGGER = vol.Schema(
+    {vol.Required("type"): "device", vol.Required("tree"): ROUTINE_TREE, vol.Optional("hold", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=ROUTINE_HOLD_MAX))}
+)
+ROUTINE_SCHEMA = vol.Schema(
+    {
+        vol.Required("id"): vol.All(str, vol.Length(min=1, max=32)),
+        vol.Required("name"): vol.All(str, vol.Length(min=1, max=40)),
+        vol.Optional("enabled", default=True): bool,
+        vol.Required("action"): vol.In(ROUTINE_ACTIONS),
+        vol.Required("states"): vol.All([vol.In(ROUTINE_STATES)], vol.Length(min=1, max=len(ROUTINE_STATES))),
+        vol.Required("trigger"): vol.Any(_SCHEDULE_TRIGGER, _DEVICE_TRIGGER),
+        vol.Optional("unsafe", default=False): bool,
+    }
+)
+ROUTINES = vol.All([ROUTINE_SCHEMA], vol.Length(max=MAX_ROUTINES))
+
 
 def _binary_sensors(value: Any) -> list[str]:
     ids = vol.Schema([cv.entity_id])(value)
@@ -300,7 +334,9 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_ALWAYS_ENABLED): bool,
         vol.Optional(CONF_HOME_ENABLED): bool,
         vol.Optional(CONF_AWAY_ENABLED): bool,
-        vol.Optional(CONF_SCHEDULES): SCHEDULES,
+        vol.Optional(CONF_SCHEDULES): SCHEDULES,  # nur noch aus alten Sicherungen: wird beim Laden zu Routinen
+        vol.Optional(CONF_ROUTINES): ROUTINES,
+        vol.Optional(CONF_ROUTINES_DISARM): bool,
         vol.Optional(CONF_OPEN_SENSORS): vol.In(OPEN_SENSOR_MODES),
         vol.Optional(CONF_CODE_ARM_REQUIRED): bool,
         vol.Optional(CONF_CODE_ACK_REQUIRED): bool,

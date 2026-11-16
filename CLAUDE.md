@@ -143,6 +143,16 @@ Umsetzung:
   Neuladen und Neustart (`run["undo"]`, `workflow._arm_undo`); Deaktivieren, Quittieren und das Ende eines Tests schalten sofort zurück
   (`_flush_undos`), der Gegendienst ist wie jeder Aufruf begrenzt. Tests in `tests/test_undo_after.py`, Zeilen in `scripts/mutation_check.py`.
 - Deaktivieren per Push-Aktion ist standardmässig aus.
+- Routinen (seit 1.44.0, `routines.py`, ersetzen den Zeitplan; Entscheid des Nutzers, 2026-11-16): Eine Routine schaltet die Anlage nach Zeit oder
+  wenn Geräte von HA etwas tun. Sie läuft nur bei einem **echten Wechsel** zwischen zwei bekannten Zuständen und neu erfüllter Bedingung (nie im
+  Dauerzustand, nie nach einem Neustart, nie bei der Rückkehr aus "nicht verfügbar" oder "unbekannt": ein Funkabriss schaltet die Anlage nie).
+  Der Zustand der Anlage beim Auslösen muss zu den gewählten Zuständen der Routine gehören, sonst wird übersprungen und protokolliert
+  (`routine_skipped`). Scharfschalten gilt nie bei Eingangsverzögerung oder Alarm (Schema und Laufzeit prüfen es unabhängig). **Deaktivieren per
+  Routine** braucht den Schalter `routines_disarm` der Anlage (Standard aus) und `unsafe` (Bestätigung "Ich habe das verstanden") in der Routine;
+  es trägt im Panel immer die Marke "Umgeht den Code". Eine Routine löst nie eine andere aus (Entitäten von Alarmageddon sind als Auslöser
+  abgelehnt), je Routine gilt eine Sperre von `ROUTINE_COOLDOWN` Sekunden. Jede dieser Bedingungen hat einen Test in `tests/test_routines.py`
+  und eine Zeile in `scripts/mutation_check.py`. Neue Bedingungsarten oder Geräte-Domänen (`LEAF_STATES`) ergänzen die parametrisierten
+  Prüfungen `test_save_routines_rejects_invalid` und die Suite `routines-e2e.mjs`.
 - Scharfschalten per Push-Knopf (seit 1.18.0, Meldung "Scharfschalten nicht möglich": "Erneut versuchen", "Trotzdem scharf
   schalten") ist standardmässig an (Entscheid des Nutzers, 2026-11-12). Die Knöpfe wirken nur bei deaktivierter Anlage, eine
   Stunde lang (`ARM_BUTTONS_VALID`), nur vom Handy eines Empfängers dieser Meldung, für den Modus des gescheiterten Versuchs

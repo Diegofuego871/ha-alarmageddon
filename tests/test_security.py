@@ -66,6 +66,7 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "stop_workflow": {"entry_id": "ENTRY"},
     "acknowledge": {"entry_id": "ENTRY"},
     "battery_forecast": {},
+    "routine_entities": {},
     "sensor_history": {"entity_id": "binary_sensor.fenster_kueche"},
     "save_display": {"names_with_device": False},
     "delete_recording": {"entry_id": "ENTRY", "recording": "2026-01-01T00:00:00+00:00"},

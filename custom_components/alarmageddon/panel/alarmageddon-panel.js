@@ -21,7 +21,7 @@ const AWAY_MS = 30 * 60 * 1000;
 const SUBS = ["sensors", "actions", "notify", "system"];
 
 // Knöpfe, die einen Dialog ohne Speichern schliessen (das X löst den ersten gefundenen aus)
-const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sys="code-close"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"]';
+const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sys="code-close"],[data-sys="rt-cancel"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"]';
 
 class AlarmageddonPanel extends HTMLElement {
   constructor() {
@@ -933,8 +933,14 @@ class AlarmageddonPanel extends HTMLElement {
     else if (e.kind === "silenced") text = this._t("evSilenced", { by: e.by || "?" });
     else if (e.kind === "unconfirmed") text = this._t("evUnconfirmed", { sensor });
     else if (e.kind === "schedule_skipped") {
+      // Einträge bis 1.43 (Zeitplan)
       const action = e.action === "off" ? this._t("schOff") : this._t("schArm", { mode: this._t(MODE_KEY[e.action] || "modeAway") });
       text = this._t(e.reason === "alarm" ? "evScheduleSkippedAlarm" : "evScheduleSkipped", { action });
+    }
+    else if (e.kind === "routine_skipped") {
+      const why = e.reason === "state" ? this._t("evRtWhyState", { state: this.systemUi.rt.stateName(e.at) })
+        : e.reason === "disarm_off" ? this._t("evRtWhyDisarm") : e.reason === "mode" ? this._t("evRtWhyMode") : this._t("evRtWhyAlarm");
+      text = this._t("evRoutineSkipped", { routine: e.routine || "?", why });
     }
     else if (e.kind === "arm_failed") text = this._t("evArmFailed", { mode, sensors: (e.sensors || []).map((x) => this._name(x)).join(", ") });
     else if (ARMED[e.state]) text = this._t("evArmed", { mode });
@@ -1313,6 +1319,8 @@ class AlarmageddonPanel extends HTMLElement {
   // Gibt es im Dialog ungeschriebene Eingaben? (Schritt-Editor, Sensorauswahl, Voreinstellungen, neuer Code)
   _dlgDirty(dlg) {
     if (dlg.id === "ag-step") {
+      // Editor der Routinen (1.44.0) teilt sich das Fenster mit dem Schritt-Editor der Aktionen
+      if (this.systemUi.rt.form) return this.systemUi.rt.dirty();
       const e = this.actions.edit;
       return Boolean(e?.form) && e.snap !== undefined && JSON.stringify(e.form) !== e.snap;
     }

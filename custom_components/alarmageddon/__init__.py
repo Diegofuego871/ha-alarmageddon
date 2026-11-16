@@ -25,7 +25,7 @@ from .recording import AlarmRecorder, async_remove_recordings
 from .maintenance import async_start_maintenance, async_stop_maintenance
 from .notify import Notifier
 from .panel import async_register_panel, async_remove_panel
-from .scheduler import Scheduler
+from .routines import RoutineEngine, migrate_options
 from .reception import async_get_reception
 from .sensor_history import async_get_stats
 from .settings import async_get_settings
@@ -89,6 +89,13 @@ def _migrate_open_sensors(hass: HomeAssistant, entry: ConfigEntry) -> None:
     hass.config_entries.async_update_entry(entry, options=options)
 
 
+def _migrate_schedules(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Bis 1.43 gab es Zeitpläne; sie sind jetzt Routinen mit Auslöser Zeitplan (siehe routines.migrate_options)."""
+    options = migrate_options(dict(entry.options), hass.config.language)
+    if options is not None:
+        hass.config_entries.async_update_entry(entry, options=options)
+
+
 async def _isolated(entry: ConfigEntry, awaitable: Awaitable[Any], what: str) -> Any:
     """
     Etwas Zusätzliches (Protokoll, Aufzeichnung, Statistik, Aktionen, Wartung) vorbereiten, ohne dass sein Scheitern die Anlage mitnimmt.
@@ -107,6 +114,7 @@ async def _isolated(entry: ConfigEntry, awaitable: Awaitable[Any], what: str) ->
 async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry) -> bool:
     # Vor dem Controller und vor dem Update-Listener: die Änderung der Optionen löst so kein zusätzliches Neuladen aus
     _migrate_open_sensors(hass, entry)
+    _migrate_schedules(hass, entry)
     integration = await async_get_integration(hass, DOMAIN)
     settings = await async_get_settings(hass)
     controller = AlarmController(hass, entry, settings)
@@ -133,9 +141,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
     entry.async_on_unload(notifier.async_stop)
     # Die Aktionen sind Zusatz zur Anlage selbst: scheitert ihr Start (Ablage), hört die Anlage trotzdem auf ihre Sensoren und meldet
     await _isolated(entry, workflow.async_start(), "starting the alarm actions")
-    scheduler = Scheduler(hass, entry, controller)
-    scheduler.async_start()
-    entry.async_on_unload(scheduler.async_stop)
+    routines = RoutineEngine(hass, entry, controller)
+    routines.async_start()
+    entry.async_on_unload(routines.async_stop)
     # Zonen, Modi und Verzögerungen bestimmen, welche Entitäten es gibt und wem zugehört wird: neu laden.
     # Der Zustand (scharf, Verzögerung, Alarm) übersteht das über die Wiederherstellung der Entität.
     entry.async_on_unload(entry.add_update_listener(_async_reload))

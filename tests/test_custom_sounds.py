@@ -504,7 +504,7 @@ async def test_a_backup_carries_the_custom_sounds_and_restores_them(hass: HomeAs
     data = await backup.async_export(hass, "1.39.0")
     items = data["settings"]["custom_sounds"]
     assert [i["id"] for i in items] == [sound["id"]] and base64.b64decode(items[0]["wav"])[:4] == b"RIFF"
-    checked = backup.validate(data)
+    checked = backup.validate(data, hass)
     assert [i["id"] for i in checked["custom_sounds"]] == [sound["id"]]
     reg = hass.data[DATA_CUSTOM_SOUNDS]
     await reg.async_delete(sound["id"])

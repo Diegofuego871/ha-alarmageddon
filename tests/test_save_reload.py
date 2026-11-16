@@ -119,7 +119,7 @@ async def _data(client) -> dict:
 
 @pytest.mark.parametrize("night", [False, True], ids=["Nacht abgeschaltet", "Nacht eingeschaltet"])
 async def test_system_settings_come_back_exactly_as_the_panel_saved_them(hass: HomeAssistant, hass_ws_client, night: bool) -> None:
-    """Reiter "Anlage": Zeiten aller Modi (auch der abgeschalteten: sie behalten ihre Werte), Schalter, Modi, "Immer aktiv", Zeitplan."""
+    """Reiter "Anlage": Zeiten aller Modi (auch der abgeschalteten: sie behalten ihre Werte), Schalter, Modi, "Immer aktiv", Routinen."""
     entry = await setup_alarm(hass)
     client = await hass_ws_client(hass)
     # So sendet das Panel: ohne "Einstellungen pro Modus" dieselben Werte für alle drei Modi, auch für einen abgeschalteten
@@ -127,8 +127,13 @@ async def test_system_settings_come_back_exactly_as_the_panel_saved_them(hass: H
     payload = {
         "mode_settings": {mode: dict(times) for mode in ("home", "away", "night")},
         "per_mode_settings": False, "home_enabled": True, "away_enabled": True, "night_enabled": night, "always_enabled": False,
-        "schedules": [{"id": "k3j2h1g0", "enabled": True, "action": "away", "time": "08:00", "days": [0, 1, 2, 3, 4]},
-                      {"id": "a1b2c3d4", "enabled": False, "action": "off", "time": "17:30", "days": [5, 6]}],
+        "routines": [{"id": "k3j2h1g0", "name": "Morgens", "enabled": True, "action": "away", "states": ["disarmed"], "unsafe": False,
+                      "trigger": {"type": "schedule", "times": [{"time": "08:00", "days": [0, 1, 2, 3, 4]}]}},
+                     {"id": "a1b2c3d4", "name": "Abends", "enabled": False, "action": "off", "states": ["armed"], "unsafe": True,
+                      "trigger": {"type": "device", "hold": 5, "tree": {"op": "or", "items": [
+                          {"kind": "state", "entity_id": "lock.haustuer", "state": "unlocked"},
+                          {"op": "and", "items": [{"kind": "state", "entity_id": "person.anna", "state": "home"}, {"kind": "time", "from": "22:00", "to": "06:00", "days": [5, 6]}]}]}}}],
+        "routines_disarm": True,
     }
     await client.send_json_auto_id({"type": "alarmageddon/save_system", "entry_id": entry.entry_id, **payload})
     assert (await client.receive_json())["success"]
@@ -137,7 +142,7 @@ async def test_system_settings_come_back_exactly_as_the_panel_saved_them(hass: H
     assert _same(system["mode_settings"], payload["mode_settings"]), system["mode_settings"]
     assert system["per_mode_settings"] is False and system["always_enabled"] is False and system["night_enabled"] is night
     assert system["modes"] == ["home", "away", *(["night"] if night else [])]
-    assert _same(system["schedules"], payload["schedules"]), system["schedules"]
+    assert _same(system["routines"], payload["routines"]) and system["routines_disarm"] is True, system["routines"]
     # Noch einmal dasselbe gespeichert: nichts lädt neu, die Daten bleiben gleich
     await client.send_json_auto_id({"type": "alarmageddon/save_system", "entry_id": entry.entry_id, **payload})
     assert (await client.receive_json())["result"] == {"ok": True, "reload": False}

@@ -98,7 +98,7 @@ async def test_a_failed_setup_leaves_no_sensor_listener_behind(hass: HomeAssista
         hass.states.async_set(entity, "off")
     entry = MockConfigEntry(domain=DOMAIN, title="Haus", data={"name": "Haus"}, options=options())
     entry.add_to_hass(hass)
-    with patch("custom_components.alarmageddon.Scheduler.async_start", side_effect=RuntimeError("kaputt")):
+    with patch("custom_components.alarmageddon.RoutineEngine.async_start", side_effect=RuntimeError("kaputt")):
         assert not await hass.config_entries.async_setup(entry.entry_id)
     assert entry.state is ConfigEntryState.SETUP_ERROR
     ctl = entry.runtime_data.controller

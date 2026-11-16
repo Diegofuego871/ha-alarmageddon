@@ -72,7 +72,15 @@
       mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 60, entry_delay: 30, confirm_window: 60 },
         night: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: true, code_arm_required: false, code: "1234",
       main_code: true, codes: [{ id: "c_anna", name: "Anna", user_id: "u_anna" }], pcodes: { c_anna: "2468" },
-      schedules: [{ id: "s_nacht", enabled: true, action: "night", time: "22:30", days: [0, 1, 2, 3, 4, 5, 6] }, { id: "s_morgen", enabled: true, action: "off", time: "06:45", days: [0, 1, 2, 3, 4] }],
+      // Routinen (1.44.0): eine Zeit, ein Gerät mit Und/Oder, eine, die deaktiviert
+      routines_disarm: true,
+      routines: [
+        { id: "r_nacht", name: "Nachts scharf", enabled: true, action: "night", states: ["arming", "armed", "disarmed"], unsafe: false, trigger: { type: "schedule", times: [{ time: "22:30", days: [0, 1, 2, 3, 4, 5, 6] }] } },
+        { id: "r_morgen", name: "Morgens aus", enabled: true, action: "off", states: ["armed"], unsafe: true, trigger: { type: "schedule", times: [{ time: "06:45", days: [0, 1, 2, 3, 4] }] } },
+        { id: "r_heim", name: "Heimkommen", enabled: true, action: "off", states: ["armed", "arming"], unsafe: true, trigger: { type: "device", hold: 0, tree: { op: "or", items: [
+          { kind: "state", entity_id: "lock.haustuer", state: "unlocked" },
+          { op: "and", items: [{ kind: "state", entity_id: "person.marco", state: "home" }, { kind: "time", from: "22:00", to: "06:00", days: [] }] }] } } },
+      ],
       night_enabled: true, sensor_options: { "binary_sensor.terrassentuer": { offline_alarm: true }, "binary_sensor.rauchmelder_flur": { always: true } },
       workflow_running: null, workflow_test: false,
       entry_delay_max: { home: 30, away: 30, night: 30 },
@@ -89,7 +97,7 @@
       zones: { home: ["binary_sensor.garagentor"], away: ["binary_sensor.garagentor", "binary_sensor.bewegung_garage"] },
       sensors: params.get("sensors") === "few" ? [] : Object.keys(SENSORS),
       entry_sensors: [],
-      entry_delay_max: { home: 0, away: 0 }, mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, schedules: [],
+      entry_delay_max: { home: 0, away: 0 }, mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [], routines_disarm: false,
       night_enabled: false, sensor_options: {}, workflows: {}, workflow_running: null, workflow_test: false,
       events: [ { t: iso(20 * 60e3), state: "disarmed", mode: null, by: "Automation" } ] },
   ];
@@ -340,6 +348,16 @@
         ...(battery ? { threshold: 20, changes: [points[8][0]] } : {}),
         summary: { current: values[n], mean: -66, min: Math.min(...values), max: Math.max(...values), ...(battery ? { per_day: -0.36, days_left: 140, last_change: points[8][0] } : {}) } };
     }
+    if (msg.type === "alarmageddon/routine_entities") {
+      return { entities: [
+        { entity_id: "lock.haustuer", name: "Haustür-Schloss", domain: "lock", area: "Flur", device_class: "", states: ["locked", "unlocked", "jammed", "open"], state: "locked" },
+        { entity_id: "lock.garten", name: "Garten-Schloss", domain: "lock", area: "Garten", device_class: "", states: ["locked", "unlocked", "jammed", "open"], state: "locked" },
+        { entity_id: "person.marco", name: "Marco", domain: "person", area: "", device_class: "", states: ["home", "not_home"], state: "home" },
+        { entity_id: "person.anna", name: "Anna", domain: "person", area: "", device_class: "", states: ["home", "not_home"], state: "not_home" },
+        { entity_id: "binary_sensor.garagentor", name: "Garagentor", domain: "binary_sensor", area: "Garage", device_class: "garage_door", states: ["on", "off"], state: "off" },
+        { entity_id: "switch.steckdose_wohnzimmer", name: "Steckdose Wohnzimmer", domain: "switch", area: "Wohnzimmer", device_class: "", states: ["on", "off"], state: "on" },
+      ] };
+    }
     if (msg.type === "alarmageddon/battery_forecast") {
       return { forecast: { "sensor.haustuer_batterie": 410, "sensor.bewegung_flur_batterie": 95, "sensor.fenster_bad_batterie": 0, "sensor.fenster_kueche_batterie": 21, "sensor.terrassentuer_batterie": null } };
     }
@@ -384,7 +402,7 @@
       const created = { entry_id: `e_${slug}`, title: name, entity_id: `alarm_control_panel.${slug}`, modes: ["home", "away"], zones: { home: [], away: [] },
         sensors: Object.keys(SENSORS), entry_sensors: [], entry_delay_max: { home: 0, away: 0 },
         mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 60, entry_delay: 30, confirm_window: 60 } },
-        has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, schedules: [], night_enabled: false, sensor_options: {},
+        has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [], routines_disarm: false, night_enabled: false, sensor_options: {},
         workflows: {}, workflow_running: null, workflow_test: false, events: [] };
       window.__systems.push(created);
       window.__systems.sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
@@ -476,7 +494,8 @@
         sys.code_ack_required = msg.code_ack_required;
         window.__ackRequired = msg.code_ack_required;
       }
-      if (msg.schedules) sys.schedules = JSON.parse(JSON.stringify(msg.schedules));
+      if (msg.routines) sys.routines = JSON.parse(JSON.stringify(msg.routines));
+      if (typeof msg.routines_disarm === "boolean") sys.routines_disarm = msg.routines_disarm;
       const enabled = { home: sys.modes.includes("home"), away: sys.modes.includes("away"), night: sys.modes.includes("night") };
       for (const m of ["home", "away", "night"]) if (`${m}_enabled` in msg) enabled[m] = msg[`${m}_enabled`];
       const modes = ["home", "away", "night"].filter((m) => enabled[m]);

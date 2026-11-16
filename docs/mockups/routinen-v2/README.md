@@ -6,7 +6,8 @@ Eingangsverzögerung, Beim Alarm, Anlage deaktiviert; nur der letzte standardmä
 **Zeitplan** oder **Gerät**. Die Bilder zeigen die echte Seite (HA-Nachbau, dunkel); die neuen Teile sind Entwurf. Dahinter sieht man noch das alte
 Kapitel "Zeitplan": es entfällt. Quelle: `src/mock.mjs`.
 
-**Noch nicht entschieden, noch nicht umgesetzt.**
+**Entschieden (alle Vorschläge unten bestätigt, 2026-11-16) und umgesetzt in 1.44.0** (Abweichungen: der Knopf "Test" im Editor entfällt, eine
+Routine zu "testen" würde die Anlage schalten; die Marken "Nächste/Zuletzt" fehlen, die Engine hält keine Laufzeitdaten je Routine).
 
 | Bilder | Inhalt |
 | --- | --- |

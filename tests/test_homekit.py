@@ -93,12 +93,14 @@ async def test_only_chosen_modes_in_apple_home(hass: HomeAssistant, hk_driver) -
 
 
 async def test_scheduled_arm_shows_in_apple_home(hass: HomeAssistant, hk_driver) -> None:
-    """Vom Zeitplan scharf geschaltet: Apple Home zeigt denselben Zustand."""
+    """Von einer Routine scharf geschaltet: Apple Home zeigt denselben Zustand."""
     entry = await setup_alarm(hass, exit_delay_away=0)
     acc = await _accessory(hass, hk_driver)
-    from custom_components.alarmageddon.scheduler import Scheduler
+    from custom_components.alarmageddon.routines import RoutineEngine
 
-    await Scheduler(hass, entry, entry.runtime_data.controller).async_run("away")
+    rule = {"id": "r1", "name": "Nachts", "enabled": True, "action": "away", "states": ["disarmed"], "unsafe": False,
+            "trigger": {"type": "schedule", "times": [{"time": "08:00", "days": [0]}]}}
+    await RoutineEngine(hass, entry, entry.runtime_data.controller).async_run(rule)
     await hass.async_block_till_done()
     await hass.async_block_till_done()
     assert acc.char_current_state.value == HK_AWAY

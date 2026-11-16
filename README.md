@@ -19,9 +19,9 @@ A complete alarm system for Home Assistant: without a single automation, with pu
 
 ## Why Alarmageddon
 
-- **No automations needed.** Everything that makes an alarm system is built in: zones per mode, entry and exit delay, siren and alarm sound, schedule, a code per person, confirmation by two sensors. You wire up nothing yourself, neither automations nor helpers nor scripts.
+- **No automations needed.** Everything that makes an alarm system is built in: zones per mode, entry and exit delay, siren and alarm sound, routines (by time or by device), a code per person, confirmation by two sensors. You wire up nothing yourself, neither automations nor helpers nor scripts.
 - **Push notifications come by themselves.** Alarm, entry delay, armed and disarmed, arming not possible, sensor unreachable, battery low: you only choose who receives them. The alarm notification brings its buttons along ("Acknowledge", "Disarm", "Silence alarm sound"), critical if you like, so that it sounds even in silent mode. If an open window keeps the system from arming, the message offers "Try again" and "Arm anyway".
-- **Everything is set up graphically.** One side panel for sensors, zones, delays, alarm actions, notifications, schedule, codes and backup, on the computer and on the phone. No YAML. What happens on an alarm is a flow you put together from steps, and you try each step on the real devices with one button.
+- **Everything is set up graphically.** One side panel for sensors, zones, delays, alarm actions, notifications, routines, codes and backup, on the computer and on the phone. No YAML. What happens on an alarm is a flow you put together from steps, and you try each step on the real devices with one button.
 - **Your sensors are watched, not just used.** Battery level with a forecast, unreachable sensors, signal, firmware and the last change of every sensor in one list, plus the history of the last 30 days for each sensor. If a sensor drops out while armed, you are told, or it counts as an alarm if you like.
 - **You see what happened.** Every alarm is recorded with a timeline: which sensor responded when, which steps ran, which notifications went out, who acknowledged.
 - **Built to alarm when in doubt.** Delays and alarms survive a restart, nothing can hold up the siren, and a watchdog supervises the alarm actions. See [Safety mechanisms](#safety-mechanisms).
@@ -85,7 +85,7 @@ An alarm cannot be overlooked: a red band with the sensor that triggered and the
 
 ### Log and alarm timeline
 
-Every alarm is recorded from the first trigger until someone acknowledges it: which sensor responded when, which steps ran, which notifications went out. All other events (armed, disarmed, schedule, sensor failures) are on the second tab, with a filter by period and a CSV export. Both are kept for a year; you can delete a single alarm.
+Every alarm is recorded from the first trigger until someone acknowledges it: which sensor responded when, which steps ran, which notifications went out. All other events (armed, disarmed, routines, sensor failures) are on the second tab, with a filter by period and a CSV export. Both are kept for a year; you can delete a single alarm.
 
 An alarm as it happens, with invented data (phone on the left, computer on the right):
 
@@ -103,7 +103,7 @@ If the card does not appear in the card picker: restart Home Assistant after the
 
 ### More
 
-- **Schedule:** arm or disarm at set times on chosen weekdays. A running alarm is never disarmed by the schedule.
+- **Routines:** arm or disarm at set times on chosen weekdays, or when a device does something, for example when the smart lock locks. Several conditions can be combined with "and" and "or", in groups. Each routine only applies in the alarm states you choose.
 - **Codes per person:** everyone gets their own code; the log shows who armed and disarmed.
 - **Modes:** "Home", "Away" and "Night", each switchable on and off, each with its own zone, delays and actions.
 - **Two-sensor confirmation:** a motion sensor can require a second sensor before it triggers, against false alarms.
@@ -232,9 +232,14 @@ Details for those who want to know exactly. Click to open.
 </details>
 
 <details>
-<summary><b>Schedule, backup and HomeKit in detail</b></summary>
+<summary><b>Routines, backup and HomeKit in detail</b></summary>
 
-- **Schedule:** open sensors block arming as usual; no code is needed; times missed while Home Assistant was off are not made up. Disarming by schedule means the alarm system is off at that time, whoever is at home.
+- **Routines:** under Configuration › Alarm system. The trigger is a **schedule** (one or more times with weekdays) or a **device** (a lock, switch, door sensor, person ...; conditions "device is state" and "time of day", combined with "and"/"or", with one level of groups, optionally "must hold for N seconds"). A routine runs when its conditions newly come true: not while they stay true, not after a restart of Home Assistant and not on the return from "unavailable" (a radio outage never switches the alarm system). Per routine five switches choose the alarm states in which it may run (exit delay, armed, entry delay, during the alarm, disarmed; only the last is on by default); at the moment of triggering the state counts, otherwise the routine is skipped and the log says so. Arming never applies during an entry delay or an alarm. Open sensors block arming as usual; no code is needed. A routine does not trigger another one, and a routine never runs twice within 10 seconds.
+- **Routines in the panel:** every routine is a row with its trigger in plain words, its target and tags ("Bypasses the code", the states it applies in). The pencil opens the editor.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/routines-en.png" alt="The chapter Routines in Configuration › Alarm system, with routines by time and by device" width="100%"></p>
+
+- **Disarming by routine** bypasses the code: whoever can operate the trigger can disarm. It is therefore off by default ("Allow disarming by routine" in Configuration › Alarm system), carries the tag "Bypasses the code" and needs the confirmation "I understand this" in the routine. During an entry delay or an alarm a routine only disarms if you choose these states explicitly. Schedules from earlier versions became routines when updating (states: exit delay, armed, disarmed; if one disarmed, the switch above was turned on for the alarm system so it keeps running); old backups are converted on restoring.
 - **Backup:** up to 10 backups in the integration, plus export and import as a file. When restoring you choose for each alarm system of the backup what it is applied to: an existing alarm system (whatever its name), a new one, or none; the shared settings can be left out. Codes are never included; the backup of Home Assistant itself contains everything.
 - **HomeKit, exit delay:** Apple Home shows "Off" with the target "Away" during the exit delay. Use no exit delay for "Home" and "Night" (default).
 - **HomeKit, entry delay:** Apple Home keeps showing "armed" and switches to "Alarm" when the alarm starts.

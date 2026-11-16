@@ -60,7 +60,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 169  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 170  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -309,4 +309,15 @@ CONF_SCHEDULES: Final = "schedules"
 SCHEDULE_OFF: Final = "off"
 SCHEDULE_ACTIONS: Final = (SCHEDULE_OFF, "home", "away", "night")
 MAX_SCHEDULES: Final = 20
+# Routinen (seit 1.44.0, ersetzen die Zeitpläne): Auslöser Zeitplan oder Gerät, dann Anlage schalten, nur in gewählten Zuständen
+CONF_ROUTINES: Final = "routines"
+CONF_ROUTINES_DISARM: Final = "routines_disarm"  # Deaktivieren per Routine erlaubt (Standard aus)
+MAX_ROUTINES: Final = 20
+MAX_ROUTINE_TIMES: Final = 8  # Uhrzeiten je Routine mit Auslöser Zeitplan
+MAX_ROUTINE_LEAVES: Final = 10  # Bedingungen je Routine mit Auslöser Gerät
+MAX_ROUTINE_GROUPS: Final = 3
+ROUTINE_HOLD_MAX: Final = 3600  # "muss mindestens N Sekunden gelten"
+ROUTINE_COOLDOWN: Final = 10  # Sekunden Sperre je Routine gegen Doppelauslösung
+ROUTINE_STATES: Final = ("arming", "armed", "pending", "triggered", "disarmed")
+ROUTINE_ACTIONS: Final = ("home", "away", "night", "off")
 
