@@ -671,8 +671,9 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 .ag-rtadd { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .ag-rtnote, .ag-rtdays { flex-basis: 100%; }
 .ag-rtnone { padding: 12px 0; }
-.ag-rtedge { margin-top: 8px; }
-.ag-rtred { color: var(--ag-error); margin-top: 8px; }
+.ag-chap-h.ag-rtedge { margin: 12px 6px 4px; line-height: 1.45; }
+.ag-chap-h.ag-rtred { margin: 12px 6px 0; line-height: 1.45; }
+.ag-rtred { color: var(--ag-error); }
 .ag-rtsafety { padding: 14px; border: 1.5px solid var(--ag-error); background: var(--ag-error-soft); }
 .ag-rtsafehead { display: flex; gap: 10px; align-items: flex-start; color: var(--ag-error); }
 .ag-rtsafehead .ag-t2 { color: var(--ag-text); margin-top: 4px; }
