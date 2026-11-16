@@ -939,7 +939,7 @@ class AlarmageddonPanel extends HTMLElement {
     }
     else if (e.kind === "routine_skipped") {
       const why = e.reason === "state" ? this._t("evRtWhyState", { state: this.systemUi.rt.stateName(e.at) })
-        : e.reason === "disarm_off" ? this._t("evRtWhyDisarm") : e.reason === "mode" ? this._t("evRtWhyMode") : this._t("evRtWhyAlarm");
+        : e.reason === "mode" ? this._t("evRtWhyMode") : this._t("evRtWhyAlarm");
       text = this._t("evRoutineSkipped", { routine: e.routine || "?", why });
     }
     else if (e.kind === "arm_failed") text = this._t("evArmFailed", { mode, sensors: (e.sensors || []).map((x) => this._name(x)).join(", ") });

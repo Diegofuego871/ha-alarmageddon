@@ -474,8 +474,6 @@ MUTATIONS = [
     # ----- Routinen (1.44.0) -----
     ("Routine: der Zustand der Anlage beim Auslösen wird nicht geprüft (ein Alarm würde per Routine beendet)", "routines.py",
      '        if current not in rule.get("states", []):', "        if False:", "tests/test_routines.py -k 'skipped_in_state_not_chosen or skipped_during_entry_delay'"),
-    ("Routine: Deaktivieren ohne den Schalter der Anlage \"Deaktivieren per Routine\"", "routines.py",
-     "            if not self.entry.options.get(CONF_ROUTINES_DISARM, False):", "            if False:", "tests/test_routines.py -k needs_the_system_switch"),
     ("Routine: Rückkehr aus \"nicht verfügbar\" zählt als Wechsel (Funkabriss würde die Anlage schalten)", "routines.py",
      "        real = old is not None and new is not None and old.state not in INVALID and new.state not in INVALID",
      "        real = True", "tests/test_routines.py -k return_from_unavailable"),

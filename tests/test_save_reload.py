@@ -133,7 +133,6 @@ async def test_system_settings_come_back_exactly_as_the_panel_saved_them(hass: H
                       "trigger": {"type": "device", "hold": 5, "tree": {"op": "or", "items": [
                           {"kind": "state", "entity_id": "lock.haustuer", "state": "unlocked"},
                           {"op": "and", "items": [{"kind": "state", "entity_id": "person.anna", "state": "home"}, {"kind": "time", "from": "22:00", "to": "06:00", "days": [5, 6]}]}]}}}],
-        "routines_disarm": True,
     }
     await client.send_json_auto_id({"type": "alarmageddon/save_system", "entry_id": entry.entry_id, **payload})
     assert (await client.receive_json())["success"]
@@ -142,7 +141,7 @@ async def test_system_settings_come_back_exactly_as_the_panel_saved_them(hass: H
     assert _same(system["mode_settings"], payload["mode_settings"]), system["mode_settings"]
     assert system["per_mode_settings"] is False and system["always_enabled"] is False and system["night_enabled"] is night
     assert system["modes"] == ["home", "away", *(["night"] if night else [])]
-    assert _same(system["routines"], payload["routines"]) and system["routines_disarm"] is True, system["routines"]
+    assert _same(system["routines"], payload["routines"]), system["routines"]
     # Noch einmal dasselbe gespeichert: nichts lädt neu, die Daten bleiben gleich
     await client.send_json_auto_id({"type": "alarmageddon/save_system", "entry_id": entry.entry_id, **payload})
     assert (await client.receive_json())["result"] == {"ok": True, "reload": False}

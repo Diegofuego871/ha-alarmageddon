@@ -667,7 +667,8 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 .ag-rtleaf > .ag-iconbtn { margin-left: auto; }
 .ag-rtgroup { margin: 8px 0; padding: 6px 12px 10px; border-left: 3px solid var(--ag-primary); background: color-mix(in srgb, var(--ag-primary) 6%, transparent); border-radius: 0 12px 12px 0; }
 .ag-rtghead { display: flex; align-items: center; gap: 10px; margin: 6px 0; flex-wrap: wrap; }
-.ag-rtghead > .ag-iconbtn { margin-left: auto; }
+/* Papierkorb der Gruppe direkt neben dem Und/Oder, nicht am rechten Rand: so ist klar, dass er die ganze Gruppe löscht */
+.ag-rtghead > .ag-iconbtn { margin-left: 8px; }
 .ag-rtadd { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .ag-rtnote, .ag-rtdays { flex-basis: 100%; }
 .ag-rtnone { padding: 12px 0; }

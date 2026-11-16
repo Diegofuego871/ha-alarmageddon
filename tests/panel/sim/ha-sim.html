@@ -73,7 +73,6 @@
         night: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: true, code_arm_required: false, code: "1234",
       main_code: true, codes: [{ id: "c_anna", name: "Anna", user_id: "u_anna" }], pcodes: { c_anna: "2468" },
       // Routinen (1.44.0): eine Zeit, ein Gerät mit Und/Oder, eine, die deaktiviert
-      routines_disarm: true,
       routines: [
         { id: "r_nacht", name: "Nachts scharf", enabled: true, action: "night", states: ["arming", "armed", "disarmed"], unsafe: false, trigger: { type: "schedule", times: [{ time: "22:30", days: [0, 1, 2, 3, 4, 5, 6] }] } },
         { id: "r_morgen", name: "Morgens aus", enabled: true, action: "off", states: ["armed"], unsafe: true, trigger: { type: "schedule", times: [{ time: "06:45", days: [0, 1, 2, 3, 4] }] } },
@@ -97,7 +96,7 @@
       zones: { home: ["binary_sensor.garagentor"], away: ["binary_sensor.garagentor", "binary_sensor.bewegung_garage"] },
       sensors: params.get("sensors") === "few" ? [] : Object.keys(SENSORS),
       entry_sensors: [],
-      entry_delay_max: { home: 0, away: 0 }, mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [], routines_disarm: false,
+      entry_delay_max: { home: 0, away: 0 }, mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [],
       night_enabled: false, sensor_options: {}, workflows: {}, workflow_running: null, workflow_test: false,
       events: [ { t: iso(20 * 60e3), state: "disarmed", mode: null, by: "Automation" } ] },
   ];
@@ -402,7 +401,7 @@
       const created = { entry_id: `e_${slug}`, title: name, entity_id: `alarm_control_panel.${slug}`, modes: ["home", "away"], zones: { home: [], away: [] },
         sensors: Object.keys(SENSORS), entry_sensors: [], entry_delay_max: { home: 0, away: 0 },
         mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 60, entry_delay: 30, confirm_window: 60 } },
-        has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [], routines_disarm: false, night_enabled: false, sensor_options: {},
+        has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [], night_enabled: false, sensor_options: {},
         workflows: {}, workflow_running: null, workflow_test: false, events: [] };
       window.__systems.push(created);
       window.__systems.sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
@@ -495,7 +494,6 @@
         window.__ackRequired = msg.code_ack_required;
       }
       if (msg.routines) sys.routines = JSON.parse(JSON.stringify(msg.routines));
-      if (typeof msg.routines_disarm === "boolean") sys.routines_disarm = msg.routines_disarm;
       const enabled = { home: sys.modes.includes("home"), away: sys.modes.includes("away"), night: sys.modes.includes("night") };
       for (const m of ["home", "away", "night"]) if (`${m}_enabled` in msg) enabled[m] = msg[`${m}_enabled`];
       const modes = ["home", "away", "night"].filter((m) => enabled[m]);

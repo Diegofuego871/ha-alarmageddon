@@ -16,7 +16,6 @@ from .const import (
     CONF_ALWAYS_ENABLED,
     CONF_HOME_ENABLED,
     CONF_ROUTINES,
-    CONF_ROUTINES_DISARM,
     CONF_SCHEDULES,
     MAX_ROUTINES,
     MAX_ROUTINE_TIMES,
@@ -336,7 +335,6 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_AWAY_ENABLED): bool,
         vol.Optional(CONF_SCHEDULES): SCHEDULES,  # nur noch aus alten Sicherungen: wird beim Laden zu Routinen
         vol.Optional(CONF_ROUTINES): ROUTINES,
-        vol.Optional(CONF_ROUTINES_DISARM): bool,
         vol.Optional(CONF_OPEN_SENSORS): vol.In(OPEN_SENSOR_MODES),
         vol.Optional(CONF_CODE_ARM_REQUIRED): bool,
         vol.Optional(CONF_CODE_ACK_REQUIRED): bool,

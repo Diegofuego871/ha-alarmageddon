@@ -50,7 +50,6 @@ from .const import (
     CONF_ALWAYS_ENABLED,
     CONF_NIGHT_ENABLED,
     CONF_ROUTINES,
-    CONF_ROUTINES_DISARM,
     MODE_ENABLED_DEFAULT,
     MODE_ENABLED_KEY,
     CONF_PER_MODE_SENSORS,
@@ -249,7 +248,6 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "night_enabled": ctl.night_enabled,
                 "always_enabled": ctl.always_enabled,
                 "routines": entry.options.get(CONF_ROUTINES) or [],
-                "routines_disarm": bool(entry.options.get(CONF_ROUTINES_DISARM)),
                 "sensor_options": ctl.sensor_overrides,
                 "per_mode_sensors": bool(entry.options.get(CONF_PER_MODE_SENSORS)),
                 # Schalter "Einstellungen pro Modus" der Anlage; ohne gespeicherten Wert null (das Panel schaltet ein, wenn sich die Modi unterscheiden)
@@ -593,7 +591,6 @@ async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) 
         vol.Optional("home_enabled"): bool,
         vol.Optional("away_enabled"): bool,
         vol.Optional("routines"): ROUTINES,
-        vol.Optional("routines_disarm"): bool,
         vol.Optional("open_sensors"): vol.In(OPEN_SENSOR_MODES),
         vol.Optional("confirm_window"): vol.All(vol.Coerce(int), vol.Range(min=5, max=MAX_CONFIRM_WINDOW)),
         vol.Optional("code_ack_required"): bool,
@@ -614,8 +611,6 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
         except vol.Invalid as err:
             connection.send_error(msg["id"], "invalid_routines", str(err))
             return
-    if "routines_disarm" in msg:
-        options[CONF_ROUTINES_DISARM] = msg["routines_disarm"]
     for key, conf in (("entry_delay", CONF_ENTRY_DELAY), ("confirm_window", CONF_CONFIRM_WINDOW)):
         if key in msg:
             # Kurzform: für alle Modi (der gemeinsame Wert bleibt der Rückfall)

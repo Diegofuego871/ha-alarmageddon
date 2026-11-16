@@ -73,7 +73,7 @@ def _events(entry) -> list[dict]:
 
 async def test_schedule_routine_arms_on_weekday(hass: HomeAssistant, freezer) -> None:
     await _at(hass, freezer, MONDAY, 12, 0)
-    await setup_alarm(hass, night_enabled=True, routines_disarm=True, routines=[
+    await setup_alarm(hass, night_enabled=True, routines=[
         _rule("night", _times("22:30"), name="Nachts scharf"),
         _rule("off", _times("06:45"), states=("armed",), name="Morgens aus", rid="r2")])
     await _at(hass, freezer, MONDAY, 22, 30)
@@ -111,7 +111,7 @@ async def test_schedule_routine_with_several_times(hass: HomeAssistant, freezer)
 async def test_routine_skipped_in_state_not_chosen(hass: HomeAssistant, freezer) -> None:
     """Ein Einbruch kurz vor der Zeit darf nicht per Routine enden: ohne gewählten Zustand wird übersprungen, und das steht im Protokoll."""
     await _at(hass, freezer, MONDAY, 6, 0)
-    entry = await setup_alarm(hass, exit_delay_away=0, trigger_time=0, routines_disarm=True, routines=[_rule("off", _times("06:45"), states=("armed", "disarmed"))])
+    entry = await setup_alarm(hass, exit_delay_away=0, trigger_time=0, routines=[_rule("off", _times("06:45"), states=("armed", "disarmed"))])
     await call(hass, "alarm_arm_away")
     hass.states.async_set(WINDOW, "on")
     await hass.async_block_till_done()
@@ -123,7 +123,7 @@ async def test_routine_skipped_in_state_not_chosen(hass: HomeAssistant, freezer)
 
 async def test_routine_skipped_during_entry_delay(hass: HomeAssistant, freezer) -> None:
     await _at(hass, freezer, MONDAY, 6, 0)
-    await setup_alarm(hass, exit_delay_away=0, entry_delay=3600, routines_disarm=True, routines=[_rule("off", _times("06:45"), states=("armed",))])
+    await setup_alarm(hass, exit_delay_away=0, entry_delay=3600, routines=[_rule("off", _times("06:45"), states=("armed",))])
     await call(hass, "alarm_arm_away")
     hass.states.async_set(FRONT_DOOR, "on")
     await hass.async_block_till_done()
@@ -147,7 +147,7 @@ async def test_arming_routine_never_applies_during_alarm_even_if_stored_so(hass:
 async def test_routine_may_disarm_during_entry_delay_when_chosen(hass: HomeAssistant, freezer) -> None:
     """Nur mit ausdrücklicher Wahl des Zustands (und der Bestätigung) gilt eine Deaktivieren-Routine in der Eingangsverzögerung."""
     await _at(hass, freezer, MONDAY, 6, 0)
-    await setup_alarm(hass, exit_delay_away=0, entry_delay=3600, routines_disarm=True, routines=[_rule("off", _times("06:45"), states=("armed", "pending"))])
+    await setup_alarm(hass, exit_delay_away=0, entry_delay=3600, routines=[_rule("off", _times("06:45"), states=("armed", "pending"))])
     await call(hass, "alarm_arm_away")
     hass.states.async_set(FRONT_DOOR, "on")
     await hass.async_block_till_done()
@@ -155,20 +155,10 @@ async def test_routine_may_disarm_during_entry_delay_when_chosen(hass: HomeAssis
     assert state(hass) == AlarmControlPanelState.DISARMED
 
 
-async def test_routine_disarm_needs_the_system_switch(hass: HomeAssistant, freezer) -> None:
-    """Ohne den Schalter "Deaktivieren per Routine" der Anlage deaktiviert keine Routine, auch wenn sie eingerichtet ist."""
-    await _at(hass, freezer, MONDAY, 6, 0)
-    entry = await setup_alarm(hass, exit_delay_away=0, routines=[_rule("off", _times("06:45"), states=("armed",))])
-    await call(hass, "alarm_arm_away")
-    await _at(hass, freezer, MONDAY, 6, 45)
-    assert state(hass) == AlarmControlPanelState.ARMED_AWAY
-    assert _events(entry)[0]["kind"] == "routine_skipped" and _events(entry)[0]["reason"] == "disarm_off"
-
-
 async def test_routine_disarms_without_code(hass: HomeAssistant, freezer) -> None:
     await _at(hass, freezer, MONDAY, 6, 0)
     code_hash, salt = hash_code("1234")
-    await setup_alarm(hass, exit_delay_away=0, code_hash=code_hash, code_salt=salt, code_arm_required=True, routines_disarm=True,
+    await setup_alarm(hass, exit_delay_away=0, code_hash=code_hash, code_salt=salt, code_arm_required=True,
                       routines=[_rule("away", _times("06:10")), _rule("off", _times("06:45"), states=("armed",), rid="r2", name="Aus")])
     await _at(hass, freezer, MONDAY, 6, 10)
     assert state(hass) == AlarmControlPanelState.ARMED_AWAY
@@ -256,7 +246,7 @@ async def test_device_routine_does_not_run_for_state_at_start(hass: HomeAssistan
 async def test_device_routine_ignores_return_from_unavailable(hass: HomeAssistant, before: str) -> None:
     """Die Rückkehr aus "nicht verfügbar" ist kein Abschliessen und deaktiviert nie die Anlage (Funkabriss)."""
     hass.states.async_set(LOCK, "unlocked")
-    await setup_alarm(hass, exit_delay_away=0, routines_disarm=True, routines=[_rule("away", _device(_is(LOCK, "locked"))),
+    await setup_alarm(hass, exit_delay_away=0, routines=[_rule("away", _device(_is(LOCK, "locked"))),
                       _rule("off", _device(_is(LOCK, "unlocked")), states=("armed", "disarmed"), rid="r2", name="Auf")])
     hass.states.async_set(LOCK, "locked")
     await hass.async_block_till_done()
@@ -327,7 +317,7 @@ async def test_device_routine_time_window(hass: HomeAssistant, freezer) -> None:
 
 async def test_device_routine_disarm_when_unlocked(hass: HomeAssistant) -> None:
     hass.states.async_set(LOCK, "locked")
-    await setup_alarm(hass, exit_delay_away=0, routines_disarm=True, routines=[_rule("off", _device(_is(LOCK, "unlocked")), states=("armed",), name="Heimkommen")])
+    await setup_alarm(hass, exit_delay_away=0, routines=[_rule("off", _device(_is(LOCK, "unlocked")), states=("armed",), name="Heimkommen")])
     await call(hass, "alarm_arm_away")
     hass.states.async_set(LOCK, "unlocked")
     await hass.async_block_till_done()
@@ -384,14 +374,13 @@ async def test_save_routines_and_data(hass: HomeAssistant, hass_ws_client) -> No
     entry = await setup_alarm(hass)
     client = await hass_ws_client(hass)
     rule = _rule("away", _device(_is(LOCK, "locked"), _group(_is(PERSON, "not_home"), _window("22:00", "06:00", days=[4, 0, 0]), op="or"), hold=5), name="Haus verlassen")
-    ok = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[rule], routines_disarm=True)
+    ok = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[rule])
     assert ok["success"]
     await hass.async_block_till_done()
-    assert entry.options["routines_disarm"] is True
     assert entry.options["routines"][0]["trigger"]["tree"]["items"][1]["items"][1]["days"] in ([0, 4], [4, 0, 0])
     data = await _ws(client, type="alarmageddon/data")
     system = data["result"]["systems"][0]
-    assert system["routines"] == entry.options["routines"] and system["routines_disarm"] is True
+    assert system["routines"] == entry.options["routines"]
 
 
 async def test_routine_entities_lists_devices_without_own(hass: HomeAssistant, hass_ws_client) -> None:
@@ -422,25 +411,19 @@ async def test_old_schedules_become_routines(hass: HomeAssistant, freezer) -> No
     assert [r["name"] for r in routines] == ["Schedule 08:00", "Schedule 17:00"]
     assert routines[0]["states"] == ["arming", "armed", "disarmed"] and routines[0]["action"] == "away" and routines[0]["unsafe"] is False
     assert routines[1]["action"] == "off" and routines[1]["unsafe"] is True
-    assert entry.options["routines_disarm"] is True  # wegen des Zeitplans "Deaktivieren", damit er weiter läuft
     await _at(hass, freezer, MONDAY, 8, 0)
     assert state(hass) == AlarmControlPanelState.ARMED_AWAY
     await _at(hass, freezer, MONDAY, 17, 0)
     assert state(hass) == AlarmControlPanelState.DISARMED
 
 
-async def test_old_schedules_without_disarm_keep_switch_off(hass: HomeAssistant) -> None:
-    entry = await setup_alarm(hass, schedules=[_old("away", "08:00")])
-    assert entry.options["routines_disarm"] is False
-
-
 async def test_backup_contains_routines_and_modes(hass: HomeAssistant, hass_ws_client) -> None:
     rule = _rule("away", _times("08:00"))
-    await setup_alarm(hass, home_enabled=False, routines=[rule], routines_disarm=True)
+    await setup_alarm(hass, home_enabled=False, routines=[rule])
     client = await hass_ws_client(hass)
     data = (await _ws(client, type="alarmageddon/export"))["result"]
     options = data["systems"][0]["options"]
-    assert options["routines"] == [rule] and options["routines_disarm"] is True and options["home_enabled"] is False
+    assert options["routines"] == [rule] and options["home_enabled"] is False
     assert "schedules" not in options
 
 

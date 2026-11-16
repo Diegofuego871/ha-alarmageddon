@@ -6,13 +6,11 @@ import { check, done, launch, open, outDir } from "../lib.mjs";
 const T = {
   de: {
     unlocked: "aufgeschlossen", bypass: "Umgeht den Code", disarmOff: "Deaktivieren per Routine ist aus", taken: "diesen Namen schon", noDevice: "mindestens ein Gerät",
-    emptyGroup: "mindestens eine Bedingung", unsafe: "den Code umgeht", saved: "Gespeichert", skipped: "Routine \"Heimkommen\" übersprungen: gilt nicht im Zustand: Beim Alarm",
-    skippedOff: "Routine \"Heimkommen\" übersprungen: Deaktivieren per Routine ist ausgeschaltet", noDay: "mindestens einen Tag",
+    emptyGroup: "mindestens eine Bedingung", unsafe: "den Code umgeht", noDay: "mindestens einen Tag", saved: "Gespeichert", skipped: "Routine \"Heimkommen\" übersprungen: gilt nicht im Zustand: Beim Alarm",
   },
   en: {
     unlocked: "unlocked", bypass: "Bypasses the code", disarmOff: "Disarming by routine is off", taken: "already has this name", noDevice: "at least one device",
-    emptyGroup: "at least one condition", unsafe: "bypasses the code", saved: "Saved", skipped: "Routine \"Heimkommen\" skipped: not allowed in this state: During the alarm",
-    skippedOff: "Routine \"Heimkommen\" skipped: disarming by routine is switched off", noDay: "at least one day",
+    emptyGroup: "at least one condition", unsafe: "bypasses the code", noDay: "at least one day", saved: "Saved", skipped: "Routine \"Heimkommen\" skipped: not allowed in this state: During the alarm",
   },
 };
 
@@ -28,13 +26,7 @@ for (const lang of ["de", "en"]) {
     const rows = await s.ev("return [...r.querySelectorAll('.ag-rtrow')].map((row) => ({ name: row.querySelector('b').textContent, text: row.innerText, bypass: !!row.querySelector('.ag-tag.err'), icon: !!row.querySelector('.ag-oav svg'), toggleLeft: row.querySelector('.ag-toggle').getBoundingClientRect().right <= row.querySelector('.ag-settx').getBoundingClientRect().left }))");
     check(`${tag}: Zeile mit Zeit, Gerät und Marke "Umgeht den Code"`, rows[0].text.includes("22:30") && rows[1].bypass && rows[1].text.includes(t.bypass) && !rows[0].bypass
       && rows[2].text.includes("Haustür-Schloss") && rows[2].text.includes("Marco") && rows[2].text.includes("22:00") && rows.every((x) => x.icon && x.toggleLeft), JSON.stringify(rows));
-    check(`${tag}: Schalter "Deaktivieren per Routine erlauben" steht an (Nachbau)`, await s.ev("return r.querySelector('[data-sys=\"rt-disarm\"]').getAttribute('aria-checked') === 'true'"));
-
-    // Der Schalter der Anlage ist Teil des Entwurfs; ohne ihn zeigen die Deaktivieren-Routinen eine Warnmarke
-    await s.tap('[data-sys="rt-disarm"]');
-    check(`${tag}: Schalter aus: Änderung offen, Warnmarke an den Deaktivieren-Routinen`, await s.waitFor(`return r.host.systemUi.dirtyCount() === 1 && [...r.querySelectorAll('.ag-rtrow .ag-tag.warn')].filter((x) => x.textContent.includes(${JSON.stringify(t.disarmOff)})).length === 2`));
-    await s.tap('[data-sys="rt-disarm"]');
-    check(`${tag}: Schalter wieder an: nichts mehr offen`, await s.waitFor("return r.host.systemUi.dirtyCount() === 0"));
+    check(`${tag}: keine zusätzliche Option "Deaktivieren per Routine erlauben" auf der Seite`, await s.ev("return !r.querySelector('[data-sys=\"rt-disarm\"]') && !r.querySelector('.ag-rt > .ag-setrow .ag-toggle:not([data-sys=\"rt-on\"])')"));
 
     // ----- Neue Routine mit Gerät, Gruppe, Oder -----
     await s.tap('[data-sys="rt-add"]');
@@ -147,8 +139,7 @@ for (const lang of ["de", "en"]) {
 
     // ----- Protokoll -----
     const skipped = await s.ev(`return r.host._eventText({ kind: "routine_skipped", routine: "Heimkommen", reason: "state", at: "triggered", state: "triggered", mode: "away" })`);
-    const skippedOff = await s.ev(`return r.host._eventText({ kind: "routine_skipped", routine: "Heimkommen", reason: "disarm_off", at: "armed", state: "armed_away", mode: "away" })`);
-    check(`${tag}: Protokolltext Routine übersprungen`, skipped === t.skipped && skippedOff === t.skippedOff, `${skipped} | ${skippedOff}`);
+    check(`${tag}: Protokolltext Routine übersprungen`, skipped === t.skipped, skipped);
     check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
   }

@@ -148,7 +148,7 @@ Umsetzung:
   Dauerzustand, nie nach einem Neustart, nie bei der Rückkehr aus "nicht verfügbar" oder "unbekannt": ein Funkabriss schaltet die Anlage nie).
   Der Zustand der Anlage beim Auslösen muss zu den gewählten Zuständen der Routine gehören, sonst wird übersprungen und protokolliert
   (`routine_skipped`). Scharfschalten gilt nie bei Eingangsverzögerung oder Alarm (Schema und Laufzeit prüfen es unabhängig). **Deaktivieren per
-  Routine** braucht den Schalter `routines_disarm` der Anlage (Standard aus) und `unsafe` (Bestätigung "Ich habe das verstanden") in der Routine;
+  Routine** braucht `unsafe` (Bestätigung "Ich habe das verstanden") in der Routine, keinen zusätzlichen Schalter der Anlage (Entscheid des Nutzers, 2026-11-16);
   es trägt im Panel immer die Marke "Umgeht den Code". Eine Routine löst nie eine andere aus (Entitäten von Alarmageddon sind als Auslöser
   abgelehnt), je Routine gilt eine Sperre von `ROUTINE_COOLDOWN` Sekunden. Jede dieser Bedingungen hat einen Test in `tests/test_routines.py`
   und eine Zeile in `scripts/mutation_check.py`. Neue Bedingungsarten oder Geräte-Domänen (`LEAF_STATES`) ergänzen die parametrisierten

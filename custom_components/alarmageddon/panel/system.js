@@ -48,7 +48,6 @@ export class SystemUi {
       per,
       modes: Object.fromEntries(ALL_MODES.map((m) => [m, (s.modes || ["home", "away"]).includes(m)])),
       routines: JSON.parse(JSON.stringify(s.routines || [])),
-      routinesDisarm: Boolean(s.routines_disarm), // Schalter "Deaktivieren per Routine erlauben" (Standard aus)
       always: s.always_enabled !== false, // "Immer aktiv" als Ganzes (Standard an)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
     };
@@ -87,7 +86,6 @@ export class SystemUi {
     if (a.always !== d.always) n += 1;
     if (a.ackCode !== d.ackCode) n += 1;
     if (JSON.stringify(a.routines) !== JSON.stringify(d.routines)) n += 1;
-    if (a.routinesDisarm !== d.routinesDisarm) n += 1;
     return n;
   }
 
@@ -617,9 +615,9 @@ export class SystemUi {
       // Alle Modi (auch abgeschaltete behalten ihre Werte)
       const mode_settings = Object.fromEntries(ALL_MODES.map((m) => [m, { ...d.per[m] }]));
       const saved = await h._hass.callWS({ type: "alarmageddon/save_system", entry_id: s.entry_id, mode_settings, per_mode_settings: d.perMode,
-        home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, routines: d.routines, routines_disarm: d.routinesDisarm,
+        home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, routines: d.routines,
         ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}) });
-      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, modes, routines: JSON.parse(JSON.stringify(d.routines)), routines_disarm: d.routinesDisarm, code_ack_required: d.ackCode && Boolean(s.has_code) });
+      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code) });
       this.draft = null;
       this.saveState = "saved";
       this.host._markSaved(this); // Punkte "ungespeichert" verschwinden sofort

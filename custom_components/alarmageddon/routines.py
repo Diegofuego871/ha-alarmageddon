@@ -11,7 +11,7 @@ Sicherheitsregeln (Alarmageddon ist ein Sicherheitsprodukt):
 - Nur ein **echter Wechsel** zählt: die Rückkehr aus "nicht verfügbar" oder "unbekannt" löst nie aus (sonst deaktivierte ein Funkabriss die Anlage).
   Nach einem Neustart wird nichts nachgeholt.
 - Gilt der Zustand der Anlage beim Auslösen nicht für die Routine, wird sie übersprungen und das steht im Protokoll.
-- **Deaktivieren** per Routine braucht den Schalter "Deaktivieren per Routine" der Anlage (Standard aus) und die Bestätigung in der Routine ("unsafe").
+- **Deaktivieren** per Routine braucht die Bestätigung in der Routine ("unsafe", Entscheid des Nutzers: kein Schalter der Anlage zusätzlich).
   Scharfschalten gilt nie im Alarm oder in der Eingangsverzögerung.
 - Eine Routine löst nie eine andere aus: Entitäten von Alarmageddon sind als Auslöser nicht erlaubt. Je Routine gibt es eine Sperre gegen Doppelauslösung.
 - Scharfschalten scheitert wie von Hand an offenen Sensoren ("Scharfschalten nicht möglich" kommt wie gewohnt). Ein Code wird nicht verlangt: Routinen
@@ -37,7 +37,6 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_ROUTINES,
-    CONF_ROUTINES_DISARM,
     CONF_SCHEDULES,
     DOMAIN,
     MAX_ROUTINE_GROUPS,
@@ -128,8 +127,8 @@ def check_routines(hass: HomeAssistant, routines: list[dict[str, Any]]) -> list[
 def migrate_options(options: dict[str, Any], language: str) -> dict[str, Any] | None:
     """
     Bis 1.43 gab es Zeitpläne. Sie werden zu Routinen mit Auslöser Zeitplan, demselben Ziel und den Zuständen, in denen ein Zeitplan lief (nie in der
-    Eingangsverzögerung und nie im Alarm): Ausgangsverzögerung, scharf, deaktiviert. Ein Zeitplan, der deaktivierte, schaltet "Deaktivieren per
-    Routine" für die Anlage ein, damit er weiter läuft. None: nichts zu tun.
+    Eingangsverzögerung und nie im Alarm): Ausgangsverzögerung, scharf, deaktiviert. Ein Zeitplan, der deaktivierte, trägt die Bestätigung
+    ("unsafe"). None: nichts zu tun.
     """
     legacy = options.get(CONF_SCHEDULES)
     if CONF_SCHEDULES not in options:
@@ -137,7 +136,6 @@ def migrate_options(options: dict[str, Any], language: str) -> dict[str, Any] | 
     routines = [r for r in options.get(CONF_ROUTINES) or [] if isinstance(r, dict)]
     taken = {str(r.get("name", "")).casefold() for r in routines}
     label = "Zeitplan" if language.startswith("de") else "Schedule"
-    disarm = bool(options.get(CONF_ROUTINES_DISARM))
     for index, rule in enumerate(legacy or []):
         if not isinstance(rule, dict) or not rule.get("time") or not rule.get("days") or len(routines) >= MAX_ROUTINES:
             continue
@@ -148,7 +146,6 @@ def migrate_options(options: dict[str, Any], language: str) -> dict[str, Any] | 
             count += 1
         taken.add(name.casefold())
         action = rule.get("action", "off")
-        disarm = disarm or action == "off"
         routines.append(
             {
                 "id": f"m{index}{str(rule.get('id', ''))}"[:32],
@@ -162,7 +159,6 @@ def migrate_options(options: dict[str, Any], language: str) -> dict[str, Any] | 
         )
     out = {k: v for k, v in options.items() if k != CONF_SCHEDULES}
     out[CONF_ROUTINES] = routines
-    out[CONF_ROUTINES_DISARM] = disarm
     return out
 
 
@@ -324,9 +320,6 @@ class RoutineEngine:
         by = f"{text(self.hass, 'by_routine')}: {name}"
         self._fired[rule["id"]] = now
         if action == "off":
-            if not self.entry.options.get(CONF_ROUTINES_DISARM, False):
-                ctl.emit("routine_skipped", routine=name, action=action, reason="disarm_off", at=current)
-                return
             if ctl.state != AlarmControlPanelState.DISARMED:
                 await ctl.async_disarm(None, by, skip_code=True)
             return

@@ -51,7 +51,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: gespeichert`, await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`));
     const sys = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_system').at(-1)");
     check(`${tag}: Modi gesendet`, sys?.home_enabled === false && sys?.away_enabled === true && sys?.night_enabled === true && !("home" in (sys?.exit_delay || {})), JSON.stringify(sys));
-    check(`${tag}: Routinen unverändert mitgeschickt`, sys?.routines?.length === 3 && sys.routines[0].name === "Nachts scharf" && sys.routines_disarm === true, JSON.stringify(sys?.routines));
+    check(`${tag}: Routinen unverändert mitgeschickt`, sys?.routines?.length === 3 && sys.routines[0].name === "Nachts scharf", JSON.stringify(sys?.routines));
     check(`${tag}: kein Überlauf`, await s.ev("return document.documentElement.scrollWidth <= window.innerWidth"));
 
     // Übersicht: Haus ohne "Anwesend"

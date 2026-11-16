@@ -148,10 +148,7 @@ export class RoutinesUi {
     const d = this.draft;
     if (this.ents === null && !this.loading && d.routines.some((r) => r.trigger.type === "device")) this.load();
     const rows = d.routines.map((r, i) => this._row(r, i, modes)).join("");
-    const switchRow = `<div class="ag-setrow"><button class="ag-toggle ${d.routinesDisarm ? "on" : ""}" data-sys="rt-disarm" role="switch" aria-checked="${d.routinesDisarm}" aria-label="${esc(this._t("rtDisarmAllow"))}"></button>
-      <span class="ag-oav ${d.routinesDisarm ? "on" : ""}">${ic("shieldOff", 20)}</span>
-      <div class="ag-settx"><b>${esc(this._t("rtDisarmAllow"))}</b><small>${esc(this._t("rtDisarmAllowHint"))}</small></div></div>`;
-    return chapter(this._t("rtTitle"), `<div class="ag-card ag-setlist ag-codes ag-rt">${switchRow}${rows || `<div class="ag-coderow ag-t2">${esc(this._t("rtEmpty"))}</div>`}
+    return chapter(this._t("rtTitle"), `<div class="ag-card ag-setlist ag-codes ag-rt">${rows || `<div class="ag-coderow ag-t2">${esc(this._t("rtEmpty"))}</div>`}
       <div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("rtFootHint"))}</small></div>
         <button class="ag-btn" data-sys="rt-add" ${d.routines.length >= MAX_ROUTINES ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("rtAdd"))}</button></div></div>`, this._t("rtHint"));
   }
@@ -161,7 +158,6 @@ export class RoutinesUi {
     const tags = [];
     if (r.action === "off") {
       tags.push(["err", this._t("rtBypass"), true]);
-      if (!this.draft.routinesDisarm) tags.push(["warn", this._t("rtDisarmOffTag"), true]);
     }
     if (r.states.some((s) => ALARM_STATES.includes(s)) && r.action === "off") tags.push(["err", this._t("rtInAlarmTag"), true]);
     const names = STATES.filter((s) => r.states.includes(s[0]));
@@ -467,10 +463,6 @@ export class RoutinesUi {
       this.ui.render();
     } else if (act === "rt-on") {
       d.routines[i].enabled = d.routines[i].enabled === false;
-      this.ui.saveState = null;
-      this.ui.render();
-    } else if (act === "rt-disarm") {
-      d.routinesDisarm = !d.routinesDisarm;
       this.ui.saveState = null;
       this.ui.render();
     } else if (act === "rt-cancel") this.close();

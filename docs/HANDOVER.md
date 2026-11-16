@@ -68,19 +68,18 @@ Gruppen wie Magic Push, fünf Zustands-Schalter, Auslöser Zeitplan oder Gerät)
 - **Server:** `routines.py`. `check_routines(hass, routines)` prüft, was sich nur mit HA prüfen lässt (eindeutige Namen, Art und Zustand
   des Geräts `LEAF_STATES`, keine Entität von Alarmageddon als Auslöser, Scharfschalten nie mit Eingangsverzögerung/Alarm, Deaktivieren
   braucht `unsafe`, Fenster mit zwei verschiedenen Zeiten, mindestens eine Geräte-Bedingung); der Aufbau steht in `schemas.ROUTINES`.
-  `migrate_options` wandelt `options["schedules"]` einmal in Routinen (Zustände arming/armed/disarmed, `unsafe` bei "off", Schalter
-  `routines_disarm` an, wenn einer deaktivierte); gerufen von `__init__._migrate_schedules` (vor dem Controller) und von
+  `migrate_options` wandelt `options["schedules"]` einmal in Routinen (Zustände arming/armed/disarmed, `unsafe` bei "off"); gerufen von `__init__._migrate_schedules` (vor dem Controller) und von
   `backup.validate` (alte Sicherungen). `RoutineEngine` ersetzt `Scheduler` (Datei `scheduler.py` entfernt): Zeitplan über
   `async_track_time_change`, Gerät über `async_track_state_change_event` plus die Ränder der Zeitfenster; `_last[id]` merkt den zuletzt
   ausgewerteten Baum (Kante: nur der Wechsel auf wahr löst aus; beim Start gilt nichts als neu); nur echte Wechsel zwischen zwei bekannten
   Zuständen lösen aus (`INVALID` = unavailable/unknown/leer); Haltezeit `hold` über `async_call_later`, beendet, sobald der Baum wieder
-  falsch ist; `async_run` prüft Sperre `ROUTINE_COOLDOWN` (10 s), Zustand beim Auslösen (`state_name`), Schalter `routines_disarm`,
-  Modus und Alarm; Ereignis `routine_skipped` mit `reason` state/disarm_off/mode/alarm und `at`. `changed_by` = "Routine: <Name>".
-- **WebSocket:** `save_system` nimmt `routines` und `routines_disarm`; `data` liefert beide; neuer Befehl `routine_entities` (Geräte mit
+  falsch ist; `async_run` prüft Sperre `ROUTINE_COOLDOWN` (10 s), Zustand beim Auslösen (`state_name`),
+  Modus und Alarm; Ereignis `routine_skipped` mit `reason` state/mode/alarm und `at`. `changed_by` = "Routine: <Name>".
+- **WebSocket:** `save_system` nimmt `routines`; `data` liefert sie; neuer Befehl `routine_entities` (Geräte mit
   Name, Bereich, Zuständen, `device_class`; ohne Entitäten von Alarmageddon, deaktivierte und versteckte) steht in `COMMANDS` der
   Sicherheitstests. Der Schlüssel `schedules` bleibt im Schema `SYSTEM_OPTIONS_SCHEMA` nur für alte Sicherungen.
 - **Panel:** `panel/routines.js` (`RoutinesUi`, von `SystemUi` als `this.rt` gehalten): Liste im Kapitel "Routinen" (Teil des Entwurfs der
-  Seite "Anlage", Schalter `routinesDisarm`), Editor im Fenster `#ag-step` (Entwurf der Routine mit "Speichern"/"Abbrechen", Rückfrage
+  Seite "Anlage"), Editor im Fenster `#ag-step` (Entwurf der Routine mit "Speichern"/"Abbrechen", Rückfrage
   beim Verwerfen über `_dlgDirty`), Geräteauswahl als zweite Ansicht im selben Fenster (Suche auch nach Entitäts-ID, nie angezeigt;
   Filter Art und Bereich). Die Hilfsfelder `_times` und `_device` des Editors gehen nie zum Server (`build()`).
 - **Tests:** `tests/test_routines.py` (Zeitplan, Zustände, Kante, Unavailable, Gruppen, Haltezeit, Zeitfenster, Sperre, Validierung,
