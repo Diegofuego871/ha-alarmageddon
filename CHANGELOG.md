@@ -7,7 +7,26 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.48.0] - 2026-11-16
+
+### Added
+
+- **Monitoring: measured values and yes/no sensors, independent of the alarm.** A new area next to Home, Away, Night and Always active, with its own tab under Configuration › Actions › Monitoring. It is switched on under Configuration › Alarm system › Modes (**off by default**). Typical cases: a fridge above 8 °C for 30 minutes, or its door open for 5 minutes. Every rule is a chapter with its flow in the colours of the actions: "Outside the limits" (orange) and "Back to normal" (green). A rule has:
+  - a **condition**: measured value above, below or outside limits, device state (door, switch, lock ...), time window, and "alarm system is armed" (in chosen modes), combined with And/Or and groups as in routines;
+  - a **duration**: the condition must hold that long before the first flow runs;
+  - a **return margin**: a value only counts as normal again this far inside the limit, so a value flapping around the limit does not report again and again;
+  - **steps**: push notification (own title and text with `{rule}`, `{sensor}`, `{value}`, `{unit}`, `{limit}`, `{since}`, `{name}`, own recipients, optionally critical), switch device, wait;
+  - an optional **reminder** every N hours while it lasts (repeats only the push steps).
+- **Measured values in the sensor list.** With monitoring on, "Add sensors" also offers temperature, humidity, CO2 and other measured values (new filter "Measurements"). They stand in the table greyed out: no zone, never always active, no entry delay. The alarm never sees them; the maintenance check (battery, unreachable) covers them. They are part of the backup, like the rules.
+- **Safe by design.** A sensor that does not respond never counts: it neither triggers a rule nor ends it, so a radio loss never reports "back to normal". A running rule does not report again after a restart, a reload or when the page is saved. Monitoring runs also while the alarm system is disarmed and never triggers the siren or the alarm; critical events like fire or water stay with "Always active". A device that hangs holds nothing back (each call waits at most 10 seconds), and a failing step never stops the others.
+
+### Changed
+
+- **The titles of the action cards are bold** (same size), so they stand out more.
+
 ## [1.47.0] - 2026-11-16
+
+Not released; included in 1.48.0.
 
 ### Added
 
@@ -1593,7 +1612,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.47.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.47.0
+[1.48.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.0
 [1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1
 [1.46.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.0
 [1.45.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.45.0

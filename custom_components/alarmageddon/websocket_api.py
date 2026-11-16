@@ -51,6 +51,9 @@ from .const import (
     CONF_EXIT_DELAY_PREFIX,
     CONF_ALWAYS_ENABLED,
     CONF_NIGHT_ENABLED,
+    CONF_MONITOR_ENABLED,
+    CONF_MONITOR_SENSORS,
+    CONF_MONITORS,
     CONF_ROUTINES,
     MODE_ENABLED_DEFAULT,
     MODE_ENABLED_KEY,
@@ -81,7 +84,10 @@ from .const import (
     SOUNDS,
     SOUNDS_URL_PATH,
     WORKFLOW_TRIGGERS,
+    DATA_MONITOR,
     DOMAIN,
+    MEASURE_CLASSES,
+    MONITOR_NUMERIC_DOMAINS,
     MODES,
     OPEN_SENSOR_MODES,
     SENSOR_CLASSES,
@@ -92,8 +98,9 @@ from .const import (
 )
 from .devices import battery_of, device_sensors, display_name
 from .forecast import async_forecasts
+from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
-from .schemas import END_NOTIFY_SCHEMA, NOTIFY_TARGETS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
+from .schemas import END_NOTIFY_SCHEMA, NOTIFY_TARGETS, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
 from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_get_stats, async_numeric_history, async_state_history
 from .settings import async_get_settings, sensor_type
 
@@ -127,6 +134,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_acknowledge)
     websocket_api.async_register_command(hass, ws_delete_recording)
     websocket_api.async_register_command(hass, ws_routine_entities)
+    websocket_api.async_register_command(hass, ws_monitor_entities)
+    websocket_api.async_register_command(hass, ws_save_monitors)
     websocket_api.async_register_command(hass, ws_battery_forecast)
     websocket_api.async_register_command(hass, ws_sensor_history)
     websocket_api.async_register_command(hass, ws_log)
@@ -172,13 +181,18 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str]) -> dict[str, dict[s
     batteries, signals = device_sensors(hass)
 
     out: dict[str, dict[str, Any]] = {}
-    for state in hass.states.async_all("binary_sensor"):
+    for state in [*hass.states.async_all("binary_sensor"), *hass.states.async_all("sensor")]:
+        # Messwerte (Temperatur, Luftfeuchtigkeit, CO2 ...) für die Überwachung (1.48.0): nur Sensoren mit Zahl und Einheit. Zuerst die
+        # billige Prüfung am Zustand: ein Haus hat oft Tausende "sensor"-Entitäten, die Liste wird bei jeder Abfrage des Panels gebaut.
+        measure = state.entity_id.startswith("sensor.")
+        if measure and not (state.attributes.get("device_class") in MEASURE_CLASSES and state.attributes.get("unit_of_measurement") or state.entity_id in extra):
+            continue
         reg = ent_reg.async_get(state.entity_id)
         if reg and reg.platform == DOMAIN:
             continue
         device_class = (reg.device_class or reg.original_device_class) if reg else None
         device_class = device_class or state.attributes.get("device_class")
-        if device_class not in SENSOR_CLASSES and state.entity_id not in extra:
+        if not measure and device_class not in SENSOR_CLASSES and state.entity_id not in extra:
             continue
         device = dev_reg.async_get(reg.device_id) if reg and reg.device_id else None
         area_id = (reg.area_id if reg else None) or (device.area_id if device else None)
@@ -187,7 +201,9 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str]) -> dict[str, dict[s
             "name": display_name(hass, state.entity_id),
             "device_name": (device.name_by_user or device.name) if device else None,
             "device_class": device_class,
-            "type": sensor_type(hass, state.entity_id),
+            "type": "measure" if measure else sensor_type(hass, state.entity_id),
+            "kind": "value" if measure else "state",
+            "unit": state.attributes.get("unit_of_measurement") if measure else None,
             "area": area.name if area else None,
             "platform": reg.platform if reg else None,
             "battery": batteries.get(reg.device_id) if reg and reg.device_id else None,
@@ -201,7 +217,8 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str]) -> dict[str, dict[s
         }
     # Gewählte Sensoren, die es (gerade) nicht gibt, trotzdem zeigen: der Nutzer soll sie entfernen können
     for entity_id in extra - out.keys():
-        out[entity_id] = {"name": entity_id, "device_class": None, "type": "other", "area": None, "platform": None, "battery": None,
+        out[entity_id] = {"name": entity_id, "device_class": None, "type": "measure" if entity_id.startswith("sensor.") else "other",
+                          "kind": "value" if entity_id.startswith("sensor.") else "state", "unit": None, "area": None, "platform": None, "battery": None,
                           "signal": None, "signal_live": None, "manufacturer": None, "model": None, "sw_version": None, "device_id": None, "missing": True}
     return out
 
@@ -228,7 +245,7 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
             continue
         ctl = entry.runtime_data.controller
         zones = {mode: ctl.zone(mode) for mode in ctl.modes}
-        chosen |= {e for members in zones.values() for e in members} | set(ctl.sensor_overrides) | set(entry.options.get(CONF_SENSORS) or [])
+        chosen |= {e for members in zones.values() for e in members} | set(ctl.sensor_overrides) | set(entry.options.get(CONF_SENSORS) or []) | set(entry.options.get(CONF_MONITOR_SENSORS) or [])
         systems.append(
             {
                 "entry_id": entry.entry_id,
@@ -239,6 +256,8 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "zones": zones,
                 "entry_sensors": sorted(ctl.entry_sensors),
                 "sensors": list(entry.options.get(CONF_SENSORS) or []),
+                # Messwert-Sensoren der Überwachung (1.48.0): eigene Liste, der Alarm sieht sie nie
+                "monitor_sensors": list(entry.options.get(CONF_MONITOR_SENSORS) or []),
                 # Einstellungen je Modus (0.10.0), für alle Modi, auch die abgeschalteten (1.17.12): sie behalten ihre Werte, und das
                 # Panel speichert sie mit. Fehlten sie hier, hielte das Panel den gespeicherten Stand für geändert ("1 Änderung").
                 "mode_settings": {
@@ -251,6 +270,10 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "night_enabled": ctl.night_enabled,
                 "always_enabled": ctl.always_enabled,
                 "routines": entry.options.get(CONF_ROUTINES) or [],
+                "monitor_enabled": ctl.monitor_enabled,
+                "monitors": entry.options.get(CONF_MONITORS) or [],
+                # Regeln, die gerade ausserhalb ihrer Grenzen sind: id -> seit wann und welcher Sensor
+                "monitor_active": {rid: {"since": a.get("since"), "entity_id": a.get("entity")} for rid, a in hass.data.get(DATA_MONITOR, {}).get(entry.entry_id, {}).items()},
                 "sensor_options": ctl.sensor_overrides,
                 "per_mode_sensors": bool(entry.options.get(CONF_PER_MODE_SENSORS)),
                 # Schalter "Einstellungen pro Modus" der Anlage; ohne gespeicherten Wert null (das Panel schaltet ein, wenn sich die Modi unterscheiden)
@@ -321,6 +344,7 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
         vol.Required("entry_sensors"): [str],
         # Sensoren, die in der Liste der Konfiguration stehen sollen (Auswahl über "+")
         vol.Optional("sensors"): [str],
+        vol.Optional("monitor_sensors"): [str],
         # Eigene Werte der Optionen pro Sensor; fehlt ein Sensor, gilt die Voreinstellung seiner Art
         vol.Optional("sensor_options"): {str: SENSOR_VALUES},
         # Einstellungen je Modus: Schalter und eigene Werte je Modus (nur Abweichungen von den Werten für alle Modi)
@@ -353,6 +377,11 @@ async def ws_save_zones(hass: HomeAssistant, connection, msg: dict[str, Any]) ->
             connection.send_error(msg["id"], "invalid_entity", "Only binary sensors can be listed")
             return
         options[CONF_SENSORS] = sorted(set(msg["sensors"]))
+    if "monitor_sensors" in msg:
+        if any(e.split(".")[0] not in MONITOR_NUMERIC_DOMAINS for e in msg["monitor_sensors"]):
+            connection.send_error(msg["id"], "invalid_entity", "Only measured values can be listed here")
+            return
+        options[CONF_MONITOR_SENSORS] = sorted(set(msg["monitor_sensors"]))
     if "sensor_options" in msg:
         if any(not e.startswith("binary_sensor.") for e in msg["sensor_options"]):
             connection.send_error(msg["id"], "invalid_entity", "Only binary sensors can have sensor options")
@@ -593,6 +622,7 @@ async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) 
         vol.Optional("per_mode_settings"): bool,
         vol.Optional("night_enabled"): bool,
         vol.Optional("always_enabled"): bool,
+        vol.Optional("monitor_enabled"): bool,
         vol.Optional("home_enabled"): bool,
         vol.Optional("away_enabled"): bool,
         vol.Optional("routines"): ROUTINES,
@@ -626,6 +656,8 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
         options[CONF_PER_MODE_SETTINGS] = msg["per_mode_settings"]
     if "always_enabled" in msg:
         options[CONF_ALWAYS_ENABLED] = msg["always_enabled"]
+    if "monitor_enabled" in msg:
+        options[CONF_MONITOR_ENABLED] = msg["monitor_enabled"]
     if "code_ack_required" in msg:
         # Ohne Code gibt es nichts zu verlangen
         if msg["code_ack_required"] and not entry.runtime_data.controller.has_code:
@@ -1002,6 +1034,63 @@ async def ws_remove_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -
     # "reload": lädt die Anlage neu? Home Assistant lädt nur neu, wenn sich die Optionen wirklich geändert haben. Ohne diese Angabe
     # wartete das Panel mit der Ladeanzeige 25 Sekunden auf eine neue Kennung, die nie kam.
     connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_monitors", vol.Required("entry_id"): str, vol.Required("monitors"): MONITORS})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_save_monitors(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """Regeln der Überwachung einer Anlage (laden die Anlage neu wie alle Optionen; eine laufende Regel meldet sich danach nicht noch einmal)."""
+    if (entry := _entry(hass, connection, msg)) is None:
+        return
+    try:
+        monitors = check_monitors(hass, msg["monitors"])
+    except vol.Invalid as err:
+        connection.send_error(msg["id"], "invalid_monitors", str(err))
+        return
+    changed = hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_MONITORS: monitors})
+    connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/monitor_entities"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_monitor_entities(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Was eine Regel der Überwachung beobachten kann: Messwerte (Temperatur, Luftfeuchtigkeit, CO2 ...: Sensoren mit Zahl) und Geräte mit Zuständen
+    (Tür, Schalter ...). Mit Name, Bereich, Geräteklasse, Einheit und aktuellem Wert; nie Entitäten von Alarmageddon selbst.
+    """
+    ent_reg = er.async_get(hass)
+    dev_reg = dr.async_get(hass)
+    area_reg = ar.async_get(hass)
+    out: list[dict[str, Any]] = []
+    for state in hass.states.async_all():
+        domain = state.entity_id.split(".")[0]
+        numeric = domain in MONITOR_NUMERIC_DOMAINS
+        if not numeric and domain not in LEAF_STATES:
+            continue
+        unit = state.attributes.get("unit_of_measurement")
+        if numeric and not unit and number(state) is None:
+            continue  # Text, Zeitpunkt oder Ähnliches: kein Messwert
+        reg = ent_reg.async_get(state.entity_id)
+        if reg is not None and (reg.platform == DOMAIN or reg.disabled_by or reg.hidden_by):
+            continue
+        area_id = reg.area_id if reg else None
+        if reg and not area_id and reg.device_id and (device := dev_reg.async_get(reg.device_id)):
+            area_id = device.area_id
+        area = area_reg.async_get_area(area_id) if area_id else None
+        out.append({
+            "entity_id": state.entity_id,
+            "name": display_name(hass, state.entity_id),
+            "kind": "value" if numeric else "state",
+            "area": area.name if area else "",
+            "device_class": str(state.attributes.get("device_class") or ""),
+            "unit": str(unit or ""),
+            "states": [] if numeric else list(LEAF_STATES[domain]),
+            "state": state.state,
+        })
+    out.sort(key=lambda e: (e["name"].lower(), e["entity_id"]))
+    connection.send_result(msg["id"], {"entities": out})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/routine_entities"})

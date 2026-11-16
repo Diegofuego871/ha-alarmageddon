@@ -7,7 +7,26 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.48.0] - 2026-11-16
+
+### Hinzugefügt
+
+- **Überwachung: Messwerte und Ja/Nein-Sensoren, unabhängig vom Alarm.** Ein neuer Bereich neben Anwesend, Abwesend, Nacht und Immer aktiv, mit eigenem Reiter unter Konfiguration › Aktionen › Überwachung. Eingeschaltet wird er unter Konfiguration › Anlage › Modi (**standardmässig aus**). Typische Fälle: ein Kühlschrank über 8 °C seit 30 Minuten oder seine Tür seit 5 Minuten offen. Jede Regel ist ein Kapitel mit ihrem Ablauf in den Farben der Aktionen: "Ausserhalb der Grenzen" (orange) und "Wieder in Ordnung" (grün). Eine Regel hat:
+  - eine **Bedingung**: Messwert über, unter oder ausserhalb von Grenzen, Gerätezustand (Tür, Schalter, Schloss ...), Uhrzeit und "Anlage ist scharf" (in gewählten Modi), verbunden mit Und/Oder und Gruppen wie bei den Routinen;
+  - eine **Dauer**: so lange muss die Bedingung gelten, bevor der erste Ablauf läuft;
+  - eine **Rückkehr-Spanne**: ein Wert gilt erst so weit innerhalb der Grenze als wieder in Ordnung, damit ein Wert, der um die Grenze flattert, nicht ständig neu meldet;
+  - **Schritte**: Push-Meldung (eigener Titel und Text mit `{rule}`, `{sensor}`, `{value}`, `{unit}`, `{limit}`, `{since}`, `{name}`, eigene Empfänger, auf Wunsch kritisch), Gerät schalten, Warten;
+  - eine optionale **Erinnerung** alle N Stunden, solange es anhält (wiederholt nur die Push-Schritte).
+- **Messwerte in der Sensorliste.** Bei eingeschalteter Überwachung bietet "Sensoren hinzufügen" auch Temperatur, Luftfeuchtigkeit, CO2 und andere Messwerte an (neuer Filter "Messwerte"). Sie stehen ausgegraut in der Tabelle: keine Zone, nie immer aktiv, keine Eingangsverzögerung. Der Alarm sieht sie nie; die Wartungsprüfung (Batterie, nicht erreichbar) erfasst sie. Sie gehören wie die Regeln in die Sicherung.
+- **Sicher gebaut.** Ein Sensor, der nicht antwortet, zählt nie: Er löst keine Regel aus und beendet auch keine, ein Funkabriss meldet also nie "wieder in Ordnung". Eine laufende Regel meldet sich nach einem Neustart, einem Neuladen oder beim Speichern der Seite nicht noch einmal. Die Überwachung läuft auch bei deaktivierter Anlage und löst nie die Sirene oder den Alarm aus; kritische Ereignisse wie Feuer oder Wasser bleiben bei "Immer aktiv". Ein Gerät, das hängt, hält nichts auf (jeder Aufruf wartet höchstens 10 Sekunden), und ein fehlerhafter Schritt stoppt die übrigen nie.
+
+### Geändert
+
+- **Die Titel der Aktionskarten sind fett** (gleiche Grösse), damit sie deutlicher hervortreten.
+
 ## [1.47.0] - 2026-11-16
+
+Nicht veröffentlicht; enthalten in 1.48.0.
 
 ### Hinzugefügt
 
@@ -1593,7 +1612,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.47.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.47.0
+[1.48.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.0
 [1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1
 [1.46.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.0
 [1.45.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.45.0

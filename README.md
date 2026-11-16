@@ -77,6 +77,16 @@ What happens on an alarm is a flow you build from steps, per mode if you like. D
 
 Recipients are chosen separately for alarms and for maintenance messages, and every message can override them with its own recipients (per mode too). Every kind of message (entry delay, armed, disarmed, arming not possible, silent alarm, sensor unreachable, low battery) can be switched on or off, be critical (sounds in silent mode) and have its own volume, per mode if you like. "Arming not possible" carries two buttons: "Try again" arms the same mode once more, "Arm anyway" arms although sensors are open and bypasses them until you disarm. They work for one hour, only while the system is disarmed and only from the phone of a recipient of that message; each can be switched off.
 
+### Monitoring
+
+Besides the alarm, Alarmageddon can watch things that have nothing to do with intruders: a fridge that gets too warm, a damp cellar, bad air, a fridge door left open. Switch it on under Configuration › Alarm system › Modes (off by default); then measured values (temperature, humidity, CO2 ...) can be added in the sensor list (greyed out there: no zone, never always active, no entry delay) and the tab "Monitoring" appears next to the modes under Configuration › Actions.
+
+Every rule is a chapter with its flow: "Outside the limits" (orange) and "Back to normal" (green), built from the same kind of steps as the alarm actions, but only push notification, switch device and wait. A rule has a condition (measured value above, below or outside limits, device state, time window, "alarm system is armed", combined with And/Or), a duration the condition must hold (for example 30 minutes), a return margin against flapping around the limit and, if you like, a reminder every few hours. Texts know the placeholders `{rule}`, `{sensor}`, `{value}`, `{unit}`, `{limit}`, `{since}` and `{name}`; without an own text a fitting default is sent, to the recipients you choose or the recipients of the maintenance messages.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/monitor-en.png" alt="Monitoring rules: fridge too warm with its flows outside the limits and back to normal" width="100%"></p>
+
+Monitoring runs always, also while the alarm system is disarmed, and never triggers the siren or the alarm (fire and water stay with "Always active"). A sensor that does not respond never counts: it neither triggers a rule nor ends it, so a radio loss never reports "back to normal". A running rule does not report again after a restart.
+
 ### When there is an alarm
 
 An alarm cannot be overlooked: a red band with the sensor that triggered and the buttons "Acknowledge" (the alarm ends, the system stays armed) and "Disarm". The tile of the alarm system says since when the alarm has been running, what triggered it and who armed the system when. The same buttons are in the push notification on the lock screen.

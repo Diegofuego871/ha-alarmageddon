@@ -21,7 +21,7 @@ const AWAY_MS = 30 * 60 * 1000;
 const SUBS = ["sensors", "actions", "notify", "system"];
 
 // Knöpfe, die einen Dialog ohne Speichern schliessen (das X löst den ersten gefundenen aus)
-const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sys="code-close"],[data-sys="rt-cancel"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"]';
+const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sys="code-close"],[data-sys="rt-cancel"],[data-wf="mon-cancel-form"],[data-wf="mon-step-cancel"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"]';
 
 class AlarmageddonPanel extends HTMLElement {
   constructor() {
@@ -84,7 +84,7 @@ class AlarmageddonPanel extends HTMLElement {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
       <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
-      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog></div>`;
+      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
     if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => this._stickySync()).observe(this._content);
     this._initSeg(this._root);
@@ -942,6 +942,7 @@ class AlarmageddonPanel extends HTMLElement {
         : e.reason === "armed_mode" ? this._t("evRtWhyArmedMode") : e.reason === "mode" ? this._t("evRtWhyMode") : this._t("evRtWhyAlarm");
       text = this._t("evRoutineSkipped", { routine: e.routine || "?", why });
     }
+    else if (e.kind === "monitor_out" || e.kind === "monitor_ok") text = this._t(e.kind === "monitor_out" ? "evMonitorOut" : "evMonitorOk", { rule: e.monitor || "?" });
     else if (e.kind === "arm_failed") text = this._t("evArmFailed", { mode, sensors: (e.sensors || []).map((x) => this._name(x)).join(", ") });
     else if (ARMED[e.state]) text = this._t("evArmed", { mode });
     else if (e.state === "arming") text = this._t("evArming", { mode });
@@ -1324,6 +1325,8 @@ class AlarmageddonPanel extends HTMLElement {
       const e = this.actions.edit;
       return Boolean(e?.form) && e.snap !== undefined && JSON.stringify(e.form) !== e.snap;
     }
+    if (dlg.id === "ag-mon") return this.actions.mon.formDirty();
+    if (dlg.id === "ag-monstep") return Boolean(this.actions.mon.step) && JSON.stringify(this.actions.mon.step.form) !== this.actions.mon.step.snap;
     if (dlg.id === "ag-pick") return Boolean(this.sensors.pick?.sel?.size);
     if (dlg.id === "ag-presets") return JSON.stringify(this.sensors.presetDraft) !== JSON.stringify(this.sensors.presets) || Boolean(this.sensors.presetOverride);
     if (dlg.id === "ag-codes") return [...dlg.querySelectorAll("input[data-key]")].some((i) => i.value) && Boolean(dlg.querySelector('[data-sys="code-save"]'));
@@ -1576,6 +1579,7 @@ class AlarmageddonPanel extends HTMLElement {
     if (this.list.onChange(el)) return;
     if (this._tab === "log" && this.log.onChange(el)) return;
     if (this._tab === "config" && this._sub === "sensors" && this.sensors.onChange(el)) return;
+    if (this._tab === "config" && this._sub === "actions" && this.actions.onChange(el)) return;
     if (el.dataset?.act !== "system") return;
     const value = el.value;
     el.value = this._sel;

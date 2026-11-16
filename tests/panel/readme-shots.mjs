@@ -109,6 +109,13 @@ for (const lang of ["en", "de"]) {
       r.host._content.scrollTop += chap.getBoundingClientRect().top - (bar.getBoundingClientRect().bottom + 12);
     });
   } });
+  // Überwachung (1.48.0): der Reiter mit den Regeln (Nachbau mit ?monitor=1: Kühlschrank zu warm, Tür offen)
+  await shot(lang, "monitor", { tab: "config", height: 1250, query: "&monitor=1", prepare: async ({ page, frame }) => {
+    await click('[data-sub="actions"]')({ frame });
+    await page.waitForTimeout(600);
+    await click('[data-trigger="monitor"]')({ frame });
+    await page.waitForTimeout(800);
+  } });
   // Beendete Alarme sind zugeklappt (1.17.9): fürs Bild den neuesten aufklappen
   await shot(lang, "log", { tab: "log", prepare: click(".ag-inc-head") });
   await shot(lang, "mobile", { mobile: true });

@@ -67,6 +67,8 @@ from .const import (
     MODE_ENABLED_DEFAULT,
     MODE_ENABLED_KEY,
     CONF_ALWAYS_ENABLED,
+    CONF_MONITOR_ENABLED,
+    CONF_MONITOR_SENSORS,
     CONF_NIGHT_ENABLED,
     CONF_ZONE_PREFIX,
     DEFAULT_ENTRY_DELAY,
@@ -157,6 +159,17 @@ class AlarmController:
     def always_enabled(self) -> bool:
         """"Immer aktiv" insgesamt an (Standard). Aus: kein Sensor ist immer aktiv, die Werte und Aktionen dazu bleiben gespeichert."""
         return bool(self.options.get(CONF_ALWAYS_ENABLED, True))
+
+    @property
+    def monitor_enabled(self) -> bool:
+        """"Überwachung" insgesamt an (Standard aus). Aus: keine Regel läuft, die Regeln bleiben gespeichert."""
+        return bool(self.options.get(CONF_MONITOR_ENABLED, False))
+
+    def monitor_sensors(self) -> set[str]:
+        """Messwert-Sensoren der Überwachung (nur bei eingeschalteter Überwachung): für die Wartung, nie für den Alarm."""
+        if not self.monitor_enabled:
+            return set()
+        return {e for e in self.options.get(CONF_MONITOR_SENSORS) or [] if isinstance(e, str)}
 
     @property
     def night_enabled(self) -> bool:

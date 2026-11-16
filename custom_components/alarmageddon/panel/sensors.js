@@ -57,6 +57,8 @@ export class SensorsUi {
         entrySensors: new Set(s.entry_sensors || []),
         // Liste der Konfiguration: Auswahl des Nutzers plus alles, was schon in einer Zone steht oder eigene Werte hat
         sensors: new Set(this.baseSensors(s)),
+        // Messwert-Sensoren der Überwachung (1.48.0): eigene Liste, ohne Zonen und Optionen des Alarms
+        monitorSensors: new Set(s.monitor_sensors || []),
         opts: JSON.parse(JSON.stringify(s.sensor_options || {})),
         // Einstellungen pro Modus: Schalter und eigene Werte je Modus (nur Abweichungen von den Werten für alle Modi)
         perMode: Boolean(s.per_mode_sensors),
@@ -93,6 +95,9 @@ export class SensorsUi {
     const baseEntry = new Set(s.entry_sensors || []);
     for (const id of d.entrySensors) if (!baseEntry.has(id)) out.add(id);
     for (const id of baseEntry) if (!d.entrySensors.has(id)) out.add(id);
+    const baseMon = new Set(s.monitor_sensors || []);
+    for (const id of d.monitorSensors) if (!baseMon.has(id)) out.add(id);
+    for (const id of baseMon) if (!d.monitorSensors.has(id)) out.add(id);
     const baseOpts = s.sensor_options || {};
     for (const id of new Set([...Object.keys(baseOpts), ...Object.keys(d.opts)])) {
       if (JSON.stringify(sortKeys(baseOpts[id] || {})) !== JSON.stringify(sortKeys(d.opts[id] || {}))) out.add(id);
@@ -112,6 +117,16 @@ export class SensorsUi {
     const n = this.changedIds().size;
     // Der Schalter "Einstellungen pro Modus" zählt als eigene Änderung
     return n + (s && d && d.entry === s.entry_id && d.perMode !== Boolean(s.per_mode_sensors) ? 1 : 0);
+  }
+
+  // "Überwachung" insgesamt an (Anlage › Modi, Standard aus): nur dann stehen die Messwert-Sensoren in der Liste und im Fenster "+"
+  get monitorOn() {
+    return this.system?.monitor_enabled === true;
+  }
+
+  // Messwert-Sensor (Temperatur, Luftfeuchtigkeit, CO2 ...): nur für die Überwachung, ohne Zonen, "Immer aktiv" und Eingangsverzögerung
+  isValue(id) {
+    return this.host._data?.sensors?.[id]?.kind === "value";
   }
 
   // "Immer aktiv" insgesamt an (Anlage › Modi): sonst entfallen Reiter, Spalte und Option in der Ansicht, die Werte bleiben gespeichert
@@ -246,12 +261,15 @@ export class SensorsUi {
     const q = this.q.trim().toLowerCase();
     return Object.entries(h._data?.sensors || {})
       .filter(([id, info]) => {
-        // Nur Sensoren, die der Nutzer für diese Anlage gewählt hat (Plus); sonst wäre alles drin, was HA kennt
-        if (!d.sensors.has(id)) return false;
+        // Nur Sensoren, die der Nutzer für diese Anlage gewählt hat (Plus); sonst wäre alles drin, was HA kennt.
+        // Messwerte stehen nur bei eingeschalteter Überwachung in der Liste (ihre Wahl bleibt sonst gespeichert).
+        const value = info.kind === "value";
+        if (value ? !(this.monitorOn && d.monitorSensors.has(id)) : !d.sensors.has(id)) return false;
         const dc = info.device_class;
-        if (this.filter === "openings" && !OPENINGS.has(dc)) return false;
-        if (this.filter === "motion" && !MOTION.has(dc)) return false;
-        if (this.filter === "other" && (OPENINGS.has(dc) || MOTION.has(dc))) return false;
+        if (this.filter === "measure" && !value) return false;
+        if (this.filter === "openings" && (value || !OPENINGS.has(dc))) return false;
+        if (this.filter === "motion" && (value || !MOTION.has(dc))) return false;
+        if (this.filter === "other" && (value || OPENINGS.has(dc) || MOTION.has(dc))) return false;
         if (!q) return true;
         return [h._name(id), id, info.area, info.integration].some((v) => String(v || "").toLowerCase().includes(q));
       })
@@ -264,7 +282,8 @@ export class SensorsUi {
 
   html() {
     const narrow = this.host.hasAttribute("narrow");
-    const filters = [["all", "filterAll"], ["openings", "filterOpenings"], ["motion", "filterMotion"], ["other", "filterOther"]]
+    if (!this.monitorOn && this.filter === "measure") this.filter = "all";
+    const filters = [["all", "filterAll"], ["openings", "filterOpenings"], ["motion", "filterMotion"], ["other", "filterOther"], ...(this.monitorOn ? [["measure", "filterMeasure"]] : [])]
       .map(([k, label]) => `<button class="ag-chip ${this.filter === k ? "on" : ""}" data-sen="filter" data-filter="${k}">${esc(this._t(label))}</button>`).join("");
     return `<div class="ag-tools">
         <label class="list-search">${ic("search", 18)}<input type="search" data-sen="search" placeholder="${esc(this._t("search"))}" value="${esc(this.q)}" aria-label="${esc(this._t("search"))}">
@@ -285,7 +304,7 @@ export class SensorsUi {
     const changed = this.host._isSaved(this) ? new Set() : this.changedIds();
     this.renderModeBar();
     if (!rows.length) {
-      const none = !this.draft.sensors.size;
+      const none = !this.draft.sensors.size && !(this.monitorOn && this.draft.monitorSensors.size);
       this.host._setHtml(body, `<div class="ag-card ag-empty"><span class="ag-t2">${esc(this._t(none ? "noSensorsChosen" : "noSensors"))}</span>${none ? `<button class="ag-btn primary" data-sen="add">${ic("plus", 18)}${esc(this._t("addSensors"))}</button>` : ""}</div>`);
     }
     else this.host._setHtml(body, this._table(rows, changed));
@@ -313,8 +332,16 @@ export class SensorsUi {
   _bits(r) {
     const h = this.host;
     const st = h._state(r.id)?.state;
-    const [icon, label] = DC[r.info.device_class] || ["sensor", "dcOther"];
+    const [icon, label] = DC[r.info.device_class] || [r.info.kind === "value" ? "gauge" : "sensor", "dcOther"];
     const cls = r.info.missing ? "missing" : st === "on" ? "open" : "";
+    if (r.info.kind === "value") {
+      // Messwert: Art und aktueller Wert; keine Optionen des Alarms
+      const unit = h._state(r.id)?.attributes?.unit_of_measurement || r.info.unit || "";
+      const now = st === undefined || ["unavailable", "unknown"].includes(st) ? "–" : `${st} ${unit}`.trim();
+      const b = h._battery(r.id);
+      const batt = b === null ? `<span class="ag-batt">${r.info.battery ? "–" : esc(this._t("mains"))}</span>` : `<span class="ag-batt ${b < this.host._lowBattery() ? "low" : ""}">${b} %</span>`;
+      return { av: `<span class="ag-av ${r.info.missing ? "missing" : ""}">${ic(r.info.missing ? "offline" : icon, 18)}</span>`, sub: r.info.missing ? this._t("missing") : [this._t(label), now].join(" · "), batt, ownDot: "" };
+    }
     // Im Reiter eines Modus zeigt die Zeile die dort wirksamen Werte (wie das Blatt), sonst die Werte für alle Modi
     const mode = this.activeMode();
     const active = [
@@ -347,13 +374,23 @@ export class SensorsUi {
       const bits = this._bits(r);
       body.push(`<tr class="ag-clickrow ${changed.has(r.id) ? "changed" : ""} ${this.detail === r.id ? "sel" : ""}" data-row="${esc(r.id)}"><td><div class="ag-nm">${nar ? "" : bits.av}<div>${esc(r.name)}${bits.ownDot}<small>${esc(bits.sub)}</small></div></div></td>
         ${modes.map((m) => {
+          if (r.info.kind === "value") return `<td class="z ${m === cur ? "cur" : ""}">${this._offBox()}</td>`;
           const on = d.zones[m].has(r.id);
           return `<td class="z ${m === cur ? "cur" : ""}"><button class="ag-box ${on ? "on" : ""}" data-box data-mode="${m}" data-ent="${esc(r.id)}" role="checkbox" aria-checked="${on}" aria-label="${esc(`${r.name}: ${this._t(MODE_KEY[m])}`)}">${on ? ic("check", 18) : ""}</button></td>`;
         }).join("")}
-        ${this.alwaysOn ? `<td class="z ${cur === "always" ? "cur" : ""}">${this._alwaysBox(r)}</td>` : ""}${nar ? "" : `<td class="z">${this._entryToggle(r)}</td>`}
+        ${this.alwaysOn ? `<td class="z ${cur === "always" ? "cur" : ""}">${r.info.kind === "value" ? this._offBox() : this._alwaysBox(r)}</td>` : ""}${nar ? "" : `<td class="z">${r.info.kind === "value" ? this._offToggle() : this._entryToggle(r)}</td>`}
         <td class="ag-acts"><div class="ag-actrow">${nar ? "" : `<button class="ag-iconbtn" data-sen="remove" data-ent="${esc(r.id)}" aria-label="${esc(`${r.name}: ${this._t("removeSensor")}`)}" title="${esc(this._t("removeSensor"))}">${ic("trash", 18)}</button>`}<button class="ag-cbtn" data-sen="detail" data-ent="${esc(r.id)}" aria-label="${esc(`${r.name}: ${this._t("details")}`)}">${ic("chevRight", 16)}</button></div></td></tr>`);
     }
     return `<div class="ag-card ag-table-wrap ag-stickwrap"><table class="ag-table">${head}${body.join("")}</table></div>`;
+  }
+
+  // Messwerte gehören nie in eine Zone, sind nie "Immer aktiv" und haben keine Eingangsverzögerung: ausgegraut, nicht bedienbar (Vorgabe des Nutzers, 2026-11-16)
+  _offBox() {
+    return `<span class="ag-box dis" aria-disabled="true" role="presentation" title="${esc(this._t("measureOnlyHint"))}"></span>`;
+  }
+
+  _offToggle() {
+    return `<button class="ag-toggle" disabled aria-disabled="true" tabindex="-1" aria-label="${esc(this._t("colEntry"))}" title="${esc(this._t("measureOnlyHint"))}"></button>`;
   }
 
   // "Immer aktiv" (Rauch, Wasser, Gas lösen auch bei deaktivierter Anlage aus) als Kästchen in der Übersicht: wirksamer Wert, eigener Wert ist ein Punkt
@@ -429,6 +466,17 @@ export class SensorsUi {
     const d = this.draft;
     const r = { id, name: h._name(id) };
     const meta = [this._t(label), info.area, info.integration].filter(Boolean).join(" · ");
+    if (info.kind === "value") {
+      const unit = h._state(id)?.attributes?.unit_of_measurement || info.unit || "";
+      const st = h._state(id)?.state;
+      const now = st === undefined || ["unavailable", "unknown"].includes(st) ? "–" : `${st} ${unit}`.trim();
+      return `<div class="ag-side-head"><span class="ag-shield" style="width:46px;height:46px;border-radius:14px;background:var(--ag-primary-soft);color:var(--ag-primary)">${ic(icon === "sensor" ? "gauge" : icon, 24)}</span>
+        <div style="flex:1;min-width:0"><h3>${esc(r.name)}</h3><div class="ag-t2 ag-small">${esc(meta)}</div></div>
+        <button class="ag-iconbtn" data-sen="close-detail" aria-label="${esc(this._t("cancel"))}">${ic("close", 22)}</button></div>
+        <div class="ag-side-body"><div class="ag-label">${esc(this._t("measureNow"))}</div><div class="ag-measure"><b>${esc(now)}</b></div>
+          <div class="ag-t2 ag-small" style="margin-top:8px">${esc(this._t("measureSheetHint"))}</div>
+          <button class="ag-btn" data-sen="remove" data-ent="${esc(id)}" style="margin-top:16px">${ic("trash", 18)}${esc(this._t("removeSensor"))}</button></div>`;
+    }
     const entryRow = `<div class="ag-orow"><span class="ag-oav ${d.entrySensors.has(id) ? "on" : ""}">${ic("timer", 20)}</span><div class="ag-otx"><b>${esc(this._t("colEntry"))}</b><small>${esc(this._t("optEntryHint"))}</small></div>${this._entryToggle(r)}</div>`;
     const mode = this.sheetMode(id);
     const delayRow = d.entrySensors.has(id) && mode !== "always" ? this._delayRow(id, mode) : "";
@@ -536,7 +584,7 @@ export class SensorsUi {
     this.saving = true;
     this.renderFoot();
     try {
-      const saved = await h._hass.callWS({ type: "alarmageddon/save_zones", entry_id: s.entry_id, zones, entry_sensors: [...d.entrySensors].sort(), sensor_options: d.opts, sensors: [...d.sensors].sort(), per_mode_sensors: d.perMode, sensor_modes: d.modeOpts });
+      const saved = await h._hass.callWS({ type: "alarmageddon/save_zones", entry_id: s.entry_id, zones, entry_sensors: [...d.entrySensors].sort(), sensor_options: d.opts, sensors: [...d.sensors].sort(), monitor_sensors: [...d.monitorSensors].sort(), per_mode_sensors: d.perMode, sensor_modes: d.modeOpts });
       // Sofort als gespeichert zeigen; die Anlage lädt neu, die Daten kommen gleich nach
       s.zones = zones;
       s.entry_sensors = [...d.entrySensors].sort();
@@ -544,6 +592,7 @@ export class SensorsUi {
       s.per_mode_sensors = d.perMode;
       s.sensor_modes = JSON.parse(JSON.stringify(d.modeOpts));
       s.sensors = [...d.sensors].sort();
+      s.monitor_sensors = [...d.monitorSensors].sort();
       this.draft = null;
       this.saveState = "saved";
       this.host._markSaved(this); // Punkte "ungespeichert" verschwinden sofort
@@ -563,6 +612,7 @@ export class SensorsUi {
   removeSensor(id) {
     const d = this.ensureDraft();
     d.sensors.delete(id);
+    d.monitorSensors.delete(id);
     for (const m of ALL_MODES) d.zones[m].delete(id);
     d.entrySensors.delete(id);
     delete d.opts[id];
@@ -580,10 +630,11 @@ export class SensorsUi {
     const h = this.host;
     const q = (this.pick?.q || "").trim().toLowerCase();
     const f = this.pick?.filter || "all";
-    const kind = (dc) => (OPENINGS.has(dc) ? "openings" : MOTION.has(dc) ? "motion" : "other");
+    const kind = (info) => (info.kind === "value" ? "measure" : OPENINGS.has(info.device_class) ? "openings" : MOTION.has(info.device_class) ? "motion" : "other");
     return Object.entries(h._data?.sensors || {})
-      .filter(([id, info]) => !info.missing && !this.draft.sensors.has(id)
-        && (f === "all" || kind(info.device_class) === f)
+      // Messwerte nur bei eingeschalteter Überwachung (sie haben eine eigene Liste)
+      .filter(([id, info]) => !info.missing && !this.draft.sensors.has(id) && !this.draft.monitorSensors.has(id) && (info.kind !== "value" || this.monitorOn)
+        && (f === "all" || kind(info) === f)
         && (!q || [h._name(id), id, info.area, info.integration].some((v) => String(v || "").toLowerCase().includes(q))))
       .map(([id, info]) => ({ id, info, name: h._name(id), area: info.area || this._t("noArea") }))
       .sort((a, b) => Number(!a.info.area) - Number(!b.info.area) || a.area.localeCompare(b.area) || a.name.localeCompare(b.name));
@@ -603,7 +654,7 @@ export class SensorsUi {
     let area = null;
     return rows.map((r) => {
       const on = this.pick.sel.has(r.id);
-      const [icon, label] = DC[r.info.device_class] || ["sensor", "dcOther"];
+      const [icon, label] = DC[r.info.device_class] || [r.info.kind === "value" ? "gauge" : "sensor", "dcOther"];
       const head = r.area !== area ? `<div class="ag-group-label" style="padding:8px 10px 2px">${esc((area = r.area))}</div>` : "";
       return `${head}<button class="ag-erow ${on ? "on" : ""}" data-sen="pick-toggle" data-ent="${esc(r.id)}" role="checkbox" aria-checked="${on}">
         <span class="ag-box ${on ? "on" : ""}">${on ? ic("check", 18) : ""}</span><span class="ag-av">${ic(icon, 18)}</span>
@@ -650,7 +701,7 @@ export class SensorsUi {
     this.host._setHtml(dlg, `<div class="ag-dlg-body"><h3>${esc(this._t("pickTitle"))}</h3><div class="ag-t2">${esc(this._t("pickHint"))}</div>
       <label class="list-search" style="margin-top:12px">${ic("search", 18)}<input type="search" data-sen="pick-q" placeholder="${esc(this._t("search"))}" value="${esc(this.pick.q)}" aria-label="${esc(this._t("search"))}">
         <button class="ag-clear" data-sen="pick-clear" aria-label="${esc(this._t("clearSearch"))}" ${this.pick.q ? "" : "hidden"}>${ic("close", 16)}</button></label>
-      <div class="ag-tools ag-pick-chips">${[["all", "filterAll"], ["openings", "filterOpenings"], ["motion", "filterMotion"], ["other", "filterOther"]].map(([k, label]) => `<button class="ag-chip ${this.pick.filter === k ? "on" : ""}" data-sen="pick-filter" data-filter="${k}">${esc(this._t(label))}</button>`).join("")}</div>
+      <div class="ag-tools ag-pick-chips">${[["all", "filterAll"], ["openings", "filterOpenings"], ["motion", "filterMotion"], ["other", "filterOther"], ...(this.monitorOn ? [["measure", "filterMeasure"]] : [])].map(([k, label]) => `<button class="ag-chip ${this.pick.filter === k ? "on" : ""}" data-sen="pick-filter" data-filter="${k}">${esc(this._t(label))}</button>`).join("")}</div>
       <div class="ag-elist" style="margin-top:10px;max-height:min(46vh,380px)">${this._pickListHtml()}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sen="pick-close">${esc(this._t("cancel"))}</button>
         <button class="ag-btn primary" data-sen="pick-add" ${this.pick.sel.size ? "" : "disabled"}>${ic("plus", 18)}${esc(this._t("pickAdd", { count: this.pick.sel.size }))}</button></div></div>`);
@@ -658,7 +709,7 @@ export class SensorsUi {
 
   addPicked() {
     const d = this.ensureDraft();
-    for (const id of this.pick.sel) d.sensors.add(id);
+    for (const id of this.pick.sel) (this.host._data?.sensors?.[id]?.kind === "value" ? d.monitorSensors : d.sensors).add(id);
     this.pick = null;
     this.saveState = null;
     this.host._closeDialog("ag-pick");
@@ -739,7 +790,7 @@ export class SensorsUi {
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.focus();
     } else if (act === "all") {
-      const rows = this.rows();
+      const rows = this.rows().filter((r) => r.info.kind !== "value"); // Messwerte gehören in keine Zone
       const mode = el.dataset.mode;
       const value = !rows.every((r) => this.draft.zones[mode].has(r.id));
       rows.forEach((r) => this.setZone(r.id, mode, value));

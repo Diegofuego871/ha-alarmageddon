@@ -119,6 +119,12 @@ TEXTS: dict[str, dict[str, str]] = {
         "maint_battery": "{sensor}: battery {value} %",
         "maint_offline": "{sensor}: unreachable since {time}",
         "time_format": "%m/%d %H:%M",
+        "monitor_out_title": "⚠️ {rule}",
+        "monitor_out": "{sensor}: {value}{limit} since {since}.",
+        "monitor_remind": "Still the case: {sensor}: {value}{limit} since {since}.",
+        "monitor_ok_title": "✅ {rule}",
+        "monitor_ok": "{sensor}: {value}. Back to normal.",
+        "monitor_limit": " (limit {limit})",
     },
     "de": {
         "triggered_title": "🚨 Alarm: {name}",
@@ -199,6 +205,12 @@ TEXTS: dict[str, dict[str, str]] = {
         "maint_battery": "{sensor}: Batterie {value} %",
         "maint_offline": "{sensor}: nicht erreichbar seit {time}",
         "time_format": "%d.%m. %H:%M",
+        "monitor_out_title": "⚠️ {rule}",
+        "monitor_out": "{sensor}: {value}{limit} seit {since}.",
+        "monitor_remind": "Weiterhin: {sensor}: {value}{limit} seit {since}.",
+        "monitor_ok_title": "✅ {rule}",
+        "monitor_ok": "{sensor}: {value}. Wieder in Ordnung.",
+        "monitor_limit": " (Grenze {limit})",
     },
 }
 
@@ -319,7 +331,7 @@ def build_payload(cfg: dict[str, Any], kind: str, title: str, message: str, *, t
     """
     setting = effective_type(cfg, kind, mode)
     is_critical = setting["critical"] if critical is None else critical
-    group = "alarmageddon" if NOTIFY_TYPES[kind] == "alarm" else "alarmageddon_maintenance"
+    group = "alarmageddon" if NOTIFY_TYPES.get(kind) == "alarm" else "alarmageddon_monitor" if kind == "monitor" else "alarmageddon_maintenance"
     # icon_url: Symbol der Integration (Android); iOS zeigt immer das Symbol der App, das lässt sich nicht ersetzen
     data: dict[str, Any] = {"group": group, "url": url or "/alarmageddon", "clickAction": url or "/alarmageddon", "icon_url": ICON_URL_PATH}
     if tag:

@@ -91,6 +91,32 @@ for (const lang of ["de", "en"]) {
     await closeDialogs();
     await s.ctx.close();
 
+    // ----- Überwachung (1.48.0): Schalter bei den Modi, Schalter der Regeln, Fenster des Schritts und der Regel -----
+    const mo = await open(browser, { mobile, lang, tab: "config", query: "&monitor=1" });
+    const auditM = async (where, min = 1) => {
+      await mo.page.waitForTimeout(350);
+      const a = await mo.ev(AUDIT);
+      check(`${tag}: ${where}: alle ${a.n} Schalter stehen links, der Text nahe rechts davon`, a.n >= min && a.bad.length === 0, JSON.stringify({ n: a.n, bad: a.bad.slice(0, 5) }));
+    };
+    await mo.tap('[data-sub="system"]');
+    await mo.waitFor("return !!r.querySelector('[data-sys=\"monitor\"]')");
+    await auditM("Anlage mit dem Schalter der Überwachung", 5);
+    await mo.tap('[data-sub="actions"]');
+    await mo.waitFor("return r.querySelectorAll('.ag-wf-step').length > 0");
+    await mo.tap('[data-trigger="monitor"]');
+    await mo.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 2");
+    await auditM("Überwachung: Regeln", 2);
+    await mo.ev("r.querySelector('[data-wf=\"mon-step-edit\"][data-rule=\"0\"][data-zone=\"out\"][data-index=\"0\"]').click(); return 1");
+    await mo.waitFor("return r.getElementById('ag-monstep').open");
+    await auditM("Überwachung: Schritt Push-Meldung", 1);
+    await mo.ev("for (const d of r.querySelectorAll('dialog[open]')) d.close(); return 1");
+    await mo.ev("r.querySelector('[data-wf=\"mon-edit\"][data-rule=\"0\"]').click(); return 1");
+    await mo.waitFor("return r.getElementById('ag-mon').open");
+    await auditM("Überwachung: Regel bearbeiten", 0);
+    await mo.ev("for (const d of r.querySelectorAll('dialog[open]')) d.close(); return 1");
+    check(`${tag}: Überwachung: keine Fehler im Browser`, mo.errors.length === 0, mo.errors.join(" | "));
+    await mo.ctx.close();
+
     // ----- Übersicht: Fenster "Ansicht" und "Umbenennen" -----
     const o = await open(browser, { mobile, lang, tab: "overview" });
     const auditO = async (where) => {

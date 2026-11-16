@@ -434,7 +434,7 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-icon.k-wait { background: var(--ag-subtle); color: var(--ag-text2); }
 .ag-wf-icon.k-end { background: var(--ag-success-soft); color: var(--ag-success); }
 .ag-wf-text { flex: 1; min-width: 0; }
-.ag-wf-text b { font-weight: 500; }
+.ag-wf-text b { font-weight: 700; }
 .ag-wf-text .ag-small { overflow-wrap: anywhere; }
 /* Knöpfe je Schritt (1.17.4): umrandet wie Knöpfe, mindestens 44 px, mit Abstand, damit sie sich auf dem Handy treffen lassen */
 .ag-wf-btns { display: flex; gap: 10px; flex: none; }
@@ -460,6 +460,8 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-armed { --z: #ff8a80; }
 .ag-wf-main { --z: #d32f2f; }
 .ag-wf-after, .ag-wf-end { --z: #81c784; }
+.ag-wf-mon-out { --z: #ffb74d; }
+.ag-wf-mon-ok { --z: #81c784; }
 .ag-wf-disarmed { --z: #2e7d32; }
 .ag-wf-line .ag-wf-step { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
 .ag-wf-end .ag-wf-endcard { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
@@ -1131,5 +1133,28 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) #ag-codes .ag-fld small, :host([narrow]) .ag-mt-opt small, :host([narrow]) .ag-pv-note, :host([narrow]) .ag-wf-text small,
 :host([narrow]) .ag-inc-text small, :host([narrow]) .ag-sv-ttl small, :host([narrow]) .ag-erow small, :host([narrow]) .ag-combo-item small,
 :host([narrow]) .ag-dlg-body > p, :host([narrow]) .ag-lfacts { font-size: 14.5px; line-height: 1.35; }
+
+/* Überwachung (1.48.0): Messwerte in der Sensortabelle sind ausgegraut (keine Zone, nie immer aktiv, keine Eingangsverzögerung), Regeln als Kapitel mit Ablauf */
+.ag-box.dis { cursor: default; opacity: .35; background: color-mix(in srgb, var(--ag-text3) 14%, transparent); border-style: dashed; pointer-events: auto; }
+.ag-table .ag-toggle:disabled { opacity: .35; cursor: default; }
+.ag-measure { font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.ag-mon-intro { display: flex; align-items: flex-start; gap: 16px; margin: 4px 0 18px; max-width: 820px; }
+.ag-mon-intro .ag-chap-t { margin-top: 0; }
+.ag-mon-rule { max-width: 820px; margin: 0 0 34px; }
+.ag-mon-rule.dim .ag-wf-line, .ag-mon-rule.dim .ag-mon-head > :not(.ag-toggle):not(.ag-btnrow) { opacity: .55; }
+.ag-mon-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.ag-mon-head .ag-settx { flex: 1; min-width: 0; }
+.ag-mon-head .ag-chap-t { margin: 0 0 2px; font-size: 17px; }
+.ag-mon-head small { display: block; color: var(--ag-text2); overflow-wrap: anywhere; }
+.ag-mon-rule .ag-wf-line + .ag-wf-line { margin-top: 14px; }
+.ag-valnum { width: 96px; min-width: 0; flex: 0 0 auto; }
+.ag-num .ag-unit { min-width: 0; width: auto; margin-left: 6px; }
+.ag-rpills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+:host([narrow]) .ag-mon-intro { flex-direction: column; align-items: stretch; }
+:host([narrow]) .ag-mon-intro .ag-btn { align-self: flex-start; }
+:host([narrow]) .ag-mon-head { flex-wrap: wrap; }
+:host([narrow]) .ag-mon-head .ag-settx { flex: 1 1 0; }
+:host([narrow]) .ag-mon-head .ag-btnrow { flex: 0 0 100%; justify-content: flex-end; margin-top: -4px; }
+:host([narrow]) .ag-valnum { flex: 1 1 90px; }
 `;
 

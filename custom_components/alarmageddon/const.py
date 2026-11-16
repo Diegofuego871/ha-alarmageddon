@@ -20,6 +20,10 @@ CONF_NIGHT_ENABLED: Final = "night_enabled"
 CONF_HOME_ENABLED: Final = "home_enabled"
 # "Immer aktiv" als Ganzes ein- oder ausschalten (1.6.0); Standard an. Aus: kein Sensor ist immer aktiv, Werte und Aktionen bleiben erhalten
 CONF_ALWAYS_ENABLED: Final = "always_enabled"
+# "Überwachung" (1.48.0) als Ganzes ein- oder ausschalten; Standard aus (Entscheid des Nutzers, 2026-11-16). Aus: keine Regel läuft, die Regeln bleiben gespeichert
+CONF_MONITOR_ENABLED: Final = "monitor_enabled"
+# Messwert-Sensoren der Anlage (Liste in der Konfiguration, ohne Zone, Modus oder Eingangsverzögerung); der Alarm sieht sie nie
+CONF_MONITOR_SENSORS: Final = "monitor_sensors"
 CONF_AWAY_ENABLED: Final = "away_enabled"
 CONF_ZONE_PREFIX: Final = "zone_"  # zone_home, zone_away, zone_night: Liste von Entitäten
 CONF_SENSORS: Final = "sensors"  # vom Nutzer für diese Anlage ausgewählte Sensoren (Liste im Panel); Zonen und eigene Werte zählen immer dazu
@@ -60,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 186  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 187  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -81,6 +85,11 @@ EVENTS_KEEP: Final = 5000  # Obergrenze der Ereignisse je Anlage (Protokoll mit 
 RECORDINGS_STORE_KEY: Final = f"{DOMAIN}.recordings"
 RECORDINGS_KEEP: Final = 200  # Obergrenze der Alarme je Anlage
 RECORDINGS_ENTRIES_KEEP: Final = 300  # Einträge je Alarm
+
+# Messwert-Sensoren, die das Panel für die Überwachung anbietet (Geräteklassen von sensor, 1.48.0)
+MEASURE_CLASSES: Final = (
+    "temperature", "humidity", "carbon_dioxide", "pressure", "illuminance", "pm25", "pm10", "aqi", "volatile_organic_compounds",
+)
 
 # Sensoren, die das Panel als Kandidaten für Zonen anbietet (Geräteklassen von binary_sensor)
 SENSOR_CLASSES: Final = (
@@ -327,3 +336,13 @@ ROUTINE_EVENT_MAX_AGE: Final = 10  # Sekunden: ein älteres Ereignis (nach Neula
 ROUTINE_STATES: Final = ("arming", "armed", "pending", "triggered", "disarmed")
 ROUTINE_ACTIONS: Final = ("home", "away", "night", "off")
 
+# Überwachung (seit 1.48.0): Regeln für Messwerte (Temperatur, Luftfeuchtigkeit, CO2 ...) und Ja/Nein-Sensoren, unabhängig vom Alarm. Je Regel eine
+# Bedingung, eine Dauer und zwei Abläufe ("ausserhalb", "wieder in Ordnung"); eine Regel löst nie Sirene oder Alarm aus.
+CONF_MONITORS: Final = "monitors"
+MAX_MONITORS: Final = 20
+MAX_MONITOR_STEPS: Final = 10  # Schritte je Ablauf einer Regel
+MONITOR_HOLD_MAX: Final = 7 * 24 * 3600  # "muss mindestens so lange gelten", Sekunden
+MONITOR_REMIND_MAX: Final = 72  # Erinnerung alle N Stunden, 0 = keine
+MONITOR_STORE_KEY: Final = f"{DOMAIN}.monitor"
+DATA_MONITOR: Final = f"{DOMAIN}_monitor"
+MONITOR_NUMERIC_DOMAINS: Final = ("sensor", "number", "input_number")

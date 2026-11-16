@@ -5,6 +5,7 @@
 
 const V = new URL(import.meta.url).search;
 const { ic, esc, MODE_ICON, MODE_KEY, errText } = await import(`./common.js${V}`);
+const { MonitorUi } = await import(`./monitor.js${V}`);
 const { isCustom, customList, customName, uploadHtml, uploadError, uploadSound } = await import(`./customsounds.js${V}`);
 
 // ----- Geräte und ihre Aktionen (wie die Routinen in Device Panel): Domäne -> Aktion -> Dienst -----
@@ -306,6 +307,7 @@ export class ActionsUi {
     this.testSource = null; // was gerade getestet wird: { kind: "all" } oder { kind: "step", zone, index }
     this.edit = null; // { index, insert, form, q, error, open }
     this.drag = null;
+    this.mon = new MonitorUi(this); // Reiter "Überwachung" (1.48.0)
     this.previewing = null; // URL des Tons, der gerade auf diesem Gerät läuft
     this._comboPointer = false;
   }
@@ -341,6 +343,8 @@ export class ActionsUi {
       const sigArmed = (t) => [canon(armed[t], "armed"), canon(arming[t], "arming"), canon(entry[t], "entry"), canon(disarmed[t], "disarmed")].join("|");
       this.draft = { entry: s.entry_id, wf, end, after, armed, arming, entrySteps: entry, disarmed, perMode: keys.some((t) => sig(t) !== sig(keys[0])) || modes.some((t) => sigArmed(t) !== sigArmed(modes[0])) };
     }
+    // "Überwachung" ist ein eigener Reiter neben den Modi (nur bei eingeschalteter Überwachung, Anlage › Modi)
+    if (this.trigger === "monitor" && s.monitor_enabled === true) return this.draft;
     if (!this.triggers(s).includes(this.trigger)) this.trigger = "away";
     // Schalter aus: ein Ablauf für alles, bearbeitet wird der des ersten Reiters
     if (!this.draft.perMode) this.trigger = this.triggers(s)[0];
@@ -376,6 +380,7 @@ export class ActionsUi {
     this.draft = null;
     this.saveState = null;
     this.edit = null;
+    this.mon.reset();
   }
 
   // Schritte des gewählten Auslösers: der Ablauf beim Alarm ("main"), die Aktionen nach dem Quittieren ("after") oder die beim
@@ -401,7 +406,7 @@ export class ActionsUi {
     const d = this.draft;
     if (!s || !d || d.entry !== s.entry_id) return [];
     const eff = this._effective(d, s);
-    return this._changedTriggers(s, eff).map((k) => ["data-trigger", k]);
+    return [...this._changedTriggers(s, eff).map((k) => ["data-trigger", k]), ...(this.mon.dirtyCount() ? [["data-trigger", "monitor"]] : [])];
   }
 
   // Auslöser (Reiter), deren Entwurf vom gespeicherten Stand abweicht: Ablauf, "Alarm endet", Aktionen danach, beim Scharfschalten
@@ -422,11 +427,17 @@ export class ActionsUi {
     return !!this.draft?.touched;
   }
 
-  dirtyCount() {
+  // Änderungen an den Abläufen der Modi (ohne die Überwachung); der Fuss der Reiter zeigt nur die seiner Seite
+  flowDirty() {
     const s = this.system;
     const d = this.draft;
     if (!s || !d || d.entry !== s.entry_id) return 0;
     return this._changedTriggers(s, this._effective(d, s)).length;
+  }
+
+  // Alles zusammen: die Abfrage beim Verlassen der Seite darf nichts verwerfen
+  dirtyCount() {
+    return this.flowDirty() + this.mon.dirtyCount();
   }
 
   html() {
@@ -444,10 +455,21 @@ export class ActionsUi {
     const running = s.workflow_running;
     const status = running ? `<span class="ag-tag ${s.workflow_test ? "warn" : "err"}">${esc(this._t(s.workflow_test ? "wfTestRunning" : "wfAlarmRunning"))}</span>` : "";
     const d = this.draft;
-    const tabs = d.perMode ? h._segHtml("wf-trigger", triggers, this.trigger, "data-trigger", "small") : "";
+    // Reiter "Überwachung" neben den Modi; ohne getrennte Modi stehen nur "Alarm" (ein Ablauf für alles) und "Überwachung" da
+    const mon = s.monitor_enabled === true;
+    const tabItems = [...(d.perMode ? triggers : mon ? [[triggers[0][0], this._t("wfAlarmTab"), "alert"]] : []), ...(mon ? [["monitor", this._t("wfMonitor"), "eye"]] : [])];
+    const tabs = tabItems.length ? h._segHtml("wf-trigger", tabItems, this.trigger, "data-trigger", "small") : "";
+    if (this.trigger === "monitor" && mon) {
+      h._setHtml(head, `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0">${tabs}<div class="ag-pmscope" style="margin:0">${ic("eye", 18)}${esc(this._t("monScope"))}</div></div></div>`);
+      h._setHtml(body, this.mon.bodyHtml());
+      h._placePills();
+      this.renderFoot();
+      return;
+    }
     const scope = d.perMode ? `<div class="ag-pmscope" style="margin:0">${ic(this.trigger === "always" ? "flash" : MODE_ICON[this.trigger], 18)}${esc(this._t(this.trigger === "always" ? "pmScopeAlways" : "pmScope", { mode: this._t(MODE_KEY[this.trigger] || "wfAlways") }))}</div>` : "";
     h._setHtml(head, `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0"><div class="ag-pmsw"><button class="ag-toggle ${d.perMode ? "on" : ""}" data-wf="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("wfPerMode"))}"></button>
-        <div class="ag-settx"><b>${esc(this._t("wfPerMode"))}</b><small>${esc(this._t(d.perMode ? "wfPerModeOn" : "wfPerModeHint"))}</small></div></div>${tabs}${scope}</div>${status}</div>
+        <div class="ag-settx"><b>${esc(this._t("wfPerMode"))}</b><small>${esc(this._t(d.perMode ? "wfPerModeOn" : "wfPerModeHint"))}</small></div></div>${d.perMode ? tabs : ""}${d.perMode ? scope : ""}</div>${status}</div>
+      ${!d.perMode && tabs ? `<div class="ag-tools" style="margin-top:-4px">${tabs}</div>` : ""}
       ${this.trigger === "always" && d.perMode ? `<div class="ag-t2 ag-small" style="margin:-6px 4px 0">${esc(this._t("wfAlwaysHint"))}</div>` : ""}`);
     const steps = this.steps();
     // Jede Verbindung zeichnet ihre Linie selbst (zwei Stücke über und unter dem Plus): so liegt sie nie über einem Symbol. Alle
@@ -676,7 +698,11 @@ export class ActionsUi {
     h._renderDots?.(); // Punkt "ungespeichert" an den Reitern
     const foot = h._view?.querySelector(".ag-foot");
     if (!foot) return;
-    const n = this.dirtyCount();
+    if (this.trigger === "monitor") {
+      this.mon.renderFoot();
+      return;
+    }
+    const n = this.flowDirty();
     let status;
     if (this.saveState === "saved" && !n) status = `<span class="ag-saved">${ic("check", 16)} ${esc(this._t("saved"))}</span>`;
     else if (this.saveState && this.saveState !== "saved") status = `<span class="ag-err">${esc(this.saveState)}</span>`;
@@ -1568,6 +1594,7 @@ export class ActionsUi {
     }
     const act = el?.dataset.wf;
     if (!act) return false;
+    if (act.startsWith("mon-")) return this.mon.onClick(el);
     if (act === "permode") {
       const dr = this.ensureDraft();
       const first = this.triggers()[0];
@@ -1780,8 +1807,13 @@ export class ActionsUi {
     this.host._renderDots();
   }
 
+  onChange(el) {
+    return this.mon.onChange(el);
+  }
+
   onInput(el) {
     const act = el.dataset.wf;
+    if (act?.startsWith("mon-")) return this.mon.onInput(el);
     if (act === "copy-from") {
       const value = el.value;
       el.value = "";

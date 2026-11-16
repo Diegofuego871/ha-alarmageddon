@@ -38,7 +38,12 @@
     "binary_sensor.garagentor": { name: "Garagentor", device_class: "garage_door", area: "Garage", platform: "shelly", integration: "Shelly", battery: null },
     "binary_sensor.bewegung_garage": { name: "Bewegung Garage", device_class: "motion", area: "Garage", platform: "zha", integration: "Zigbee Home Automation", battery: "sensor.bewegung_garage_batterie" },
     "binary_sensor.wasser_keller": { name: "Wassermelder Keller", device_class: "moisture", area: null, platform: "matter", integration: "Matter", battery: "sensor.wasser_keller_batterie" },
+    // Messwerte (Überwachung, 1.48.0): eigene Liste der Anlage, nie in Zonen
+    "sensor.kuehlschrank_temperatur": { name: "Kühlschrank Temperatur", device_class: "temperature", area: "Küche", platform: "matter", integration: "Matter", battery: null, kind: "value", unit: "°C" },
+    "sensor.keller_luftfeuchtigkeit": { name: "Keller Luftfeuchtigkeit", device_class: "humidity", area: "Keller", platform: "zha", integration: "Zigbee Home Automation", battery: "sensor.keller_luftfeuchtigkeit_batterie", kind: "value", unit: "%" },
+    "sensor.wohnzimmer_co2": { name: "Wohnzimmer CO2", device_class: "carbon_dioxide", area: "Wohnzimmer", platform: "esphome", integration: "ESPHome", battery: null, kind: "value", unit: "ppm" },
   };
+  const BINARY = Object.keys(SENSORS).filter((id) => id.startsWith("binary_sensor."));
   // ?longnames=1: Namen wie bei echten Geräten (bis vier Zeilen), für den Test der gleich hohen Karten
   if (params.get("longnames")) {
     SENSORS["binary_sensor.fenster_bad"].name = "Aqara FP400 Anwesenheitssensor Wohnzimmer - Wohnzimmer Belegung";
@@ -53,21 +58,21 @@
   for (const [id, info] of Object.entries(SENSORS)) {
     const key = id.split(".")[1];
     const [manufacturer, model, sw] = DEV[info.platform] || [null, null, null];
-    Object.assign(info, { type: TYPE[info.device_class] || "other", manufacturer, model, sw_version: sw, signal: key in SIGNAL ? `sensor.${key}_signal` : null });
+    Object.assign(info, { type: info.kind === "value" ? "measure" : TYPE[info.device_class] || "other", manufacturer, model, sw_version: sw, signal: key in SIGNAL ? `sensor.${key}_signal` : null });
   }
   // ZHA und Bluetooth (1.41.0): Empfang direkt vom Server, ohne Entität. ?ble=1: Küchenfenster hört der Server mit -61 dBm, die Terrassentür gerade nicht
   if (params.get("ble") === "1") {
     Object.assign(SENSORS["binary_sensor.fenster_kueche"], { signal: null, signal_live: { kind: "dbm", value: -61 } });
     Object.assign(SENSORS["binary_sensor.terrassentuer"], { signal: null, signal_live: { kind: "dbm", value: null } });
   }
-  const BATT = { haustuer: 72, bewegung_flur: 83, rauchmelder_flur: 88, fenster_kueche: 78, fenster_wohnzimmer: 64, terrassentuer: 55, fenster_bad: 19, bewegung_garage: 44, wasser_keller: 91 };
+  const BATT = { haustuer: 72, bewegung_flur: 83, rauchmelder_flur: 88, fenster_kueche: 78, fenster_wohnzimmer: 64, terrassentuer: 55, fenster_bad: 19, bewegung_garage: 44, wasser_keller: 91, keller_luftfeuchtigkeit: 64 };
 
   window.__systems = params.get("empty") ? [] : [
     { entry_id: "e_haus", title: "Haus", entity_id: "alarm_control_panel.haus", modes: ["home", "away", "night"],
       zones: { home: ["binary_sensor.haustuer", "binary_sensor.fenster_kueche", "binary_sensor.terrassentuer"],
                away: ["binary_sensor.haustuer", "binary_sensor.fenster_kueche", "binary_sensor.terrassentuer", "binary_sensor.bewegung_flur", "binary_sensor.fenster_bad", "binary_sensor.bewegung_wohnzimmer"],
                night: ["binary_sensor.haustuer", "binary_sensor.terrassentuer"] },
-      sensors: params.get("sensors") === "few" ? [] : Object.keys(SENSORS),
+      sensors: params.get("sensors") === "few" ? [] : BINARY,
       entry_sensors: ["binary_sensor.haustuer"],
       mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 60, entry_delay: 30, confirm_window: 60 },
         night: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: true, code_arm_required: false, code: "1234",
@@ -80,6 +85,17 @@
           { kind: "state", entity_id: "lock.haustuer", state: "unlocked" },
           { op: "and", items: [{ kind: "state", entity_id: "person.marco", state: "home" }, { kind: "time", from: "22:00", to: "06:00", days: [] }] }] } } },
       ],
+      // Überwachung (1.48.0): standardmässig aus; ?monitor=1 schaltet sie ein und füllt Messwert-Sensoren und zwei Regeln
+      monitor_enabled: params.get("monitor") === "1", monitor_sensors: params.get("monitor") === "1" ? ["sensor.kuehlschrank_temperatur", "sensor.keller_luftfeuchtigkeit"] : [],
+      monitors: params.get("monitor") === "1" ? [
+        { id: "m_kuehl", name: "Kühlschrank zu warm", enabled: true, hold: 1800, margin: 1, remind: 2,
+          tree: { op: "and", items: [{ kind: "value", entity_id: "sensor.kuehlschrank_temperatur", op: "above", limit: 8 }] },
+          steps_out: [{ type: "notify", critical: false, targets: [], title: "Kühlschrank zu warm", message: "{sensor}: {value} {unit}, seit {since}." }, { type: "action", action: "switch.turn_on", target: ["switch.steckdose_flur"], data: {} }],
+          steps_ok: [{ type: "notify", critical: false, targets: [] }] },
+        { id: "m_tuer", name: "Kühlschranktür offen", enabled: true, hold: 300, margin: 0, remind: 0,
+          tree: { op: "and", items: [{ kind: "state", entity_id: "binary_sensor.garagentor", state: "on" }] }, steps_out: [{ type: "notify", critical: true, volume: 0.8, targets: ["notify.mobile_app_diego"] }], steps_ok: [] },
+      ] : [],
+      monitor_active: params.get("monitor") === "1" ? { m_tuer: { since: iso(12 * 60e3), entity_id: "binary_sensor.garagentor" } } : {},
       night_enabled: true, sensor_options: { "binary_sensor.terrassentuer": { offline_alarm: true }, "binary_sensor.rauchmelder_flur": { always: true } },
       workflow_running: null, workflow_test: false,
       entry_delay_max: { home: 30, away: 30, night: 30 },
@@ -94,7 +110,7 @@
                 { t: iso(5 * 86400e3), state: "armed_home", mode: "home", by: "Diego" }, { t: iso(40 * 86400e3), state: "disarmed", mode: null, by: "Diego" } ] },
     { entry_id: "e_garage", title: "Garage", entity_id: "alarm_control_panel.garage", modes: ["home", "away"],
       zones: { home: ["binary_sensor.garagentor"], away: ["binary_sensor.garagentor", "binary_sensor.bewegung_garage"] },
-      sensors: params.get("sensors") === "few" ? [] : Object.keys(SENSORS),
+      sensors: params.get("sensors") === "few" ? [] : BINARY,
       entry_sensors: [],
       entry_delay_max: { home: 0, away: 0 }, mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [],
       night_enabled: false, sensor_options: {}, workflows: {}, workflow_running: null, workflow_test: false,
@@ -105,7 +121,8 @@
   const set = (id, state, attributes = {}, changed = now) => {
     states[id] = { entity_id: id, state, attributes: { friendly_name: SENSORS[id]?.name, ...attributes }, last_changed: new Date(changed).toISOString() };
   };
-  for (const id of Object.keys(SENSORS)) set(id, "off", { device_class: SENSORS[id].device_class });
+  for (const id of BINARY) set(id, "off", { device_class: SENSORS[id].device_class });
+  for (const [id, v] of [["sensor.kuehlschrank_temperatur", "5.4"], ["sensor.keller_luftfeuchtigkeit", "58"], ["sensor.wohnzimmer_co2", "720"]]) set(id, v, { device_class: SENSORS[id].device_class, unit_of_measurement: SENSORS[id].unit, state_class: "measurement" });
   set("binary_sensor.garagentor", "on", { device_class: "garage_door" }, now - 12 * 60e3);
   for (const [k, v] of Object.entries(BATT)) set(`sensor.${k}_batterie`, String(v), { device_class: "battery", unit_of_measurement: "%" });
   for (const [k, v] of Object.entries(SIGNAL)) set(`sensor.${k}_signal`, String(v), v < 0 ? { device_class: "signal_strength", unit_of_measurement: "dBm" } : { unit_of_measurement: "lqi" });
@@ -351,6 +368,12 @@
       window.__autoBackup = { enabled: msg.enabled, every: msg.every };
       return { auto_backup: window.__autoBackup };
     }
+    if (msg.type === "alarmageddon/monitor_entities") {
+      const values = Object.entries(SENSORS).filter(([, i]) => i.kind === "value").map(([id, i]) => ({ entity_id: id, name: i.name, kind: "value", area: i.area || "", device_class: i.device_class, unit: i.unit, states: [], state: states[id].state }));
+      const devices = [["binary_sensor.garagentor", "Garagentor", "Garage", "garage_door"], ["binary_sensor.haustuer", "Haustür", "Flur", "door"], ["binary_sensor.wasser_keller", "Wassermelder Keller", "", "moisture"]]
+        .map(([id, name, area, dc]) => ({ entity_id: id, name, kind: "state", area, device_class: dc, unit: "", states: ["on", "off"], state: states[id].state }));
+      return { entities: [...values, ...devices, { entity_id: "switch.steckdose_flur", name: "Steckdose Flur", kind: "state", area: "Flur", device_class: "", unit: "", states: ["on", "off"], state: "off" }] };
+    }
     if (msg.type === "alarmageddon/routine_entities") {
       return { entities: [
         { entity_id: "lock.haustuer", name: "Haustür-Schloss", domain: "lock", area: "Flur", device_class: "", states: ["locked", "unlocked", "jammed", "open"], state: "locked" },
@@ -404,7 +427,7 @@
       if (window.__createFail) throw err("create_failed", "The alarm system could not be created");
       const slug = name.toLowerCase().replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
       const created = { entry_id: `e_${slug}`, title: name, entity_id: `alarm_control_panel.${slug}`, modes: ["home", "away"], zones: { home: [], away: [] },
-        sensors: Object.keys(SENSORS), entry_sensors: [], entry_delay_max: { home: 0, away: 0 },
+        sensors: BINARY, entry_sensors: [], entry_delay_max: { home: 0, away: 0 },
         mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 60, entry_delay: 30, confirm_window: 60 } },
         has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [], night_enabled: false, sensor_options: {},
         workflows: {}, workflow_running: null, workflow_test: false, events: [] };
@@ -427,10 +450,30 @@
       for (const m of ["home", "away", "night"]) sys.zones[m] = [...new Set(msg.zones[m] || [])];
       sys.entry_sensors = [...msg.entry_sensors];
       if (msg.sensors) sys.sensors = [...msg.sensors];
+      if (msg.monitor_sensors) sys.monitor_sensors = [...msg.monitor_sensors];
       if (msg.sensor_options) sys.sensor_options = JSON.parse(JSON.stringify(msg.sensor_options));
       if (typeof msg.per_mode_sensors === "boolean") sys.per_mode_sensors = msg.per_mode_sensors;
       if (msg.sensor_modes) sys.sensor_modes = JSON.parse(JSON.stringify(msg.sensor_modes));
       return { ok: true };
+    }
+    if (msg.type === "alarmageddon/save_monitors") {
+      // Wie der Server: Vorgaben ergänzen (Schritte, Bedingungen) und Schlüssel in anderer Reihenfolge ablegen
+      const step = (st) => {
+        const out = {};
+        for (const k of Object.keys(st).sort().reverse()) out[k] = st[k];
+        if (st.type === "notify") { out.critical = st.critical ?? false; out.targets = st.targets ?? []; }
+        if (st.type === "action") { out.target = st.target ?? []; out.data = st.data ?? {}; }
+        return out;
+      };
+      const leaf = (l) => (l.kind === "armed" ? { ...l, modes: l.modes ?? [] } : l.kind === "time" ? { ...l, days: l.days ?? [] } : l);
+      const norm = JSON.parse(JSON.stringify(msg.monitors)).map((m) => ({ ...m, enabled: m.enabled ?? true, tree: { op: m.tree.op, items: m.tree.items.map((i) => (i.items ? { ...i, items: i.items.map(leaf) } : leaf(i))) }, steps_out: (m.steps_out || []).map(step), steps_ok: (m.steps_ok || []).map(step) }));
+      if (new Set(norm.map((m) => m.name.trim().toLowerCase())).size !== norm.length) throw err("invalid_monitors", "id and name of a rule must be unique");
+      const before = JSON.stringify(sys.monitors || []);
+      sys.monitors = norm;
+      window.__monitorSaves = (window.__monitorSaves || 0) + 1;
+      const reload = before !== JSON.stringify(sys.monitors);
+      if (reload) reloadNow();
+      return { ok: true, reload };
     }
     if (msg.type === "alarmageddon/save_workflows") {
       // Wie der Server: Vorgaben ergänzen und die Felder in anderer Reihenfolge ablegen als das Panel sie schickt. So fällt auf, wenn
@@ -493,6 +536,7 @@
       }
       if (typeof msg.per_mode_settings === "boolean") sys.per_mode_settings = msg.per_mode_settings;
       if (typeof msg.always_enabled === "boolean") sys.always_enabled = msg.always_enabled;
+      if (typeof msg.monitor_enabled === "boolean") sys.monitor_enabled = msg.monitor_enabled;
       if (typeof msg.code_ack_required === "boolean") {
         if (msg.code_ack_required && !sys.has_code) throw err("code_missing");
         sys.code_ack_required = msg.code_ack_required;

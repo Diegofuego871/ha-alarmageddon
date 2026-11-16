@@ -26,6 +26,7 @@ from .backup import async_start_auto_backup, async_stop_auto_backup
 from .maintenance import async_start_maintenance, async_stop_maintenance
 from .notify import Notifier
 from .panel import async_register_panel, async_remove_panel
+from .monitor import MonitorEngine, async_remove_monitor_store
 from .routines import RoutineEngine, migrate_options
 from .reception import async_get_reception
 from .sensor_history import async_get_stats
@@ -148,6 +149,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
     routines = RoutineEngine(hass, entry, controller)
     routines.async_start()
     entry.async_on_unload(routines.async_stop)
+    # Die Überwachung ist Zusatz zur Anlage: scheitert ihr Start, läuft die Anlage trotzdem
+    monitors = MonitorEngine(hass, entry, controller, notifier)
+    entry.async_on_unload(monitors.async_stop)
+    await _isolated(entry, monitors.async_start(), "starting the monitoring")
     # Zonen, Modi und Verzögerungen bestimmen, welche Entitäten es gibt und wem zugehört wird: neu laden.
     # Der Zustand (scharf, Verzögerung, Alarm) übersteht das über die Wiederherstellung der Entität.
     entry.async_on_unload(entry.add_update_listener(_async_reload))
@@ -209,5 +214,6 @@ async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     await async_remove_events(hass, entry.entry_id)
     await async_remove_recordings(hass, entry.entry_id)
     await async_remove_workflow_store(hass, entry.entry_id)
+    await async_remove_monitor_store(hass, entry.entry_id)
     if not any(e.entry_id != entry.entry_id for e in hass.config_entries.async_entries(DOMAIN)):
         async_remove_panel(hass)

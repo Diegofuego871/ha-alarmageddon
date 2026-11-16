@@ -3,6 +3,9 @@
 
 // --- Symbole (Material Design Icons) ---------------------------------------
 export const P = {
+  eye: "M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M12,4.5C17,4.5 21.27,7.61 23,12C21.27,16.39 17,19.5 12,19.5C7,19.5 2.73,16.39 1,12C2.73,7.61 7,4.5 12,4.5M3.18,12C4.83,15.36 8.24,17.5 12,17.5C15.76,17.5 19.17,15.36 20.82,12C19.17,8.64 15.76,6.5 12,6.5C8.24,6.5 4.83,8.64 3.18,12Z",
+  thermo: "M15,13V5A3,3 0 0,0 9,5V13A5,5 0 1,0 15,13M12,4A1,1 0 0,1 13,5V8H11V5A1,1 0 0,1 12,4Z",
+  gauge: "M16,11.78L20.24,4.45L21.97,5.45L16.74,14.5L10.23,10.75L5.46,19H22V21H2V3H4V17.54L9.5,8L16,11.78Z", // Verlauf: Messwerte
   shieldHome: "M12,1L3,5V11C3,16.5 6.8,21.7 12,23C17.2,21.7 21,16.5 21,11V5L12,1M12,7L17,11V17H14V13H10V17H7V11L12,7Z",
   shieldAway: "M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M17.13,17C15.92,18.85 14.11,20.24 12,20.92C9.89,20.24 8.08,18.85 6.87,17C6.53,16.5 6.24,16 6,15.47C6,13.82 8.71,12.47 12,12.47C15.29,12.47 18,13.79 18,15.47C17.76,16 17.47,16.5 17.13,17Z",
   shieldOff: "M1,4.27L2.28,3L21,21.72L19.73,23L17.5,20.77C16.06,22 14.11,22.67 12,23C6.84,21.74 3,16.55 3,11V6.27L1,4.27M12,1L21,5V11C21,13.28 20.36,15.5 19.27,17.38L5.3,3.41L12,1Z",
@@ -101,7 +104,11 @@ export const DC = {
   vibration: ["sensor", "dcVibration"], tamper: ["alert", "dcTamper"], safety: ["alert", "dcSafety"], sound: ["sensor", "dcSound"],
   glass_break: ["window", "dcGlass"],
   heat: ["smoke", "dcHeat"], lock: ["lockClosed", "dcLock"], moving: ["motion", "dcMoving"],
+  // Messwerte (Überwachung, 1.48.0)
+  temperature: ["thermo", "dcTemperature"], humidity: ["smoke", "dcHumidity"], carbon_dioxide: ["gauge", "dcCo2"], pressure: ["gauge", "dcPressure"],
+  illuminance: ["bulb", "dcIlluminance"], pm25: ["gauge", "dcPm"], pm10: ["gauge", "dcPm"], aqi: ["gauge", "dcAqi"], volatile_organic_compounds: ["gauge", "dcVoc"],
 };
+export const MEASURE_CLASSES = new Set(["temperature", "humidity", "carbon_dioxide", "pressure", "illuminance", "pm25", "pm10", "aqi", "volatile_organic_compounds"]);
 export const OPENINGS = new Set(["door", "window", "opening", "garage_door"]);
 export const MOTION = new Set(["motion", "occupancy", "presence"]);
 export const LOW_BATTERY = 20;

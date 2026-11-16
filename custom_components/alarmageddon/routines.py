@@ -193,6 +193,17 @@ def time_met(leaf: dict[str, Any], now: datetime) -> bool:
     return (on(today) and minute >= start) or (on((today - 1) % 7) and minute < end)
 
 
+def combine(op: str, values: list[bool | None]) -> bool | None:
+    """Und/Oder über Werte, die auch "nicht beurteilbar" (None) sein können: None zählt nie als erfüllt."""
+    if op == "and":
+        if any(v is False for v in values):
+            return False
+        return None if any(v is None for v in values) else True
+    if any(v is True for v in values):
+        return True
+    return None if any(v is None for v in values) else False
+
+
 def eval_tree(hass: HomeAssistant, tree: dict[str, Any], now: datetime, pulse: tuple[str, str] | None = None) -> bool | None:
     """Wahr, falsch oder None (nicht beurteilbar: Gerät nicht erreichbar). None zählt nie als erfüllt."""
 
@@ -206,15 +217,6 @@ def eval_tree(hass: HomeAssistant, tree: dict[str, Any], now: datetime, pulse: t
         if state is None or state.state in INVALID:
             return None
         return state.state == leaf["state"]
-
-    def combine(op: str, values: list[bool | None]) -> bool | None:
-        if op == "and":
-            if any(v is False for v in values):
-                return False
-            return None if any(v is None for v in values) else True
-        if any(v is True for v in values):
-            return True
-        return None if any(v is None for v in values) else False
 
     values = [combine(item["op"], [leaf_value(x) for x in item["items"]]) if "items" in item else leaf_value(item) for item in tree["items"]]
     return combine(tree["op"], values)

@@ -77,6 +77,16 @@ Was bei einem Alarm passiert, ist ein Ablauf aus Schritten, auf Wunsch je Modus.
 
 Empfänger wählst du getrennt für Alarme und für Wartungsmeldungen, und jede Meldung kann sie mit eigenen Empfängern überschreiben (auch je Modus). Jede Art von Meldung (Eingangsverzögerung, scharf, deaktiviert, Scharfschalten nicht möglich, Stiller Alarm, Sensor nicht erreichbar, Batterie schwach) lässt sich ein- und ausschalten, kritisch senden (ertönt auch im Stumm-Modus) und hat ihre eigene Lautstärke, auf Wunsch je Modus. "Scharfschalten nicht möglich" trägt zwei Knöpfe: "Erneut versuchen" schaltet denselben Modus noch einmal scharf, "Trotzdem scharf schalten" schaltet scharf, obwohl Sensoren offen sind, und übergeht sie bis zum Deaktivieren. Sie gelten eine Stunde, nur solange die Anlage deaktiviert ist und nur vom Handy eines Empfängers dieser Meldung; jeder lässt sich abschalten.
 
+### Überwachung
+
+Neben dem Alarm kann Alarmageddon beobachten, was nichts mit Einbrechern zu tun hat: einen Kühlschrank, der zu warm wird, einen feuchten Keller, schlechte Luft, eine offen gelassene Kühlschranktür. Eingeschaltet wird sie unter Konfiguration › Anlage › Modi (standardmässig aus); dann lassen sich Messwerte (Temperatur, Luftfeuchtigkeit, CO2 ...) in der Sensorliste hinzufügen (dort ausgegraut: keine Zone, nie immer aktiv, keine Eingangsverzögerung), und unter Konfiguration › Aktionen erscheint der Reiter "Überwachung" neben den Modi.
+
+Jede Regel ist ein Kapitel mit ihrem Ablauf: "Ausserhalb der Grenzen" (orange) und "Wieder in Ordnung" (grün), gebaut aus denselben Schritten wie die Alarmaktionen, aber nur Push-Meldung, Gerät schalten und Warten. Eine Regel hat eine Bedingung (Messwert über, unter oder ausserhalb von Grenzen, Gerätezustand, Uhrzeit, "Anlage ist scharf", verbunden mit Und/Oder), eine Dauer, die die Bedingung gelten muss (zum Beispiel 30 Minuten), eine Rückkehr-Spanne gegen Flattern um die Grenze und auf Wunsch eine Erinnerung alle paar Stunden. Texte kennen die Platzhalter `{rule}`, `{sensor}`, `{value}`, `{unit}`, `{limit}`, `{since}` und `{name}`; ohne eigenen Text geht ein passender Standardtext an die gewählten Empfänger oder an die Empfänger der Wartungsmeldungen.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/monitor-de.png" alt="Regeln der Überwachung: Kühlschrank zu warm mit den Abläufen ausserhalb der Grenzen und wieder in Ordnung" width="100%"></p>
+
+Die Überwachung läuft immer, auch bei deaktivierter Anlage, und löst nie die Sirene oder den Alarm aus (Feuer und Wasser bleiben bei "Immer aktiv"). Ein Sensor, der nicht antwortet, zählt nie: Er löst keine Regel aus und beendet auch keine, ein Funkabriss meldet also nie "wieder in Ordnung". Eine laufende Regel meldet sich nach einem Neustart nicht noch einmal.
+
 ### Bei einem Alarm
 
 Ein Alarm ist nicht zu übersehen: ein rotes Band mit dem Sensor, der ausgelöst hat, und den Knöpfen "Quittieren" (der Alarm endet, die Anlage bleibt scharf) und "Deaktivieren". Die Kachel der Anlage nennt, seit wann der Alarm läuft, was ihn ausgelöst hat und wer wann scharf geschaltet hat. Dieselben Knöpfe stehen in der Push-Meldung auf dem Sperrbildschirm.

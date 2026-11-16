@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import voluptuous as vol
@@ -15,9 +16,17 @@ from .const import (
     CONF_CONFIRM_WINDOW,
     CONF_ALWAYS_ENABLED,
     CONF_HOME_ENABLED,
+    CONF_MONITOR_ENABLED,
+    CONF_MONITOR_SENSORS,
+    CONF_MONITORS,
     CONF_ROUTINES,
     CONF_SCHEDULES,
+    MAX_MONITOR_STEPS,
+    MAX_MONITORS,
+    MONITOR_NUMERIC_DOMAINS,
     MAX_ROUTINES,
+    MONITOR_HOLD_MAX,
+    MONITOR_REMIND_MAX,
     MAX_ROUTINE_TIMES,
     MAX_SCHEDULES,
     ROUTINE_ACTIONS,
@@ -311,11 +320,75 @@ ROUTINE_SCHEMA = vol.Schema(
 )
 ROUTINES = vol.All([ROUTINE_SCHEMA], vol.Length(max=MAX_ROUTINES))
 
+# ----- Überwachung (1.48.0): Aufbau; was sich nur mit Home Assistant prüfen lässt (Entitäten, Zustände), prüft monitor.check_monitors -----
+
+
+def _finite(value: Any) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise vol.Invalid("not a finite number")
+    return number
+
+
+NUMBER = vol.All(vol.Coerce(float), _finite, vol.Range(min=-100000, max=1000000))
+# Messwert: über, unter oder ausserhalb von "limit" (bei "outside" von "limit" bis "upper")
+_VALUE_LEAF = vol.Schema({
+    vol.Required("kind"): "value", vol.Required("entity_id"): cv.entity_id, vol.Required("op"): vol.In(("above", "below", "outside")),
+    vol.Required("limit"): NUMBER, vol.Optional("upper"): NUMBER,
+})
+# "Die Anlage ist scharf" (in den gewählten Modi, leer = in jedem)
+_ARMED_LEAF = vol.Schema({vol.Required("kind"): "armed", vol.Optional("modes", default=list): vol.All([vol.In(("home", "away", "night"))], vol.Length(max=3))})
+MONITOR_LEAF = vol.Any(_VALUE_LEAF, _STATE_LEAF, _ARMED_LEAF, _TIME_LEAF)
+MONITOR_GROUP = vol.Schema({vol.Required("op"): _AND_OR, vol.Required("items"): vol.All([MONITOR_LEAF], vol.Length(min=1, max=10))})
+MONITOR_TREE = vol.Schema({vol.Required("op"): _AND_OR, vol.Required("items"): vol.All([vol.Any(MONITOR_LEAF, MONITOR_GROUP)], vol.Length(min=1, max=13))})
+# Schritte einer Regel: Push-Meldung, Gerät schalten, Warten. Eine Regel löst nie Sirene oder Alarm aus, darum gibt es keine anderen Schritte.
+MONITOR_STEP = vol.Any(
+    vol.Schema({
+        vol.Required("type"): "notify",
+        vol.Optional("title"): vol.All(str, vol.Length(max=100)),
+        vol.Optional("message"): vol.All(str, vol.Length(max=300)),
+        vol.Optional("critical", default=False): bool,
+        vol.Optional("volume"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+        # Eigene Empfänger der Regel; leer: die Empfänger der Wartung
+        vol.Optional("targets", default=list): NOTIFY_TARGETS,
+    }),
+    vol.Schema({
+        vol.Required("type"): "action",
+        vol.Required("action"): cv.service,
+        vol.Optional("target", default=list): ENTITY_LIST,
+        vol.Optional("data", default=dict): dict  # Fabrik: Schritte teilen sich nie dasselbe Wörterbuch
+    }),
+    vol.Schema({vol.Required("type"): "wait", vol.Required("seconds"): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_DELAY))}),
+)
+MONITOR_STEPS = vol.All([MONITOR_STEP], vol.Length(max=MAX_MONITOR_STEPS))
+MONITOR_SCHEMA = vol.Schema({
+    vol.Required("id"): vol.All(str, vol.Length(min=1, max=32)),
+    vol.Required("name"): vol.All(str, vol.Length(min=1, max=45)),
+    vol.Optional("enabled", default=True): bool,
+    vol.Required("tree"): MONITOR_TREE,
+    # Wie lange die Bedingung gelten muss, bevor der Ablauf läuft (Sekunden)
+    vol.Optional("hold", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=MONITOR_HOLD_MAX)),
+    # Rückkehr-Spanne: ein Messwert gilt erst als wieder in Ordnung, wenn er so weit innerhalb der Grenze liegt (verhindert Flattern)
+    vol.Optional("margin", default=0): vol.All(NUMBER, vol.Range(min=0, max=100000)),
+    # Erinnerung alle N Stunden, solange es anhält (0 = keine)
+    vol.Optional("remind", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=MONITOR_REMIND_MAX)),
+    vol.Optional("steps_out", default=list): MONITOR_STEPS,
+    vol.Optional("steps_ok", default=list): MONITOR_STEPS,
+})
+MONITORS = vol.All([MONITOR_SCHEMA], vol.Length(max=MAX_MONITORS))
+
 
 def _binary_sensors(value: Any) -> list[str]:
     ids = vol.Schema([cv.entity_id])(value)
     if any(not e.startswith("binary_sensor.") for e in ids):
         raise vol.Invalid("only binary sensors")
+    return list(dict.fromkeys(ids))
+
+
+def _measure_sensors(value: Any) -> list[str]:
+    ids = vol.Schema([cv.entity_id])(value)
+    if any(e.split(".")[0] not in MONITOR_NUMERIC_DOMAINS for e in ids):
+        raise vol.Invalid("only measured values")
     return list(dict.fromkeys(ids))
 
 
@@ -339,6 +412,9 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_AWAY_ENABLED): bool,
         vol.Optional(CONF_SCHEDULES): SCHEDULES,  # nur noch aus alten Sicherungen: wird beim Laden zu Routinen
         vol.Optional(CONF_ROUTINES): ROUTINES,
+        vol.Optional(CONF_MONITORS): MONITORS,
+        vol.Optional(CONF_MONITOR_ENABLED): bool,
+        vol.Optional(CONF_MONITOR_SENSORS): _measure_sensors,
         vol.Optional("routines_disarm"): bool,  # nur aus Sicherungen von 1.44.0 (der Schalter entfiel in 1.45.0): wird beim Einlesen verworfen
         vol.Optional(CONF_OPEN_SENSORS): vol.In(OPEN_SENSOR_MODES),
         vol.Optional(CONF_CODE_ARM_REQUIRED): bool,

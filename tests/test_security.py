@@ -67,6 +67,8 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "acknowledge": {"entry_id": "ENTRY"},
     "battery_forecast": {},
     "routine_entities": {},
+    "monitor_entities": {},
+    "save_monitors": {"entry_id": "ENTRY", "monitors": []},
     "sensor_history": {"entity_id": "binary_sensor.fenster_kueche"},
     "save_display": {"names_with_device": False},
     "save_auto_backup": {"enabled": False, "every": "daily"},
@@ -213,7 +215,7 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
     personal_entry = entry.options["codes"][0]
     secrets = [main, personal, wrong, code_hash, salt, personal_entry["hash"], personal_entry["salt"]]
     answers = {}
-    for command in ("data", "log", "export", "backups"):
+    for command in ("data", "log", "export", "backups", "monitor_entities"):
         answers[command] = (await ws(client, type=f"{DOMAIN}/{command}"))["result"]
     created = (await ws(client, type=f"{DOMAIN}/backup_create", name="vor dem Umbau"))["result"]
     answers["backup"] = (await ws(client, type=f"{DOMAIN}/backup_get", backup_id=created["created"]["id"]))["result"]

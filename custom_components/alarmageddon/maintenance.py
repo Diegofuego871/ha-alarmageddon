@@ -76,7 +76,7 @@ class Maintenance:
         out: set[str] = set()
         for entry in self.hass.config_entries.async_entries(DOMAIN):
             if entry.state is ConfigEntryState.LOADED:
-                out |= entry.runtime_data.controller.all_sensors()
+                out |= entry.runtime_data.controller.all_sensors() | entry.runtime_data.controller.monitor_sensors()
         return out
 
     @callback

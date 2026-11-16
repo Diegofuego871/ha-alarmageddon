@@ -31,8 +31,9 @@ from homeassistant.helpers.event import async_call_later, async_track_time_chang
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_KEEP, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
+from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_KEEP, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
 from .custom_sounds import valid_backup_sounds
+from .monitor import check_monitors
 from .routines import check_routines, migrate_options
 from .schemas import SYSTEM_OPTIONS_SCHEMA
 from .settings import async_get_settings, valid_notify, valid_presets
@@ -85,6 +86,8 @@ def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
             options.pop("routines_disarm", None)
             if CONF_ROUTINES in options:
                 check_routines(hass, options[CONF_ROUTINES])
+            if CONF_MONITORS in options:
+                check_monitors(hass, options[CONF_MONITORS])
         except vol.Invalid as err:
             raise vol.Invalid("invalid_backup") from err
         systems.append({"title": item["title"], "options": options})
