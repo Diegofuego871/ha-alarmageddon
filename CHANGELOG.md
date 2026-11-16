@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **The tab bar of the actions is tinted.** The tabs that can trigger an alarm (Home, Away, Night, Always active) sit on a light red track, "Monitoring" on a light turquoise one, with a soft transition only near the end of "Always active". You see the difference before you choose a tab.
+- **The tab bar of the actions is tinted.** The tabs that can trigger an alarm (Home, Away, Night, Always active) sit on a light red track, "Monitoring" on a light orange one, with a soft transition only near the end of "Always active". You see the difference before you choose a tab.
 
 ## [1.50.0] - 2026-11-16
 

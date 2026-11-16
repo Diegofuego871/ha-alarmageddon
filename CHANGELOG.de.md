@@ -11,7 +11,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Geändert
 
-- **Die Reiterleiste der Aktionen ist getönt.** Die Reiter, die einen Alarm auslösen können (Anwesend, Abwesend, Nacht, Immer aktiv), stehen auf einer leicht roten Spur, "Überwachung" auf einer leicht türkisen, mit weichem Übergang erst gegen Ende von "Immer aktiv". Man sieht den Unterschied schon vor dem Wählen.
+- **Die Reiterleiste der Aktionen ist getönt.** Die Reiter, die einen Alarm auslösen können (Anwesend, Abwesend, Nacht, Immer aktiv), stehen auf einer leicht roten Spur, "Überwachung" auf einer leicht orangen, mit weichem Übergang erst gegen Ende von "Immer aktiv". Man sieht den Unterschied schon vor dem Wählen.
 
 ## [1.50.0] - 2026-11-16
 

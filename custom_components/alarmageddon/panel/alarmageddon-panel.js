@@ -657,7 +657,7 @@ class AlarmageddonPanel extends HTMLElement {
   }
 
   // Reiterleiste der Aktionen mit "Überwachung" (Variante B der Mockups): die Spur ist links leicht rot getönt (Reiter, die alarmieren können)
-  // und rechts türkis (Überwachung), mit weichem Übergang erst gegen Ende des letzten Alarm-Reiters; so sieht man den Unterschied schon vor dem Wählen
+  // und rechts orange (Überwachung), mit weichem Übergang erst gegen Ende des letzten Alarm-Reiters; so sieht man den Unterschied schon vor dem Wählen
   _tintSegs() {
     for (const seg of this._root?.querySelectorAll('[data-seg="wf-trigger"]') || []) {
       const mon = seg.querySelector('[data-trigger="monitor"]');
