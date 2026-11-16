@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.46.1] - 2026-11-16
+
+### Geändert
+
+- **Die Zustände in der Vorschau einer Routine sind aufgeräumter.** Die Pillen sind gleich gross und werden nicht mehr mitten im Wort umgebrochen ("Ausgangsverzö-gerung"); die gewählten tragen ein Häkchen. Auf dem Handy stehen sie untereinander und die Kachel wächst nach unten, am Computer füllen sie die Zeile gleichmässig.
+
 ## [1.46.0] - 2026-11-16
 
 ### Hinzugefügt
@@ -1572,6 +1578,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1
 [1.46.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.0
 [1.45.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.45.0
 [1.44.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.44.0
