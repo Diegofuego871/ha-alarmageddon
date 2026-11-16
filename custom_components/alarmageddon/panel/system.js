@@ -5,7 +5,7 @@
 const V = new URL(import.meta.url).search;
 const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter } = await import(`./common.js${V}`);
 const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo, soundBadge } = await import(`./customsounds.js${V}`);
-const { RoutinesUi } = await import(`./routines.js${V}`);
+const { RoutinesUi, normRoutines, canon } = await import(`./routines.js${V}`);
 
 const MAX = 3600;
 const DEFAULTS = { exit_delay: 0, entry_delay: 30, confirm_window: 60 };
@@ -47,7 +47,7 @@ export class SystemUi {
       perMode: typeof s.per_mode_settings === "boolean" ? s.per_mode_settings : differ,
       per,
       modes: Object.fromEntries(ALL_MODES.map((m) => [m, (s.modes || ["home", "away"]).includes(m)])),
-      routines: JSON.parse(JSON.stringify(s.routines || [])),
+      routines: normRoutines(s.routines),
       always: s.always_enabled !== false, // "Immer aktiv" als Ganzes (Standard an)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
     };
@@ -85,7 +85,7 @@ export class SystemUi {
     for (const m of ALL_MODES) if (a.modes[m] !== d.modes[m]) n += 1;
     if (a.always !== d.always) n += 1;
     if (a.ackCode !== d.ackCode) n += 1;
-    if (JSON.stringify(a.routines) !== JSON.stringify(d.routines)) n += 1;
+    if (canon(normRoutines(a.routines)) !== canon(normRoutines(d.routines))) n += 1;
     return n;
   }
 

@@ -93,6 +93,11 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Editor zu, vier Routinen, Änderung offen`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 4 && r.host.systemUi.dirtyCount() === 1"));
     await s.tap('[data-sys="save"]');
     check(`${tag}: gespeichert`, await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`, 30000));
+    // Nach dem Speichern und einer neuen Abfrage des Servers (der ergänzt Vorgaben und ordnet Schlüssel anders) darf nichts mehr offen sein: kein orange Punkt
+    await s.waitFor("return !r.host._wait", 30000);
+    await s.ev("return r.host._fetch().then(() => 1)");
+    await s.page.waitForTimeout(400);
+    check(`${tag}: nach dem Speichern und neuer Abfrage nichts offen, kein orange Punkt`, await s.ev("return r.host.systemUi.dirtyCount() === 0 && !r.querySelector('[data-sub=\"system\"]').classList.contains('has-edit') && r.querySelector('.ag-foot [data-sys=\"save\"]').disabled"));
     const ARMED_N = nModes - 1;
     const sent = (await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_system').at(-1)"))?.routines?.[3];
     check(`${tag}: Routine gesendet: Name, Ziel, Zustände, Baum mit Gruppe und Haltezeit, ohne Hilfsfelder`, sent?.name === "Haus verlassen" && sent.action === "away" && sent.unsafe === false

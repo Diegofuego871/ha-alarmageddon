@@ -42,6 +42,19 @@ const MOTION_CLASSES = ["motion", "occupancy", "presence"];
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const newId = () => Math.random().toString(36).slice(2, 10);
 
+// Der Server ergänzt Vorgaben (enabled, unsafe, armed_modes, hold, Tage) und ordnet die Schlüssel anders. Für den Vergleich "geändert oder nicht"
+// (orange Punkt) werden beide Seiten in dieselbe Form gebracht, sonst blieb der Punkt nach dem Speichern stehen.
+const normLeaf = (l) => (l.kind === "time" ? { ...l, days: [...(l.days || [])] } : { ...l });
+export const normRoutines = (list) => (list || []).map((r) => {
+  const trigger = clone(r.trigger);
+  if (trigger.type === "device") {
+    trigger.hold = Number(trigger.hold) || 0;
+    trigger.tree.items = trigger.tree.items.map((i) => (i.items ? { ...i, items: i.items.map(normLeaf) } : normLeaf(i)));
+  }
+  return { id: r.id, name: r.name, enabled: r.enabled !== false, action: r.action, states: [...(r.states || [])], unsafe: Boolean(r.unsafe), armed_modes: [...(r.armed_modes || [])], trigger };
+});
+export const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x));
+
 export class RoutinesUi {
   constructor(ui) {
     this.ui = ui;

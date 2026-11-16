@@ -494,7 +494,8 @@
         sys.code_ack_required = msg.code_ack_required;
         window.__ackRequired = msg.code_ack_required;
       }
-      if (msg.routines) sys.routines = JSON.parse(JSON.stringify(msg.routines));
+      // Wie der Server: Vorgaben werden ergänzt und die Schlüssel stehen in anderer Reihenfolge (Schema-Vorgaben kommen zuletzt)
+      if (msg.routines) sys.routines = JSON.parse(JSON.stringify(msg.routines)).map((r) => { const { trigger, ...rest } = r; return { ...rest, enabled: r.enabled ?? true, unsafe: r.unsafe ?? false, armed_modes: r.armed_modes ?? [], trigger }; });
       const enabled = { home: sys.modes.includes("home"), away: sys.modes.includes("away"), night: sys.modes.includes("night") };
       for (const m of ["home", "away", "night"]) if (`${m}_enabled` in msg) enabled[m] = msg[`${m}_enabled`];
       const modes = ["home", "away", "night"].filter((m) => enabled[m]);

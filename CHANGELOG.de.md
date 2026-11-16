@@ -11,6 +11,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Behoben
 
+- **Der orange Punkt am Reiter "Anlage" blieb nach dem Speichern von Routinen stehen.** Der Server ergänzt Vorgaben (zum Beispiel die Modi bei "Anlage scharf") und ordnet die Werte anders, darum sah die gespeicherte Liste nicht mehr aus wie der Entwurf. Beide Seiten werden jetzt vor dem Vergleich in dieselbe Form gebracht, gespeicherte Routinen (auch alte, kopierte oder gelöschte) lassen nichts mehr offen.
 - **Die Geräteauswahl einer Routine ist auf dem Handy nicht mehr viel zu gross.** Das Suchfeld war auf die ganze Fensterhöhe gewachsen; es hat wieder seine normale Höhe.
 
 ### Geändert

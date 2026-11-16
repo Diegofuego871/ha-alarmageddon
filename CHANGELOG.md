@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The orange dot on the Alarm system tab stayed after saving routines.** The server fills in defaults (for example the modes of "Armed") and orders the values differently, so the saved list no longer looked like the draft. Both sides are now brought into the same form before comparing, so saved routines (also old ones, copied or deleted ones) leave nothing open.
 - **The device picker of a routine is no longer far too tall on the phone.** The search field had grown to fill the whole window; it has its normal height again.
 
 ### Changed
