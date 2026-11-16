@@ -85,6 +85,10 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !!r.querySelector('[data-sys=\"permode\"]')");
     await audit("Anlage");
     // Routinen (1.44.0): Editor einer Deaktivieren-Routine mit den fünf Zuständen und dem Sicherheitskasten
+    // seit 1.55.0 steht die Liste im Fenster: zuerst öffnen, dann den Editor
+    await s.tap('[data-sys="rt-open"]');
+    await s.waitFor("return r.getElementById('ag-rtlist').open && !!r.querySelector('#ag-rtlist .ag-rtrow')");
+    await audit("Routinen-Fenster");
     await s.tap('[data-sys="rt-edit"][data-index="2"]');
     await s.waitFor("return r.getElementById('ag-step').open && !!r.querySelector('.ag-rtsafety')");
     await audit("Routine bearbeiten", 6);

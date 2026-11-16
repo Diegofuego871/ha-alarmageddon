@@ -108,7 +108,18 @@ for (const lang of ["de", "en"]) {
 
     // ----- Sicherungen in der Integration: Sichern, Liste, Herunterladen, Wiederherstellen, Löschen, höchstens 10 -----
     const bkRows = () => s.ev("return r.querySelectorAll('.ag-bktable tr[data-bk]').length");
-    check(`${tag}: Sichern: Knopf da, noch keine Sicherung`, await s.ev("return !!r.querySelector('[data-sys=\"bk-create\"]') && !r.querySelector('.ag-bktable') && r.querySelector('.ag-bkbody')?.innerText.length > 10"));
+    const openBk = async () => {
+      await s.tap('[data-sys="bk-open"]');
+      await s.waitFor("return r.getElementById('ag-bklist').open && !!r.querySelector('#ag-bklist .ag-bkbody')");
+    };
+    const closeBk = async () => {
+      await s.tap('[data-sys="bk-close"]');
+      await s.waitFor("return !r.getElementById('ag-bklist').open");
+    };
+    check(`${tag}: Sichern: Knopf da, keine Liste auf der Seite, noch keine Sicherung (Hinweis auf der Seite und im Popup)`, await s.ev("return !!r.querySelector('[data-sys=\"bk-create\"]') && !r.querySelector('.ag-bktable') && /(Noch keine Sicherung|No backup yet)/.test(r.querySelector('.ag-bklast').innerText)"));
+    await openBk();
+    check(`${tag}: Popup ohne Sicherung: Hinweis statt Tabelle`, await s.ev("return !r.querySelector('#ag-bklist .ag-bktable') && r.querySelector('#ag-bklist .ag-bkbody').innerText.length > 10"));
+    await closeBk();
     const makeBk = async (name) => {
       await s.tap('[data-sys="bk-create"]');
       await s.waitFor("return r.getElementById('ag-codes').open && !!r.querySelector('#ag-codes [data-form=\"backup\"]')");
@@ -117,10 +128,14 @@ for (const lang of ["de", "en"]) {
       await s.waitFor("return !r.getElementById('ag-codes').open");
     };
     await makeBk("Vor dem Umbau");
+    await openBk();
     check(`${tag}: Sicherung mit Name abgelegt, Meldung, Name und Datum in der Liste`, await s.waitFor("return r.querySelectorAll('.ag-bktable tr[data-bk]').length === 1 && !!r.querySelector('.ag-toast') && r.querySelector('.ag-bktable .ag-bkname').textContent === 'Vor dem Umbau' && !!r.querySelector('.ag-bktable .ag-bkdate')"));
+    await closeBk();
     await makeBk("");
+    await openBk();
     check(`${tag}: zwei Sicherungen mit Datum und Anlagen, drei Knöpfe je Zeile`, await s.waitFor("const row=r.querySelector('.ag-bktable tr[data-bk]'); return r.querySelectorAll('.ag-bktable tr[data-bk]').length === 2 && /\\d{4}/.test(row.cells[1].textContent) && row.cells[2].textContent.includes('Haus') && row.querySelectorAll('.ag-iconbtn').length === 3"));
-    check(`${tag}: Tabelle im festen Kopf-Rahmen und passt in die Breite`, await s.ev("const w=r.querySelector('.ag-bktable').closest('.ag-bkscroll'); return !!w && !w.classList.contains('hscroll') && r.querySelector('.ag-bktable').scrollWidth <= w.clientWidth + 1"));
+    check(`${tag}: Tabelle im Popup und passt in die Breite`, await s.ev("const w=r.querySelector('#ag-bklist .ag-dlg-body'); return !!w && r.querySelector('#ag-bklist .ag-bktable').scrollWidth <= w.clientWidth + 1"));
+    check(`${tag}: Seite zeigt "Letzte Sicherung" mit dem Namen der neuesten`, await s.ev("return /(Letzte Sicherung|Last backup)/.test(r.querySelector('.ag-bklast').innerText)"));
     const [bkDownload] = await Promise.all([s.page.waitForEvent("download", { timeout: 5000 }).catch(() => null), s.tap('.ag-bktable tr[data-bk] [data-sys="bk-download"]')]);
     check(`${tag}: einzelne Sicherung herunterladen`, !!bkDownload && /^alarmageddon-\d{4}-\d{2}-\d{2}\.json$/.test(bkDownload.suggestedFilename()), bkDownload?.suggestedFilename());
     await s.tap('.ag-bktable tr[data-bk] [data-sys="bk-restore"]');
@@ -130,8 +145,11 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Löschen fragt nach`, await s.waitFor("const d=r.getElementById('ag-codes'); return d.open && !!d.querySelector('[data-sys=\"bk-delete-go\"]')"));
     await s.tap('#ag-codes [data-sys="bk-delete-go"]');
     check(`${tag}: gelöscht`, await s.waitFor("return !r.getElementById('ag-codes').open && r.querySelectorAll('.ag-bktable tr[data-bk]').length === 1"));
+    await closeBk();
     for (let i = 0; i < 11; i += 1) await makeBk("");
-    check(`${tag}: höchstens 10 Sicherungen`, await s.waitFor("return r.querySelectorAll('.ag-bktable tr[data-bk]').length === 10 && /10/.test(r.querySelector('.ag-bkbody .ag-small').textContent)"));
+    await openBk();
+    check(`${tag}: höchstens 10 Sicherungen`, await s.waitFor("return r.querySelectorAll('.ag-bktable tr[data-bk]').length === 10 && /10/.test(r.querySelector('#ag-bklist .ag-bkbody .ag-small').textContent)"));
+    await closeBk();
 
     // ----- Wartungsmeldungen -----
     await s.tap('[data-sub="notify"]');

@@ -700,14 +700,15 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 :host([narrow]) .ag-fl-node { padding: 12px; }
 .ag-rtsub { padding-left: 22px; border-left: 3px solid var(--ag-primary-soft); margin-left: 10px; }
 /* Routinen (1.44.0): Liste, Editor mit Bedingungsbaum, Geräteauswahl */
-.ag-rtrow.dim > :not(.ag-toggle):not(.ag-btnrow) { opacity: .55; }
+.ag-rtrow.dim > :not(.ag-toggle):not(.ag-wf-btns) { opacity: .55; }
 /* Schalter, Symbol und Text nahe beieinander (Grundregel: Schalter links, Text nahe rechts davon), wie die Modus-Zeilen */
 .ag-rt > .ag-setrow:not(:last-child), .ag-rt-ed .ag-setlist > .ag-setrow { gap: 12px; }
 .ag-rttags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .ag-rttags .ag-tag { height: auto; min-height: 22px; padding-top: 3px; padding-bottom: 3px; white-space: normal; }
 :host([narrow]) .ag-rtrow { flex-wrap: wrap; }
+.ag-rtrow { gap: 12px; } /* auch die letzte Zeile: im Fenster steht kein Knopf mehr danach (sonst 16 px, Schalter zu weit vom Text) */
 :host([narrow]) .ag-rtrow .ag-settx { flex: 1 1 0; min-width: 0; }
-:host([narrow]) .ag-codes .ag-rtrow .ag-btnrow { flex: 0 0 100%; justify-content: flex-end; margin-top: -6px; }
+:host([narrow]) .ag-codes .ag-rtrow .ag-wf-btns { flex: 0 0 100%; justify-content: flex-end; margin-top: 2px; } /* wie die Knöpfe der Schritte (Kreis, 44 px) */
 .ag-rttree { padding: 6px 14px 12px; }
 .ag-rtleaf { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 0; }
 .ag-rtdev { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1px solid var(--ag-divider); border-radius: 12px; background: var(--ag-card); color: var(--ag-text); font: inherit; cursor: pointer; max-width: 100%; box-sizing: border-box; }
@@ -1038,6 +1039,7 @@ dialog.ag-svdlg[open] { height: min(92vh, 860px); }
 .ag-mon-mname { font-size: 13px; }
 .ag-mon-mrow { margin: 0; font-size: 13px; color: var(--ag-text2); line-height: 1.4; } .ag-mon-mrow b { color: var(--ag-text); font-weight: 500; }
 .ag-mon-mnow { color: var(--ag-text); }
+.ag-mon-mrow.ag-mon-mkey { font-size: 15.5px; font-weight: 600; color: var(--ag-text); line-height: 1.35; } .ag-mon-mkey b { font-weight: 700; }
 .ag-mz { display: flex; gap: 3px; margin-top: 2px; }
 .ag-mz > span { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 8px; font-size: 12px; line-height: 1.25; box-shadow: inset 0 0 0 1.5px transparent; }
 .ag-mz > span b { font-weight: 500; } .ag-mz > span small { font-size: 11.5px; opacity: .85; overflow-wrap: anywhere; }
@@ -1175,7 +1177,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-mon-rule .ag-wf-line { --wf-x: 18px; }
 .ag-mon-head { padding-bottom: 8px; border-bottom: 1px solid var(--ag-divider); margin-bottom: 10px; }
 :host([narrow]) .ag-mon-rule { padding: 12px 10px 8px; }
-.ag-mon-rule.dim .ag-wf-line, .ag-mon-rule.dim .ag-mon-head > :not(.ag-toggle):not(.ag-btnrow) { opacity: .55; }
+.ag-mon-rule.dim .ag-wf-line, .ag-mon-rule.dim .ag-mon-head > :not(.ag-toggle):not(.ag-wf-btns) { opacity: .55; }
 .ag-mon-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .ag-mon-head .ag-settx { flex: 1; min-width: 0; }
 .ag-mon-head .ag-chap-t { margin: 0 0 2px; font-size: 17px; }
@@ -1188,7 +1190,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-mon-intro .ag-btn { align-self: flex-start; }
 :host([narrow]) .ag-mon-head { flex-wrap: wrap; }
 :host([narrow]) .ag-mon-head .ag-settx { flex: 1 1 0; }
-:host([narrow]) .ag-mon-head .ag-btnrow { flex: 0 0 100%; justify-content: flex-end; margin-top: -4px; }
+:host([narrow]) .ag-mon-head .ag-wf-btns { flex: 0 0 100%; justify-content: flex-end; margin-top: 4px; } /* Knöpfe wie bei den Schritten (Kreis, 44 px, Abstand 14 px) */
 :host([narrow]) .ag-valnum { flex: 1 1 90px; }
 .ag-ph { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .ag-phpill { border: 1px solid var(--ag-divider); background: var(--ag-card); color: var(--ag-primary); border-radius: 999px; min-height: 30px; padding: 0 12px; font: inherit; font-size: 13px; cursor: pointer; }
@@ -1200,13 +1202,14 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-mon-tools { max-width: 820px; margin: 0 0 12px; }
 @media (prefers-reduced-motion: reduce) { .ag-mon-fold { transition: none; } }
 /* Liste der Sicherungen: rollt für sich ab zehn Zeilen (Zeile 52 px, Kopf 46 px), der Kopf bleibt stehen */
-.ag-bkscroll { overflow: auto; max-height: calc(46px + 10 * 52px); }
-:host([narrow]) .ag-bkscroll { max-height: calc(59px + 7 * 62px); } /* Handy: sieben Zeilen sichtbar, danach Rollen (Vorgabe des Nutzers, 2026-11-16) */
-:host([narrow]) .ag-bkscroll .ag-table th { height: 59px; }
-:host([narrow]) .ag-bkscroll .ag-table td { height: 62px; } /* alle Zeilen gleich hoch (Name und Anlage untereinander), sonst stimmt die Zahl der sichtbaren Zeilen nicht */
-.ag-bkscroll .ag-table th { position: sticky; top: 0; z-index: 2; background: var(--ag-card); height: 46px; box-shadow: 0 1px 0 var(--ag-divider); }
-.ag-bkscroll .ag-table td { height: 52px; }
-.ag-bkscroll .ag-sortbtn { padding: 14px; }
+/* Liste der Sicherungen im Popup: das Popup scrollt, der Tabellenkopf bleibt oben stehen */
+.ag-bkwrap { overflow: visible; }
+.ag-bkwrap .ag-table th { position: sticky; top: -22px; z-index: 2; background: var(--ag-card); height: 46px; box-shadow: 0 1px 0 var(--ag-divider); }
+.ag-bkwrap .ag-table td { height: 52px; }
+.ag-bkwrap .ag-sortbtn { padding: 14px; }
+.ag-rtempty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 34px 18px; text-align: center; } .ag-rtfoot { margin: 0 4px; }
+.ag-rtsum { align-items: center; }
+.ag-bklast { align-items: center; } .ag-bklast-tx { flex: 1; min-width: 0; } .ag-bklast-tx b { font-weight: 500; } .ag-bklast-v { color: var(--ag-text2); font-size: 13px; }
 .ag-bktable td.ag-bkdate { display: table-cell; font-size: 13px; white-space: nowrap; }
 .ag-bktable .ag-bkname { display: inline; }
 .ag-bktable .ag-bkauto-tag { margin-left: 0; }
@@ -1227,7 +1230,8 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-push div[data-prev-body] { overflow-wrap: anywhere; font-size: 14px; }
 :host([narrow]) .ag-bktable td, :host([narrow]) .ag-bktable th { padding-left: 6px; padding-right: 6px; }
 :host([narrow]) .ag-bktable td.ag-bkdate { white-space: normal; font-size: 12px; min-width: 0; }
-:host([narrow]) .ag-bkscroll .ag-sortbtn { padding: 14px 6px; font-size: 10.5px; letter-spacing: 0; }
+:host([narrow]) .ag-bkwrap .ag-sortbtn { padding: 14px 6px; font-size: 10.5px; letter-spacing: 0; }
+:host([narrow]) .ag-bkwrap .ag-table th { top: -16px; }
 :host([narrow]) .ag-bktable .ag-iconbtn { width: 34px; height: 34px; }
 :host([narrow]) .ag-bktable .ag-actrow { gap: 2px; }
 .ag-bksys-m { display: none; }

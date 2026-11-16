@@ -83,7 +83,7 @@ class AlarmageddonPanel extends HTMLElement {
   _init() {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
       <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
-      <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
+      <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
     if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => this._stickySync()).observe(this._content);

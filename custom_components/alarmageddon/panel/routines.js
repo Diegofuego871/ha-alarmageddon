@@ -161,13 +161,50 @@ export class RoutinesUi {
 
   // ----- Liste (Kapitel auf der Seite "Anlage") -----
 
+  // Seite "Anlage": nur eine Zeile mit der Zahl der Routinen und dem Knopf zum Popup (seit 1.55.0); die Liste steht im Popup
   html(modes) {
     const d = this.draft;
+    this._modes = modes;
     if (this.ents === null && !this.loading && d.routines.some((r) => r.trigger.type === "device")) this.load();
+    const active = d.routines.filter((r) => r.enabled !== false).length;
+    const summary = d.routines.length ? this._t(d.routines.length === 1 ? "rtSummaryOne" : "rtSummary", { count: d.routines.length, active }) : this._t("rtNone");
+    return chapter(this._t("rtTitle"), `<div class="ag-card ag-setlist ag-codes ag-rt"><div class="ag-setrow ag-rtsum"><span class="ag-oav ${d.routines.length ? "on" : ""}">${ic("flash", 20)}</span>
+      <div class="ag-settx"><b>${esc(summary)}</b></div><button class="ag-btn" data-sys="rt-open">${ic("groups", 18)}${esc(this._t("rtShow"))}</button></div></div>`, this._t("rtHint"));
+  }
+
+  get listDlg() {
+    return this.host._root.getElementById("ag-rtlist");
+  }
+
+  // Popup mit allen Routinen (Handy: ganzer Bildschirm): Übersicht im Design der Zeilen, neue Routine hier; leer: Knopf in der Mitte, sonst in der Fusszeile
+  listHtml() {
+    const d = this.draft;
+    const modes = this._modes || [];
     const rows = d.routines.map((r, i) => this._row(r, i, modes)).join("");
-    return chapter(this._t("rtTitle"), `<div class="ag-card ag-setlist ag-codes ag-rt">${rows || `<div class="ag-coderow ag-t2">${esc(this._t("rtEmpty"))}</div>`}
-      <div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("rtFootHint"))}</small></div>
-        <button class="ag-btn" data-sys="rt-add" ${d.routines.length >= MAX_ROUTINES ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("rtAdd"))}</button></div></div>`, this._t("rtHint"));
+    const full = d.routines.length >= MAX_ROUTINES;
+    const add = (cls) => `<button class="ag-btn ${cls}" data-sys="rt-add" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("rtAdd"))}</button>`;
+    const body = rows
+      ? `<div class="ag-card ag-setlist ag-codes ag-rt">${rows}</div><p class="ag-chap-h ag-rtfoot">${esc(this._t("rtFootHint"))}</p>`
+      : `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(this._t("rtEmpty"))}</span>${add("primary")}</div>`;
+    return `<div class="ag-dlg-body ag-rt-pop"><h3>${esc(this._t("rtTitle"))}</h3>${body}
+      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-close">${esc(this._t("close"))}</button>${rows ? add("primary") : ""}</div></div>`;
+  }
+
+  openList() {
+    const dlg = this.listDlg;
+    this.refreshList(true);
+    if (!dlg.open) dlg.showModal();
+  }
+
+  // Nach jeder Änderung am Entwurf: das offene Popup folgt (Scrollstand bleibt)
+  refreshList(force = false) {
+    const dlg = this.listDlg;
+    if (!dlg || (!dlg.open && !force)) return;
+    const body = dlg.querySelector(".ag-dlg-body");
+    const top = body?.scrollTop || 0;
+    dlg.innerHTML = this.listHtml();
+    const again = dlg.querySelector(".ag-dlg-body");
+    if (again && top) again.scrollTop = top;
   }
 
   _row(r, i, modes) {
@@ -188,8 +225,8 @@ export class RoutinesUi {
       <span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span>
       <div class="ag-settx"><b>${esc(r.name)}</b><small>${esc(this.whenText(r))}</small><small>→ ${esc(this.thenText(r))}</small>
         <div class="ag-rttags">${tags.map(([cls, text, warn]) => `<span class="ag-tag ${cls}">${warn ? ic("alert", 13) : ""}${esc(text)}</span>`).join("")}</div></div>
-      <div class="ag-btnrow"><button class="ag-iconbtn" data-sys="rt-dup" data-index="${i}" aria-label="${esc(this._t("rtDuplicate"))}" title="${esc(this._t("rtDuplicate"))}" ${this.draft.routines.length >= MAX_ROUTINES ? "disabled" : ""}>${ic("copy", 18)}</button>
-        <button class="ag-iconbtn" data-sys="rt-edit" data-index="${i}" aria-label="${esc(this._t("rtEdit"))}">${ic("pencil", 18)}</button>
+      <div class="ag-wf-btns"><button class="ag-iconbtn" data-sys="rt-edit" data-index="${i}" aria-label="${esc(this._t("rtEdit"))}" title="${esc(this._t("rtEdit"))}">${ic("pencil", 18)}</button>
+        <button class="ag-iconbtn" data-sys="rt-dup" data-index="${i}" aria-label="${esc(this._t("rtDuplicate"))}" title="${esc(this._t("rtDuplicate"))}" ${this.draft.routines.length >= MAX_ROUTINES ? "disabled" : ""}>${ic("copy", 18)}</button>
         <button class="ag-iconbtn" data-sys="rt-del" data-index="${i}" aria-label="${esc(this._t("rtDelete"))}">${ic("trash", 18)}</button></div></div>`;
   }
 
@@ -546,7 +583,9 @@ export class RoutinesUi {
     const d = this.draft;
     const i = Number(el.dataset.index);
     const f = this.form;
-    if (act === "rt-add") this.open(-1);
+    if (act === "rt-open") this.openList();
+    else if (act === "rt-close") this.listDlg.close();
+    else if (act === "rt-add") this.open(-1);
     else if (act === "rt-edit") this.open(i);
     else if (act === "rt-dup") {
       // Kopie gleich hinter dem Original, ausgeschaltet (sie soll nicht doppelt schalten, bis sie angepasst ist); sie gilt erst nach dem Speichern der Seite

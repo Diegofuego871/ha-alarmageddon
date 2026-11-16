@@ -21,6 +21,35 @@ for (const lang of ["de", "en"]) {
     const t = T[lang];
     const s = await open(browser, { mobile, lang, tab: "config" });
     await s.tap('[data-sub="system"]');
+    // Seit 1.55.0 steht die Liste im Popup: die Seite zeigt nur die Zahl und einen Knopf
+    const listOpen = () => s.ev("return r.getElementById('ag-rtlist').open");
+    const openList = async () => {
+      if (await listOpen()) return;
+      await s.tap('[data-sys="rt-open"]');
+      await s.waitFor("return r.getElementById('ag-rtlist').open && !!r.querySelector('#ag-rtlist .ag-rt-pop')");
+    };
+    const closeList = async () => {
+      if (!(await listOpen())) return;
+      await s.tap('[data-sys="rt-close"]');
+      await s.waitFor("return !r.getElementById('ag-rtlist').open");
+    };
+    const tapIn = async (sel) => {
+      await openList();
+      await s.tap(sel);
+    };
+    const savePage = async () => {
+      await closeList();
+      await s.tap('.ag-foot [data-sys="save"]');
+    };
+    const cancelPage = async () => {
+      await closeList();
+      await s.tap('.ag-foot [data-sys="cancel"]');
+    };
+    await openList();
+    check(`${tag}: Seite: nur eine Zeile "3 Routinen · 3 aktiv" mit Knopf "Routinen anzeigen", keine Liste auf der Seite`, await s.waitFor(`const row=r.querySelector('.ag-sys-form .ag-rtsum'); return !!row && /3 .* 3/.test(row.innerText) && !!row.querySelector('[data-sys="rt-open"]') && !r.querySelector('.ag-sys-form .ag-rtrow')`));
+    await openList();
+    check(`${tag}: Popup: Überschrift, Fusszeile mit "Schliessen" und "Routine hinzufügen"`, await s.ev("const d=r.getElementById('ag-rtlist'); return !!d.querySelector('h3') && !!d.querySelector('[data-sys=\"rt-close\"]') && !!d.querySelector('.ag-dlg-btns [data-sys=\"rt-add\"]')"));
+    await openList();
     check(`${tag}: Liste mit drei Routinen`, await s.waitFor("return r.querySelectorAll('.ag-rtrow').length === 3"));
     check(`${tag}: kein Kapitel "Zeitplan" mehr`, await s.ev("return !r.querySelector('.ag-sched') && !r.querySelector('[data-sys=\"sch-add\"]')"));
     const rows = await s.ev("return [...r.querySelectorAll('.ag-rtrow')].map((row) => ({ name: row.querySelector('b').textContent, text: row.innerText, bypass: !!row.querySelector('.ag-tag.err'), icon: !!row.querySelector('.ag-oav svg'), toggleLeft: row.querySelector('.ag-toggle').getBoundingClientRect().right <= row.querySelector('.ag-settx').getBoundingClientRect().left }))");
@@ -29,7 +58,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: keine zusätzliche Option "Deaktivieren per Routine erlauben" auf der Seite`, await s.ev("return !r.querySelector('[data-sys=\"rt-disarm\"]') && !r.querySelector('.ag-rt > .ag-setrow .ag-toggle:not([data-sys=\"rt-on\"])')"));
 
     // ----- Neue Routine mit Gerät, Gruppe, Oder -----
-    await s.tap('[data-sys="rt-add"]');
+    await tapIn('[data-sys="rt-add"]');
     check(`${tag}: Editor offen, Speichern gesperrt (Name fehlt)`, await s.waitFor("return r.getElementById('ag-step').open && !!r.querySelector('.ag-rt-ed') && r.querySelector('[data-sys=\"rt-save\"]').disabled"));
     const name = await s.el('[data-sys="rt-name"]');
     await name.fill("Haus verlassen");
@@ -98,8 +127,9 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: kein Überlauf im Editor`, await s.ev("const d=r.getElementById('ag-step'); return d.scrollWidth <= d.clientWidth + 1 && document.documentElement.scrollWidth <= window.innerWidth"));
     if (mobile) check(`${tag}: Knöpfe unten im Fenster fest`, await s.ev("const d=r.getElementById('ag-step'); return d.lastElementChild.classList.contains('ag-dlg-btns')"));
     await s.tap('[data-sys="rt-save"]');
+    await openList();
     check(`${tag}: Editor zu, vier Routinen, Änderung offen`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 4 && r.host.systemUi.dirtyCount() === 1"));
-    await s.tap('[data-sys="save"]');
+    await savePage();
     check(`${tag}: gespeichert`, await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`, 30000));
     // Nach dem Speichern und einer neuen Abfrage des Servers (der ergänzt Vorgaben und ordnet Schlüssel anders) darf nichts mehr offen sein: kein orange Punkt
     await s.waitFor("return !r.host._wait", 30000);
@@ -113,8 +143,12 @@ for (const lang of ["de", "en"]) {
       && sent.trigger.tree.items[0].entity_id === "lock.haustuer" && sent.trigger.tree.items[1].op === "or" && sent.trigger.tree.items[1].items[0].state === "not_home"
       && sent.trigger.tree.items[1].items[1].kind === "time" && sent.trigger.tree.items[1].items[1].from === "22:00" && !("_device" in sent) && !("_times" in sent), JSON.stringify(sent));
 
+    // Knöpfe der Routinen wie die der Schritte in den Aktionen: rund, 44 px, Reihenfolge Stift, Kopieren, Papierkorb
+    await openList();
+    check(`${tag}: Knöpfe der Routine: Stift, Kopieren, Papierkorb, rund, mindestens 44 px, Abstand`, await s.ev(`const row=r.querySelector('.ag-rtrow .ag-wf-btns'); const b=[...row.querySelectorAll('.ag-iconbtn')]; const gap=b[1].getBoundingClientRect().left-b[0].getBoundingClientRect().right;
+      return b.map((x)=>x.dataset.sys).join()==='rt-edit,rt-dup,rt-del' && b.every((x)=>Math.round(x.getBoundingClientRect().width)>=44 && Math.round(x.getBoundingClientRect().height)>=44) && getComputedStyle(b[0]).borderTopWidth==='1px' && gap>=8`));
     // ----- Bestehende bearbeiten: Deaktivieren verlangt die Bestätigung -----
-    await s.tap('[data-sys="rt-edit"][data-index="2"]');
+    await tapIn('[data-sys="rt-edit"][data-index="2"]');
     check(`${tag}: Heimkommen: Oder-Baum mit Gerät und Gruppe, Name steht drin`, await s.waitFor("return r.querySelector('[data-sys=\"rt-name\"]').value === 'Heimkommen' && r.querySelectorAll('.ag-rtleaf').length === 3 && !!r.querySelector('.ag-rtgroup')"));
     check(`${tag}: Vorschau bei Deaktivieren: rote Aktion mit Marke`, await s.ev("return !!r.querySelector('.ag-fl-node.off .ag-tag.err')"));
     check(`${tag}: Sicherheitskasten da, bestätigt, speicherbar`, await s.ev("return !!r.querySelector('.ag-rtsafety') && r.querySelector('[data-sys=\"rt-unsafe\"]').getAttribute('aria-checked') === 'true' && !r.querySelector('[data-sys=\"rt-save\"]').disabled"));
@@ -126,19 +160,24 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="rt-cancel"]');
     check(`${tag}: Abbrechen mit offener Änderung fragt nach`, await s.waitFor("return r.getElementById('ag-confirm').open"));
     await s.tap('[data-c="yes"]');
+    await openList();
     check(`${tag}: verworfen: Editor zu, Liste unverändert (vier Routinen, nichts offen)`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 4 && r.host.systemUi.dirtyCount() === 0"));
 
     // ----- Duplizieren: Kopie hinter dem Original, ausgeschaltet, eindeutiger Name, erst nach dem Speichern gültig -----
+    await openList();
     const before = await s.ev("return r.querySelectorAll('.ag-rtrow').length");
-    await s.tap('[data-sys="rt-dup"][data-index="1"]');
+    await tapIn('[data-sys="rt-dup"][data-index="1"]');
+    await openList();
     check(`${tag}: Duplizieren: eine Zeile mehr, Kopie hinter dem Original, ausgeschaltet, Name mit "${t.copy}", Änderung offen`, await s.waitFor(`const rows=[...r.querySelectorAll('.ag-rtrow')]; return rows.length === ${before} + 1 && rows[2].querySelector('b').textContent.includes(${JSON.stringify(t.copy)}) && rows[2].classList.contains('dim') && r.host.systemUi.dirtyCount() === 1`));
-    await s.tap('[data-sys="rt-dup"][data-index="1"]');
+    await tapIn('[data-sys="rt-dup"][data-index="1"]');
+    await openList();
     check(`${tag}: zweite Kopie bekommt einen anderen Namen`, await s.ev(`const n=[...r.querySelectorAll('.ag-rtrow b')].map((b) => b.textContent); return n.length === ${before} + 2 && new Set(n.map((x) => x.toLowerCase())).size === n.length`));
-    await s.tap('[data-sys="cancel"]');
+    await cancelPage();
+    await openList();
     check(`${tag}: Abbrechen verwirft die Kopien`, await s.waitFor(`return r.querySelectorAll('.ag-rtrow').length === ${before} && r.host.systemUi.dirtyCount() === 0`));
 
     // ----- Tasten (Entität "event", zum Beispiel ein Hue-Taster): Auslöser im Augenblick des Drückens -----
-    await s.tap('[data-sys="rt-add"]');
+    await tapIn('[data-sys="rt-add"]');
     await s.waitFor("return !!r.querySelector('.ag-rt-ed')");
     await (await s.el('[data-sys="rt-name"]')).fill("Taste scharf");
     await s.tap('[data-sys="rt-add-dev"][data-path=""]');
@@ -150,13 +189,16 @@ for (const lang of ["de", "en"]) {
     await (await s.el('[data-sys="rt-state"]')).selectOption("short_release");
     check(`${tag}: Haltezeit bei Tasten ausgeblendet, speicherbar`, await s.ev("return r.querySelector('.ag-rthold').hidden && !r.querySelector('[data-sys=\"rt-save\"]').disabled"));
     await s.tap('[data-sys="rt-save"]');
+    await openList();
     await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 5");
+    await openList();
     check(`${tag}: Zeile nennt die Taste und die Art`, await s.ev(`return [...r.querySelectorAll('.ag-rtrow')].at(-1).innerText.includes(${JSON.stringify(t.short)})`));
-    await s.tap('[data-sys="rt-del"][data-index="4"]');
+    await tapIn('[data-sys="rt-del"][data-index="4"]');
+    await openList();
     await s.waitFor("return r.querySelectorAll('.ag-rtrow').length === 4");
 
     // ----- Auslöser Zeitplan, mehrere Zeiten, Namen eindeutig -----
-    await s.tap('[data-sys="rt-add"]');
+    await tapIn('[data-sys="rt-add"]');
     await s.waitFor("return !!r.querySelector('.ag-rt-ed')");
     await (await s.el('[data-sys="rt-name"]')).fill("nachts SCHARF");
     await s.tap('[data-sys="rt-seg"][data-key="trigger"][data-value="schedule"]');
@@ -177,16 +219,19 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="rt-st"][data-value="armed"]');
     check(`${tag}: mit Bestätigung und "Anlage scharf": speicherbar, die Marke "Umgeht den Code" steht da`, await s.ev("return !r.querySelector('[data-sys=\"rt-save\"]').disabled && !!r.querySelector('.ag-fl-node.off .ag-tag.err')"));
     await s.tap('[data-sys="rt-save"]');
+    await openList();
     await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 5");
     // Löschen einer Routine (Nachts scharf)
-    await s.tap('[data-sys="rt-del"][data-index="0"]');
+    await tapIn('[data-sys="rt-del"][data-index="0"]');
+    await openList();
     check(`${tag}: gelöscht: vier Routinen, Änderung offen`, await s.waitFor("return r.querySelectorAll('.ag-rtrow').length === 4 && r.host.systemUi.dirtyCount() === 1"));
-    await s.tap('[data-sys="save"]');
+    await savePage();
     await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`, 30000);
     const sent2 = (await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_system').at(-1)"))?.routines?.at(-1);
     check(`${tag}: Zeitplan gesendet: eine Routine, zwei Zeiten mit eigenen Tagen, Deaktivieren bestätigt`, sent2?.name === "Mittagspause" && sent2.action === "off" && sent2.unsafe === true && JSON.stringify(sent2.states) === JSON.stringify(["armed", "disarmed"]) && sent2.trigger.type === "schedule"
       && sent2.trigger.times.length === 2 && JSON.stringify(sent2.trigger.times[1]) === JSON.stringify({ time: "12:15", days: [5] }), JSON.stringify(sent2));
     await s.waitFor("return !r.host._wait", 30000);
+    await openList();
     await s.ev("r.querySelector('.ag-rtrow').scrollIntoView({ block: 'start' }); return 1");
     await s.page.waitForTimeout(400);
     await s.page.screenshot({ path: `${outDir}routines-list-${lang}-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });

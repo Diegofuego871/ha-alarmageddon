@@ -280,8 +280,8 @@ export class MonitorUi {
       <div class="ag-mon-head"><button class="ag-toggle ${on ? "on" : ""}" data-wf="mon-on" data-rule="${i}" role="switch" aria-checked="${on}" aria-label="${esc(`${m.name}: ${this._t("monActiveSwitch")}`)}"></button>
         <span class="ag-oav ${on ? "on" : ""}">${ic(this._ruleIcon(m), 20)}</span>
         <div class="ag-settx"><h3 class="ag-chap-t">${esc(m.name)}</h3><small>${esc(this.ruleSub(m))}</small>${tag ? `<div class="ag-rttags">${tag}</div>` : ""}</div>
-        <div class="ag-btnrow"><button class="ag-iconbtn" data-wf="mon-dup" data-rule="${i}" ${full ? "disabled" : ""} aria-label="${esc(this._t("monDuplicate"))}" title="${esc(this._t("monDuplicate"))}">${ic("copy", 18)}</button>
-          <button class="ag-iconbtn" data-wf="mon-edit" data-rule="${i}" aria-label="${esc(this._t("monEdit"))}" title="${esc(this._t("monEdit"))}">${ic("pencil", 18)}</button>
+        <div class="ag-wf-btns"><button class="ag-iconbtn" data-wf="mon-edit" data-rule="${i}" aria-label="${esc(this._t("monEdit"))}" title="${esc(this._t("monEdit"))}">${ic("pencil", 18)}</button>
+          <button class="ag-iconbtn" data-wf="mon-dup" data-rule="${i}" ${full ? "disabled" : ""} aria-label="${esc(this._t("monDuplicate"))}" title="${esc(this._t("monDuplicate"))}">${ic("copy", 18)}</button>
           <button class="ag-iconbtn" data-wf="mon-del" data-rule="${i}" aria-label="${esc(this._t("monDelete"))}" title="${esc(this._t("monDelete"))}">${ic("trash", 18)}</button></div><button class="ag-cbtn ag-mon-fold ${folded ? "" : "open"}" data-wf="mon-fold" data-rule="${i}" aria-expanded="${!folded}" aria-label="${esc(this._t(folded ? "monUnfold" : "monFold"))}" title="${esc(this._t(folded ? "monUnfold" : "monFold"))}">${ic("chevRight", 16)}</button></div>
       ${folded ? "" : flow("out", m.steps_out, "alert", "warn", "monOutTitle") + flow("ok", m.steps_ok, "check", "ok", "monOkTitle")}</section>`;
   }
@@ -557,7 +557,7 @@ export class MonitorUi {
       const label = { ok: this._t("monMarginZoneOk"), keep: this._t("monMarginZoneKeep"), out: this._t("monMarginZoneOut") };
       const bar = `<div class="ag-mz" role="img" aria-label="${esc(this._t("monMarginBar"))}">${zones.map(([kind, text, test]) => `<span class="${kind} ${nowZone && nowZone[2] === test ? "now" : ""}"><b>${esc(label[kind])}</b><small>${esc(text)}</small></span>`).join("")}</div>`;
       const now = live ? `<p class="ag-mon-mrow ag-mon-mnow">${esc(this._t("monMarginNow", { value: n(cur), zone: nowZone ? label[nowZone[0]] : "–" }))}${nowZone && nowZone[0] === "keep" ? ` ${esc(this._t("monMarginKeepHint"))}` : ""}</p>` : "";
-      return `<div class="ag-mon-mleaf">${title}<p class="ag-mon-mrow"><b>${esc(this._t("monMarginOutLabel"))}</b> ${esc(outText)}</p><p class="ag-mon-mrow"><b>${esc(this._t("monMarginOkLabel"))}</b> ${esc(okText)}${margin > 0 ? "" : ` <span class="ag-t2">${esc(this._t("monMarginZero"))}</span>`}</p>${bar}${now}</div>`;
+      return `<div class="ag-mon-mleaf">${title}<p class="ag-mon-mrow ag-mon-mkey"><b>${esc(this._t("monMarginOutLabel"))}</b> ${esc(outText)}</p><p class="ag-mon-mrow ag-mon-mkey"><b>${esc(this._t("monMarginOkLabel"))}</b> ${esc(okText)}${margin > 0 ? "" : ` <span class="ag-t2">${esc(this._t("monMarginZero"))}</span>`}</p>${bar}${now}</div>`;
     }).join("");
     return body;
   }

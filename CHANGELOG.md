@@ -7,6 +7,15 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.55.0] - 2026-11-16
+
+### Changed
+
+- **Routines and the backup list open in their own window.** On the Plant page, routines show only a summary ("3 routines · 3 active") and a button "Show routines"; backups show "Last backup: date, name" and a button "Show backups". The list and the editor of a new routine are in the window (full screen on the phone). The overview of the routines looks as before; a new routine is created in the window; with no routine yet, a card with a centred button invites you to add one, otherwise the button sits in the footer. Changes to routines stay a draft and are saved with "Save" of the page. The buttons for backup settings, "Back up now", "Export" and "Import" stay on the page. The scroll area of the backup list (from seven rows) now lives in the window.
+- **Automatic backup is saved with the page.** Switch, number of backups and interval are part of the page draft like every other setting: orange dot, "1 change", "Cancel" discards them, an invalid number blocks "Save". Before, changing the number saved at once.
+- **Same buttons for rules and routines.** The rule cards of the monitoring and the routine rows use the round 44 px buttons (edit, copy, delete) in the same order as the actions.
+- **Key lines of a monitoring rule larger and bold.** "Triggers" and "Back to normal" stand out in the card.
+
 ## [1.54.0] - 2026-11-16
 
 ### Added
@@ -1704,6 +1713,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0
 [1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0
 [1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0
 [1.52.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.52.0

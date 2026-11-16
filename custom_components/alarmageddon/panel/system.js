@@ -35,6 +35,12 @@ export class SystemUi {
     return this.host._system();
   }
 
+  // Automatische Sicherung (gilt für alle Anlagen): Teil des Entwurfs der Seite, gespeichert mit "Speichern" (seit 1.55.0)
+  autoOf(a) {
+    const keep = Number(a?.keep);
+    return { enabled: a?.enabled !== false, every: a?.every || "weekly", keep: Number.isInteger(keep) ? keep : 5 };
+  }
+
   // Werte je Modus; fehlt etwas im Server-Stand, gilt die Grundeinstellung
   base(s = this.system) {
     const ms = s.mode_settings || {};
@@ -52,6 +58,7 @@ export class SystemUi {
       always: s.always_enabled !== false, // "Immer aktiv" als Ganzes (Standard an)
       monitor: s.monitor_enabled === true, // "Überwachung" als Ganzes (Standard aus)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
+      auto: this.autoOf(this.host._data?.auto_backup),
     };
   }
 
@@ -88,6 +95,7 @@ export class SystemUi {
     if (a.always !== d.always) n += 1;
     if (a.monitor !== d.monitor) n += 1;
     if (a.ackCode !== d.ackCode) n += 1;
+    if (JSON.stringify(a.auto) !== JSON.stringify(d.auto)) n += 1;
     if (canon(normRoutines(a.routines)) !== canon(normRoutines(d.routines))) n += 1;
     return n;
   }
@@ -104,6 +112,7 @@ export class SystemUi {
       check(`${scope}.confirm_window`, v.confirm_window, WINDOW);
     }
     if (!ALL_MODES.some((m) => d.modes[m])) bad.push("modes");
+    if (!Number.isInteger(d.auto.keep) || d.auto.keep < 1 || d.auto.keep > 50) bad.push("auto.keep");
     return bad;
   }
 
@@ -150,6 +159,7 @@ export class SystemUi {
     h._setHtml(form, html);
     h._placePills();
     this.renderFoot();
+    this.rt.refreshList(); // ein offenes Popup der Routinen folgt dem Entwurf
   }
 
   // ----- Codes pro Person (sofort gespeichert, nicht Teil des Entwurfs: ein Code soll nie im Panel liegen bleiben) -----
@@ -256,17 +266,44 @@ export class SystemUi {
 
   _backupHtml() {
     if (this.backups === null && !this._bkLoading) this.loadBackups();
-    const auto = this.host._data?.auto_backup || { enabled: true, every: "weekly", keep: 5 };
+    const d = this.ensureDraft();
+    const auto = d.auto;
+    const keepOk = Number.isInteger(auto.keep) && auto.keep >= 1 && auto.keep <= 50;
     const every = ["daily", "weekly", "monthly"].map((k) => `<option value="${k}" ${auto.every === k ? "selected" : ""}>${esc(this._t(`bkEvery_${k}`))}</option>`).join("");
     const autoRow = `<div class="ag-setrow ag-bkauto"><button class="ag-toggle ${auto.enabled ? "on" : ""}" data-sys="ab-on" role="switch" aria-checked="${auto.enabled}" aria-label="${esc(this._t("bkAuto"))}"></button>
-      <span class="ag-oav ${auto.enabled ? "on" : ""}">${ic("restore", 20)}</span><div class="ag-settx"><b>${esc(this._t("bkAuto"))}</b><small>${esc(this._t("bkAutoHint", { max: this.bkMaxAuto }))}</small></div>
-      <span class="ag-num ag-abkeep" title="${esc(this._t("bkAutoKeep"))}"><input type="number" min="1" max="50" step="1" inputmode="numeric" data-sys="ab-keep" value="${esc(auto.keep ?? 5)}" aria-label="${esc(this._t("bkAutoKeep"))}" ${auto.enabled ? "" : "disabled"}><span class="ag-t2">${esc(this._t("bkAutoKeepUnit"))}</span></span>
+      <span class="ag-oav ${auto.enabled ? "on" : ""}">${ic("restore", 20)}</span><div class="ag-settx"><b>${esc(this._t("bkAuto"))}</b><small>${esc(this._t("bkAutoHint", { max: keepOk ? auto.keep : 5 }))}</small></div>
+      <span class="ag-num ag-abkeep ${keepOk ? "" : "bad"}" title="${esc(this._t("bkAutoKeep"))}"><input type="number" min="1" max="50" step="1" inputmode="numeric" data-sys="ab-keep" value="${keepOk ? esc(auto.keep) : esc(Number.isFinite(auto.keep) ? auto.keep : "")}" aria-label="${esc(this._t("bkAutoKeep"))}"><span class="ag-t2">${esc(this._t("bkAutoKeepUnit"))}</span></span>
       <select class="ag-input" data-sys="ab-every" aria-label="${esc(this._t("bkAutoEvery"))}" ${auto.enabled ? "" : "disabled"}>${every}</select></div>`;
     return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes">${autoRow}<div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("bkHint"))}</small></div>
       <div class="ag-btnrow"><button class="ag-btn primary" data-sys="bk-create">${ic("check", 18)}${esc(this._t("bkSave"))}</button>
         <button class="ag-btn" data-sys="export">${ic("arrowDown", 18)}${esc(this._t("bkExport"))}</button>
-        <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden></div></div></div>
-      <div class="ag-bkbody">${this._bkBody()}</div>`);
+        <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden></div></div>
+      <div class="ag-setrow ag-bklast"><div class="ag-settx ag-bklast-tx">${this._bkLastHtml()}</div>
+        <button class="ag-btn" data-sys="bk-open">${ic("restore", 18)}${esc(this._t("bkShow"))}</button></div></div>`);
+  }
+
+  // "Letzte Sicherung: Datum, Name" (die Liste selbst steht im Popup)
+  _bkLastHtml() {
+    if (this.backups === null) return "";
+    const lang = this.host._lang || "en";
+    if (!this.backups.length) return `<small>${esc(this._t("bkLastNone"))}</small>`;
+    const last = [...this.backups].sort((x, y) => (x.created < y.created ? 1 : -1))[0];
+    const date = last.created ? new Date(last.created).toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" }) : "–";
+    const name = last.name ? ` · ${last.name}` : last.auto ? ` · ${this._t("bkAutoTag")}` : "";
+    return `<b>${esc(this._t("bkLast"))}</b> <small class="ag-bklast-v">${esc(date + name)}</small>`;
+  }
+
+  _bkDlg() {
+    return this.host._root.getElementById("ag-bklist");
+  }
+
+  // Popup mit der Liste der Sicherungen (Handy: ganzer Bildschirm); die Einstellungen und Knöpfe bleiben auf der Seite
+  openBackupList() {
+    const dlg = this._bkDlg();
+    if (this.backups === null && !this._bkLoading) this.loadBackups();
+    dlg.innerHTML = `<div class="ag-dlg-body ag-bk-pop"><h3>${esc(this._t("bkListTitle"))}</h3><div class="ag-bkbody">${this._bkBody()}</div>
+      <div class="ag-dlg-btns"><button class="ag-btn primary" data-sys="bk-close">${esc(this._t("close"))}</button></div></div>`;
+    if (!dlg.open) dlg.showModal();
   }
 
   // Anlage löschen (1.32.0): ganz unten, roter Textknopf; die Warnung kommt im Dialog. Nur bei deaktivierter Anlage (der Server prüft es auch).
@@ -297,12 +334,14 @@ export class SystemUi {
       return `<th aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sortbtn ${on ? "on" : ""}" data-sys="bk-sort" data-key="${key}" title="${esc(this._t("sortBy", { column: label }))}">${esc(label)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;
     };
     return `<div class="ag-t2 ag-small" style="margin:10px 4px 6px">${esc(this._t("bkCount", { count: this.backups.filter((b) => !b.auto).length, max: this.bkMax }))}${this.backups.some((b) => b.auto) ? ` · ${esc(this._t("bkCountAuto", { count: this.backups.filter((b) => b.auto).length, max: this.bkMaxAuto }))}` : ""}</div>
-      <div class="ag-card ag-bkscroll"><table class="ag-table ag-bktable"><tr>${th("name", this._t("bkColName"))}${th("date", this._t("bkColDate"))}${th("systems", this._t("bkColSystems")).replace("<th ", '<th class="ag-bksys" ')}<th></th></tr>${rows}</table></div>`;
+      <div class="ag-card ag-bkwrap"><table class="ag-table ag-bktable"><tr>${th("name", this._t("bkColName"))}${th("date", this._t("bkColDate"))}${th("systems", this._t("bkColSystems")).replace("<th ", '<th class="ag-bksys" ')}<th></th></tr>${rows}</table></div>`;
   }
 
   renderBackups() {
-    const el = this.host._view?.querySelector(".ag-bkbody");
+    const el = this._bkDlg()?.querySelector(".ag-bkbody");
     if (el) this.host._setHtml(el, this._bkBody());
+    const last = this.host._view?.querySelector(".ag-bklast-tx");
+    if (last) last.innerHTML = this._bkLastHtml();
     this.host._stickySync?.();
   }
 
@@ -614,6 +653,7 @@ export class SystemUi {
     else if (bad) {
       const first = badKeys[0];
       const text = first === "modes" ? this._t("sysModesNone")
+        : first === "auto.keep" ? this._t("invalidNumber", { min: 1, max: 50 })
         : first.endsWith(".confirm_window") ? this._t("invalidNumber", { min: 5, max: 600 }) : this._t("invalidNumber", { min: 0, max: MAX });
       status = `<span class="ag-err">${esc(text)}</span>`;
     }
@@ -630,6 +670,7 @@ export class SystemUi {
     this.saving = true;
     this.renderFoot();
     try {
+      const autoChanged = JSON.stringify(d.auto) !== JSON.stringify(this.autoOf(h._data?.auto_backup));
       const modes = ALL_MODES.filter((m) => d.modes[m]);
       // Alle Modi (auch abgeschaltete behalten ihre Werte)
       const mode_settings = Object.fromEntries(ALL_MODES.map((m) => [m, { ...d.per[m] }]));
@@ -637,6 +678,11 @@ export class SystemUi {
         home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, routines: d.routines,
         ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}) });
       Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code) });
+      if (autoChanged) {
+        const res = await h._hass.callWS({ type: "alarmageddon/save_auto_backup", enabled: d.auto.enabled, every: d.auto.every, keep: d.auto.keep });
+        if (h._data) h._data.auto_backup = res.auto_backup;
+        this.bkMaxAuto = res.auto_backup.keep;
+      }
       this.draft = null;
       this.saveState = "saved";
       this.host._markSaved(this); // Punkte "ungespeichert" verschwinden sofort
@@ -669,8 +715,18 @@ export class SystemUi {
       return true;
     }
     if (act === "ab-on") {
-      const cur = this.host._data?.auto_backup || { enabled: true, every: "weekly", keep: 5 };
-      this.saveAutoBackup(!cur.enabled, cur.every, cur.keep);
+      const d = this.ensureDraft();
+      d.auto.enabled = !d.auto.enabled;
+      this.saveState = null;
+      this.render();
+      return true;
+    }
+    if (act === "bk-open") {
+      this.openBackupList();
+      return true;
+    }
+    if (act === "bk-close") {
+      this._bkDlg().close();
       return true;
     }
     if (act === "delete") {
@@ -788,38 +844,24 @@ export class SystemUi {
     return true;
   }
 
-  async saveAutoBackup(enabled, every, keep, quiet = false) {
-    const h = this.host;
-    try {
-      const res = await h._hass.callWS({ type: "alarmageddon/save_auto_backup", enabled, every, ...(keep ? { keep } : {}) });
-      if (h._data) h._data.auto_backup = res.auto_backup;
-      this.bkMaxAuto = res.auto_backup.keep;
-      if (quiet) {
-        // Beim Tippen nicht neu zeichnen (das Feld behielte den Fokus nicht): nur der Hinweis zieht nach
-        const small = h._view?.querySelector(".ag-bkauto .ag-settx small");
-        if (small) small.textContent = this._t("bkAutoHint", { max: this.bkMaxAuto });
-        h._lastHtml.delete(h._view?.querySelector(".ag-bkauto")?.closest(".ag-chap"));
-        return;
-      }
-      h._toast(this._t("bkAutoSaved"));
-    } catch (err) {
-      h._toast(this._t("saveFailed", { message: errText(err) }));
-    }
-    this.render();
-  }
-
   onInput(el) {
     if (el.dataset.sys === "ab-keep") {
-      // Gespeichert wird erst kurz nach dem letzten Tippen und nur mit einer gültigen Zahl von 1 bis 50
+      // Entwurf der Seite: gespeichert wird mit "Speichern"; ungültig (nicht 1 bis 50) sperrt "Speichern"
+      const d = this.ensureDraft();
       const n = el.value.trim() === "" ? NaN : Number(el.value);
+      d.auto.keep = n;
       const ok = Number.isInteger(n) && n >= 1 && n <= 50;
       el.closest(".ag-num").classList.toggle("bad", !ok);
-      clearTimeout(this._keepTimer);
-      if (ok) this._keepTimer = setTimeout(() => this.saveAutoBackup(this.host._data?.auto_backup?.enabled !== false, this.host._data?.auto_backup?.every || "weekly", n, true), 600);
+      const small = el.closest(".ag-bkauto")?.querySelector(".ag-settx small");
+      if (small && ok) small.textContent = this._t("bkAutoHint", { max: n });
+      this.saveState = null;
+      this.renderFoot();
       return true;
     }
     if (el.dataset.sys === "ab-every") {
-      this.saveAutoBackup(this.host._data?.auto_backup?.enabled !== false, el.value, this.host._data?.auto_backup?.keep);
+      this.ensureDraft().auto.every = el.value;
+      this.saveState = null;
+      this.renderFoot();
       return true;
     }
     if (el.dataset.sys === "cs-name") {

@@ -7,6 +7,15 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.55.0] - 2026-11-16
+
+### Geändert
+
+- **Routinen und Sicherungsliste öffnen in einem eigenen Fenster.** Auf der Seite Anlage zeigen Routinen nur eine Zusammenfassung ("3 Routinen · 3 aktiv") und einen Knopf "Routinen anzeigen"; bei den Sicherungen steht "Letzte Sicherung: Datum, Name" und ein Knopf "Sicherungen anzeigen". Liste und Editor einer neuen Routine liegen im Fenster (auf dem Handy als Vollbild). Die Übersicht der Routinen sieht aus wie bisher; eine neue Routine entsteht im Fenster; ohne Routine lädt eine Karte mit zentriertem Knopf zum Hinzufügen ein, sonst steht der Knopf in der Fusszeile. Änderungen an den Routinen bleiben ein Entwurf und werden mit "Speichern" der Seite gesichert. Die Knöpfe für Sicherungs-Einstellungen, "Jetzt sichern", "Exportieren" und "Importieren" bleiben auf der Seite. Der Rollbereich der Sicherungsliste (ab sieben Zeilen) liegt jetzt im Fenster.
+- **Automatische Sicherung wird mit der Seite gespeichert.** Schalter, Anzahl und Abstand gehören zum Entwurf der Seite wie jede andere Einstellung: orange Punkt, "1 Änderung", "Abbrechen" verwirft sie, eine ungültige Anzahl sperrt "Speichern". Vorher speicherte das Ändern der Anzahl sofort.
+- **Gleiche Knöpfe bei Regeln und Routinen.** Die Regelkarten der Überwachung und die Zeilen der Routinen tragen die runden 44-px-Knöpfe (bearbeiten, kopieren, löschen) in derselben Reihenfolge wie die Aktionen.
+- **Schlüsselzeilen einer Überwachungsregel grösser und fett.** "Löst aus" und "Wieder in Ordnung" fallen in der Karte auf.
+
 ## [1.54.0] - 2026-11-16
 
 ### Hinzugefügt
@@ -1704,6 +1713,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0
 [1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0
 [1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0
 [1.52.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.52.0
