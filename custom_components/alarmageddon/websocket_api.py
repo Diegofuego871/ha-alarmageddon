@@ -33,7 +33,7 @@ from .systems import async_create_system, new_system_name
 from .const import (
     BATTERY_THRESHOLD_RANGE,
     AUTO_BACKUP_DAYS,
-    AUTO_BACKUP_KEEP,
+    AUTO_BACKUP_KEEP_MAX,
     MAX_BACKUPS,
     OFFLINE_MINUTES_RANGE,
     CODE_PATTERN,
@@ -778,13 +778,13 @@ async def ws_test_end_notify(hass: HomeAssistant, connection, msg: dict[str, Any
     connection.send_result(msg["id"], {"ok": True})
 
 
-@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS))})
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS)), vol.Optional("keep"): vol.All(int, vol.Range(min=1, max=AUTO_BACKUP_KEEP_MAX))})
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_save_auto_backup(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """Automatische Sicherung: Schalter und Abstand (täglich, wöchentlich, monatlich); gilt für alle Anlagen."""
     settings = await async_get_settings(hass)
-    await settings.async_set_auto_backup(msg["enabled"], msg["every"])
+    await settings.async_set_auto_backup(msg["enabled"], msg["every"], msg.get("keep"))
     connection.send_result(msg["id"], {"auto_backup": settings.auto_backup})
 
 
@@ -1194,7 +1194,7 @@ async def ws_import(hass: HomeAssistant, connection, msg: dict[str, Any]) -> Non
 @websocket_api.async_response
 async def ws_backups(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """Die in der Integration abgelegten Sicherungen (ohne Inhalt), neueste zuerst."""
-    connection.send_result(msg["id"], {"backups": await backup.async_list_backups(hass), "max": MAX_BACKUPS, "max_auto": AUTO_BACKUP_KEEP})
+    connection.send_result(msg["id"], {"backups": await backup.async_list_backups(hass), "max": MAX_BACKUPS, "max_auto": (await async_get_settings(hass)).auto_backup["keep"]})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/backup_create", vol.Optional("name", default=""): vol.All(str, vol.Length(max=60))})
@@ -1205,7 +1205,7 @@ async def ws_backup_create(hass: HomeAssistant, connection, msg: dict[str, Any])
     entries = backup.loaded_entries(hass)
     version = entries[0].runtime_data.version if entries else None
     created = await backup.async_create_backup(hass, version, msg["name"])
-    connection.send_result(msg["id"], {"created": created, "backups": await backup.async_list_backups(hass), "max": MAX_BACKUPS, "max_auto": AUTO_BACKUP_KEEP})
+    connection.send_result(msg["id"], {"created": created, "backups": await backup.async_list_backups(hass), "max": MAX_BACKUPS, "max_auto": (await async_get_settings(hass)).auto_backup["keep"]})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/backup_get", vol.Required("backup_id"): str})
@@ -1227,7 +1227,7 @@ async def ws_backup_delete(hass: HomeAssistant, connection, msg: dict[str, Any])
     if not await backup.async_delete_backup(hass, msg["backup_id"]):
         connection.send_error(msg["id"], "not_found", "Unknown backup")
         return
-    connection.send_result(msg["id"], {"backups": await backup.async_list_backups(hass), "max": MAX_BACKUPS, "max_auto": AUTO_BACKUP_KEEP})
+    connection.send_result(msg["id"], {"backups": await backup.async_list_backups(hass), "max": MAX_BACKUPS, "max_auto": (await async_get_settings(hass)).auto_backup["keep"]})
 
 
 @websocket_api.websocket_command(

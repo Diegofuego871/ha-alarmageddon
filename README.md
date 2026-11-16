@@ -117,7 +117,7 @@ If the card does not appear in the card picker: restart Home Assistant after the
 - **Codes per person:** everyone gets their own code; the log shows who armed and disarmed.
 - **Modes:** "Home", "Away" and "Night", each switchable on and off, each with its own zone, delays and actions.
 - **Two-sensor confirmation:** a motion sensor can require a second sensor before it triggers, against false alarms.
-- **Backup:** all settings as a file or stored in the integration, never with codes. An automatic backup (daily, weekly or monthly; on and weekly by default) keeps the last 5, in addition to your own 10.
+- **Backup:** all settings as a file or stored in the integration, never with codes. An automatic backup (daily, weekly or monthly; on and weekly by default) keeps the last 5 (you choose 1 to 50), in addition to your own 10.
 - **Several alarm systems:** house and garage, each as its own device.
 - **Back to the overview:** the panel remembers where you were for 30 minutes; after that it starts on the overview again.
 
@@ -250,7 +250,7 @@ Details for those who want to know exactly. Click to open.
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/routines-en.png" alt="The chapter Routines in Configuration › Alarm system, with routines by time and by device" width="100%"></p>
 
 - **Disarming by routine** bypasses the code: whoever can operate the trigger can disarm. It therefore carries the tag "Bypasses the code" and needs the confirmation "I understand this" in the routine. During an entry delay or an alarm a routine only disarms if you choose these states explicitly. Schedules from earlier versions became routines when updating (states: exit delay, armed, disarmed); old backups are converted on restoring.
-- **Backup:** up to 10 backups of your own in the integration, plus the last 5 automatic ones (switch and interval under Configuration › Alarm system › Backup; checked every night at 03:17 and after a start; no identical copy is stored), plus export and import as a file. When restoring you choose for each alarm system of the backup what it is applied to: an existing alarm system (whatever its name), a new one, or none; the shared settings can be left out. Codes are never included; the backup of Home Assistant itself contains everything.
+- **Backup:** up to 10 backups of your own in the integration, plus the last automatic ones (5 by default, you choose 1 to 50; switch, number and interval under Configuration › Alarm system › Backup; checked every night at 03:17 and after a start; no identical copy is stored), plus export and import as a file. When restoring you choose for each alarm system of the backup what it is applied to: an existing alarm system (whatever its name), a new one, or none; the shared settings can be left out. Codes are never included; the backup of Home Assistant itself contains everything.
 - **HomeKit, exit delay:** Apple Home shows "Off" with the target "Away" during the exit delay. Use no exit delay for "Home" and "Night" (default).
 - **HomeKit, entry delay:** Apple Home keeps showing "armed" and switches to "Alarm" when the alarm starts.
 

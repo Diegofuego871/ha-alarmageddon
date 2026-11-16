@@ -17,6 +17,13 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Schalter links, Text rechts davon`, await s.ev("const b=r.querySelector('[data-sys=\"ab-on\"]'); const x=b.closest('.ag-setrow').querySelector('.ag-settx'); return b.getBoundingClientRect().right <= x.getBoundingClientRect().left"));
     await (await s.el('[data-sys="ab-every"]')).selectOption("monthly");
     check(`${tag}: Abstand monatlich gespeichert (sofort, kein Entwurf der Seite)`, await s.waitFor("return window.parent.__autoBackup?.every === 'monthly' || true") && (await s.sim("return window.__autoBackup")).every === "monthly" && (await s.ev("return r.host.systemUi.dirtyCount() === 0")));
+    check(`${tag}: Feld "Sicherungen behalten": Standard 5, links vom Abstand, 1 bis 50`, await s.ev("const k=r.querySelector('[data-sys=\"ab-keep\"]'); const e=r.querySelector('[data-sys=\"ab-every\"]'); return k.value === '5' && k.min === '1' && k.max === '50' && k.getBoundingClientRect().right <= e.getBoundingClientRect().left + 1"));
+    await (await s.el('[data-sys="ab-keep"]')).fill("12");
+    check(`${tag}: 12 wird nach kurzer Pause gespeichert, der Hinweis nennt 12, das Feld behält den Fokus`, await s.waitFor("return window.parent.__autoBackup?.keep === 12 || true") && await s.waitFor("return /12/.test(r.querySelector('.ag-bkauto .ag-settx small').textContent) && r.activeElement?.dataset.sys === 'ab-keep'") && (await s.sim("return window.__autoBackup")).keep === 12);
+    await (await s.el('[data-sys="ab-keep"]')).fill("51");
+    await s.page.waitForTimeout(900);
+    check(`${tag}: 51 ist ungültig (rot, nicht gespeichert)`, await s.ev("return r.querySelector('[data-sys=\"ab-keep\"]').closest('.ag-num').classList.contains('bad')") && (await s.sim("return window.__autoBackup")).keep === 12);
+    await (await s.el('[data-sys="ab-keep"]')).fill("5");
     await s.tap('[data-sys="ab-on"]');
     check(`${tag}: ausgeschaltet: Abstand gesperrt, gespeichert`, await s.waitFor("return r.querySelector('[data-sys=\"ab-on\"]').getAttribute('aria-checked') === 'false' && r.querySelector('[data-sys=\"ab-every\"]').disabled") && (await s.sim("return window.__autoBackup")).enabled === false);
     await s.tap('[data-sys="ab-on"]');

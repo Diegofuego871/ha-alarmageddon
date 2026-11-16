@@ -365,7 +365,7 @@
         summary: { current: values[n], mean: -66, min: Math.min(...values), max: Math.max(...values), ...(battery ? { per_day: -0.36, days_left: 140, last_change: points[8][0] } : {}) } };
     }
     if (msg.type === "alarmageddon/save_auto_backup") {
-      window.__autoBackup = { enabled: msg.enabled, every: msg.every };
+      window.__autoBackup = { enabled: msg.enabled, every: msg.every, keep: msg.keep ?? window.__autoBackup?.keep ?? 5 };
       return { auto_backup: window.__autoBackup };
     }
     if (msg.type === "alarmageddon/monitor_entities") {

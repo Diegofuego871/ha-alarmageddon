@@ -18,6 +18,7 @@ from homeassistant.helpers.storage import Store
 from .const import (
     AUTO_BACKUP_DAYS,
     AUTO_BACKUP_DEFAULT,
+    AUTO_BACKUP_KEEP_MAX,
     DATA_SETTINGS,
     DATA_SETTINGS_LOCK,
     BATTERY_THRESHOLD_RANGE,
@@ -137,7 +138,10 @@ def valid_notify(value: Any) -> dict[str, Any]:
 def valid_auto_backup(value: Any) -> dict[str, Any]:
     """Aus der Ablage gelesen oder vom Panel gesendet: unbekannte Werte fallen auf die Vorgabe (an, wöchentlich) zurück."""
     raw = value if isinstance(value, dict) else {}
-    return {"enabled": raw.get("enabled") is not False, "every": raw.get("every") if raw.get("every") in AUTO_BACKUP_DAYS else AUTO_BACKUP_DEFAULT["every"]}
+    keep = raw.get("keep")
+    if isinstance(keep, bool) or not isinstance(keep, int) or not 1 <= keep <= AUTO_BACKUP_KEEP_MAX:
+        keep = AUTO_BACKUP_DEFAULT["keep"]
+    return {"enabled": raw.get("enabled") is not False, "every": raw.get("every") if raw.get("every") in AUTO_BACKUP_DAYS else AUTO_BACKUP_DEFAULT["every"], "keep": keep}
 
 
 class Settings:
@@ -222,8 +226,8 @@ class Settings:
     def auto_backup(self) -> dict[str, Any]:
         return self.data["auto_backup"]
 
-    async def async_set_auto_backup(self, enabled: bool, every: str) -> None:
-        self.data["auto_backup"] = valid_auto_backup({"enabled": enabled, "every": every})
+    async def async_set_auto_backup(self, enabled: bool, every: str, keep: int | None = None) -> None:
+        self.data["auto_backup"] = valid_auto_backup({"enabled": enabled, "every": every, "keep": self.auto_backup["keep"] if keep is None else keep})
         await self._async_write()
 
     @property

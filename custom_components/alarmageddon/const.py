@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 189  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 190  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -269,7 +269,8 @@ MAX_BACKUPS: Final = 10  # Sicherungen in der Integration; die älteste fällt w
 # Automatische Sicherungen (1.47.0): zusätzlich zu den eigenen; es bleiben die letzten AUTO_BACKUP_KEEP
 AUTO_BACKUP_KEEP: Final = 5
 AUTO_BACKUP_DAYS: Final = {"daily": 1, "weekly": 7, "monthly": 30}
-AUTO_BACKUP_DEFAULT: Final = {"enabled": True, "every": "weekly"}
+AUTO_BACKUP_DEFAULT: Final = {"enabled": True, "every": "weekly", "keep": AUTO_BACKUP_KEEP}
+AUTO_BACKUP_KEEP_MAX: Final = 50  # so viele automatische Sicherungen darf der Nutzer höchstens behalten (Standard AUTO_BACKUP_KEEP)
 AUTO_BACKUP_START_DELAY: Final = 300  # Sekunden nach dem Start: verpasste Sicherungen nachholen
 DATA_AUTO_BACKUP: Final = f"{DOMAIN}_auto_backup"
 # Rückgängig nach einer Zeit (1.37.0): der Gegendienst zu einem Dienst eines Schritts "Gerät schalten". Nur wo es einen eindeutigen gibt

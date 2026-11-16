@@ -256,10 +256,11 @@ export class SystemUi {
 
   _backupHtml() {
     if (this.backups === null && !this._bkLoading) this.loadBackups();
-    const auto = this.host._data?.auto_backup || { enabled: true, every: "weekly" };
+    const auto = this.host._data?.auto_backup || { enabled: true, every: "weekly", keep: 5 };
     const every = ["daily", "weekly", "monthly"].map((k) => `<option value="${k}" ${auto.every === k ? "selected" : ""}>${esc(this._t(`bkEvery_${k}`))}</option>`).join("");
     const autoRow = `<div class="ag-setrow ag-bkauto"><button class="ag-toggle ${auto.enabled ? "on" : ""}" data-sys="ab-on" role="switch" aria-checked="${auto.enabled}" aria-label="${esc(this._t("bkAuto"))}"></button>
       <span class="ag-oav ${auto.enabled ? "on" : ""}">${ic("restore", 20)}</span><div class="ag-settx"><b>${esc(this._t("bkAuto"))}</b><small>${esc(this._t("bkAutoHint", { max: this.bkMaxAuto }))}</small></div>
+      <span class="ag-num ag-abkeep" title="${esc(this._t("bkAutoKeep"))}"><input type="number" min="1" max="50" step="1" inputmode="numeric" data-sys="ab-keep" value="${esc(auto.keep ?? 5)}" aria-label="${esc(this._t("bkAutoKeep"))}" ${auto.enabled ? "" : "disabled"}><span class="ag-t2">${esc(this._t("bkAutoKeepUnit"))}</span></span>
       <select class="ag-input" data-sys="ab-every" aria-label="${esc(this._t("bkAutoEvery"))}" ${auto.enabled ? "" : "disabled"}>${every}</select></div>`;
     return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes">${autoRow}<div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("bkHint"))}</small></div>
       <div class="ag-btnrow"><button class="ag-btn primary" data-sys="bk-create">${ic("check", 18)}${esc(this._t("bkSave"))}</button>
@@ -654,8 +655,8 @@ export class SystemUi {
     if (!act) return false;
     // Automatische Sicherung: Schalter und Abstand gelten sofort (wie die Sicherung selbst), nicht als Entwurf der Seite
     if (act === "ab-on") {
-      const cur = this.host._data?.auto_backup || { enabled: true, every: "weekly" };
-      this.saveAutoBackup(!cur.enabled, cur.every);
+      const cur = this.host._data?.auto_backup || { enabled: true, every: "weekly", keep: 5 };
+      this.saveAutoBackup(!cur.enabled, cur.every, cur.keep);
       return true;
     }
     if (act === "delete") {
@@ -773,11 +774,19 @@ export class SystemUi {
     return true;
   }
 
-  async saveAutoBackup(enabled, every) {
+  async saveAutoBackup(enabled, every, keep, quiet = false) {
     const h = this.host;
     try {
-      const res = await h._hass.callWS({ type: "alarmageddon/save_auto_backup", enabled, every });
+      const res = await h._hass.callWS({ type: "alarmageddon/save_auto_backup", enabled, every, ...(keep ? { keep } : {}) });
       if (h._data) h._data.auto_backup = res.auto_backup;
+      this.bkMaxAuto = res.auto_backup.keep;
+      if (quiet) {
+        // Beim Tippen nicht neu zeichnen (das Feld behielte den Fokus nicht): nur der Hinweis zieht nach
+        const small = h._view?.querySelector(".ag-bkauto .ag-settx small");
+        if (small) small.textContent = this._t("bkAutoHint", { max: this.bkMaxAuto });
+        h._lastHtml.delete(h._view?.querySelector(".ag-bkauto")?.closest(".ag-chap"));
+        return;
+      }
       h._toast(this._t("bkAutoSaved"));
     } catch (err) {
       h._toast(this._t("saveFailed", { message: errText(err) }));
@@ -786,8 +795,17 @@ export class SystemUi {
   }
 
   onInput(el) {
+    if (el.dataset.sys === "ab-keep") {
+      // Gespeichert wird erst kurz nach dem letzten Tippen und nur mit einer gültigen Zahl von 1 bis 50
+      const n = el.value.trim() === "" ? NaN : Number(el.value);
+      const ok = Number.isInteger(n) && n >= 1 && n <= 50;
+      el.closest(".ag-num").classList.toggle("bad", !ok);
+      clearTimeout(this._keepTimer);
+      if (ok) this._keepTimer = setTimeout(() => this.saveAutoBackup(this.host._data?.auto_backup?.enabled !== false, this.host._data?.auto_backup?.every || "weekly", n, true), 600);
+      return true;
+    }
     if (el.dataset.sys === "ab-every") {
-      this.saveAutoBackup(this.host._data?.auto_backup?.enabled !== false, el.value);
+      this.saveAutoBackup(this.host._data?.auto_backup?.enabled !== false, el.value, this.host._data?.auto_backup?.keep);
       return true;
     }
     if (el.dataset.sys === "cs-name") {

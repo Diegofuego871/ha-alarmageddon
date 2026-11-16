@@ -31,7 +31,7 @@ from homeassistant.helpers.event import async_call_later, async_track_time_chang
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_KEEP, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
+from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
 from .custom_sounds import valid_backup_sounds
 from .monitor import check_monitors
 from .routines import check_routines, migrate_options
@@ -254,9 +254,9 @@ async def async_create_backup(hass: HomeAssistant, integration_version: str | No
         return None  # nichts hat sich geändert: keine zweite gleiche Sicherung (die fünf sollen verschiedene Stände zeigen)
     item = {"id": uuid.uuid4().hex[:12], "name": name, "created": data["created"], "auto": auto, "data": stored}
     items = [item, *items]
-    # Eigene und automatische Sicherungen zählen getrennt: zehn eigene und dazu die letzten fünf automatischen
+    # Eigene und automatische Sicherungen zählen getrennt: zehn eigene und dazu die letzten automatischen (Standard fünf, höchstens 50, die Wahl des Nutzers)
     manual = [b for b in items if not b.get("auto")][:MAX_BACKUPS]
-    automatic = [b for b in items if b.get("auto")][:AUTO_BACKUP_KEEP]
+    automatic = [b for b in items if b.get("auto")][:(await async_get_settings(hass)).auto_backup["keep"]]
     keep = {id(b) for b in (*manual, *automatic)}
     items = [b for b in items if id(b) in keep]
     await _save_store(hass, items, blobs)

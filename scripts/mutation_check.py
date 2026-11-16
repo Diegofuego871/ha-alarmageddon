@@ -561,6 +561,10 @@ MUTATIONS = [
      '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_monitors", vol.Required("entry_id"): str, vol.Required("monitors"): MONITORS})\n@websocket_api.require_admin\n', '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_monitors", vol.Required("entry_id"): str, vol.Required("monitors"): MONITORS})\n', 'tests/test_security.py -k admin_only'),
     ('Überwachung: Liste der Geräte ohne Administratorrechte', 'websocket_api.py',
      '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/monitor_entities"})\n@websocket_api.require_admin\n', '@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/monitor_entities"})\n', 'tests/test_security.py -k admin_only'),
+    ('Automatische Sicherung: die gewählte Anzahl wird ignoriert (immer fünf)', 'backup.py',
+     '[:(await async_get_settings(hass)).auto_backup["keep"]]', '[:5]', 'tests/test_auto_backup.py -k keep_count_is'),
+    ('Automatische Sicherung: Anzahl ausserhalb von 1 bis 50 wird angenommen', 'settings.py',
+     'not 1 <= keep <= AUTO_BACKUP_KEEP_MAX', 'False', "tests/test_auto_backup.py -k 'keep_count_rejects or stored_keep'"),
 ]
 
 

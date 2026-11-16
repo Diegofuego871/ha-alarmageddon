@@ -117,7 +117,7 @@ Erscheint die Karte nicht im Auswahldialog: Home Assistant nach dem Update neu s
 - **Codes pro Person:** jede Person bekommt ihren eigenen Code; das Protokoll zeigt, wer scharf geschaltet und deaktiviert hat.
 - **Modi:** "Anwesend", "Abwesend" und "Nacht", jeder ein- und ausschaltbar, jeder mit eigener Zone, eigenen Verzögerungen und Aktionen.
 - **Bestätigung durch zwei Sensoren:** ein Bewegungsmelder kann einen zweiten Sensor verlangen, bevor er auslöst, gegen Fehlalarme.
-- **Sicherung:** alle Einstellungen als Datei oder in der Integration abgelegt, nie mit Codes. Eine automatische Sicherung (täglich, wöchentlich oder monatlich; standardmässig an und wöchentlich) behält die letzten 5, zusätzlich zu deinen 10 eigenen.
+- **Sicherung:** alle Einstellungen als Datei oder in der Integration abgelegt, nie mit Codes. Eine automatische Sicherung (täglich, wöchentlich oder monatlich; standardmässig an und wöchentlich) behält die letzten 5 (1 bis 50 wählbar), zusätzlich zu deinen 10 eigenen.
 - **Mehrere Anlagen:** Haus und Garage, jede als eigenes Gerät.
 - **Zurück zur Übersicht:** das Panel merkt sich 30 Minuten lang, wo du warst; danach startet es wieder auf der Übersicht.
 
@@ -250,7 +250,7 @@ Details für alle, die es genau wissen wollen. Zum Öffnen anklicken.
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/routines-de.png" alt="Das Kapitel Routinen unter Konfiguration › Anlage, mit Routinen nach Zeit und nach Gerät" width="100%"></p>
 
 - **Deaktivieren per Routine** umgeht den Code: Wer den Auslöser bedienen kann, kann deaktivieren. Darum trägt es die Marke "Umgeht den Code" und braucht in der Routine die Bestätigung "Ich habe das verstanden". Bei Eingangsverzögerung oder Alarm deaktiviert eine Routine nur, wenn du diese Zustände ausdrücklich wählst. Zeitpläne früherer Versionen sind beim Update zu Routinen geworden (Zustände: Ausgangsverzögerung, scharf, deaktiviert); alte Sicherungen werden beim Wiederherstellen umgewandelt.
-- **Sicherung:** bis zu 10 eigene Sicherungen in der Integration, dazu die letzten 5 automatischen (Schalter und Abstand unter Konfiguration › Anlage › Sicherung; geprüft jede Nacht um 03:17 und nach einem Start; eine gleiche Kopie wird nicht abgelegt), dazu Export und Import als Datei. Beim Wiederherstellen wählst du für jede Anlage der Sicherung, worauf sie angewendet wird: eine bestehende Anlage (gleich wie sie heisst), eine neue oder keine; die gemeinsamen Einstellungen lassen sich weglassen. Codes sind nie enthalten; die Sicherung von Home Assistant selbst enthält alles.
+- **Sicherung:** bis zu 10 eigene Sicherungen in der Integration, dazu die letzten automatischen (standardmässig 5, 1 bis 50 wählbar; Schalter, Anzahl und Abstand unter Konfiguration › Anlage › Sicherung; geprüft jede Nacht um 03:17 und nach einem Start; eine gleiche Kopie wird nicht abgelegt), dazu Export und Import als Datei. Beim Wiederherstellen wählst du für jede Anlage der Sicherung, worauf sie angewendet wird: eine bestehende Anlage (gleich wie sie heisst), eine neue oder keine; die gemeinsamen Einstellungen lassen sich weglassen. Codes sind nie enthalten; die Sicherung von Home Assistant selbst enthält alles.
 - **HomeKit, Ausgangsverzögerung:** Apple Home zeigt während der Ausgangsverzögerung "Aus" mit dem Ziel "Abwesend". Für "Anwesend" und "Nacht" keine Ausgangsverzögerung verwenden (Standard).
 - **HomeKit, Eingangsverzögerung:** Apple Home zeigt weiter "scharf" und wechselt auf "Alarm", wenn der Alarm beginnt.
 

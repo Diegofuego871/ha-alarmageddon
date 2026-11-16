@@ -41,7 +41,7 @@ async def _change(hass: HomeAssistant, entry, n: int) -> None:
 
 async def test_defaults_are_on_and_weekly(hass: HomeAssistant) -> None:
     settings = await async_get_settings(hass)
-    assert settings.auto_backup == {"enabled": True, "every": "weekly"} == AUTO_BACKUP_DEFAULT
+    assert settings.auto_backup == {"enabled": True, "every": "weekly", "keep": 5} == AUTO_BACKUP_DEFAULT
 
 
 async def test_first_automatic_backup_after_start(hass: HomeAssistant, freezer) -> None:
@@ -99,6 +99,49 @@ async def test_only_five_automatic_and_ten_manual_are_kept(hass: HomeAssistant, 
     assert sum(1 for i in items if i["auto"]) == AUTO_BACKUP_KEEP and sum(1 for i in items if not i["auto"]) == MAX_BACKUPS
 
 
+@pytest.mark.parametrize("keep", [1, 12, 50])
+async def test_keep_count_is_the_users_choice(hass: HomeAssistant, hass_ws_client, freezer, keep: int) -> None:
+    """Wie viele automatische Sicherungen bleiben, wählt der Nutzer (1 bis 50, Standard 5); die eigenen zählen getrennt."""
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": "alarmageddon/save_auto_backup", "enabled": True, "every": "weekly", "keep": keep})
+    reply = await client.receive_json()
+    assert reply["success"] and reply["result"]["auto_backup"]["keep"] == keep
+    for n in range(keep + 3):
+        await _change(hass, entry, n)
+        freezer.tick(timedelta(minutes=1))
+        assert await backup.async_create_backup(hass, "1", "", auto=True) is not None
+    assert sum(1 for i in await _list(hass) if i["auto"]) == keep
+
+
+@pytest.mark.parametrize("bad", [0, 51, -1, "x", 2.5])
+async def test_keep_count_rejects_values_outside_one_to_fifty(hass: HomeAssistant, hass_ws_client, bad) -> None:
+    await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": "alarmageddon/save_auto_backup", "enabled": True, "every": "weekly", "keep": bad})
+    assert (await client.receive_json())["success"] is False
+    assert (await async_get_settings(hass)).auto_backup["keep"] == AUTO_BACKUP_KEEP
+
+
+async def test_keep_count_defaults_and_survives_changing_the_switch(hass: HomeAssistant, hass_ws_client) -> None:
+    await setup_alarm(hass)
+    assert (await async_get_settings(hass)).auto_backup == {**AUTO_BACKUP_DEFAULT, "keep": 5}
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": "alarmageddon/save_auto_backup", "enabled": True, "every": "weekly", "keep": 20})
+    await client.receive_json()
+    await client.send_json({"id": 2, "type": "alarmageddon/save_auto_backup", "enabled": False, "every": "daily"})  # ohne Angabe bleibt der Wert
+    await client.receive_json()
+    assert (await async_get_settings(hass)).auto_backup == {"enabled": False, "every": "daily", "keep": 20}
+
+
+@pytest.mark.parametrize("bad", [0, 51, -3, "x", 2.5, True, None])
+def test_stored_keep_count_outside_one_to_fifty_falls_back_to_the_default(bad) -> None:
+    from custom_components.alarmageddon.settings import valid_auto_backup
+
+    assert valid_auto_backup({"enabled": True, "every": "weekly", "keep": bad})["keep"] == AUTO_BACKUP_KEEP
+    assert valid_auto_backup({"keep": 50})["keep"] == 50 and valid_auto_backup({"keep": 1})["keep"] == 1
+
+
 async def test_automatic_backup_never_raises(hass: HomeAssistant) -> None:
     await setup_alarm(hass)
     with patch("custom_components.alarmageddon.backup.async_export", side_effect=RuntimeError("kaputt")):
@@ -112,9 +155,9 @@ async def test_save_auto_backup_command(hass: HomeAssistant, hass_ws_client) -> 
     bad = await _ws(client, type="alarmageddon/save_auto_backup", enabled=True, every="hourly")
     assert bad["success"] is False
     ok = await _ws(client, type="alarmageddon/save_auto_backup", enabled=False, every="monthly")
-    assert ok["success"] and ok["result"]["auto_backup"] == {"enabled": False, "every": "monthly"}
+    assert ok["success"] and ok["result"]["auto_backup"] == {"enabled": False, "every": "monthly", "keep": 5}
     data = (await _ws(client, type="alarmageddon/data"))["result"]
-    assert data["auto_backup"] == {"enabled": False, "every": "monthly"}
+    assert data["auto_backup"] == {"enabled": False, "every": "monthly", "keep": 5}
     listing = (await _ws(client, type="alarmageddon/backups"))["result"]
     assert listing["max_auto"] == AUTO_BACKUP_KEEP and listing["max"] == MAX_BACKUPS
 

@@ -70,7 +70,7 @@ Wunsch des Nutzers: Temperatur, Luftfeuchtigkeit, CO2 (Kühlschrank) und Ja/Nein
 - Tests: `tests/test_monitor.py` (64), `tests/panel/suites/monitor-e2e.mjs` (316 Prüfungen), 20 Zeilen in `scripts/mutation_check.py`; Sim: `?monitor=1` schaltet Überwachung, Messwert-Sensoren und zwei Regeln ein.
 - **Offen:** Schritte im Reiter lassen sich nicht ziehen; Eintrag im Ereignisprotokoll (`monitor_out`/`monitor_ok`) ist da, aber nicht im Protokoll-Filter; kein Test-Knopf je Schritt; "Stiller Alarm" bleibt vorerst; das Aussehen im echten HA ist nicht geprüft.
 
-## Automatische Sicherung (1.47.0)
+## Automatische Sicherung (1.47.0; seit 1.49.0 wählbare Anzahl `auto_backup.keep`, 1 bis 50, Standard 5, `AUTO_BACKUP_KEEP_MAX`)
 
 Einstellung `auto_backup` (an, wöchentlich) in `settings.py` (global, nicht Teil der Sicherung); `backup.async_run_auto_backup` (fällig, wenn die letzte automatische älter ist als der Abstand minus 1 h), geplant von `async_start_auto_backup` (täglich 03:17 und 5 Minuten nach dem Start; Start/Stopp wie die Wartung in `__init__.py`). Sicherungen tragen `auto: true`; eigene (10) und automatische (5, `AUTO_BACKUP_KEEP`) zählen getrennt; gleiche Inhalte werden übersprungen (`_same`). WS `save_auto_backup`; Panel `system.js` (Zeile in Kapitel Sicherung, sofort gespeichert). Tests `tests/test_auto_backup.py`, Suite `autobackup-e2e.mjs`, 7 Zeilen in der Mutationsprobe.
 

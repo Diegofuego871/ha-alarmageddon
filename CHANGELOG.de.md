@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.49.0] - 2026-11-16
+
+### Hinzugefügt
+
+- **Wählbar, wie viele automatische Sicherungen bleiben.** Ein Feld neben "Wöchentlich" unter Konfiguration › Anlage › Sicherung: 1 bis 50, Standard 5. Deine eigenen Sicherungen (bis 10) zählen getrennt.
+
 ## [1.48.1] - 2026-11-16
 
 ### Hinzugefügt
@@ -1623,6 +1629,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.49.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.49.0
 [1.48.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.1
 [1.48.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.0
 [1.46.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.1
