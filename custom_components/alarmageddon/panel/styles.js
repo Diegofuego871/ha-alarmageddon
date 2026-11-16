@@ -650,6 +650,8 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 :host([narrow]) .ag-schrow > .ag-schwarn { order: 4; }
 /* Routinen (1.44.0): Liste, Editor mit Bedingungsbaum, Geräteauswahl */
 .ag-rtrow.dim > :not(.ag-toggle):not(.ag-btnrow) { opacity: .55; }
+/* Schalter, Symbol und Text nahe beieinander (Grundregel: Schalter links, Text nahe rechts davon), wie die Modus-Zeilen */
+.ag-rt > .ag-setrow:not(:last-child), .ag-rt-ed .ag-setlist > .ag-setrow { gap: 12px; }
 .ag-rttags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .ag-rttags .ag-tag { height: auto; min-height: 22px; padding-top: 3px; padding-bottom: 3px; white-space: normal; }
 :host([narrow]) .ag-rtrow { flex-wrap: wrap; }

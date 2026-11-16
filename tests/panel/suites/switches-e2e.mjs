@@ -84,6 +84,11 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sub="system"]');
     await s.waitFor("return !!r.querySelector('[data-sys=\"permode\"]')");
     await audit("Anlage");
+    // Routinen (1.44.0): Editor einer Deaktivieren-Routine mit den fünf Zuständen und dem Sicherheitskasten
+    await s.tap('[data-sys="rt-edit"][data-index="2"]');
+    await s.waitFor("return r.getElementById('ag-step').open && !!r.querySelector('.ag-rtsafety')");
+    await audit("Routine bearbeiten", 6);
+    await closeDialogs();
     await s.ctx.close();
 
     // ----- Übersicht: Fenster "Ansicht" und "Umbenennen" -----
