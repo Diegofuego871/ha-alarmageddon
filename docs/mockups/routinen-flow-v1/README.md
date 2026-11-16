@@ -2,7 +2,7 @@
 
 Wunsch des Nutzers: Am Schluss des Editors einer Routine zeigt eine Grafik den Ablauf als Vorschau. Die Bilder zeigen den echten Editor (HA-Nachbau,
 hell, Computer und Handy 390 px) ab dem Kapitel "Dann"; das neue Kapitel **Vorschau** ist Entwurf. Beispiel: "Heimkommen" (Schloss aufgeschlossen oder
-Marco zu Hause und 22:00–06:00, gilt bei Ausgangsverzögerung und scharf, deaktiviert). Quelle: `src/mock.mjs`. **Noch nicht entschieden, nicht umgesetzt.**
+Marco zu Hause und 22:00–06:00, gilt bei Ausgangsverzögerung und scharf, deaktiviert). Quelle: `src/mock.mjs`. **Entschieden: Variante A (Empfehlung), umgesetzt in 1.44.0 (`routines.js flowHtml`, immer offen).**
 
 | Variante | Idee | Stärke | Schwäche |
 | --- | --- | --- | --- |

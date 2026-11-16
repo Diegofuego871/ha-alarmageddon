@@ -397,6 +397,44 @@ export class RoutinesUi {
         <div class="ag-settx"><b>${esc(this._t("rtUnderstood"))}</b></div></div></div>`);
   }
 
+  // ----- Vorschau des Ablaufs (Grafik am Ende des Editors, reine Anzeige, folgt dem Entwurf) -----
+
+  _flowLeaf(l) {
+    const icon = l.kind === "time" ? "clock" : DEVICE_ICON[(l.entity_id || "").split(".")[0]] || "sensor";
+    return `<span class="ag-fl-leaf">${ic(icon, 16)}<span>${esc(l.kind === "time" || l.entity_id ? this.leafText(l) : this._t("rtChooseDevice"))}</span></span>`;
+  }
+
+  _flowTree(tree) {
+    if (!tree.items.length) return `<div class="ag-fl-s">${esc(this._t("rtTreeEmpty"))}</div>`;
+    const word = (op) => `<span class="ag-fl-or">${esc(this._t(op === "or" ? "rtOr" : "rtAnd").toUpperCase())}</span>`;
+    const parts = tree.items.map((item) => (item.items
+      ? `<div class="ag-fl-grp">${item.items.length ? item.items.map((l) => this._flowLeaf(l)).join(word(item.op)) : `<span class="ag-fl-s">${esc(this._t("rtEmptyGroup"))}</span>`}</div>`
+      : this._flowLeaf(item)));
+    return `<div class="ag-fl-tree">${parts.join(word(tree.op))}</div>`;
+  }
+
+  flowHtml() {
+    const f = this.form;
+    const arm = f.action !== "off";
+    const trigger = f.trigger.type === "schedule"
+      ? `<div class="ag-fl-t">${esc(this._t("rtFlowWhenTime"))}</div><div class="ag-fl-tree">${f._times.map((t) => `<span class="ag-fl-leaf">${ic("clock", 16)}<span>${esc(this._t("rtAtTime", { days: this.daysText(t.days), time: t.time || "–" }))}</span></span>`).join("")}</div>`
+      : `<div class="ag-fl-t">${esc(this._t("rtFlowWhenDevice"))}</div>${this._flowTree(f._device.tree)}`
+        + `<div class="ag-fl-s">${esc(this._hasEvent() ? this._t("rtFlowEventNote") : this._t("rtFlowEdgeNote"))}${!this._hasEvent() && Number(f._device.hold) > 0 ? ` ${esc(this._t("rtFlowHold", { seconds: f._device.hold }))}` : ""}</div>`;
+    const band = STATES.map(([key, label]) => `<div class="${f.states.includes(key) && !(arm && ALARM_STATES.includes(key)) ? "on" : ""}">${esc(this._t(label))}</div>`).join("");
+    const actionText = f.action === "off" ? this._t("rtThenOff") : this._t("rtThenArm", { mode: this._t(MODE_KEY[f.action]) });
+    return `<div class="ag-fl">
+      <div class="ag-fl-node"><span class="ag-fl-ico">${ic("flash", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">1 · ${esc(this._t("rtTrigger"))}</div>${trigger}</div></div>
+      <div class="ag-fl-con"></div>
+      <div class="ag-fl-node"><span class="ag-fl-ico">${ic("tune", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">2 · ${esc(this._t("rtFlowCheck"))}</div><div class="ag-fl-t">${esc(this._t("rtFlowCheckQ"))}</div><div class="ag-fl-band">${band}</div></div></div>
+      <div class="ag-fl-split">
+        <div><div class="ag-fl-con short"></div><div class="ag-fl-yn y">${esc(this._t("rtFlowYes"))}</div>
+          <div class="ag-fl-node ${arm ? "go" : "act"}"><span class="ag-fl-ico">${ic(arm ? MODE_ICON[f.action] : "shieldOff", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">3 · ${esc(this._t("rtFlowAction"))}</div><div class="ag-fl-t">${esc(actionText)}</div>
+            ${f.action === "off" ? `<span class="ag-tag err">${ic("alert", 13)}${esc(this._t("rtBypass"))}</span>` : ""}</div></div></div>
+        <div><div class="ag-fl-con short grey"></div><div class="ag-fl-yn n">${esc(this._t("rtFlowNo"))}</div>
+          <div class="ag-fl-node stop"><span class="ag-fl-ico">${ic("groups", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtFlowInstead"))}</div><div class="ag-fl-t">${esc(this._t("rtFlowSkipped"))}</div><div class="ag-fl-s">${esc(this._t("rtFlowSkippedHint"))}</div></div></div></div>
+      </div></div>`;
+  }
+
   editorHtml() {
     const f = this.form;
     const bad = new Set(this.problems());
@@ -415,6 +453,7 @@ export class RoutinesUi {
       ${chapter(this._t("rtThenTitle"), this._seg("action", actions, f.action))}
       ${this._statesHtml()}
       ${f.action === "off" ? this._safetyHtml() : ""}
+      ${chapter(this._t("rtFlowTitle"), this.flowHtml())}
       <div class="ag-dlg-err ${message ? "show" : ""}" aria-live="polite">${esc(message)}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-cancel">${esc(this._t("cancel"))}</button>
         <button class="ag-btn primary" data-sys="rt-save" ${message ? "disabled" : ""}>${ic("check", 18)}${esc(this._t("save"))}</button></div></div>`;
@@ -614,6 +653,9 @@ export class RoutinesUi {
       err.textContent = fresh.textContent;
       err.classList.toggle("show", fresh.classList.contains("show"));
     }
+    // Die Vorschau folgt dem Tippen (Name der Zeit, Haltezeit)
+    const flow = dlg.querySelector(".ag-fl"), freshFlow = tmp.querySelector(".ag-fl");
+    if (flow && freshFlow) flow.innerHTML = freshFlow.innerHTML;
     const save = dlg.querySelector('[data-sys="rt-save"]');
     if (save) save.disabled = this.problems().length > 0;
     // Rahmen der Felder: ungültig rot

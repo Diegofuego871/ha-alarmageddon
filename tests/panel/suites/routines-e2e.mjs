@@ -76,6 +76,11 @@ for (const lang of ["de", "en"]) {
       && stateInfo.filter((x) => x.off).map((x) => x.v).join() === "pending,triggered", JSON.stringify(stateInfo));
     check(`${tag}: kein Sicherheitskasten beim Scharfschalten`, await s.ev("return !r.querySelector('.ag-rtsafety')"));
     await s.tap('[data-sys="rt-st"][data-value="armed"]');
+    check(`${tag}: Vorschau des Ablaufs: Auslöser, Prüfung mit den zwei gewählten Zuständen, Aktion und "Übersprungen"`, await s.ev("const f=r.querySelector('.ag-fl'); return !!f && f.querySelectorAll('.ag-fl-node').length === 4 && f.querySelectorAll('.ag-fl-band .on').length === 2 && f.querySelector('.ag-fl-node.go') && f.querySelectorAll('.ag-fl-leaf').length >= 3"));
+    await s.tap('[data-sys="rt-st"][data-value="disarmed"]');
+    check(`${tag}: Vorschau folgt dem Entwurf (ein Zustand weniger)`, await s.ev("return r.querySelectorAll('.ag-fl-band .on').length === 1"));
+    await s.tap('[data-sys="rt-st"][data-value="disarmed"]');
+    check(`${tag}: Vorschau reine Anzeige: nichts in ihr ist bedienbar`, await s.ev("return !r.querySelector('.ag-fl button, .ag-fl input, .ag-fl select, .ag-fl [data-sys]')"));
     await s.page.screenshot({ path: `${outDir}routines-editor-${lang}-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });
     check(`${tag}: kein Überlauf im Editor`, await s.ev("const d=r.getElementById('ag-step'); return d.scrollWidth <= d.clientWidth + 1 && document.documentElement.scrollWidth <= window.innerWidth"));
     if (mobile) check(`${tag}: Knöpfe unten im Fenster fest`, await s.ev("const d=r.getElementById('ag-step'); return d.lastElementChild.classList.contains('ag-dlg-btns')"));
@@ -92,6 +97,7 @@ for (const lang of ["de", "en"]) {
     // ----- Bestehende bearbeiten: Deaktivieren verlangt die Bestätigung -----
     await s.tap('[data-sys="rt-edit"][data-index="2"]');
     check(`${tag}: Heimkommen: Oder-Baum mit Gerät und Gruppe, Name steht drin`, await s.waitFor("return r.querySelector('[data-sys=\"rt-name\"]').value === 'Heimkommen' && r.querySelectorAll('.ag-rtleaf').length === 3 && !!r.querySelector('.ag-rtgroup')"));
+    check(`${tag}: Vorschau bei Deaktivieren: rote Aktion mit Marke`, await s.ev("return !!r.querySelector('.ag-fl-node.act .ag-tag.err')"));
     check(`${tag}: Sicherheitskasten da, bestätigt, speicherbar`, await s.ev("return !!r.querySelector('.ag-rtsafety') && r.querySelector('[data-sys=\"rt-unsafe\"]').getAttribute('aria-checked') === 'true' && !r.querySelector('[data-sys=\"rt-save\"]').disabled"));
     await s.tap('[data-sys="rt-unsafe"]');
     check(`${tag}: Bestätigung weg: Speichern gesperrt`, await s.waitFor(`return r.querySelector('[data-sys="rt-save"]').disabled && r.querySelector('.ag-rt-ed .ag-dlg-err').textContent.includes(${JSON.stringify(t.unsafe)})`));
