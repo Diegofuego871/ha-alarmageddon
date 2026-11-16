@@ -7,15 +7,24 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.46.0] - 2026-11-16
+
+### Added
+
+- **Armed in chosen modes only.** Under "Armed" the routine has one switch per mode of the alarm system: it then applies only when the alarm system is armed in one of the chosen modes (for example only "Away"). Otherwise it is skipped and the log says so.
+- **Duplicate a routine.** A button next to the pencil copies a routine (switched off, with a free name "… (copy)"); the copy counts once you save the page.
+
+### Changed
+
+- **The preview of the flow is calmer and uses the colours of the actions.** Three steps on one line with numbered circles; the cards carry the zone colours of the actions with their gradient (arming light red, disarming dark green). The "No" branch is gone: a note says that in every other state the routine is skipped and the log says so.
+- The name of a routine may have up to 45 characters (was 40).
+
 ## [1.45.0] - 2026-11-16
 
 ### Added
 
 - **Buttons as triggers.** A routine by device can now use a button press: every button of a remote or dimmer (for example a Hue dimmer switch; they are the "event" entities of Home Assistant) with each kind of press (short, long, double ...). In the device picker use the filter "Buttons". A press counts only at the moment it happens, never a restored old one (after reloading an integration the old time comes back and never triggers), and it cannot be combined with "must hold for N seconds".
-- **Preview of the flow.** At the end of the routine editor a graphic shows what happens: 1 trigger (with the and/or tree or the times), 2 check (the five alarm states, the chosen ones green), then 3 the action. The cards carry the zone colours of the actions with their gradient (arming light red, disarming dark green; the tag "Bypasses the code" when disarming); a note says that in every other state the routine is skipped and the log says so. It follows the draft while you edit and is display only.
-
-- **Armed in chosen modes only.** Under "Armed" the routine has one switch per mode of the alarm system: it then applies only when the alarm system is armed in one of the chosen modes (for example only "Away"). Otherwise it is skipped and the log says so.
-- **Duplicate a routine.** A button next to the pencil copies a routine (switched off, with a free name "… (copy)"); the copy counts once you save the page.
+- **Preview of the flow.** At the end of the routine editor a graphic shows what happens: 1 trigger (with the and/or tree or the times), 2 check (the five alarm states, the chosen ones green), then YES to the action (red with the tag "Bypasses the code" when disarming) and NO to "Skipped, it is in the log". It follows the draft while you edit and is display only.
 
 ### Removed
 
@@ -1563,6 +1572,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.46.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.0
 [1.45.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.45.0
 [1.44.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.44.0
 [1.43.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.5

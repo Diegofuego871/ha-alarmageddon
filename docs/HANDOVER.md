@@ -59,7 +59,7 @@ Ausführlich, auch als Vorlage für Device Panel: `docs/INFO-DASHBOARD-KARTEN-DE
 - Tests: `tests/test_dashboard_card.py`, `tests/panel/sim/card-sim.html`, `tests/panel/suites/card-e2e.mjs`, 6 Zeilen in der Mutationsprobe.
 - **Offen:** das Aussehen im echten dunklen Dashboard (`dark` kommt seit 1.34.1 aus `hass.themes.darkMode`) und das Aussehen der Karten auf dem Handy in der Companion App sind nicht gegen ein echtes Home Assistant geprüft.
 
-## Routinen (1.44.0, Stand 2026-11-16; ersetzen den Zeitplan). Tag v1.44.0 liegt auf 2f6cb6d; Tasten, Vorschau und der Wegfall des Schalters `routines_disarm` sind 1.45.0
+## Routinen (1.44.0, Stand 2026-11-16; ersetzen den Zeitplan). Tag v1.44.0 liegt auf 2f6cb6d; Tasten, Vorschau und der Wegfall des Schalters `routines_disarm` sind 1.45.0 (Tag auf 1914d64); `armed_modes`, Duplizieren, Vorschau in Zonenfarben und 45 Zeichen sind 1.46.0
 
 Wunsch des Nutzers: Geräte von HA (Smart Lock) schalten die Anlage, mehrere benannte Routinen, Zeitplan und Routinen werden eins.
 Mockups: `docs/mockups/routinen-v1` und `routinen-v2` (mit den Entscheiden des Nutzers vom 2026-11-16: Deaktivieren dabei, Und/Oder mit

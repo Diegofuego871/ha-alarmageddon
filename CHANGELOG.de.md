@@ -7,15 +7,24 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.46.0] - 2026-11-16
+
+### Hinzugefügt
+
+- **Scharf nur in gewählten Modi.** Unter "Anlage scharf" hat die Routine einen Schalter je Modus der Anlage: sie gilt dann nur, wenn die Anlage in einem der gewählten Modi scharf ist (zum Beispiel nur "Abwesend"). Sonst wird sie übersprungen und das steht im Protokoll.
+- **Routine duplizieren.** Ein Knopf neben dem Stift kopiert eine Routine (ausgeschaltet, mit freiem Namen "… (Kopie)"); die Kopie gilt, sobald du die Seite speicherst.
+
+### Geändert
+
+- **Die Vorschau des Ablaufs ist ruhiger und nutzt die Farben der Aktionen.** Drei Schritte an einer Linie mit nummerierten Kreisen; die Karten tragen die Zonenfarben der Aktionen mit ihrem Verlauf (Scharfschalten hellrot, Deaktivieren dunkelgrün). Der "Nein"-Zweig entfällt: Ein Hinweis sagt, dass die Routine in jedem anderen Zustand übersprungen wird und das im Protokoll steht.
+- Der Name einer Routine darf bis zu 45 Zeichen haben (bisher 40).
+
 ## [1.45.0] - 2026-11-16
 
 ### Hinzugefügt
 
 - **Tasten als Auslöser.** Eine Routine nach Gerät kann jetzt einen Tastendruck nutzen: jede Taste eines Fernbedieners oder Dimmers (zum Beispiel eines Hue-Tasters; es sind die "event"-Entitäten von Home Assistant) mit jeder Art des Drückens (kurz, lang, doppelt ...). In der Geräteauswahl hilft der Filter "Tasten". Ein Druck zählt nur im Augenblick, in dem er geschieht, nie ein wiederhergestellter alter (nach dem Neuladen einer Integration kommt der alte Zeitpunkt zurück und löst nie aus), und er lässt sich nicht mit "muss N Sekunden gelten" verbinden.
-- **Vorschau des Ablaufs.** Am Ende des Editors einer Routine zeigt eine Grafik, was passiert: 1 Auslöser (mit Und/Oder-Baum oder den Zeiten), 2 Prüfung (die fünf Zustände der Anlage, die gewählten grün), danach 3 die Aktion. Die Karten tragen die Zonenfarben der Aktionen mit ihrem Verlauf (Scharfschalten hellrot, Deaktivieren dunkelgrün; beim Deaktivieren die Marke "Umgeht den Code"); ein Hinweis sagt, dass die Routine in jedem anderen Zustand übersprungen wird und das im Protokoll steht. Sie folgt dem Entwurf beim Bearbeiten und ist reine Anzeige.
-
-- **Scharf nur in gewählten Modi.** Unter "Anlage scharf" hat die Routine einen Schalter je Modus der Anlage: sie gilt dann nur, wenn die Anlage in einem der gewählten Modi scharf ist (zum Beispiel nur "Abwesend"). Sonst wird sie übersprungen und das steht im Protokoll.
-- **Routine duplizieren.** Ein Knopf neben dem Stift kopiert eine Routine (ausgeschaltet, mit freiem Namen "… (Kopie)"); die Kopie gilt, sobald du die Seite speicherst.
+- **Vorschau des Ablaufs.** Am Ende des Editors einer Routine zeigt eine Grafik, was passiert: 1 Auslöser (mit Und/Oder-Baum oder den Zeiten), 2 Prüfung (die fünf Zustände der Anlage, die gewählten grün), danach JA zur Aktion (rot mit der Marke "Umgeht den Code" beim Deaktivieren) und NEIN zu "Übersprungen, steht im Protokoll". Sie folgt dem Entwurf beim Bearbeiten und ist reine Anzeige.
 
 ### Entfernt
 
@@ -1563,6 +1572,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.46.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.46.0
 [1.45.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.45.0
 [1.44.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.44.0
 [1.43.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.43.5
