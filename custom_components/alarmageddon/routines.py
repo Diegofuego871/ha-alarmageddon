@@ -11,7 +11,10 @@ Sicherheitsregeln (Alarmageddon ist ein Sicherheitsprodukt):
 - Nur ein **echter Wechsel** zählt: die Rückkehr aus "nicht verfügbar" oder "unbekannt" löst nie aus (sonst deaktivierte ein Funkabriss die Anlage).
   Nach einem Neustart wird nichts nachgeholt.
 - Gilt der Zustand der Anlage beim Auslösen nicht für die Routine, wird sie übersprungen und das steht im Protokoll.
-- **Deaktivieren** per Routine braucht die Bestätigung in der Routine ("unsafe", Entscheid des Nutzers: kein Schalter der Anlage zusätzlich).
+- **Jeder Zustand ausser "Anlage deaktiviert"** braucht die Bestätigung in der Routine ("unsafe", Entscheid des Nutzers, 2026-11-16, für alle Routinen):
+  Wer eine Routine in "Schärfe läuft", "Anlage scharf", Eingangsverzögerung oder Alarm laufen lässt, umgeht einen Code (Wechsel von Anwesend auf Abwesend,
+  Unterbrechen der Eingangsverzögerung). Neue und geänderte Routinen prüft der Server streng; unveränderte ältere Routinen und Sicherungen gelten
+  weiter (sie liefen vorher, nichts wird abgeschaltet) und tragen im Panel den Vermerk "Bestätigung fehlt" bis zum nächsten Speichern.
   Scharfschalten gilt nie im Alarm oder in der Eingangsverzögerung.
 - Eine Routine löst nie eine andere aus: Entitäten von Alarmageddon sind als Auslöser nicht erlaubt. Je Routine gibt es eine Sperre gegen Doppelauslösung.
 - Scharfschalten scheitert wie von Hand an offenen Sensoren ("Scharfschalten nicht möglich" kommt wie gewohnt). Ein Code wird nicht verlangt: Routinen
@@ -22,6 +25,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from functools import partial
+import json
 import logging
 from typing import Any
 
@@ -82,13 +86,37 @@ def tree_leaves(tree: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def check_routines(hass: HomeAssistant, routines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _canon(routine: dict[str, Any]) -> str:
+    """Eine Routine in fester Form (Vorgaben des Schemas ergänzt, Schlüssel sortiert), damit gleiche Routinen gleich aussehen."""
+    from .schemas import ROUTINE_SCHEMA
+
+    try:
+        routine = ROUTINE_SCHEMA(routine)
+    except vol.Invalid:
+        pass
+    return json.dumps(routine, sort_keys=True, default=str)
+
+
+def known_routines(routines: list[dict[str, Any]] | None) -> set[str]:
+    """Bereits gespeicherte Routinen in fester Form, um unveränderte beim Speichern zu erkennen."""
+    return {_canon(routine) for routine in routines or []}
+
+
+def needs_confirmation(routine: dict[str, Any]) -> bool:
+    """Jeder Zustand ausser "Anlage deaktiviert" braucht die Bestätigung (Entscheid des Nutzers, 2026-11-16)."""
+    return bool(set(routine["states"]) - {"disarmed"})
+
+
+def check_routines(hass: HomeAssistant, routines: list[dict[str, Any]], known: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     """
     Was sich nur mit Home Assistant prüfen lässt und die Sicherheit betrifft; wirft vol.Invalid. Der Aufbau ist schon durch schemas.ROUTINES geprüft.
+    `known`: die bisher gespeicherten Routinen. Eine unveränderte Routine gilt nach der alten Regel (Deaktivieren und Eingangsverzögerung/Alarm brauchen
+    die Bestätigung), alle anderen streng nach der neuen (jeder Zustand ausser "Anlage deaktiviert"). Ohne `known` ist alles neu.
     """
     registry = er.async_get(hass)
     seen_ids: set[str] = set()
     seen_names: set[str] = set()
+    old = known_routines(known)
     for routine in routines:
         if routine["id"] in seen_ids or routine["name"].strip().casefold() in seen_names:
             raise vol.Invalid("id and name of a routine must be unique")
@@ -97,8 +125,14 @@ def check_routines(hass: HomeAssistant, routines: list[dict[str, Any]]) -> list[
         action, states = routine["action"], set(routine["states"])
         if action != "off" and states & {"pending", "triggered"}:
             raise vol.Invalid("arming never applies during an entry delay or an alarm")
-        if (action == "off" or states & {"pending", "triggered"}) and not routine.get("unsafe"):
-            raise vol.Invalid("disarming without a code needs the confirmation")
+        confirmed = bool(routine.get("unsafe"))
+        strict_ok = confirmed or not needs_confirmation(routine)
+        if _canon(routine) in old:
+            # Unverändert aus dem Bestand: gilt, wenn es nach der alten oder der neuen Regel gültig ist (so lassen sich auch ältere Sicherungen zurückholen)
+            if not strict_ok and (action == "off" or states & {"pending", "triggered"}) and not confirmed:
+                raise vol.Invalid("disarming without a code needs the confirmation")
+        elif not strict_ok:
+            raise vol.Invalid("every state except disarmed needs the confirmation")
         trigger = routine["trigger"]
         if trigger["type"] != "device":
             continue

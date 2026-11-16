@@ -401,3 +401,47 @@ async def async_numeric_history(hass: HomeAssistant, entity_id: str, kind: str, 
         out["summary"]["days_left"] = forecast_days([(w.timestamp(), v) for w, v in since], threshold)
         out["summary"]["last_change"] = changes[-1].isoformat() if changes else None
     return out
+
+
+def monitor_events(entries: list[Any], entity_id: str, start: datetime) -> list[dict[str, Any]]:
+    """
+    Ereignisse der Überwachung zu einem Messwert-Sensor (Reiter "Verlauf" der Sensoransicht, 1.54.0): nur "ausserhalb der Grenzen" und "wieder in
+    Ordnung", nie die Messwerte selbst (Entscheid des Nutzers, 2026-11-16: sonst unübersichtlich). Neueste zuerst.
+    """
+    out: list[dict[str, Any]] = []
+    for entry in entries:
+        for event in entry.runtime_data.events.events:
+            if event.get("kind") not in ("monitor_out", "monitor_ok") or event.get("entity_id") != entity_id:
+                continue
+            when = dt_util.parse_datetime(str(event.get("t")))
+            if when is None or when < start:
+                continue
+            out.append({"t": event["t"], "kind": "out" if event["kind"] == "monitor_out" else "ok", "rule": event.get("monitor") or "", "system": entry.title,
+                        "entry_id": entry.entry_id, "value": event.get("value") or "", "unit": event.get("unit") or ""})
+    out.sort(key=lambda e: e["t"], reverse=True)
+    return out[:EVENTS_MAX]
+
+
+def monitor_limits(entries: list[Any], entity_id: str) -> list[dict[str, Any]]:
+    """Grenzen der Regeln, die diesen Messwert beobachten (als gestrichelte Linien in der Grafik), je Regel und Grenze."""
+    from .const import CONF_MONITORS
+    from .routines import tree_leaves
+
+    out: list[dict[str, Any]] = []
+    for entry in entries:
+        for rule in entry.options.get(CONF_MONITORS) or []:
+            for leaf in tree_leaves(rule["tree"]):
+                if leaf.get("kind") != "value" or leaf.get("entity_id") != entity_id:
+                    continue
+                limits = [float(leaf["limit"])] + ([float(leaf["upper"])] if leaf["op"] == "outside" else [])
+                out.append({"rule": rule["name"], "op": leaf["op"], "limits": limits})
+    return out
+
+
+async def async_measure_history(hass: HomeAssistant, entries: list[Any], entity_id: str, hours: int) -> dict[str, Any]:
+    """Antwort der Sensoransicht für einen Messwert-Sensor (Temperatur, Luftfeuchtigkeit, CO2): Werteverlauf, Kennzahlen, Ereignisse der Überwachung, Grenzen."""
+    result = await async_numeric_history(hass, entity_id, "value", hours, 0.0)
+    start = dt_util.parse_datetime(result["start"]) or dt_util.utcnow() - timedelta(hours=hours)
+    result["events"] = monitor_events(entries, entity_id, start)
+    result["limits"] = monitor_limits(entries, entity_id)
+    return result

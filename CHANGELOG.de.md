@@ -7,7 +7,21 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.53.0] - 2026-11-16
+
+### Geändert
+
+- **Routinen: nur "Anlage deaktiviert" braucht keine Bestätigung.** Die Karte "Sicherheit" ("Ich habe das verstanden") erscheint jetzt bei jeder Routine, über den Zuständen. Jeder Zustand ausser "Anlage deaktiviert" (Schärfe läuft, scharf, Eingangsverzögerung, Alarm) lässt sich erst nach der Bestätigung einschalten, beim Deaktivieren wie beim Scharfschalten, weil eine Routine in diesen Zuständen sonst einen Code umgehen könnte (Wechsel von Anwesend auf Abwesend, Unterbrechen der Eingangsverzögerung). Eine neue Routine startet nur mit "Anlage deaktiviert". Schaltet man die Bestätigung aus, fallen die anderen Zustände wieder weg. Der Server prüft dieselbe Regel für neue und geänderte Routinen. Bisherige Routinen und Sicherungen laufen unverändert weiter; die Liste zeigt an ihnen "Bestätigung fehlt", bis sie erneut gespeichert werden, und eine Änderung braucht die Bestätigung. Die Texte der Karte, der Zustände und der Fehlermeldung sind angepasst.
+- **Überwachung: die bearbeitete Regel bleibt offen.** Nach dem Bleistift und dem Zurückkehren (auch nach "Abbrechen") ist die Karte aufgeklappt.
+
+### Hinzugefügt
+
+- **Überwachung: Lautstärke bei kritischen Meldungen.** Ist "Kritische Meldung" an, zeigt der Push-Schritt einen Lautstärkeregler (Standard 100 %), wie bei den Alarmmeldungen.
+- **Vorarbeit für Messwert-Sensoren im Panel (Server).** Der Befehl der Sensoransicht liefert jetzt auch den Werteverlauf von Temperatur-, Luftfeuchtigkeits- und CO2-Sensoren, die die Überwachung führt, mit den Ereignissen der Überwachung und den Grenzen der Regeln; Ereignisse der Überwachung tragen Wert und Einheit. Das Panel nutzt es ab 1.54.0.
+
 ## [1.52.1] - 2026-11-16
+
+Nicht veröffentlicht; enthalten in 1.53.0.
 
 ### Geändert
 
@@ -1678,7 +1692,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.52.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.52.1
+[1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0
 [1.52.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.52.0
 [1.51.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.51.0
 [1.48.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.1

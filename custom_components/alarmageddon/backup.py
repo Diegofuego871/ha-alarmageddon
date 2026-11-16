@@ -85,7 +85,7 @@ def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
                 options = converted
             options.pop("routines_disarm", None)
             if CONF_ROUTINES in options:
-                check_routines(hass, options[CONF_ROUTINES])
+                check_routines(hass, options[CONF_ROUTINES], options[CONF_ROUTINES])
             if CONF_MONITORS in options:
                 check_monitors(hass, options[CONF_MONITORS])
         except vol.Invalid as err:

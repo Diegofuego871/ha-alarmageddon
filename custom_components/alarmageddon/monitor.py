@@ -340,7 +340,7 @@ class MonitorEngine:
         values = self._context(rule)
         self._active[rid] = {"since": now, "last": now, "entity": values.get("entity", "")}
         self._save()
-        self._ctl.emit("monitor_out", monitor=rule["name"], entity_id=values.get("entity", ""))
+        self._ctl.emit("monitor_out", monitor=rule["name"], entity_id=values.get("entity", ""), value=values.get("value", ""), unit=values.get("unit", ""))
         self._schedule_reminder(rule)
         self._start_flow(rule, rule.get("steps_out") or [], "out", now)
 
@@ -351,7 +351,8 @@ class MonitorEngine:
         self._save()
         if (reminder := self._reminders.pop(rid, None)) is not None:
             reminder()
-        self._ctl.emit("monitor_ok", monitor=rule["name"], entity_id=active.get("entity", ""))
+        back = self._context(rule, active.get("entity", ""))
+        self._ctl.emit("monitor_ok", monitor=rule["name"], entity_id=active.get("entity", ""), value=back.get("value", ""), unit=back.get("unit", ""))
         # Der Ablauf "ausserhalb" endet mit der Rückkehr: seine übrigen Schritte (Warten, dann Push) wären überholt
         self._start_flow(rule, rule.get("steps_ok") or [], "ok", active.get("since") or dt_util.utcnow().isoformat(), active.get("entity", ""))
 

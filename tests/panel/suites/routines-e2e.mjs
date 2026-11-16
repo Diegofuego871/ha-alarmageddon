@@ -6,11 +6,11 @@ import { check, done, launch, open, outDir } from "../lib.mjs";
 const T = {
   de: {
     unlocked: "aufgeschlossen", bypass: "Umgeht den Code", disarmOff: "Deaktivieren per Routine ist aus", taken: "diesen Namen schon", noDevice: "mindestens ein Gerät",
-    emptyGroup: "mindestens eine Bedingung", unsafe: "den Code umgeht", copy: "Kopie", short: "Kurzes Drücken", noDay: "mindestens einen Tag", saved: "Gespeichert", skipped: "Routine \"Heimkommen\" übersprungen: gilt nicht im Zustand: Beim Alarm",
+    emptyGroup: "mindestens eine Bedingung", unsafe: "den Code umgeht", confirmFirst: "Zuerst unter", copy: "Kopie", short: "Kurzes Drücken", noDay: "mindestens einen Tag", saved: "Gespeichert", skipped: "Routine \"Heimkommen\" übersprungen: gilt nicht im Zustand: Beim Alarm",
   },
   en: {
     unlocked: "unlocked", bypass: "Bypasses the code", disarmOff: "Disarming by routine is off", taken: "already has this name", noDevice: "at least one device",
-    emptyGroup: "at least one condition", unsafe: "bypasses the code", copy: "copy", short: "Short press", noDay: "at least one day", saved: "Saved", skipped: "Routine \"Heimkommen\" skipped: not allowed in this state: During the alarm",
+    emptyGroup: "at least one condition", unsafe: "bypasses the code", confirmFirst: "Confirm under", copy: "copy", short: "Short press", noDay: "at least one day", saved: "Saved", skipped: "Routine \"Heimkommen\" skipped: not allowed in this state: During the alarm",
   },
 };
 
@@ -73,9 +73,17 @@ for (const lang of ["de", "en"]) {
     // Ziel und Zustände: Scharfschalten gilt nie bei Eingangsverzögerung und Alarm
     await s.tap('[data-sys="rt-seg"][data-key="action"][data-value="away"]');
     const stateInfo = await s.ev("return [...r.querySelectorAll('[data-sys=\"rt-st\"]')].map((b) => ({ v: b.dataset.value, on: b.getAttribute('aria-checked') === 'true', off: b.disabled }))");
-    check(`${tag}: fünf Zustände, nur "deaktiviert" an, Eingangsverzögerung und Alarm gesperrt`, stateInfo.length === 5 && stateInfo.filter((x) => x.on).map((x) => x.v).join() === "disarmed"
-      && stateInfo.filter((x) => x.off).map((x) => x.v).join() === "pending,triggered", JSON.stringify(stateInfo));
-    check(`${tag}: kein Sicherheitskasten beim Scharfschalten`, await s.ev("return !r.querySelector('.ag-rtsafety')"));
+    check(`${tag}: fünf Zustände, nur "deaktiviert" an und wählbar; alle anderen gesperrt, bis die Bestätigung an ist`, stateInfo.length === 5 && stateInfo.filter((x) => x.on).map((x) => x.v).join() === "disarmed"
+      && stateInfo.filter((x) => x.off).map((x) => x.v).join() === "arming,armed,pending,triggered", JSON.stringify(stateInfo));
+    check(`${tag}: Sicherheitskasten auch beim Scharfschalten, über den Zuständen, Bestätigung aus`, await s.ev("const sf=r.querySelector('.ag-rtsafety'); const st=r.querySelector('[data-sys=\"rt-st\"]'); return !!sf && r.querySelector('[data-sys=\"rt-unsafe\"]').getAttribute('aria-checked') === 'false' && !!(sf.compareDocumentPosition(st) & Node.DOCUMENT_POSITION_FOLLOWING)"));
+    check(`${tag}: gesperrte Zustände nennen den Grund (zuerst unter "Sicherheit" bestätigen)`, await s.ev(`const b=r.querySelector('[data-sys="rt-st"][data-value="armed"]'); return b.disabled && b.closest('.ag-setrow').innerText.includes(${JSON.stringify(t.confirmFirst)})`));
+    await s.tap('[data-sys="rt-unsafe"]');
+    const afterConfirm = await s.ev("return [...r.querySelectorAll('[data-sys=\"rt-st\"]')].filter((b) => b.disabled).map((b) => b.dataset.value).join()");
+    check(`${tag}: nach der Bestätigung wählbar; nur Eingangsverzögerung und Alarm bleiben beim Scharfschalten gesperrt`, afterConfirm === "pending,triggered", afterConfirm);
+    await s.tap('[data-sys="rt-st"][data-value="armed"]');
+    await s.tap('[data-sys="rt-unsafe"]');
+    check(`${tag}: Bestätigung wieder aus: nur "deaktiviert" bleibt gewählt, Speichern gesperrt ist nicht nötig`, await s.ev("return [...r.querySelectorAll('[data-sys=\"rt-st\"]')].filter((b) => b.getAttribute('aria-checked') === 'true').map((b) => b.dataset.value).join() === 'disarmed' && [...r.querySelectorAll('[data-sys=\"rt-st\"]')].filter((b) => b.dataset.value !== 'disarmed').every((b) => b.disabled)"));
+    await s.tap('[data-sys="rt-unsafe"]');
     await s.tap('[data-sys="rt-st"][data-value="armed"]');
     check(`${tag}: Vorschau des Ablaufs: Auslöser, Prüfung mit den zwei gewählten Zuständen und Aktion, Hinweis auf Übersprungen`, await s.ev("const f=r.querySelector('.ag-fl'); return !!f && f.querySelectorAll('.ag-fl-node').length === 3 && f.querySelectorAll('.ag-fl-band .on').length === 2 && f.querySelector('.ag-fl-node.arm') && f.querySelectorAll('.ag-fl-leaf').length >= 3"));
     await s.tap('[data-sys="rt-st"][data-value="disarmed"]');
@@ -100,7 +108,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: nach dem Speichern und neuer Abfrage nichts offen, kein orange Punkt`, await s.ev("return r.host.systemUi.dirtyCount() === 0 && !r.querySelector('[data-sub=\"system\"]').classList.contains('has-edit') && r.querySelector('.ag-foot [data-sys=\"save\"]').disabled"));
     const ARMED_N = nModes - 1;
     const sent = (await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_system').at(-1)"))?.routines?.[3];
-    check(`${tag}: Routine gesendet: Name, Ziel, Zustände, Baum mit Gruppe und Haltezeit, ohne Hilfsfelder`, sent?.name === "Haus verlassen" && sent.action === "away" && sent.unsafe === false
+    check(`${tag}: Routine gesendet: Name, Ziel, Zustände, Baum mit Gruppe und Haltezeit, ohne Hilfsfelder`, sent?.name === "Haus verlassen" && sent.action === "away" && sent.unsafe === true
       && JSON.stringify(sent.states) === JSON.stringify(["armed", "disarmed"]) && sent.armed_modes.length === ARMED_N && sent.trigger.type === "device" && sent.trigger.hold === 5 && sent.trigger.tree.op === "and"
       && sent.trigger.tree.items[0].entity_id === "lock.haustuer" && sent.trigger.tree.items[1].op === "or" && sent.trigger.tree.items[1].items[0].state === "not_home"
       && sent.trigger.tree.items[1].items[1].kind === "time" && sent.trigger.tree.items[1].items[1].from === "22:00" && !("_device" in sent) && !("_times" in sent), JSON.stringify(sent));
@@ -111,7 +119,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Vorschau bei Deaktivieren: rote Aktion mit Marke`, await s.ev("return !!r.querySelector('.ag-fl-node.off .ag-tag.err')"));
     check(`${tag}: Sicherheitskasten da, bestätigt, speicherbar`, await s.ev("return !!r.querySelector('.ag-rtsafety') && r.querySelector('[data-sys=\"rt-unsafe\"]').getAttribute('aria-checked') === 'true' && !r.querySelector('[data-sys=\"rt-save\"]').disabled"));
     await s.tap('[data-sys="rt-unsafe"]');
-    check(`${tag}: Bestätigung weg: Speichern gesperrt`, await s.waitFor(`return r.querySelector('[data-sys="rt-save"]').disabled && r.querySelector('.ag-rt-ed .ag-dlg-err').textContent.includes(${JSON.stringify(t.unsafe)})`));
+    check(`${tag}: Bestätigung weg: nur "deaktiviert" bleibt gewählt, die anderen gesperrt, Speichern möglich (nichts umgeht mehr den Code)`, await s.waitFor(`const on=[...r.querySelectorAll('[data-sys="rt-st"]')].filter((b) => b.getAttribute('aria-checked') === 'true').map((b) => b.dataset.value).join(); return on === 'disarmed' && !r.querySelector('[data-sys="rt-save"]').disabled`));
     await s.tap('[data-sys="rt-unsafe"]');
     await s.tap('[data-sys="rt-st"][data-value="pending"]');
     check(`${tag}: Eingangsverzögerung bei Deaktivieren: roter Hinweis`, await s.waitFor("return !!r.querySelector('.ag-rtred')"));
@@ -164,7 +172,10 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Zeit ohne Tag gesperrt`, await s.ev(`return r.querySelector('[data-sys="rt-save"]').disabled && r.querySelector('.ag-rt-ed .ag-dlg-err').textContent.includes(${JSON.stringify(t.noDay)})`));
     await s.tap('.ag-rttimerow:nth-last-child(2) [data-sys="rt-day"][data-day="5"]');
     await s.tap('[data-sys="rt-seg"][data-key="action"][data-value="off"]');
-    check(`${tag}: Deaktivieren ohne Bestätigung gesperrt, danach mit Bestätigung speicherbar`, await s.ev("return r.querySelector('[data-sys=\"rt-save\"]').disabled") && (await (async () => { await s.tap('[data-sys="rt-unsafe"]'); return s.ev("return !r.querySelector('[data-sys=\"rt-save\"]').disabled"); })()));
+    check(`${tag}: Deaktivieren, nur "deaktiviert": speicherbar ohne Bestätigung (die Marke "Umgeht den Code" fehlt noch)`, await s.ev("return !r.querySelector('[data-sys=\"rt-save\"]').disabled && !r.querySelector('.ag-fl-node.off .ag-tag.err')"));
+    await s.tap('[data-sys="rt-unsafe"]');
+    await s.tap('[data-sys="rt-st"][data-value="armed"]');
+    check(`${tag}: mit Bestätigung und "Anlage scharf": speicherbar, die Marke "Umgeht den Code" steht da`, await s.ev("return !r.querySelector('[data-sys=\"rt-save\"]').disabled && !!r.querySelector('.ag-fl-node.off .ag-tag.err')"));
     await s.tap('[data-sys="rt-save"]');
     await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 5");
     // Löschen einer Routine (Nachts scharf)
@@ -173,7 +184,7 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="save"]');
     await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`, 30000);
     const sent2 = (await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_system').at(-1)"))?.routines?.at(-1);
-    check(`${tag}: Zeitplan gesendet: eine Routine, zwei Zeiten mit eigenen Tagen, Deaktivieren bestätigt`, sent2?.name === "Mittagspause" && sent2.action === "off" && sent2.unsafe === true && sent2.trigger.type === "schedule"
+    check(`${tag}: Zeitplan gesendet: eine Routine, zwei Zeiten mit eigenen Tagen, Deaktivieren bestätigt`, sent2?.name === "Mittagspause" && sent2.action === "off" && sent2.unsafe === true && JSON.stringify(sent2.states) === JSON.stringify(["armed", "disarmed"]) && sent2.trigger.type === "schedule"
       && sent2.trigger.times.length === 2 && JSON.stringify(sent2.trigger.times[1]) === JSON.stringify({ time: "12:15", days: [5] }), JSON.stringify(sent2));
     await s.waitFor("return !r.host._wait", 30000);
     await s.ev("r.querySelector('.ag-rtrow').scrollIntoView({ block: 'start' }); return 1");

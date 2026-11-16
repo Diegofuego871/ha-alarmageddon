@@ -148,9 +148,8 @@ Umsetzung:
   wenn Geräte von HA etwas tun. Sie läuft nur bei einem **echten Wechsel** zwischen zwei bekannten Zuständen und neu erfüllter Bedingung (nie im
   Dauerzustand, nie nach einem Neustart, nie bei der Rückkehr aus "nicht verfügbar" oder "unbekannt": ein Funkabriss schaltet die Anlage nie).
   Der Zustand der Anlage beim Auslösen muss zu den gewählten Zuständen der Routine gehören, sonst wird übersprungen und protokolliert
-  (`routine_skipped`). Scharfschalten gilt nie bei Eingangsverzögerung oder Alarm (Schema und Laufzeit prüfen es unabhängig). **Deaktivieren per
-  Routine** braucht `unsafe` (Bestätigung "Ich habe das verstanden") in der Routine, keinen zusätzlichen Schalter der Anlage (Entscheid des Nutzers, 2026-11-16);
-  es trägt im Panel immer die Marke "Umgeht den Code". Eine Routine löst nie eine andere aus (Entitäten von Alarmageddon sind als Auslöser
+  (`routine_skipped`). Scharfschalten gilt nie bei Eingangsverzögerung oder Alarm (Schema und Laufzeit prüfen es unabhängig). **Jeder Zustand ausser "Anlage deaktiviert"** braucht `unsafe` (Bestätigung "Ich habe das verstanden") in der Routine, für Deaktivieren und Scharfschalten (Entscheid des Nutzers, 2026-11-16, ersetzt "nur Deaktivieren"): neue Routinen starten nur mit "Anlage deaktiviert", im Panel sind die anderen Zustände bis zur Bestätigung gesperrt, der Server prüft neue und geänderte Routinen streng (`routines.check_routines`, `known`); unveränderte Routinen aus dem Bestand und Sicherungen gelten weiter und tragen "Bestätigung fehlt". Kein zusätzlicher Schalter der Anlage;
+  Deaktivieren in anderen Zuständen trägt im Panel die Marke "Umgeht den Code". Eine Routine löst nie eine andere aus (Entitäten von Alarmageddon sind als Auslöser
   abgelehnt), je Routine gilt eine Sperre von `ROUTINE_COOLDOWN` Sekunden. Jede dieser Bedingungen hat einen Test in `tests/test_routines.py`
   und eine Zeile in `scripts/mutation_check.py`. Neue Bedingungsarten oder Geräte-Domänen (`LEAF_STATES`) ergänzen die parametrisierten
   Prüfungen `test_save_routines_rejects_invalid` und die Suite `routines-e2e.mjs`.

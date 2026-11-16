@@ -4,8 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { unfoldAll: "Alle aufklappen", measure: "Messwerte", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
-  en: { unfoldAll: "Expand all", measure: "Measurements", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
+  de: { unfoldAll: "Alle aufklappen", volume: "Lautstärke", measure: "Messwerte", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
+  en: { unfoldAll: "Expand all", volume: "Volume", measure: "Measurements", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
 };
 const FRIDGE = "sensor.kuehlschrank_temperatur";
 
@@ -190,7 +190,11 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     await s.tap('#ag-monstep .ag-phpill[data-field="message"][data-ph="{unit}"]');
     check(`${tag}: Pille "{unit}" im Text geht in den Text, nicht in den Titel`, await s.ev("const t=r.querySelector('#ag-monstep [data-field=\"message\"]').value; return t.includes('{unit}') && !r.querySelector('#ag-monstep [data-field=\"title\"]').value.includes('{unit}')"));
     check(`${tag}: der Entwurf kennt den eingefügten Platzhalter (Änderung wird gespeichert)`, await s.ev("const s=r.host.actions.mon.step.form; return s.title.includes('{value}') && s.message.includes('{unit}')"));
+    check(`${tag}: ohne "kritisch" kein Regler für die Lautstärke`, await s.ev("return !r.querySelector('#ag-monstep [data-wf=\"mon-vol\"]')"));
     await s.tap('#ag-monstep [data-wf="mon-critical"]');
+    check(`${tag}: mit "kritisch" erscheint der Regler "${t.volume}", Standard 100 %`, await s.waitFor("const i=r.querySelector('#ag-monstep [data-wf=\"mon-vol\"]'); return !!i && i.value === '100' && /100 %/.test(i.closest('.ag-ef-range').innerText)"));
+    await s.ev("const i=r.querySelector('#ag-monstep [data-wf=\"mon-vol\"]'); i.value='60'; i.dispatchEvent(new Event('input', { bubbles: true })); return 1");
+    check(`${tag}: Regler auf 60 %: Anzeige und Entwurf folgen, ohne Neuaufbau`, await s.ev("const d=r.getElementById('ag-monstep'); return /60 %/.test(d.querySelector('.ag-ef-range').innerText) && r.host.actions.mon.step.form.volume === 0.6"));
     await (await s.el('#ag-monstep select[data-wf="mon-target-add"]')).selectOption("notify.mobile_app_tablet");
     check(`${tag}: Empfänger als Pille, "kritisch" an`, await s.waitFor("const d=r.getElementById('ag-monstep'); return /mobile_app_tablet/.test(d.querySelector('.ag-rpills').innerText) && d.querySelector('[data-wf=\"mon-critical\"]').getAttribute('aria-checked') === 'true'"));
     await s.tap('[data-wf="mon-step-apply"]');
@@ -205,6 +209,7 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     check(`${tag}: gespeichert`, await s.waitFor(`return /${t.saved}/.test(r.querySelector('.ag-foot').innerText)`, 8000));
     const saved = await s.sim("const m=window.__systems[0].monitors[0]; return JSON.stringify({ out: m.steps_out.map((x) => x.type), ok: m.steps_ok.map((x) => x.type), crit: m.steps_out[0].critical, targets: m.steps_out[0].targets, wait: m.steps_ok[1].seconds, dev: m.steps_ok[2].action, n: window.__monitorSaves })");
     check(`${tag}: der Server hat Schritte, kritisch, Empfänger, 300 s und turn_off`, saved === JSON.stringify({ out: ["notify", "action"], ok: ["notify", "wait", "action"], crit: true, targets: ["notify.mobile_app_tablet"], wait: 300, dev: "switch.turn_off", n: 1 }), saved);
+    check(`${tag}: der Server hat die Lautstärke 0.6 des kritischen Schritts`, (await s.sim("return window.__systems[0].monitors[0].steps_out[0].volume")) === 0.6);
     check(`${tag}: nach dem Speichern und Neuladen kein oranger Punkt, keine Änderung (Vorgaben des Servers zählen nicht)`, await s.waitFor("return !!r.querySelector('.ag-mon-rule') && !r.querySelector('[data-trigger=\"monitor\"].has-edit') && !r.querySelector('[data-sub=\"actions\"].has-edit') && !r.querySelector('[data-tab=\"config\"].has-edit') && /^(Keine Änderungen|No changes|Gespeichert|Saved)/.test(r.querySelector('.ag-foot').innerText.trim())", 8000));
     check(`${tag}: nach dem Neuladen steht der Ablauf noch da`, await s.waitFor("const c=r.querySelectorAll('.ag-mon-rule')[0]; return c.querySelectorAll('.ag-wf-mon-ok .ag-wf-step').length === 3 && c.querySelectorAll('.ag-wf-mon-out .ag-wf-step').length === 2", 8000));
 
@@ -259,10 +264,13 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     await s.waitFor("return !r.getElementById('ag-mon').open");
     check(`${tag}: Abbrechen schliesst ohne neue Regel`, await s.ev("return r.querySelectorAll('.ag-mon-rule').length === 3"));
     // Regel bearbeiten, kopieren, löschen
+    await s.tap('[data-wf="mon-fold"][data-rule="0"]');
+    check(`${tag}: Regel 1 zugeklappt vor dem Bearbeiten`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule')[0].classList.contains('folded')"));
     await s.tap('[data-wf="mon-edit"][data-rule="0"]');
     check(`${tag}: Bearbeiten: alles vorbelegt (Name, Grenze 8, Dauer 30 Minuten, Spanne 1, Erinnerung 2)`, await s.waitFor("const d=r.getElementById('ag-mon'); return d.open && d.querySelector('[data-wf=\"mon-name\"]').value === 'Kühlschrank zu warm' && d.querySelector('input[data-field=\"limit\"]').value === '8' && d.querySelector('[data-field=\"holdN\"]').value === '30' && d.querySelector('[data-wf=\"mon-holdunit\"]').value === 'm' && d.querySelector('[data-field=\"margin\"]').value === '1' && d.querySelector('[data-field=\"remind\"]').value === '2'"));
     await s.tap('#ag-mon [data-wf="mon-cancel-form"]');
     await s.waitFor("return !r.getElementById('ag-mon').open");
+    check(`${tag}: nach dem Bleistift und Zurück ist die Karte aufgeklappt`, await s.waitFor("const x=r.querySelectorAll('.ag-mon-rule')[0]; return !x.classList.contains('folded') && !!x.querySelector('.ag-wf-line')"));
     await s.tap('[data-wf="mon-dup"][data-rule="0"]');
     await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 4");
     check(`${tag}: die Kopie ist zugeklappt`, await s.ev("return r.querySelectorAll('.ag-mon-rule')[1].classList.contains('folded')"));

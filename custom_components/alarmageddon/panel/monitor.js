@@ -336,6 +336,7 @@ export class MonitorUi {
     const d = this.ensureDraft();
     let f;
     if (index >= 0) {
+      this.opened.add(d.monitors[index].id); // Bleistift: die Karte ist aufgeklappt, wenn man zurückkommt (auch nach "Abbrechen")
       const m = clone(d.monitors[index]);
       const unit = m.hold >= 3600 && m.hold % 3600 === 0 ? "h" : m.hold >= 60 && m.hold % 60 === 0 ? "m" : m.hold === 0 ? "m" : "s";
       f = { ...m, holdN: m.hold / UNITS[unit], holdUnit: unit };
@@ -349,6 +350,7 @@ export class MonitorUi {
       this.dlg.addEventListener("close", () => {
         this.form = null;
         this.pick = null;
+        this.ui.render(); // die bearbeitete Karte steht aufgeklappt da (auch nach "Abbrechen")
       });
       this._bound = true;
     }
@@ -423,6 +425,7 @@ export class MonitorUi {
     const d = this.draft;
     if (this.index >= 0) d.monitors[this.index] = m;
     else d.monitors.push(m);
+    this.opened.add(m.id); // die bearbeitete oder neue Regel steht danach aufgeklappt da
     this.saveState = null;
     this.close();
     this.ui.render();
@@ -695,7 +698,8 @@ export class MonitorUi {
         ${this._previewHtml()}
         <div class="ag-ef"><label class="ag-ef-l">${esc(this._t("monRecipients"))}</label><div class="ag-rpills">${pills || `<span class="ag-t2 ag-small">${esc(this._t("monDefaultTargets"))}</span>`}</div>${select}<span class="ag-ef-h">${esc(this._t("monRecipientsHint"))}</span></div>
         <div class="ag-ef-row"><button class="ag-toggle ${form.critical ? "on" : ""}" data-wf="mon-critical" role="switch" aria-checked="${form.critical}" aria-label="${esc(this._t("monCriticalLabel"))}"></button>
-          <div class="ag-settx"><b>${esc(this._t("monCriticalLabel"))}</b><small>${esc(this._t("monCriticalHint"))}</small></div></div>`;
+          <div class="ag-settx"><b>${esc(this._t("monCriticalLabel"))}</b><small>${esc(this._t("monCriticalHint"))}</small></div></div>
+        ${form.critical ? `<div class="ag-ef-range"><label><span>${esc(this._t("ntVolumeShort"))}</span><b class="ag-ef-val">${Math.round(Number(form.volume ?? 1) * 100)} %</b></label><input type="range" class="ag-range" data-wf="mon-vol" min="0" max="100" step="5" value="${Math.round(Number(form.volume ?? 1) * 100)}" aria-label="${esc(this._t("ntVolumeShort"))}"></div>` : ""}`;
     } else if (form.type === "action") {
       const domain = form.entity.split(".")[0];
       const choices = ACTIONS[domain] || [];
@@ -928,6 +932,11 @@ export class MonitorUi {
     }
     if (!this.form && !this.step) return false;
     // Felder des Fensters: nur den Entwurf und die Meldung nachführen (ein Neuaufbau nähme den Fokus)
+    if (this.step && act === "mon-vol") {
+      this.step.form.volume = Number(el.value) / 100;
+      el.closest(".ag-ef-range").querySelector(".ag-ef-val").textContent = `${el.value} %`;
+      return true;
+    }
     if (this.step && ["mon-sf"].includes(act)) {
       this.step.form[el.dataset.field] = el.value;
       this._refreshStepMessage();

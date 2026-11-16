@@ -351,7 +351,9 @@ async def test_routine_never_triggers_another_via_own_entities(hass: HomeAssista
         _rule("away", _times("08:00"), states=()),
         _rule("away", _times("08:00"), states=("armed", "pending")),  # Scharfschalten nie in der Eingangsverzögerung
         _rule("away", _times("08:00"), states=("triggered",)),
-        _rule("off", _times("08:00"), unsafe=False),  # Deaktivieren ohne Bestätigung
+        _rule("off", _times("08:00"), states=("armed",), unsafe=False),  # Deaktivieren in einem laufenden Zustand ohne Bestätigung
+        _rule("away", _times("08:00"), states=("disarmed", "armed"), unsafe=False),  # jeder Zustand ausser "deaktiviert" braucht die Bestätigung, auch beim Scharfschalten
+        _rule("away", _times("08:00"), states=("arming",), unsafe=False),
         _rule("away", _device(_window("22:00", "06:00"))),  # nur Uhrzeit: dafür gibt es den Zeitplan
         _rule("away", _device(_is(LOCK, "locked"), _window("22:00", "22:00"))),  # Fenster ohne Länge
         _rule("away", _device(_is("sensor.temperatur", "on"))),  # Art nicht unterstützt
@@ -447,7 +449,7 @@ async def test_old_backup_with_schedules_restores_as_routines(hass: HomeAssistan
 async def test_backup_with_bad_routine_is_rejected(hass: HomeAssistant, hass_ws_client) -> None:
     entry = await setup_alarm(hass)
     client = await hass_ws_client(hass)
-    bad = _rule("off", _times("08:00"), unsafe=False)
+    bad = _rule("off", _times("08:00"), states=("armed",), unsafe=False)
     backup = {"format": "alarmageddon", "version": 1, "systems": [{"title": "Haus", "options": {"routines": [bad]}}]}
     result = await _ws(client, type="alarmageddon/import", data=backup)
     assert result["success"] is False
@@ -606,3 +608,74 @@ async def test_routine_name_may_have_45_characters(hass: HomeAssistant, hass_ws_
     assert ok["success"]
     bad = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[_rule("away", _times("08:00"), name="x" * 46)])
     assert bad["success"] is False
+
+
+# ----- Bestätigung für jeden Zustand ausser "Anlage deaktiviert" (Entscheid des Nutzers, 2026-11-16) -----
+
+
+async def test_only_disarmed_needs_no_confirmation(hass: HomeAssistant, hass_ws_client) -> None:
+    """Nur "Anlage deaktiviert" geht ohne Bestätigung, auch bei "Deaktivieren" und "Scharfschalten"."""
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    for rule in (_rule("off", _times("08:00"), unsafe=False), _rule("away", _times("09:00"), unsafe=False, rid="r2", name="Zwei")):
+        result = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[rule])
+        assert result["success"], result
+
+
+@pytest.mark.parametrize("states", [("armed",), ("arming",), ("disarmed", "armed"), ("arming", "armed", "disarmed")])
+@pytest.mark.parametrize("action", ["off", "away", "home"])
+async def test_every_other_state_needs_the_confirmation(hass: HomeAssistant, hass_ws_client, action: str, states: tuple) -> None:
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    bad = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[_rule(action, _times("08:00"), states=states, unsafe=False)])
+    assert bad["success"] is False and bad["error"]["code"] == "invalid_routines"
+    good = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[_rule(action, _times("08:00"), states=states, unsafe=True)])
+    assert good["success"], good
+
+
+@pytest.mark.parametrize("states", [("pending",), ("triggered",), ("armed", "pending"), ("disarmed", "triggered")])
+async def test_entry_delay_and_alarm_need_the_confirmation(hass: HomeAssistant, hass_ws_client, states: tuple) -> None:
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    bad = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[_rule("off", _times("08:00"), states=states, unsafe=False)])
+    assert bad["success"] is False
+    good = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[_rule("off", _times("08:00"), states=states, unsafe=True)])
+    assert good["success"], good
+
+
+async def test_unchanged_old_routine_still_saves_but_a_changed_one_needs_the_confirmation(hass: HomeAssistant, hass_ws_client) -> None:
+    """Routinen aus dem Bestand (ohne Bestätigung, vor 1.53.0 gültig) laufen weiter und lassen sich unverändert speichern; geändert braucht es die Bestätigung."""
+    old = _rule("away", _times("08:00"), states=("arming", "armed", "disarmed"), unsafe=False)
+    entry = await setup_alarm(hass, routines=[old])
+    client = await hass_ws_client(hass)
+    same = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[dict(old)])
+    assert same["success"], same
+    changed = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[{**old, "name": "Anders"}])
+    assert changed["success"] is False and changed["error"]["code"] == "invalid_routines"
+    confirmed = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[{**old, "name": "Anders", "unsafe": True}])
+    assert confirmed["success"], confirmed
+    # eine zweite, neue Routine neben der unveränderten alten braucht die Bestätigung ebenfalls
+    again = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id,
+                      routines=[{**old, "name": "Anders", "unsafe": True}, _rule("home", _times("09:00"), states=("armed",), unsafe=False, rid="r2", name="Neu")])
+    assert again["success"] is False
+
+
+async def test_old_unconfirmed_disarm_in_a_running_state_stays_rejected(hass: HomeAssistant, hass_ws_client) -> None:
+    """Auch aus dem Bestand: Deaktivieren in Eingangsverzögerung oder Alarm ohne Bestätigung war nie gültig und bleibt es."""
+    bad = _rule("off", _times("08:00"), states=("armed", "pending"), unsafe=False)
+    entry = await setup_alarm(hass, routines=[bad])
+    client = await hass_ws_client(hass)
+    result = await _ws(client, type="alarmageddon/save_system", entry_id=entry.entry_id, routines=[dict(bad)])
+    assert result["success"] is False
+
+
+async def test_old_backup_with_unconfirmed_arm_routine_restores(hass: HomeAssistant, hass_ws_client) -> None:
+    """Ältere Sicherungen bleiben zurückholbar: ihre Routinen gelten wie im Bestand."""
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    old = _rule("away", _times("08:00"), states=("arming", "armed", "disarmed"), unsafe=False)
+    backup = {"format": "alarmageddon", "version": 1, "systems": [{"title": "Haus", "options": {"routines": [old]}}]}
+    result = await _ws(client, type="alarmageddon/import", data=backup)
+    assert result["success"], result
+    await hass.async_block_till_done()
+    assert [r["name"] for r in entry.options["routines"]] == ["Routine"]

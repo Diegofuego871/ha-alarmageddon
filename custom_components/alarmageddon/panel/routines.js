@@ -25,6 +25,8 @@ const STATES = [
   ["disarmed", "rtStDisarmed", "rtStDisarmedHint", "shieldOff"],
 ];
 const ALARM_STATES = ["pending", "triggered"];
+// Jeder Zustand ausser "Anlage deaktiviert" braucht zuerst die Bestätigung unter "Sicherheit" (Entscheid des Nutzers, 2026-11-16; der Server prüft dasselbe)
+const needsConfirm = (states) => (states || []).some((s) => s !== "disarmed");
 const DEVICE_ICON = { lock: "lockClosed", binary_sensor: "sensor", switch: "toggle", input_boolean: "toggle", light: "bulb", cover: "blinds", person: "person", device_tracker: "person", event: "flash" };
 // Filter der Geräteauswahl: Art des Geräts
 const FILTERS = [
@@ -171,9 +173,10 @@ export class RoutinesUi {
   _row(r, i, modes) {
     const on = r.enabled !== false;
     const tags = [];
-    if (r.action === "off") {
+    if (r.action === "off" && needsConfirm(r.states)) {
       tags.push(["err", this._t("rtBypass"), true]);
     }
+    if (needsConfirm(r.states) && !r.unsafe) tags.push(["warn", this._t("rtNeedConfirmTag"), true]);
     if (r.states.some((s) => ALARM_STATES.includes(s)) && r.action === "off") tags.push(["err", this._t("rtInAlarmTag"), true]);
     const names = STATES.filter((s) => r.states.includes(s[0]));
     if (r.states.length === 1 && r.states[0] === "disarmed") tags.push(["none", this._t("rtOnlyDisarmed")]);
@@ -308,14 +311,14 @@ export class RoutinesUi {
     }
     if (!f.states.length) bad.push("states");
     if (f.states.includes("armed") && !this._armedModes().length) bad.push("armedModes");
-    if (f.action === "off" && !f.unsafe) bad.push("unsafe");
+    if (needsConfirm(f.states) && !f.unsafe) bad.push("unsafe");
     return bad;
   }
 
   // Die Routine, wie der Server sie bekommt (ohne die Hilfsfelder des Editors)
   build() {
     const f = this.form;
-    const out = { id: f.id, name: f.name.trim(), enabled: f.enabled !== false, action: f.action, states: STATES.map((s) => s[0]).filter((s) => f.states.includes(s)), unsafe: f.action === "off", armed_modes: f.states.includes("armed") && this._armedModes().length < this._enabledModes().length ? this._armedModes() : [] };
+    const out = { id: f.id, name: f.name.trim(), enabled: f.enabled !== false, action: f.action, states: STATES.map((s) => s[0]).filter((s) => f.states.includes(s)), unsafe: Boolean(f.unsafe), armed_modes: f.states.includes("armed") && this._armedModes().length < this._enabledModes().length ? this._armedModes() : [] };
     if (f.trigger.type === "schedule") out.trigger = { type: "schedule", times: f._times.map((t) => ({ time: t.time, days: [...t.days].sort((a, b) => a - b) })) };
     else {
       const leaf = (l) => (l.kind === "time" ? { kind: "time", from: l.from, to: l.to, days: [...(l.days || [])].sort((a, b) => a - b) }
@@ -412,10 +415,13 @@ export class RoutinesUi {
     const f = this.form;
     const arm = f.action !== "off";
     const rows = STATES.map(([key, label, hint, icon]) => {
-      const locked = arm && ALARM_STATES.includes(key);
-      const on = f.states.includes(key) && !locked;
+      const never = arm && ALARM_STATES.includes(key);
+      const on = f.states.includes(key) && !never;
+      // Ausser "Anlage deaktiviert" lässt sich ein Zustand erst einschalten, wenn die Bestätigung unter "Sicherheit" an ist (ausschalten geht immer)
+      const gated = key !== "disarmed" && !f.unsafe && !on;
+      const locked = never || gated;
       const row = `<div class="ag-setrow ${locked ? "dim" : ""}"><button class="ag-toggle ${on ? "on" : ""}" data-sys="rt-st" data-value="${key}" role="switch" aria-checked="${on}" aria-label="${esc(this._t(label))}" ${locked ? "disabled" : ""}></button>
-        <span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span><div class="ag-settx"><b>${esc(this._t(label))}</b><small>${esc(locked ? this._t("rtStNever") : this._t(hint))}</small></div></div>`;
+        <span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span><div class="ag-settx"><b>${esc(this._t(label))}</b><small>${esc(never ? this._t("rtStNever") : gated ? this._t("rtStNeedsConfirm") : this._t(hint))}</small></div></div>`;
       // "Anlage scharf": darunter ein Schalter je Modus der Anlage (in welchen Modi sie scharf sein muss)
       if (key !== "armed" || !on) return row;
       const picked = this._armedModes();
@@ -429,8 +435,9 @@ export class RoutinesUi {
 
   _safetyHtml() {
     const f = this.form;
-    return chapter(this._t("rtSafetyTitle"), `<div class="ag-card ag-rtsafety"><div class="ag-rtsafehead">${ic("alert", 22)}<div><b>${esc(this._t("rtSafetyHead"))}</b>
-        <div class="ag-t2">${esc(this._t("rtSafetyText"))}</div></div></div>
+    const off = f.action === "off";
+    return chapter(this._t("rtSafetyTitle"), `<div class="ag-card ag-rtsafety"><div class="ag-rtsafehead">${ic("alert", 22)}<div><b>${esc(this._t(off ? "rtSafetyHead" : "rtSafetyHeadArm"))}</b>
+        <div class="ag-t2">${esc(this._t(off ? "rtSafetyText" : "rtSafetyTextArm"))}</div></div></div>
       <div class="ag-setrow"><button class="ag-toggle ${f.unsafe ? "on" : ""}" data-sys="rt-unsafe" role="switch" aria-checked="${Boolean(f.unsafe)}" aria-label="${esc(this._t("rtUnderstood"))}"></button>
         <div class="ag-settx"><b>${esc(this._t("rtUnderstood"))}</b></div></div></div>`);
   }
@@ -465,7 +472,7 @@ export class RoutinesUi {
       ${step(1, "", `<div class="ag-fl-node"><span class="ag-fl-ico">${ic("flash", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtTrigger"))}</div>${trigger}</div></div>`)}
       ${step(2, "", `<div class="ag-fl-node"><span class="ag-fl-ico">${ic("tune", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtFlowCheck"))}</div><div class="ag-fl-t">${esc(this._t("rtFlowCheckQ"))}</div><div class="ag-fl-band">${band}</div></div></div>`)}
       ${step(3, arm ? "arm" : "off", `<div class="ag-fl-node ${arm ? "arm" : "off"}"><span class="ag-fl-ico">${ic(arm ? MODE_ICON[f.action] : "shieldOff", 20)}</span><div class="ag-fl-body"><div class="ag-fl-k">${esc(this._t("rtFlowAction"))}</div><div class="ag-fl-t">${esc(actionText)}</div>
-        ${f.action === "off" ? `<span class="ag-tag err" style="margin-top:6px">${ic("alert", 13)}${esc(this._t("rtBypass"))}</span>` : ""}</div></div>`)}
+        ${f.action === "off" && needsConfirm(f.states) ? `<span class="ag-tag err" style="margin-top:6px">${ic("alert", 13)}${esc(this._t("rtBypass"))}</span>` : ""}</div></div>`)}
       <div class="ag-fl-skip">${ic("info", 16)}<span>${esc(this._t("rtFlowSkipNote"))}</span></div></div>`;
   }
 
@@ -485,8 +492,8 @@ export class RoutinesUi {
       ${chapter(this._t("rtTrigger"), this._seg("trigger", [["schedule", this._t("rtTrigSchedule"), "clock"], ["device", this._t("rtTrigDevice"), "sensor"]], f.trigger.type))}
       ${when}
       ${chapter(this._t("rtThenTitle"), this._seg("action", actions, f.action))}
+      ${this._safetyHtml()}
       ${this._statesHtml()}
-      ${f.action === "off" ? this._safetyHtml() : ""}
       ${chapter(this._t("rtFlowTitle"), this.flowHtml())}
       <div class="ag-dlg-err ${message ? "show" : ""}" aria-live="polite">${esc(message)}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-cancel">${esc(this._t("cancel"))}</button>
@@ -617,6 +624,8 @@ export class RoutinesUi {
       this.renderDlg();
     } else if (act === "rt-unsafe") {
       f.unsafe = !f.unsafe;
+      // Ohne Bestätigung bleibt nur "Anlage deaktiviert" (Entscheid des Nutzers)
+      if (!f.unsafe) f.states = ["disarmed"];
       this.renderDlg();
     } else if (act === "rt-filter") {
       this.pick.filter = el.dataset.value;
@@ -639,7 +648,6 @@ export class RoutinesUi {
     f.action = action;
     if (action !== "off") {
       f.states = f.states.filter((s) => !ALARM_STATES.includes(s));
-      f.unsafe = false;
     }
   }
 

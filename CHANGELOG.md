@@ -7,7 +7,21 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.53.0] - 2026-11-16
+
+### Changed
+
+- **Routines: only "Disarmed" needs no confirmation.** The "Safety" card ("I understand this") now appears for every routine, above the states. Every state except "Disarmed" (arming, armed, entry delay, alarm) can only be switched on after the confirmation, for disarming and for arming alike, because a routine in these states could otherwise bypass a code (switching from Home to Away, interrupting an entry delay). A new routine starts with just "Disarmed". Turning the confirmation off drops the other states again. The server checks the same rule for new and changed routines. Routines and backups saved before keep working unchanged; the list shows "Confirmation missing" on them until they are saved again, and changing them needs the confirmation. The texts of the card, the states and the error message were adjusted.
+- **Monitoring: the rule you edited stays open.** After tapping the pencil and coming back (also after "Cancel"), the card is expanded.
+
+### Added
+
+- **Monitoring: volume for critical notifications.** With "Critical notification" switched on, the push step shows a volume slider (default 100 %), like the alarm notifications.
+- **Groundwork for measured sensors in the panel (server).** The sensor view command now also serves the value history of temperature, humidity and CO2 sensors that the monitoring lists, with the events of the monitoring and the limits of the rules; events of the monitoring carry value and unit. The panel uses it from 1.54.0.
+
 ## [1.52.1] - 2026-11-16
+
+Not released; included in 1.53.0.
 
 ### Changed
 
@@ -1678,7 +1692,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.52.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.52.1
+[1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0
 [1.52.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.52.0
 [1.51.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.51.0
 [1.48.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.1

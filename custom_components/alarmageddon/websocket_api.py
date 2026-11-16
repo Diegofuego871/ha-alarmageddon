@@ -101,7 +101,7 @@ from .forecast import async_forecasts
 from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
 from .schemas import END_NOTIFY_SCHEMA, NOTIFY_TARGETS, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
-from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_get_stats, async_numeric_history, async_state_history
+from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_get_stats, async_measure_history, async_numeric_history, async_state_history
 from .settings import async_get_settings, sensor_type
 
 ALARM_SERVICES = {
@@ -642,7 +642,7 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
         options[f"{CONF_EXIT_DELAY_PREFIX}{mode}"] = seconds
     if "routines" in msg:
         try:
-            options[CONF_ROUTINES] = check_routines(hass, msg["routines"])
+            options[CONF_ROUTINES] = check_routines(hass, msg["routines"], entry.options.get(CONF_ROUTINES))
         except vol.Invalid as err:
             connection.send_error(msg["id"], "invalid_routines", str(err))
             return
@@ -1233,8 +1233,8 @@ async def ws_backup_delete(hass: HomeAssistant, connection, msg: dict[str, Any])
 @websocket_api.websocket_command(
     {
         vol.Required("type"): f"{DOMAIN}/sensor_history",
-        vol.Required("entity_id"): vol.All(str, vol.Match(r"^binary_sensor\.[a-z0-9_]+$")),
-        vol.Optional("kind", default="state"): vol.In(("state", "battery", "signal")),
+        vol.Required("entity_id"): vol.All(str, vol.Match(r"^(binary_)?sensor\.[a-z0-9_]+$")),
+        vol.Optional("kind", default="state"): vol.In(("state", "battery", "signal", "value")),
         vol.Optional("hours", default=24): vol.In((*STATE_HOURS, *BATTERY_HOURS)),
         vol.Optional("entry_id"): str,
     }
@@ -1249,16 +1249,25 @@ async def ws_sensor_history(hass: HomeAssistant, connection, msg: dict[str, Any]
     Nur Sensoren, die eine geladene Anlage überwacht: der Befehl ist kein allgemeiner Zugang zum Verlauf von Home Assistant.
     """
     entity_id = msg["entity_id"]
+    kind, hours = msg["kind"], msg["hours"]
+    measure = entity_id.startswith("sensor.")
+    # Ein Binärsensor hat Verlauf ("state"), Batterie und Empfang; ein Messwert (1.54.0) Werteverlauf ("value"), Batterie und Empfang. Messwerte
+    # nur, wenn eine geladene Anlage sie in der Überwachung führt (bei eingeschalteter Überwachung); nie ein beliebiger Sensor.
+    if (kind == "value") != measure or (measure and kind == "state"):
+        connection.send_error(msg["id"], "invalid_format", "Kind does not fit the sensor")
+        return
     entries = [e for e in hass.config_entries.async_entries(DOMAIN)
-               if e.state is ConfigEntryState.LOADED and entity_id in e.runtime_data.controller.all_sensors()]
+               if e.state is ConfigEntryState.LOADED
+               and entity_id in (e.runtime_data.controller.monitor_sensors() if measure else e.runtime_data.controller.all_sensors())]
     if not entries:
         connection.send_error(msg["id"], "not_found", "Sensor is not monitored")
         return
-    kind, hours = msg["kind"], msg["hours"]
     if hours not in (BATTERY_HOURS if kind == "battery" else STATE_HOURS):
         connection.send_error(msg["id"], "invalid_format", "Period does not fit the kind")
         return
-    if kind == "state":
+    if kind == "value":
+        result = await async_measure_history(hass, entries, entity_id, hours)
+    elif kind == "state":
         # Zustand der Anlage ("scharf in …") aus der gewählten Anlage, sonst aus der ersten, die den Sensor überwacht
         entry = next((e for e in entries if e.entry_id == msg.get("entry_id")), entries[0])
         rt = entry.runtime_data

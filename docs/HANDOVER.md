@@ -81,8 +81,8 @@ Mockups: `docs/mockups/routinen-v1` und `routinen-v2` (mit den Entscheiden des N
 Gruppen wie Magic Push, fünf Zustands-Schalter, Auslöser Zeitplan oder Gerät).
 
 - **Server:** `routines.py`. `check_routines(hass, routines)` prüft, was sich nur mit HA prüfen lässt (eindeutige Namen, Art und Zustand
-  des Geräts `LEAF_STATES`, keine Entität von Alarmageddon als Auslöser, Scharfschalten nie mit Eingangsverzögerung/Alarm, Deaktivieren
-  braucht `unsafe`, Fenster mit zwei verschiedenen Zeiten, mindestens eine Geräte-Bedingung); der Aufbau steht in `schemas.ROUTINES`.
+  des Geräts `LEAF_STATES`, keine Entität von Alarmageddon als Auslöser, Scharfschalten nie mit Eingangsverzögerung/Alarm, Jeder Zustand ausser "disarmed"
+  braucht `unsafe` (seit 1.53.0 für alle Routinen; Bestand und Sicherungen unverändert, `known`), Fenster mit zwei verschiedenen Zeiten, mindestens eine Geräte-Bedingung); der Aufbau steht in `schemas.ROUTINES`.
   `migrate_options` wandelt `options["schedules"]` einmal in Routinen (Zustände arming/armed/disarmed, `unsafe` bei "off"); gerufen von `__init__._migrate_schedules` (vor dem Controller) und von
   `backup.validate` (alte Sicherungen). `RoutineEngine` ersetzt `Scheduler` (Datei `scheduler.py` entfernt): Zeitplan über
   `async_track_time_change`, Gerät über `async_track_state_change_event` plus die Ränder der Zeitfenster; `_last[id]` merkt den zuletzt
