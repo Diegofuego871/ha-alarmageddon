@@ -14,6 +14,10 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 - **Überwachungsregeln sind standardmässig zugeklappt.** Man öffnet die gewünschten; "Alle aufklappen" / "Alle zuklappen" öffnet oder schliesst weiterhin alle.
 - **Das Protokoll nach Routine filtern.** Unter Protokoll › Alle Ereignisse gibt es eine neue Pille "Routinen" (alles, was eine Routine getan oder übersprungen hat) und, immer sichtbar unter den Pillen, ein Dropdown über die ganze Breite, in dem man eine Routine über ihren Titel wählt; dann erscheinen nur deren Ereignisse. Das Dropdown führt alle Routinen mit der Anzahl ihrer Ereignisse auf.
 
+### Geändert
+
+- **Die Reiterleiste der Aktionen ist nicht mehr getönt; nur die Icons tragen Farbe.** Spur und Text bleiben neutral. Die Icons der Reiter, die einen Alarm auslösen können (Anwesend, Abwesend, Nacht, Immer aktiv), sind dunkelrot, im selben Rot wie die Zone "Alarm" im Ablauf; das Icon von "Überwachung" ist orange. Nicht gewählte Reiter sind etwas gedämpft; der gewählte Reiter bekommt einen feinen Rand in der Farbe seiner Gruppe und ein volles Icon. Auf dem Handy mit fünf Reitern (Nacht an) steht "Überwachung" jetzt über die ganze Breite unter den anderen, statt aus seiner Zelle zu laufen.
+
 ## [1.51.2] - 2026-11-16
 
 Nicht veröffentlicht; enthalten in 1.52.0.

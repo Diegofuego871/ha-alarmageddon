@@ -91,14 +91,16 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !!r.querySelector('.ag-wf')");
     const tabs = await s.ev("return [...r.querySelectorAll('[data-seg=\"wf-trigger\"] > button')].map((b) => b.dataset.trigger)");
     check(`${tag}: Reiter Anwesend, Abwesend, Nacht, Immer aktiv und "${t.mode}" (der letzte)`, tabs.join() === "home,away,night,always,monitor", tabs.join());
-    check(`${tag}: Reiterleiste mit "${t.mode}": Spur getönt, Übergang erst gegen Ende von "Immer aktiv" bzw. an der Zeile von "${t.mode}" (Handy: zwei Zeilen)`, await s.ev(`const seg = r.querySelector('[data-seg="wf-trigger"]'); const bg = seg.style.background; const m = bg.match(/(\\d+)px/g) || [];
-const last = seg.querySelector('[data-trigger="always"]'); const mon = seg.querySelector('[data-trigger="monitor"]');
-if (!bg.includes('linear-gradient') || m.length < 2) return false;
-if ([...seg.children].some((c) => c.offsetTop > seg.children[0].offsetTop + 4)) return bg.includes('no-repeat') && bg.includes('18px') && !bg.includes('180deg');
-const from = parseInt(m[0]);
-return from > last.offsetLeft + last.offsetWidth * 0.6 && from < last.offsetLeft + last.offsetWidth && parseInt(m[1]) > from && parseInt(m[1]) <= mon.offsetLeft + 40;`));
-    check(`${tag}: andere Reiterleisten bleiben ungetönt`, await s.ev("return ![...r.querySelectorAll('.ag-seg:not([data-seg=\"wf-trigger\"])')].some((x) => x.style.background.includes('linear-gradient'))"));
+    // Variante E: Spur und Text neutral, Icons in der Gruppenfarbe (Dunkelrot wie die Zone "Alarm", Orange für die Überwachung), gewählter Reiter mit Rand
+    const col = await s.ev(`const seg = r.querySelector('[data-seg="wf-trigger"]'); const dark = r.host.hasAttribute('dark'); const c = (b) => getComputedStyle(b.querySelector('svg')).color; const bs = [...seg.querySelectorAll(':scope > button')];
+return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigger !== 'monitor').map(c), mon: c(seg.querySelector('[data-trigger="monitor"]')), ring: getComputedStyle(seg.querySelector('.ag-pill')).boxShadow, on: seg.querySelector('button.on').dataset.trigger };`);
+    const wantA = col.dark ? "rgb(224, 74, 71)" : "rgb(211, 47, 47)"; const wantM = col.dark ? "rgb(242, 163, 58)" : "rgb(233, 150, 47)";
+    check(`${tag}: Reiterleiste: Spur ungetönt (kein Verlauf), Icons der Alarm-Reiter im Dunkelrot der Zone "Alarm", Icon von "${t.mode}" orange`, col.bg === "" && col.alarm.length >= 4 && col.alarm.every((x) => x === wantA) && col.mon === wantM, JSON.stringify(col));
+    check(`${tag}: gewählter Reiter (Alarm) mit Rand in Dunkelrot`, col.on !== "monitor" && col.ring.includes(wantA.replace("rgb(", "").replace(")", "")), `${col.ring} / ${wantA}`);
+    check(`${tag}: das Icon des gewählten Reiters ist voll, die anderen gedämpft`, await s.ev(`const seg = r.querySelector('[data-seg="wf-trigger"]'); const o = (b) => parseFloat(getComputedStyle(b.querySelector('svg')).opacity); const on = seg.querySelector('button.on'); return o(on) === 1 && [...seg.querySelectorAll(':scope > button:not(.on)')].every((b) => o(b) < 1 && o(b) > 0.5);`));
+    check(`${tag}: andere Reiterleisten bleiben ungefärbt`, await s.ev("return ![...r.querySelectorAll('.ag-seg:not([data-seg=\"wf-trigger\"])')].some((x) => x.style.background !== '')"));
     await s.tap('[data-trigger="monitor"]');
+    check(`${tag}: gewählt "${t.mode}": Rand in Orange`, await s.waitFor(`const rg = getComputedStyle(r.querySelector('[data-seg="wf-trigger"] .ag-pill')).boxShadow; return rg.includes(${JSON.stringify(wantM.replace("rgb(", "").replace(")", ""))})`));
     check(`${tag}: zwei Regeln als Kapitel`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 2"));
     check(`${tag}: Standard: alle Regeln zugeklappt (Kopf sichtbar, keine Abläufe)`, await s.ev("return [...r.querySelectorAll('.ag-mon-rule')].every((x) => x.classList.contains('folded') && !x.querySelector('.ag-wf-line') && x.querySelector('.ag-mon-head'))"));
     check(`${tag}: der Knopf heisst "${t.unfoldAll}"`, await s.ev("return r.querySelector('[data-wf=\"mon-fold-all\"]').textContent.trim()") === t.unfoldAll);

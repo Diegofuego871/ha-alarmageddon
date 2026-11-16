@@ -14,8 +14,8 @@ export const CSS = `
   --ag-warning: var(--warning-color, #f59e0b);
   --ag-error: var(--error-color, #e5484d);
   --ag-subtle: color-mix(in srgb, var(--ag-text) 5%, var(--ag-card));
-  --ag-tint-alarm: color-mix(in srgb, #e5484d 17%, var(--ag-card));
-  --ag-tint-monitor: color-mix(in srgb, #f2a33a 22%, var(--ag-card));
+  --ag-seg-alarm: #d32f2f; /* wie die Zone "Alarm" im Ablauf (.ag-wf-main) */
+  --ag-seg-monitor: #e9962f;
   --ag-hover: color-mix(in srgb, var(--ag-text) 4%, var(--ag-card));
   --ag-primary-soft: color-mix(in srgb, var(--ag-primary) 14%, transparent);
   --ag-success-soft: color-mix(in srgb, var(--ag-success) 15%, transparent);
@@ -68,6 +68,17 @@ button { font: inherit; color: inherit; }
   transition: transform .46s cubic-bezier(.3, 1.35, .5, 1), width .46s cubic-bezier(.3, 1.35, .5, 1), height .46s cubic-bezier(.3, 1.35, .5, 1), opacity .46s ease; }
 .ag-pill.go { opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .ag-pill, .ag-seg > button { transition: none; } }
+/* Reiterleiste der Aktionen mit "Überwachung" (Variante E der Mockups, 2026-11-16): Spur und Text bleiben neutral. Die Icons tragen die Farbe der Gruppe
+   (Dunkelrot wie die Zone "Alarm" für Reiter, die alarmieren können, Orange für "Überwachung"), nicht gewählte etwas gedämpft; der gewählte Reiter bekommt
+   einen feinen Rand in der Farbe seiner Gruppe und ein volles Icon. */
+.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > button > svg { color: var(--ag-seg-alarm); opacity: .66; transition: opacity .22s ease; }
+.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > button[data-trigger="monitor"] > svg { color: var(--ag-seg-monitor); opacity: .78; }
+.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > button.on { color: var(--ag-text); }
+.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > button.on > svg { opacity: 1; }
+.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > .ag-pill { box-shadow: inset 0 0 0 1.5px var(--ag-seg-alarm); transition: transform .46s cubic-bezier(.3, 1.35, .5, 1), width .46s cubic-bezier(.3, 1.35, .5, 1), height .46s cubic-bezier(.3, 1.35, .5, 1), opacity .46s ease, box-shadow .22s ease; }
+.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"].on) > .ag-pill { box-shadow: inset 0 0 0 1.5px var(--ag-seg-monitor); }
+:host([dark]) { --ag-seg-alarm: #e04a47; --ag-seg-monitor: #f2a33a; }
+
 
 .ag-card { background: var(--ag-card); border-radius: 18px; box-shadow: var(--ag-shadow-s); border: 1px solid var(--ag-divider); }
 .ag-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--ag-divider); background: var(--ag-card); color: var(--ag-text); font-weight: 500; white-space: nowrap; cursor: pointer; }
@@ -909,6 +920,9 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 :host([narrow]) .ag-seg.small:not(.ag-subs):has(> button:nth-child(4)):not(:has(> button:nth-child(5))) { display: grid; grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 :host([narrow]) .ag-seg:has(> button:nth-child(5)) { grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 389px) { :host([narrow]) .ag-seg:has(> button:nth-child(5)) { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Aktionen mit "Überwachung" auf dem Handy, fünf Reiter (Nacht an): zwei Spalten, "Überwachung" über die ganze Breite darunter (sonst läuft der Text aus seiner Zelle) */
+:host([narrow]) .ag-seg[data-seg="wf-trigger"]:has(> button:nth-child(5)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:host([narrow]) .ag-seg[data-seg="wf-trigger"]:has(> button:nth-child(5)) > [data-trigger="monitor"] { grid-column: 1 / -1; }
 /* Name der Anlage oben in der Konfiguration: gross und fett, Stift, Sprung nach HA */
 .ag-headsys { display: flex; align-items: center; gap: 8px; flex: 1 1 calc(100% - 60px); min-width: 0; }
 .ag-head-cfg > .ag-tabs, .ag-head-cfg > .ag-seg { margin-right: auto; }

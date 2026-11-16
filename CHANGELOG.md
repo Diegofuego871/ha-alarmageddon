@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Monitoring rules are collapsed by default.** Open the ones you want; "Expand all" / "Collapse all" still opens or closes everything.
 - **Filter the log by routine.** In Log › All events there is a new pill "Routines" (everything a routine did or skipped) and, always visible below the pills, a drop-down over the full width to pick one routine by its title; then only the events of that routine show. The drop-down lists all routines with the number of their events.
 
+### Changed
+
+- **The tab bar of the actions is no longer tinted; only the icons carry colour.** The track and text stay neutral. The icons of the tabs that can trigger an alarm (Home, Away, Night, Always active) are dark red, the same red as the "Alarm" zone of the flow; the icon of "Monitoring" is orange. Tabs you have not selected are slightly muted; the selected tab gets a fine border in the colour of its group and a full icon. On the phone with five tabs (Night on), "Monitoring" now spans the full width below the others instead of overflowing its cell.
+
 ## [1.51.2] - 2026-11-16
 
 Not released; included in 1.52.0.
