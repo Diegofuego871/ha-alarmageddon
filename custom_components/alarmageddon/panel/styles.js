@@ -604,6 +604,8 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-kind small { color: var(--ag-text2); font-size: 12px; line-height: 1.3; }
 .ag-dlg-body .list-search { flex: none; height: 48px; min-height: 48px; min-width: 0; padding: 0 8px 0 14px; }
 .ag-dlg-body .list-search input { font-size: 15px; }
+/* Handy: das Suchfeld im Fenster darf nicht mit "flex: 1 1 100%" der Seite in die Höhe wachsen (Geräteauswahl der Routinen) */
+:host([narrow]) .ag-dlg-body .list-search { flex: none; height: 48px; }
 .ag-pick-chips { gap: 10px; margin-top: 12px; }
 .ag-step-ed .ag-sys-top h3 { margin: 0; }
 .ag-elist { display: flex; flex-direction: column; max-height: 260px; overflow: auto; border: 1px solid var(--ag-divider); border-radius: 12px; }

@@ -9,6 +9,10 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [1.46.1] - 2026-11-16
 
+### Behoben
+
+- **Die Geräteauswahl einer Routine ist auf dem Handy nicht mehr viel zu gross.** Das Suchfeld war auf die ganze Fensterhöhe gewachsen; es hat wieder seine normale Höhe.
+
 ### Geändert
 
 - **Die Zustände in der Vorschau einer Routine sind aufgeräumter.** Die Pillen sind gleich gross und werden nicht mehr mitten im Wort umgebrochen ("Ausgangsverzö-gerung"); die gewählten tragen ein Häkchen. Auf dem Handy stehen sie untereinander und die Kachel wächst nach unten, am Computer füllen sie die Zeile gleichmässig.

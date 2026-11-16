@@ -37,6 +37,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: ohne Gerät gesperrt, Meldung nennt das Gerät`, await s.ev(`return r.querySelector('[data-sys="rt-save"]').disabled && r.querySelector('.ag-rt-ed .ag-dlg-err').textContent.includes(${JSON.stringify(t.noDevice)})`));
     await s.tap('[data-sys="rt-add-dev"][data-path=""]');
     check(`${tag}: Geräteauswahl mit sechs Geräten`, await s.waitFor("return !!r.querySelector('.ag-rt-pick') && r.querySelectorAll('.ag-rtent').length === 7"));
+    check(`${tag}: Suchfeld der Geräteauswahl hat seine normale Höhe (nicht die des Fensters)`, await s.ev("const h=r.querySelector('.ag-rt-pick .list-search').getBoundingClientRect().height; return h > 30 && h < 70"));
     check(`${tag}: die Entitäts-ID steht nirgends in der Liste`, await s.ev("return !/lock\\.haustuer|binary_sensor\\.|switch\\./.test(r.querySelector('.ag-rtlist').innerText)"));
     const q = await s.el('[data-sys="rt-q"]');
     await q.fill("lock.haus");

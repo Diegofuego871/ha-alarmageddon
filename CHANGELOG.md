@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.46.1] - 2026-11-16
 
+### Fixed
+
+- **The device picker of a routine is no longer far too tall on the phone.** The search field had grown to fill the whole window; it has its normal height again.
+
 ### Changed
 
 - **The states in the preview of a routine are tidier.** The pills have the same size and are no longer broken in the middle of a word ("Ausgangsverzö-gerung"); the chosen ones carry a tick. On the phone they stand one below the other and the tile grows downwards, on the computer they fill the row evenly.
