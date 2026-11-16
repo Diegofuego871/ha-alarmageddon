@@ -7,7 +7,15 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.51.2] - 2026-11-16
+
+### Geändert
+
+- **Regeln der Überwachung: der Pfeil zum Zuklappen steht oben rechts**, weg vom Schalter. Die Farbe einer Regel beginnt oben links wie ein Sonnenaufgang und blasst rasch aus, eine offene Regel ist also nur im oberen Teil gefärbt.
+
 ## [1.51.1] - 2026-11-16
+
+Nicht veröffentlicht; enthalten in 1.51.2.
 
 ### Behoben
 
@@ -1655,7 +1663,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.51.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.51.1
+[1.51.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.51.2
 [1.51.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.51.0
 [1.48.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.1
 [1.48.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.0

@@ -1165,7 +1165,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-phpill { border: 1px solid var(--ag-divider); background: var(--ag-card); color: var(--ag-primary); border-radius: 999px; min-height: 30px; padding: 0 12px; font: inherit; font-size: 13px; cursor: pointer; }
 .ag-phpill:hover, .ag-phpill:focus-visible { background: var(--ag-primary-soft); border-color: var(--ag-primary); }
 :host([narrow]) .ag-phpill { min-height: 36px; }
-.ag-mon-fold { transform: rotate(90deg); transition: transform .15s ease; margin-right: -4px; }
+.ag-mon-fold { transform: rotate(90deg); transition: transform .15s ease; margin-left: 4px; flex: none; }
 .ag-mon-fold:not(.open) { transform: rotate(0deg); }
 .ag-mon-rule.folded .ag-mon-head { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
 .ag-mon-tools { max-width: 820px; margin: 0 0 12px; }
@@ -1179,7 +1179,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-bktable .ag-bkname { display: inline; }
 .ag-bktable .ag-bkauto-tag { margin-left: 0; }
 .ag-bktable .ag-bkname + .ag-bkauto-tag { margin-left: 8px; }
-.ag-mon-rule.coloured { background: linear-gradient(100deg, color-mix(in srgb, var(--mc) 26%, var(--ag-card)) 0%, var(--ag-card) 75%); border-color: color-mix(in srgb, var(--mc) 45%, var(--ag-divider)); }
+.ag-mon-rule.coloured { background: radial-gradient(130% 170px at 0% 0%, color-mix(in srgb, var(--mc) 38%, var(--ag-card)) 0%, var(--ag-card) 100%); border-color: color-mix(in srgb, var(--mc) 45%, var(--ag-divider)); }
 .ag-swatches { display: flex; flex-wrap: wrap; gap: 10px; }
 .ag-swatch { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--ag-divider); background: var(--sw, var(--ag-card)); color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; }
 .ag-swatch:not([style]) { background: var(--ag-card); color: var(--ag-text2); background-image: linear-gradient(135deg, transparent 46%, var(--ag-text3) 46%, var(--ag-text3) 54%, transparent 54%); }
@@ -1201,5 +1201,8 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-bksys-m { display: none; }
 :host([narrow]) .ag-bktable .ag-bksys { display: none; }
 :host([narrow]) .ag-bktable .ag-bksys-m { display: block; font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+:host([narrow]) .ag-mon-head { position: relative; }
+:host([narrow]) .ag-mon-head .ag-mon-fold { position: absolute; top: 2px; right: 0; }
+:host([narrow]) .ag-mon-head .ag-settx { padding-right: 34px; }
 `;
 

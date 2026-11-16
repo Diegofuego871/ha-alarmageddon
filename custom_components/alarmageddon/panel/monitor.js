@@ -262,12 +262,12 @@ export class MonitorUi {
     };
     const folded = this.folded.has(m.id);
     return `<section class="ag-mon-rule ${on ? "" : "dim"} ${folded ? "folded" : ""} ${m.color ? "coloured" : ""}" data-rule-id="${esc(m.id)}" ${m.color ? `style="--mc:${esc(m.color)}"` : ""}>
-      <div class="ag-mon-head"><button class="ag-cbtn ag-mon-fold ${folded ? "" : "open"}" data-wf="mon-fold" data-rule="${i}" aria-expanded="${!folded}" aria-label="${esc(this._t(folded ? "monUnfold" : "monFold"))}" title="${esc(this._t(folded ? "monUnfold" : "monFold"))}">${ic("chevRight", 16)}</button><button class="ag-toggle ${on ? "on" : ""}" data-wf="mon-on" data-rule="${i}" role="switch" aria-checked="${on}" aria-label="${esc(`${m.name}: ${this._t("monActiveSwitch")}`)}"></button>
+      <div class="ag-mon-head"><button class="ag-toggle ${on ? "on" : ""}" data-wf="mon-on" data-rule="${i}" role="switch" aria-checked="${on}" aria-label="${esc(`${m.name}: ${this._t("monActiveSwitch")}`)}"></button>
         <span class="ag-oav ${on ? "on" : ""}">${ic(this._ruleIcon(m), 20)}</span>
         <div class="ag-settx"><h3 class="ag-chap-t">${esc(m.name)}</h3><small>${esc(this.ruleSub(m))}</small>${tag ? `<div class="ag-rttags">${tag}</div>` : ""}</div>
         <div class="ag-btnrow"><button class="ag-iconbtn" data-wf="mon-dup" data-rule="${i}" ${full ? "disabled" : ""} aria-label="${esc(this._t("monDuplicate"))}" title="${esc(this._t("monDuplicate"))}">${ic("copy", 18)}</button>
           <button class="ag-iconbtn" data-wf="mon-edit" data-rule="${i}" aria-label="${esc(this._t("monEdit"))}" title="${esc(this._t("monEdit"))}">${ic("pencil", 18)}</button>
-          <button class="ag-iconbtn" data-wf="mon-del" data-rule="${i}" aria-label="${esc(this._t("monDelete"))}" title="${esc(this._t("monDelete"))}">${ic("trash", 18)}</button></div></div>
+          <button class="ag-iconbtn" data-wf="mon-del" data-rule="${i}" aria-label="${esc(this._t("monDelete"))}" title="${esc(this._t("monDelete"))}">${ic("trash", 18)}</button></div><button class="ag-cbtn ag-mon-fold ${folded ? "" : "open"}" data-wf="mon-fold" data-rule="${i}" aria-expanded="${!folded}" aria-label="${esc(this._t(folded ? "monUnfold" : "monFold"))}" title="${esc(this._t(folded ? "monUnfold" : "monFold"))}">${ic("chevRight", 16)}</button></div>
       ${folded ? "" : flow("out", m.steps_out, "alert", "warn", "monOutTitle") + flow("ok", m.steps_ok, "check", "ok", "monOkTitle")}</section>`;
   }
 
