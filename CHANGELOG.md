@@ -7,7 +7,15 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.52.0] - 2026-11-16
+
+### Added
+
+- **Filter the log by routine.** In Log › All events there is a new pill "Routines" (everything a routine did or skipped) and, always visible below the pills, a drop-down over the full width to pick one routine by its title; then only the events of that routine show. The drop-down lists all routines with the number of their events.
+
 ## [1.51.2] - 2026-11-16
+
+Not released; included in 1.52.0.
 
 ### Changed
 
@@ -15,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.51.1] - 2026-11-16
 
-Not released; included in 1.51.2.
+Not released; included in 1.52.0.
 
 ### Fixed
 
@@ -1663,7 +1671,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.51.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.51.2
+[1.52.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.52.0
 [1.51.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.51.0
 [1.48.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.1
 [1.48.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.48.0

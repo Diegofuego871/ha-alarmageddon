@@ -363,12 +363,21 @@ export class LogUi {
       : `<div class="ag-card ag-empty"><span class="ag-t2">${esc(this._t(this.range === "all" && this.system === "all" ? "logNoAlarms" : "logNoAlarmsRange"))}</span></div>`;
     const all = this.events();
     const cat = (e) => (e.kind === "arm_failed" ? "failed" : e.state === "pending" || e.state === "triggered" ? "alarm" : e.state === "disarmed" ? "disarmed" : String(e.state || "").startsWith("armed") || e.state === "arming" ? "armed" : "other");
-    const count = (k) => (k === "all" ? all.length : all.filter((e) => cat(e) === k).length);
-    if (this.evFilter && this.evFilter !== "all" && !count(this.evFilter)) this.evFilter = "all";
+    // Routinen (1.52.0): Ereignisse, die eine Routine ausgelöst hat ("von: Routine: Name") oder übersprungen hat (Ereignis routine_skipped)
+    const routineOf = (e) => (e.kind === "routine_skipped" ? e.routine || "" : (String(e.by || "").match(/^Routine: (.+)$/) || [])[1] || "");
+    const count = (k) => (k === "all" ? all.length : k === "routine" ? all.filter((e) => routineOf(e)).length : all.filter((e) => cat(e) === k).length);
+    if (this.evFilter && this.evFilter !== "all" && this.evFilter !== "routine" && !count(this.evFilter)) this.evFilter = "all";
     const filter = this.evFilter || "all";
-    const events = filter === "all" ? all : all.filter((e) => cat(e) === filter);
-    const chips = `<div class="ag-tools ag-evchips" style="margin-bottom:10px">${[["all", "evFilterAll"], ["alarm", "evFilterAlarm"], ["armed", "evFilterArmed"], ["disarmed", "evFilterDisarmed"], ["failed", "evFilterFailed"]]
-      .map(([k, label]) => `<button class="ag-chip ${filter === k ? "on" : ""} ${count(k) || k === "all" ? "" : "zero"}" data-log="evfilter" data-filter="${k}">${esc(this._t(label))} <span class="ag-t2">${count(k)}</span></button>`).join("")}</div>`;
+    const named = filter === "routine" ? this.evRoutine || "" : "";
+    const events = filter === "all" ? all : filter === "routine" ? all.filter((e) => (named ? routineOf(e) === named : routineOf(e))) : all.filter((e) => cat(e) === filter);
+    // Auswahl einer Routine: alle Routinen der Anlagen plus die, die im Protokoll vorkommen (eine gelöschte Routine hat noch Ereignisse); immer sichtbar
+    const names = new Map();
+    for (const s of this.host._data?.systems || []) for (const r of s.routines || []) names.set(r.name, 0);
+    for (const e of all) if (routineOf(e)) names.set(routineOf(e), (names.get(routineOf(e)) || 0) + 1);
+    const options = [...names.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    const pick = `<select class="ag-input ag-evroutine" data-log="evroutine" style="width:100%;margin-bottom:10px" aria-label="${esc(this._t("evRoutinePick"))}"><option value="">${esc(this._t("evRoutineAll"))}</option>${options.map(([n, c]) => `<option value="${esc(n)}" ${named === n ? "selected" : ""}>${esc(n)} (${c})</option>`).join("")}</select>`;
+    const chips = `<div class="ag-tools ag-evchips" style="margin-bottom:10px">${[["all", "evFilterAll"], ["alarm", "evFilterAlarm"], ["armed", "evFilterArmed"], ["disarmed", "evFilterDisarmed"], ["failed", "evFilterFailed"], ["routine", "evFilterRoutine"]]
+      .map(([k, label]) => `<button class="ag-chip ${filter === k ? "on" : ""} ${count(k) || k === "all" ? "" : "zero"}" data-log="evfilter" data-filter="${k}">${esc(this._t(label))} <span class="ag-t2">${count(k)}</span></button>`).join("")}</div>${pick}`;
     const rows = events.length
       ? events.slice(0, this.shownEvents).map((e) => `<div class="ag-row"><time>${esc(this.host._fmtTime(e.t))}</time><span class="ag-grow"><b style="font-weight:500">${esc(e.system)}</b> · ${esc(this.host._eventText(e))}</span></div>`).join("")
       : `<div class="ag-row ag-t2">${esc(this._t("logNoEventsRange"))}</div>`;
@@ -398,6 +407,14 @@ export class LogUi {
   // Zeitraum, Daten und Anlage (select und date lösen "change" aus)
   onChange(el) {
     const k = el?.dataset?.log;
+    if (k === "evroutine") {
+      // Eine Routine gewählt: nur ihre Ereignisse (der Filter "Routinen" wird dabei an); "Alle Routinen": alle Ereignisse von Routinen
+      this.evRoutine = el.value;
+      this.evFilter = "routine";
+      this.shownEvents = SHOWN;
+      this.render();
+      return true;
+    }
     if (!["range", "from", "to", "system"].includes(k)) return false;
     if (k === "range") {
       this.range = el.value;
@@ -452,6 +469,7 @@ export class LogUi {
     if (el?.dataset?.log === "export-csv") return this.exportFile(), true;
     if (el?.dataset?.log === "evfilter") {
       this.evFilter = el.dataset.filter;
+      if (this.evFilter !== "routine") this.evRoutine = "";
       this.shownEvents = SHOWN;
       this.render();
       return true;
