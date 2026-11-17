@@ -4,8 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { unfoldAll: "Alle aufklappen", explOut: "bei über 8 °C", explOk1: "bei 7 °C oder tiefer", explOk3: "bei 5 °C oder tiefer", explNow: "Jetzt 5,4 °C", explBuffer: "Pufferzone", explZero: "Ohne Spanne gilt schon die Grenze selbst.", volume: "Lautstärke", measure: "Messwerte", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
-  en: { unfoldAll: "Expand all", explOut: "above 8 °C", explOk1: "at 7 °C or lower", explOk3: "at 5 °C or lower", explNow: "Now 5.4 °C", explBuffer: "buffer zone", explZero: "Without a margin the limit itself counts.", volume: "Volume", measure: "Measurements", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
+  de: { stepTested: "Schritt getestet", stepTestFail: "Test fehlgeschlagen", unfoldAll: "Alle aufklappen", explOut: "bei über 8 °C", explOk1: "bei 7 °C oder tiefer", explOk3: "bei 5 °C oder tiefer", explNow: "Jetzt 5,4 °C", explBuffer: "Pufferzone", explZero: "Ohne Spanne gilt schon die Grenze selbst.", volume: "Lautstärke", measure: "Messwerte", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
+  en: { stepTested: "Step tested", stepTestFail: "Test failed", unfoldAll: "Expand all", explOut: "above 8 °C", explOk1: "at 7 °C or lower", explOk3: "at 5 °C or lower", explNow: "Now 5.4 °C", explBuffer: "buffer zone", explZero: "Without a margin the limit itself counts.", volume: "Volume", measure: "Measurements", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
 };
 const FRIDGE = "sensor.kuehlschrank_temperatur";
 
@@ -207,6 +207,17 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     check(`${tag}: Schritt kopieren`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule')[0].querySelectorAll('.ag-wf-mon-out .ag-wf-step').length === 3"));
     await s.tap('[data-wf="mon-step-del"][data-rule="0"][data-zone="out"][data-index="1"]');
     check(`${tag}: Schritt löschen`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule')[0].querySelectorAll('.ag-wf-mon-out .ag-wf-step').length === 2"));
+    // Test eines Schritts (1.57.0): Knopf "Play" an erster Stelle wie bei den Alarm-Aktionen; "Warten" ist nicht testbar
+    check(`${tag}: jede Schrittkarte hat den Test-Knopf an erster Stelle, bei "Warten" gesperrt`, await s.ev("const cards=[...r.querySelectorAll('.ag-mon-rule')[0].querySelectorAll('.ag-wf-step')]; return cards.length >= 4 && cards.every((c) => c.querySelector('.ag-wf-btns').firstElementChild.dataset.wf === 'mon-step-test' && c.querySelectorAll('.ag-wf-btns .ag-iconbtn').length === 4 && c.querySelector('.ag-wf-btns').firstElementChild.disabled === /Warten|Wait/.test(c.querySelector('.ag-wf-text b').textContent))"));
+    await s.sim("window.__delay = { 'alarmageddon/test_monitor_step': 500 }; window.__calls.length = 0; return 1");
+    await s.tap('[data-wf="mon-step-test"][data-rule="0"][data-zone="out"][data-index="0"]');
+    check(`${tag}: während des Tests sind alle Test-Knöpfe gesperrt, der laufende ist markiert`, await s.waitFor("const b=[...r.querySelectorAll('[data-wf=\"mon-step-test\"]')]; return b.every((x) => x.disabled) && b.filter((x) => x.classList.contains('on')).length === 1"));
+    await s.page.waitForFunction(() => window.__calls.some((c) => c.type === "alarmageddon/test_monitor_step"), null, { timeout: 5000 });
+    check(`${tag}: der Server bekommt Art, Schritt, Regel und Namen (auch ungespeichert)`, await s.sim("const c=window.__calls.find((x) => x.type === 'alarmageddon/test_monitor_step'); return c.kind === 'out' && c.step.type === 'notify' && c.step.critical === true && !!c.rule_id && !!c.rule_name"));
+    check(`${tag}: danach Meldung "${t.stepTested}", Knöpfe wieder frei, Entwurf unverändert`, await s.waitFor(`return /${t.stepTested}/.test(r.querySelector('.ag-toast')?.textContent || '') && [...r.querySelectorAll('[data-wf="mon-step-test"]')].some((x) => !x.disabled)`, 5000));
+    await s.sim("window.__delay = {}; window.__wsFail = Object.assign(new Error('Gerät antwortet nicht'), { code: 'failed' }); return 1");
+    await s.tap('[data-wf="mon-step-test"][data-rule="0"][data-zone="out"][data-index="1"]');
+    check(`${tag}: schlägt der Test fehl, steht der Grund in der Meldung`, await s.waitFor(`return /${t.stepTestFail}/.test(r.querySelector('.ag-toast')?.textContent || '') && /Gerät antwortet nicht/.test(r.querySelector('.ag-toast').textContent)`, 5000));
     check(`${tag}: der Fuss zählt eine Änderung je Regel (nicht je Schritt)`, await s.ev("return /(^|\\s)1 (Änderung|change)(\\s|$)/.test(r.querySelector('.ag-foot').innerText)"));
     await s.tap('[data-wf="mon-save"]');
     check(`${tag}: gespeichert`, await s.waitFor(`return /${t.saved}/.test(r.querySelector('.ag-foot').innerText)`, 8000));

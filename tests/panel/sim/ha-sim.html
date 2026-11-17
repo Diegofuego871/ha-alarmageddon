@@ -521,6 +521,10 @@
       if (reload) reloadNow();
       return { ok: true, reload };
     }
+    if (msg.type === "alarmageddon/test_monitor_step") {
+      if (msg.step.type === "wait") throw err("nothing_to_test");
+      return { ok: true };
+    }
     if (msg.type === "alarmageddon/test_workflow") {
       if (!msg.step && !(sys.workflows[msg.trigger] || []).length) throw err("empty");
       sys.workflow_running = msg.trigger;

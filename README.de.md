@@ -85,6 +85,8 @@ Jede Regel ist ein Kapitel mit ihrem Ablauf: "Ausserhalb der Grenzen" (orange) u
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/monitor-de.png" alt="Regeln der Überwachung: Kühlschrank zu warm mit den Abläufen ausserhalb der Grenzen und wieder in Ordnung" width="100%"></p>
 
+Jeder Schritt einer Regel hat einen Play-Knopf, der nur diesen Schritt einmal ausführt (eine Push-Meldung mit dem Titel "Test: ..." oder das Gerät wird geschaltet), auch bevor die Regel gespeichert ist; "Warten" gibt es nicht zu testen.
+
 Die Überwachung läuft immer, auch bei deaktivierter Anlage, und löst nie die Sirene oder den Alarm aus (Feuer und Wasser bleiben bei "Immer aktiv"). Ein Sensor, der nicht antwortet, zählt nie: Er löst keine Regel aus und beendet auch keine, ein Funkabriss meldet also nie "wieder in Ordnung". Eine laufende Regel meldet sich nach einem Neustart nicht noch einmal.
 
 Die Messwert-Sensoren der Überwachung (Temperatur, Luftfeuchtigkeit, CO2) stehen auch in der Übersicht des Panels mit ihrem Wert, und ein Tipp öffnet dieselbe Ansicht wie bei jedem Sensor: der Reiter "Verlauf" mit dem Werteverlauf, Batterie, Empfang und Gerät. Unter der Grafik stehen nur die Ereignisse der Überwachung ("Ausserhalb der Grenzen", "Wieder in Ordnung"), nie die einzelnen Werte. Der Editor einer Regel erklärt die Rückkehr-Spanne mit deinen eigenen Werten: bei welchem Wert die Regel auslöst, ab welchem sie wieder in Ordnung ist und wo die Pufferzone liegt.

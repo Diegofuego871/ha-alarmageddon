@@ -48,6 +48,7 @@ class RuntimeData:
     notifier: Notifier | None = None
     workflow: WorkflowRunner | None = None
     recorder: AlarmRecorder | None = None
+    monitor: MonitorEngine | None = None
 
 
 type AlarmageddonConfigEntry = ConfigEntry[RuntimeData]
@@ -151,6 +152,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
     entry.async_on_unload(routines.async_stop)
     # Die Überwachung ist Zusatz zur Anlage: scheitert ihr Start, läuft die Anlage trotzdem
     monitors = MonitorEngine(hass, entry, controller, notifier)
+    entry.runtime_data.monitor = monitors
     entry.async_on_unload(monitors.async_stop)
     await _isolated(entry, monitors.async_start(), "starting the monitoring")
     # Zonen, Modi und Verzögerungen bestimmen, welche Entitäten es gibt und wem zugehört wird: neu laden.

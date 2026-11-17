@@ -418,7 +418,20 @@ class MonitorEngine:
         common = {"rule": values["rule"], "sensor": values["sensor"], "value": value, "limit": limit, "since": values["since"]}
         return title.format(**common), message.format(**common)
 
-    async def _step(self, rule: dict[str, Any], step: dict[str, Any], kind: str, since: str, entity: str) -> None:
+    async def async_test_step(self, step: dict[str, Any], kind: str, rule_id: str = "", rule_name: str = "") -> bool:
+        """
+        Einen Schritt einer Regel einmal ausführen (Knopf "Test" im Panel), auch ungespeichert. Die Meldung trägt den Testtitel, die Platzhalter
+        zeigen die aktuellen Werte der Regel (ist sie noch nicht gespeichert, bleiben die Werte leer). Ein Gerät, das nicht antwortet, hält nach
+        SERVICE_TIMEOUT nichts mehr auf (der Aufruf wirft dann TimeoutError); "Warten" gibt es nicht zu testen (False). Löst nie Alarm oder Sirene aus.
+        """
+        if step.get("type") == "wait":
+            return False
+        saved = next((r for r in self.entry.options.get(CONF_MONITORS) or [] if isinstance(r, dict) and r.get("id") == rule_id), None)
+        rule = saved or {"id": rule_id or "test", "name": rule_name or self.entry.title, "tree": {"op": "and", "items": []}}
+        await self._step(rule, step, kind, dt_util.utcnow().isoformat(), "", test=True)
+        return True
+
+    async def _step(self, rule: dict[str, Any], step: dict[str, Any], kind: str, since: str, entity: str, test: bool = False) -> None:
         stype = step.get("type")
         if stype == "wait":
             await self._sleep(max(0, int(step.get("seconds", 0) or 0)))
@@ -427,6 +440,8 @@ class MonitorEngine:
             title, message = self._default(kind, values)
             title = self._fill(step["title"], values) if step.get("title") else title
             message = self._fill(step["message"], values) if step.get("message") else message
+            if test:
+                title = TEXTS[language(self.hass)]["test_title"].format(name=title)
             targets = list(step.get("targets") or self._notifier.cfg["maintenance_targets"])
             cfg = {"types": {"monitor": {"critical": bool(step.get("critical")), "volume": float(step.get("volume", 1.0))}}}
             payload = build_payload(cfg, "monitor", title, message, tag=f"alarmageddon_{self.entry.entry_id}_monitor_{rule['id']}")

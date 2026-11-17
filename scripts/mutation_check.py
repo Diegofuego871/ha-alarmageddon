@@ -586,6 +586,14 @@ MUTATIONS = [
      'not 1 <= keep <= AUTO_BACKUP_KEEP_MAX', 'False', "tests/test_auto_backup.py -k 'keep_count_rejects or stored_keep'"),
     ('Überwachung: eine Farbe ausserhalb der angebotenen wird angenommen', 'schemas.py',
      'vol.Optional("color"): vol.In(MONITOR_COLORS)', 'vol.Optional("color"): str', 'tests/test_monitor.py -k save_monitors_rejects_invalid'),
+    ("Überwachung, Schritt testen: ohne Administratorrechte", "websocket_api.py",
+     '        vol.Optional("rule_name"): vol.All(str, vol.Length(max=100)),\n    }\n)\n@websocket_api.require_admin\n',
+     '        vol.Optional("rule_name"): vol.All(str, vol.Length(max=100)),\n    }\n)\n', "tests/test_security.py -k admin_only"),
+    ("Überwachung, Schritt testen: die Meldung trägt nicht den Testtitel (Test und echte Meldung nicht zu unterscheiden)", "monitor.py",
+     '                title = TEXTS[language(self.hass)]["test_title"].format(name=title)', "                pass", "tests/test_monitor.py -k step_test_sends_marked_push"),
+    ("Überwachung, Schritt testen: der Fehler eines Geräts wird als Erfolg gemeldet", "websocket_api.py",
+     '    except Exception as err:  # noqa: BLE001 - ein Fehler des Geräts ist die Antwort des Tests, kein Fehler der Integration\n        connection.send_error(msg["id"], "failed", str(err) or type(err).__name__)\n        return',
+     "    except Exception:  # noqa: BLE001\n        done = True", "tests/test_monitor.py -k step_test_reports_a_failing_device"),
 ]
 
 

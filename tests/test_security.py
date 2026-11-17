@@ -69,6 +69,7 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "routine_entities": {},
     "monitor_entities": {},
     "save_monitors": {"entry_id": "ENTRY", "monitors": []},
+    "test_monitor_step": {"entry_id": "ENTRY", "kind": "out", "step": {"type": "notify"}},
     "sensor_history": {"entity_id": "binary_sensor.fenster_kueche"},
     "save_display": {"names_with_device": False},
     "save_auto_backup": {"enabled": False, "every": "daily"},

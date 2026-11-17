@@ -7,7 +7,15 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.57.0] - 2026-11-17
+
+### Hinzugefügt
+
+- **Test-Knopf an jedem Schritt einer Überwachungsregel.** Jede Schrittkarte einer Regel ("Ausserhalb der Grenzen" und "Wieder in Ordnung") hat an erster Stelle einen Play-Knopf, wie die Alarm-Aktionen. Er führt nur diesen Schritt einmal aus, auch wenn die Regel noch nicht gespeichert ist: eine Push-Meldung geht mit dem Titel "Test: ..." und den aktuellen Werten der Regel in den Platzhaltern hinaus, ein Geräteschritt schaltet das Gerät. "Warten" gibt es nicht zu testen, sein Knopf ist gesperrt. Während ein Test läuft, sind die Knöpfe gesperrt; danach meldet eine Meldung "Schritt getestet." oder den Grund des Fehlers (zum Beispiel ein Gerät, das nicht antwortet, nach höchstens 10 Sekunden). Ein Test löst nie Sirene oder Alarm aus, und nur Administratoren können ihn ausführen.
+
 ## [1.56.0] - 2026-11-16
+
+Nicht veröffentlicht; enthalten in 1.57.0.
 
 ### Geändert
 
@@ -1730,7 +1738,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.56.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.56.0
+[1.57.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.57.0
 [1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0
 [1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0
 [1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0

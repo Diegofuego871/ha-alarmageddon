@@ -100,7 +100,7 @@ from .devices import battery_of, device_sensors, display_name
 from .forecast import async_forecasts
 from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
-from .schemas import END_NOTIFY_SCHEMA, NOTIFY_TARGETS, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
+from .schemas import END_NOTIFY_SCHEMA, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
 from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_get_stats, async_measure_history, async_numeric_history, async_state_history
 from .settings import async_get_settings, sensor_type
 
@@ -136,6 +136,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_routine_entities)
     websocket_api.async_register_command(hass, ws_monitor_entities)
     websocket_api.async_register_command(hass, ws_save_monitors)
+    websocket_api.async_register_command(hass, ws_test_monitor_step)
     websocket_api.async_register_command(hass, ws_battery_forecast)
     websocket_api.async_register_command(hass, ws_sensor_history)
     websocket_api.async_register_command(hass, ws_log)
@@ -1050,6 +1051,38 @@ async def ws_save_monitors(hass: HomeAssistant, connection, msg: dict[str, Any])
         return
     changed = hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_MONITORS: monitors})
     connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/test_monitor_step",
+        vol.Required("entry_id"): str,
+        # "out": Regel ausgelöst, "ok": wieder in Ordnung (bestimmt den Standardtext der Meldung)
+        vol.Required("kind"): vol.In(("out", "ok")),
+        vol.Required("step"): MONITOR_STEP,
+        vol.Optional("rule_id"): vol.All(str, vol.Length(max=64)),
+        vol.Optional("rule_name"): vol.All(str, vol.Length(max=100)),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_test_monitor_step(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """Einen Schritt einer Regel der Überwachung einmal ausführen (auch ungespeichert); nie Alarm, nie Sirene."""
+    if (entry := _entry(hass, connection, msg)) is None:
+        return
+    engine = entry.runtime_data.monitor
+    if engine is None:
+        connection.send_error(msg["id"], "not_found", "Monitoring is not running")
+        return
+    try:
+        done = await engine.async_test_step(msg["step"], msg["kind"], msg.get("rule_id", ""), msg.get("rule_name", ""))
+    except Exception as err:  # noqa: BLE001 - ein Fehler des Geräts ist die Antwort des Tests, kein Fehler der Integration
+        connection.send_error(msg["id"], "failed", str(err) or type(err).__name__)
+        return
+    if not done:
+        connection.send_error(msg["id"], "nothing_to_test", "This step has nothing to test")
+        return
+    connection.send_result(msg["id"], {"ok": True})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/monitor_entities"})

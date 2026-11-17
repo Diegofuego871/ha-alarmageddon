@@ -292,6 +292,33 @@ export class MonitorUi {
     return dc === "temperature" ? "thermo" : first?.kind === "value" ? "gauge" : "eye";
   }
 
+  // Knopf "Test" (wie bei den Alarm-Aktionen, an erster Stelle): führt nur diesen Schritt einmal aus; "Warten" gibt es nicht zu testen
+  _testBtn(kind, ruleIndex, zone, k) {
+    const attrs = `data-wf="mon-step-test" data-rule="${ruleIndex}" data-zone="${zone}" data-index="${k}"`;
+    if (kind === "wait") return `<button class="ag-iconbtn" ${attrs} disabled aria-label="${esc(this._t("monStepTestWait"))}" title="${esc(this._t("monStepTestWait"))}">${ic("play", 18)}</button>`;
+    const mine = this._testing === `${zone}:${ruleIndex}:${k}`;
+    return `<button class="ag-iconbtn ${mine ? "on" : ""}" ${attrs} ${this._testing ? "disabled" : ""} aria-label="${esc(this._t("stepTest"))}" title="${esc(this._t("stepTest"))}">${ic("play", 18)}</button>`;
+  }
+
+  async testStep(zone, i, k) {
+    const h = this.host;
+    const s = this.system;
+    const rule = this.draft?.monitors[i];
+    const step = rule?.[`steps_${zone}`]?.[k];
+    if (!s || !step || step.type === "wait" || this._testing) return;
+    this._testing = `${zone}:${i}:${k}`;
+    this.ui.render();
+    try {
+      await h._hass.callWS({ type: "alarmageddon/test_monitor_step", entry_id: s.entry_id, kind: zone, step: clone(step), rule_id: rule.id, rule_name: rule.name });
+      h._toast(this._t("monStepTested"));
+    } catch (err) {
+      h._toast(this._t("monStepTestFail", { message: errText(err) }));
+    } finally {
+      this._testing = null;
+      this.ui.render();
+    }
+  }
+
   _card(st, ruleIndex, zone, k) {
     const kind = st.type;
     const icon = kind === "notify" ? "bell" : kind === "wait" ? "timer" : "power";
@@ -299,7 +326,7 @@ export class MonitorUi {
     const steps = this.draft.monitors[ruleIndex][`steps_${zone}`];
     return `<div class="ag-card ag-wf-step" data-index="${k}"><span class="ag-wf-icon k-${kind}">${ic(icon, 20)}</span>
       <div class="ag-wf-text"><b>${esc(title)}</b><div class="ag-t2 ag-small">${esc(this.stepSummary(st))}</div><span class="ag-zone">${esc(this._t(zone === "out" ? "monOutTitle" : "monOkTitle"))}</span></div>
-      <div class="ag-wf-btns"><button class="ag-iconbtn" data-wf="mon-step-edit" data-rule="${ruleIndex}" data-zone="${zone}" data-index="${k}" aria-label="${esc(this._t("stepEdit"))}">${ic("pencil", 18)}</button>
+      <div class="ag-wf-btns">${this._testBtn(kind, ruleIndex, zone, k)}<button class="ag-iconbtn" data-wf="mon-step-edit" data-rule="${ruleIndex}" data-zone="${zone}" data-index="${k}" aria-label="${esc(this._t("stepEdit"))}">${ic("pencil", 18)}</button>
         <button class="ag-iconbtn" data-wf="mon-step-dup" data-rule="${ruleIndex}" data-zone="${zone}" data-index="${k}" ${steps.length >= MAX_STEPS ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
         <button class="ag-iconbtn" data-wf="mon-step-del" data-rule="${ruleIndex}" data-zone="${zone}" data-index="${k}" aria-label="${esc(this._t("stepDelete"))}">${ic("trash", 18)}</button></div></div>`;
   }
@@ -851,6 +878,7 @@ export class MonitorUi {
       done();
     } else if (act === "mon-step-add") this.openStep(zone, i, -1, Number(el.dataset.at));
     else if (act === "mon-step-edit") this.openStep(zone, i, k);
+    else if (act === "mon-step-test") this.testStep(zone, i, k);
     else if (act === "mon-step-dup") {
       const list = d.monitors[i][`steps_${zone}`];
       if (list.length < MAX_STEPS) list.splice(k + 1, 0, clone(list[k]));

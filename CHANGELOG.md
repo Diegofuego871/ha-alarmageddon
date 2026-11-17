@@ -7,7 +7,15 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.57.0] - 2026-11-17
+
+### Added
+
+- **Test button on every step of a monitoring rule.** Each step card of a rule ("Outside the limits" and "Back to normal") has a play button in first place, like the alarm actions. It runs only this step once, also when the rule is not saved yet: a push message goes out with the title "Test: ..." and the current values of the rule in the placeholders, a device step switches the device. "Wait" has nothing to test and its button is locked. While a test runs the buttons are locked; afterwards a message says "Step tested." or why the test failed (for example a device that does not answer, after at most 10 seconds). A test never triggers the siren or the alarm, and only administrators can run it.
+
 ## [1.56.0] - 2026-11-16
+
+Not released; included in 1.57.0.
 
 ### Changed
 
@@ -1730,7 +1738,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.56.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.56.0
+[1.57.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.57.0
 [1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0
 [1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0
 [1.53.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.53.0

@@ -85,6 +85,8 @@ Every rule is a chapter with its flow: "Outside the limits" (orange) and "Back t
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/monitor-en.png" alt="Monitoring rules: fridge too warm with its flows outside the limits and back to normal" width="100%"></p>
 
+Every step of a rule has a play button that runs just this step once (a push message with the title "Test: ...", or the device is switched), also before the rule is saved; "Wait" has nothing to test.
+
 Monitoring runs always, also while the alarm system is disarmed, and never triggers the siren or the alarm (fire and water stay with "Always active"). A sensor that does not respond never counts: it neither triggers a rule nor ends it, so a radio loss never reports "back to normal". A running rule does not report again after a restart.
 
 The measured sensors of the monitoring (temperature, humidity, CO2) also appear in the panel overview with their value, and a tap opens the same view as for every sensor: the tab "History" with the course of the values, battery, signal and device. Below the chart there are only the events of the monitoring ("Outside the limits", "Back to normal"), never the single values. The editor of a rule explains the return margin with your own values: at which value the rule triggers, from which value it is back to normal and where the buffer zone lies.

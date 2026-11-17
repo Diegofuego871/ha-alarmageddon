@@ -575,3 +575,69 @@ async def test_backup_carries_monitors_and_validates_them(hass: HomeAssistant, h
     broken = {**data, "systems": [{"title": "Haus", "options": {**options, "monitor_sensors": [DOOR]}}]}
     with pytest.raises(Exception):  # noqa: B017
         backup.validate(broken, hass)
+
+
+# ----- Test eines Schritts (1.57.0: Knopf "Test" an jedem Schritt einer Regel) -----
+
+
+async def _test_step(hass: HomeAssistant, hass_ws_client, entry, step: dict, kind: str = "out", **extra) -> dict:
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": "alarmageddon/test_monitor_step", "entry_id": entry.entry_id, "kind": kind, "step": step, **extra})
+    return await client.receive_json()
+
+
+async def test_step_test_sends_marked_push_with_live_values(hass: HomeAssistant, hass_ws_client) -> None:
+    entry, pushes = await _setup(hass, [_rule(_value(), hold=0, out=[])], start="12")
+    reply = await _test_step(hass, hass_ws_client, entry, {"type": "notify", "message": "{sensor}: {value} {unit}"}, rule_id="m1")
+    assert reply["success"] is True
+    assert len(pushes) == 1
+    assert pushes[0].data["title"].startswith("🧪 Test: ")
+    assert pushes[0].data["message"] == "Kühlschrank Temperatur: 12 °C"
+
+
+async def test_step_test_of_unsaved_rule_uses_its_name(hass: HomeAssistant, hass_ws_client) -> None:
+    entry, pushes = await _setup(hass, [])
+    reply = await _test_step(hass, hass_ws_client, entry, {"type": "notify", "message": "{rule}"}, kind="ok", rule_name="Neue Regel")
+    assert reply["success"] is True and pushes[0].data["message"] == "Neue Regel"
+
+
+async def test_step_test_switches_the_device(hass: HomeAssistant, hass_ws_client) -> None:
+    switch = async_mock_service(hass, "switch", "turn_on")
+    entry, _pushes = await _setup(hass, [])
+    reply = await _test_step(hass, hass_ws_client, entry, {"type": "action", "action": "switch.turn_on", "target": [SWITCH]})
+    assert reply["success"] is True and len(switch) == 1 and switch[0].data["entity_id"] == [SWITCH]
+
+
+async def test_step_test_never_triggers_the_alarm(hass: HomeAssistant, hass_ws_client) -> None:
+    entry, _pushes = await _setup(hass, [])
+    await _test_step(hass, hass_ws_client, entry, {"type": "notify"})
+    assert state(hass) == AlarmControlPanelState.DISARMED
+
+
+async def test_step_test_of_wait_has_nothing_to_test(hass: HomeAssistant, hass_ws_client) -> None:
+    entry, pushes = await _setup(hass, [])
+    reply = await _test_step(hass, hass_ws_client, entry, {"type": "wait", "seconds": 60})
+    assert reply["success"] is False and reply["error"]["code"] == "nothing_to_test" and pushes == []
+
+
+async def test_step_test_reports_a_failing_device(hass: HomeAssistant, hass_ws_client) -> None:
+    async def broken(_call: ServiceCall) -> None:
+        raise RuntimeError("kaputt")
+
+    hass.services.async_register("broken", "now", broken)
+    entry, _pushes = await _setup(hass, [])
+    reply = await _test_step(hass, hass_ws_client, entry, {"type": "action", "action": "broken.now", "target": []})
+    assert reply["success"] is False and reply["error"]["code"] == "failed" and "kaputt" in reply["error"]["message"]
+
+
+async def test_step_test_of_a_hanging_device_answers_after_the_timeout(hass: HomeAssistant, hass_ws_client, monkeypatch) -> None:
+    """Sicherheitsregel (tests/test_action_hang.py): ein Gerät, das nicht antwortet, hält den Test nur SERVICE_TIMEOUT lang auf."""
+    monkeypatch.setattr(monitor_module, "SERVICE_TIMEOUT", 0.2)
+
+    async def hang(_call: ServiceCall) -> None:
+        await asyncio.Event().wait()
+
+    hass.services.async_register("hang", "now", hang)
+    entry, _pushes = await _setup(hass, [])
+    reply = await asyncio.wait_for(_test_step(hass, hass_ws_client, entry, {"type": "action", "action": "hang.now", "target": ["switch.haengt"]}), 5)
+    assert reply["success"] is False and reply["error"]["code"] == "failed"
