@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.61.0] - 2026-11-17
+
+### Changed
+
+- **Times look the same everywhere.** From 60 seconds on a time is shown in minutes and seconds, from one hour with hours; parts that are zero are left out ("45 s", "1 min 30 s", "2 min", "1 h 5 min"). Before, the same time could read "120 s" on one card and "2 min" on the next, and an hour of group time read "60 min". It applies to the cards of the actions (wait, tone length, "undo after", group), the quick-pick buttons in the editor, the delays, the summary of the monitoring rules (hold time, reminder, formerly "30 Min." and "2 Std." in German), the routines, the length of an uploaded sound, the timeline of an alarm and the push message "Alarm in 2 min" during the entry delay. Input fields keep counting in seconds.
+
 ## [1.60.0] - 2026-11-17
 
 ### Added
@@ -1811,6 +1817,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.61.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.61.0
 [1.60.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.60.0
 [1.59.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.59.0
 [1.57.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.57.0

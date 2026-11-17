@@ -4,7 +4,7 @@
 // (workflow.py); Entwurf mit "Speichern". Schritte lassen sich am Griff ziehen und einzeln testen.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, MODE_ICON, MODE_KEY, errText } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, MODE_ICON, MODE_KEY, errText } = await import(`./common.js${V}`);
 const { MonitorUi } = await import(`./monitor.js${V}`);
 const { isCustom, customList, customName, uploadHtml, uploadError, uploadSound } = await import(`./customsounds.js${V}`);
 
@@ -590,7 +590,7 @@ export class ActionsUi {
     const part = zone === "arming" ? "Arming" : "Entry";
     const add = this._t(`wf${part}Add`);
     const plus = (i) => `<div class="ag-wf-plus ${i === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="add" data-at="${i}" aria-label="${esc(add)}" title="${esc(add)}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span>${i === steps.length ? `<small class="ag-wf-plushint ag-t2 ag-small">${esc(this._t(steps.length ? `wf${part}More` : `wf${part}Hint`))}</small>` : ""}</div>`;
-    const sub = `<small class="ag-t2 ag-wf-sub">${esc(this._t(`wf${part}Sub`, { n: seconds }))}</small>`;
+    const sub = `<small class="ag-t2 ag-wf-sub">${esc(this._t(`wf${part}Sub`, { n: fmtDur(seconds) }))}</small>`;
     return `<div class="ag-wf-line ag-wf-${zone}" data-zone="${zone}"><div class="ag-wf-start"><span class="ag-mini warn">${ic("timer", 20)}</span><span>${esc(this._fixedTitle(`wf${part}`))}${sub}</span></div>${plus(0)}${steps.map((step, i) => this._card(step, i, running, zone) + plus(i + 1)).join("")}</div>`;
   }
 
@@ -667,14 +667,14 @@ export class ActionsUi {
     const names = f.targets.map((id) => this.host._name(id)).join(", ") || this._t("stepNoTargets");
     if (f.kind === "notify") return f.ntTitle || f.ntMessage ? [f.ntTitle, f.ntMessage].filter(Boolean).join(" – ") : this._t("stepNotifyHint");
     if (f.kind === "acknowledge") return this._t("stepAckHint");
-    if (f.kind === "wait") return this._t("stepWaitSummary", { seconds: f.seconds });
-    if (isTone(f.kind)) return `${isCustom(f.sound) ? customName(this.host, f.sound) || this._t("customMissing") : this._t(SOUND_KEY[f.sound] || "sndSiren")} · ${names}${f.setVolume ? ` · ${this._volumeText(f)}` : ""}${f.delay ? "" : ` · ${f.until ? this._t("fldPlayUntilShort") : this._t("durS", { n: f.playSeconds })}`}`;
+    if (f.kind === "wait") return this._t("stepWaitSummary", { seconds: fmtDur(f.seconds) });
+    if (isTone(f.kind)) return `${isCustom(f.sound) ? customName(this.host, f.sound) || this._t("customMissing") : this._t(SOUND_KEY[f.sound] || "sndSiren")} · ${names}${f.setVolume ? ` · ${this._volumeText(f)}` : ""}${f.delay ? "" : ` · ${f.until ? this._t("fldPlayUntilShort") : fmtDur(f.playSeconds)}`}`;
     if (f.kind === "scene") return names;
     if (f.kind === "device") {
       const domains = new Set(f.targets.map((e) => e.split(".")[0]));
       const word = this._t(cap(domains.size === 1 ? [...domains][0] : "", f.action));
       const opts = Object.entries(f.optsOn).filter(([, on]) => on).map(([k]) => this._optText(k, f.opts[k])).filter(Boolean);
-      const undo = f.undoOn && UNDO_SERVICES[toStep(f).action?.split(".")[1]] ? [this._t("undoSummary", { action: this._t(cap(domains.size === 1 ? [...domains][0] : "", UNDO_ACTION[f.action])), time: Number(f.undoSeconds) >= 60 ? this._t("durMin", { n: Number(f.undoSeconds) / 60 }) : this._t("durS", { n: Number(f.undoSeconds) }) })] : [];
+      const undo = f.undoOn && UNDO_SERVICES[toStep(f).action?.split(".")[1]] ? [this._t("undoSummary", { action: this._t(cap(domains.size === 1 ? [...domains][0] : "", UNDO_ACTION[f.action])), time: fmtDur(f.undoSeconds) })] : [];
       return [word, names, ...opts, ...undo].join(" · ");
     }
     return `${this._serviceName(f.domain, f.service)} · ${names}`;
@@ -708,7 +708,7 @@ export class ActionsUi {
   _groupSummary(f) {
     if (f.gMode === "until_disarmed") return this._t("grpSumUntil");
     const s = Number(f.gSeconds);
-    if (f.gMode === "duration") return this._t("grpSumDuration", { time: s >= 60 && s % 60 === 0 ? this._t("durMin", { n: s / 60 }) : this._t("durS", { n: s }) });
+    if (f.gMode === "duration") return this._t("grpSumDuration", { time: fmtDur(s) });
     return this._t(Number(f.gCount) === 1 ? "grpSumCountOne" : "grpSumCount", { n: f.gCount });
   }
 
@@ -994,7 +994,7 @@ export class ActionsUi {
     // In einer Gruppe gilt je Gerät nur ein vorgemerktes Zurückschalten: jede Runde beginnt die Zeit neu (1.60.0)
     const group = inGroup(this.edit?.zone) ? `<div class="ag-ef-h ag-undo-group">${esc(this._t("fldUndoGroupHint"))}</div>` : "";
     if (!f.undoOn) return head;
-    const quick = [10, 30, 60, 120, 300].map((s) => `<button class="ag-chip ${Number(f.undoSeconds) === s ? "on" : ""}" data-wf="undosecs" data-value="${s}">${esc(s >= 60 ? this._t("durMin", { n: s / 60 }) : this._t("durS", { n: s }))}</button>`).join("");
+    const quick = [10, 30, 60, 120, 300].map((s) => `<button class="ag-chip ${Number(f.undoSeconds) === s ? "on" : ""}" data-wf="undosecs" data-value="${s}">${esc(fmtDur(s))}</button>`).join("");
     return `${head}<div class="ag-ef"><div class="ag-ef-l">${esc(this._t("fldUndoAfter"))}</div><span class="ag-num"><input type="number" min="1" max="3600" data-wf="f" data-key="undoSeconds" value="${esc(f.undoSeconds)}" aria-label="${esc(this._t("fldUndoAfter"))}"><span class="ag-t2">s</span></span><div class="ag-zline">${quick}</div>${group}</div>`;
   }
 
@@ -1072,7 +1072,7 @@ export class ActionsUi {
     if (DELAY_ZONES.includes(zone) && isShortTone(f.kind)) {
       // So lange wie die Verzögerung (1.19.0): ein Schalter; die feste Dauer gilt nur, wenn er aus ist
       const part = zone === "arming" ? "Arming" : "Entry";
-      const follow = `<div class="ag-ef-row ag-delayfollow"><div class="ag-settx"><b>${esc(this._t(`fldDelay${part}`))}</b><small>${esc(this._t(`fldDelay${part}Hint`, { n: this._delaySeconds(zone) }))}</small></div>${this._toggle('data-wf="delay"', f.delay, `fldDelay${part}`)}</div>`;
+      const follow = `<div class="ag-ef-row ag-delayfollow"><div class="ag-settx"><b>${esc(this._t(`fldDelay${part}`))}</b><small>${esc(this._t(`fldDelay${part}Hint`, { n: fmtDur(this._delaySeconds(zone)) }))}</small></div>${this._toggle('data-wf="delay"', f.delay, `fldDelay${part}`)}</div>`;
       if (f.delay) return `${follow}<div class="ag-delayfixed"><span class="ag-num"><input type="number" disabled value="${esc(this._delaySeconds(zone))}" aria-label="${esc(this._t("fldPlayFor"))}"><span class="ag-t2">s</span></span></div><div class="ag-ef-h">${esc(this._t("fldDelayFixedHint"))}</div>`;
       return follow + this._playForFixed(f);
     }
@@ -1083,7 +1083,7 @@ export class ActionsUi {
     // Nach dem Quittieren gibt es "bis zum Deaktivieren" nicht: niemand deaktiviert danach, der Ton braucht eine Dauer
     const until = baseZone(this.edit?.zone) !== "main" || isShortTone(f.kind) ? "" : `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldPlayUntil"))}</b><small>${esc(this._t("fldPlayUntilHint"))}</small></div>${this._toggle('data-wf="until"', f.until, "fldPlayUntil")}</div>`;
     if (f.until) return until;
-    const quick = [10, 30, 60, 300].map((s) => `<button class="ag-chip ${Number(f.playSeconds) === s ? "on" : ""}" data-wf="playsecs" data-value="${s}">${esc(s >= 60 ? this._t("durMin", { n: s / 60 }) : this._t("durS", { n: s }))}</button>`).join("");
+    const quick = [10, 30, 60, 300].map((s) => `<button class="ag-chip ${Number(f.playSeconds) === s ? "on" : ""}" data-wf="playsecs" data-value="${s}">${esc(fmtDur(s))}</button>`).join("");
     return `<span class="ag-num"><input type="number" min="1" max="3600" data-wf="f" data-key="playSeconds" value="${esc(f.playSeconds)}" aria-label="${esc(this._t("fldPlayFor"))}"><span class="ag-t2">s</span></span>
       <div class="ag-zline">${quick}</div><div class="ag-ef-h">${esc(this._t("fldPlayForHint"))}</div>${until}`;
   }
@@ -1187,7 +1187,7 @@ export class ActionsUi {
     if (f.gMode === "count") {
       value = `<div class="ag-ef"><div class="ag-ef-l">${esc(this._t("fldGrpCount"))}</div><span class="ag-num"><input type="number" min="1" max="${GROUP_MAX_ROUNDS}" data-wf="f" data-key="gCount" value="${esc(f.gCount)}" aria-label="${esc(this._t("fldGrpCount"))}"><span class="ag-t2">${esc(this._t("fldGrpCountUnit", { max: GROUP_MAX_ROUNDS }))}</span></span></div>`;
     } else if (f.gMode === "duration") {
-      const quick = [30, 60, 180, 300, 600].map((sec) => `<button class="ag-chip ${Number(f.gSeconds) === sec ? "on" : ""}" data-wf="gsecs" data-value="${sec}">${esc(sec >= 60 ? this._t("durMin", { n: sec / 60 }) : this._t("durS", { n: sec }))}</button>`).join("");
+      const quick = [30, 60, 180, 300, 600].map((sec) => `<button class="ag-chip ${Number(f.gSeconds) === sec ? "on" : ""}" data-wf="gsecs" data-value="${sec}">${esc(fmtDur(sec))}</button>`).join("");
       value = `<div class="ag-ef"><div class="ag-ef-l">${esc(this._t("fldGrpSeconds"))}</div><span class="ag-num"><input type="number" min="1" max="3600" data-wf="f" data-key="gSeconds" value="${esc(f.gSeconds)}" aria-label="${esc(this._t("fldGrpSeconds"))}"><span class="ag-t2">s</span></span><div class="ag-zline" style="margin-top:10px">${quick}</div><div class="ag-ef-h">${esc(this._t("grpDurationHint"))}</div></div>`;
     } else value = `<div class="ag-ef"><div class="ag-ef-h">${esc(this._t("grpUntilHint"))}</div></div>`;
     return `<div class="ag-t2 ag-grp-intro">${esc(this._t("grpIntro"))}</div>
@@ -1197,7 +1197,7 @@ export class ActionsUi {
   }
 
   _waitFields(f) {
-    const quick = [10, 30, 60, 300].map((s) => `<button class="ag-chip ${Number(f.seconds) === s ? "on" : ""}" data-wf="secs" data-value="${s}">${esc(s >= 60 ? this._t("durMin", { n: s / 60 }) : this._t("durS", { n: s }))}</button>`).join("");
+    const quick = [10, 30, 60, 300].map((s) => `<button class="ag-chip ${Number(f.seconds) === s ? "on" : ""}" data-wf="secs" data-value="${s}">${esc(fmtDur(s))}</button>`).join("");
     return this._field("fldDuration", `<span class="ag-num"><input type="number" min="0" max="3600" data-wf="f" data-key="seconds" value="${esc(f.seconds)}" aria-label="${esc(this._t("fldSeconds"))}"><span class="ag-t2">s</span></span><div class="ag-zline" style="margin-top:10px">${quick}</div>`);
   }
 

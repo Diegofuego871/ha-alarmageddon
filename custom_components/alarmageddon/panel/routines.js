@@ -5,7 +5,7 @@
 // Dieselben Regeln wie routines.check_routines und schemas.py: der Server prüft alles noch einmal.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, MODE_KEY, MODE_ICON, chapter, matchQuery, searchField } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, MODE_KEY, MODE_ICON, chapter, matchQuery, searchField } = await import(`./common.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
 const CLOCK_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -148,7 +148,7 @@ export class RoutinesUi {
 
   whenText(r) {
     if (r.trigger.type === "schedule") return r.trigger.times.map((t) => this._t("rtAtTime", { days: this.daysText(t.days), time: t.time })).join(", ");
-    const hold = r.trigger.hold ? ` · ${this._t("rtHoldShort", { seconds: r.trigger.hold })}` : "";
+    const hold = r.trigger.hold ? ` · ${this._t("rtHoldShort", { seconds: fmtDur(r.trigger.hold) })}` : "";
     return `${this._t("rtWhen")} ${this.treeText(r.trigger.tree)}${hold}`;
   }
 
@@ -542,7 +542,7 @@ export class RoutinesUi {
     const trigger = f.trigger.type === "schedule"
       ? `<div class="ag-fl-t">${esc(this._t("rtFlowWhenTime"))}</div><div class="ag-fl-tree">${f._times.map((t) => `<span class="ag-fl-leaf">${ic("clock", 16)}<span>${esc(this._t("rtAtTime", { days: this.daysText(t.days), time: t.time || "–" }))}</span></span>`).join("")}</div>`
       : `<div class="ag-fl-t">${esc(this._t("rtFlowWhenDevice"))}</div>${this._flowTree(f._device.tree)}`
-        + `<div class="ag-fl-s">${esc(this._hasEvent() ? this._t("rtFlowEventNote") : this._t("rtFlowEdgeNote"))}${!this._hasEvent() && Number(f._device.hold) > 0 ? ` ${esc(this._t("rtFlowHold", { seconds: f._device.hold }))}` : ""}</div>`;
+        + `<div class="ag-fl-s">${esc(this._hasEvent() ? this._t("rtFlowEventNote") : this._t("rtFlowEdgeNote"))}${!this._hasEvent() && Number(f._device.hold) > 0 ? ` ${esc(this._t("rtFlowHold", { seconds: fmtDur(f._device.hold) }))}` : ""}</div>`;
     const band = STATES.map(([key, label]) => `<div class="${f.states.includes(key) && !(arm && ALARM_STATES.includes(key)) ? "on" : ""}">${esc(key === "armed" ? this._armedLabel({ armed_modes: this._armedModes() }) : this._t(label))}</div>`).join("");
     const actionText = f.action === "off" ? this._t("rtThenOff") : this._t("rtThenArm", { mode: this._t(MODE_KEY[f.action]) });
     const step = (n, cls, node, last = false) => `<div class="ag-fl-step ${cls}"><div class="ag-fl-rail"><span class="ag-fl-num">${n}</span><span class="ag-fl-line"></span></div>${node}</div>`;

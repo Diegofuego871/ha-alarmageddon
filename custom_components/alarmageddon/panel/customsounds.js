@@ -3,7 +3,7 @@
 // Server geprüft und in das Format der mitgelieferten Töne gebracht.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur } = await import(`./common.js${V}`);
 
 export const CUSTOM_RE = /^custom_[0-9a-f]{12}$/;
 export const isCustom = (id) => CUSTOM_RE.test(String(id || ""));
@@ -29,7 +29,7 @@ export function usage(host, id) {
 }
 
 export const fmtSize = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
-const fmtSeconds = (s) => (s < 10 ? `${s.toFixed(1)} s` : `${Math.round(s)} s`);
+const fmtSeconds = (s) => (s < 10 ? `${s.toFixed(1)} s` : fmtDur(s));
 export const soundInfo = (s) => `${fmtSeconds(Number(s.seconds) || 0)} · ${fmtSize(Number(s.size) || 0)}`;
 
 // Formular zum Hochladen: `attr(name)` liefert das Attribut für die Ereignisse (data-wf oder data-sys), `ui` den Stand {name, error, busy}

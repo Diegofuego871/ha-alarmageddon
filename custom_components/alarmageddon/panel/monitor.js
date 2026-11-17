@@ -5,7 +5,7 @@
 // (monitor.check_monitors, schemas.MONITORS).
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, MODE_KEY, MODE_ICON, chapter, errText } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, MODE_KEY, MODE_ICON, chapter, errText } = await import(`./common.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
 const CLOCK_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -196,10 +196,7 @@ export class MonitorUi {
   }
 
   durText(seconds) {
-    const n = Number(seconds) || 0;
-    if (n >= 3600 && n % 3600 === 0) return this._t("monHours", { n: n / 3600 });
-    if (n >= 60 && n % 60 === 0) return this._t("monMinutes", { n: n / 60 });
-    return this._t("monSeconds", { n });
+    return fmtDur(seconds);
   }
 
   // Ab wann ein Messwert wieder in Ordnung ist (Grenze und Rückkehr-Spanne), nur bei genau einem Messwert in der Regel (sonst wird der Satz zu lang)
@@ -220,7 +217,7 @@ export class MonitorUi {
   ruleSub(m) {
     const parts = [this.treeText(m.tree), this.backText(m)].filter(Boolean);
     if (m.hold) parts.push(this._t("monHoldShort", { time: this.durText(m.hold) }));
-    if (m.remind) parts.push(this._t("monRemindShort", { n: m.remind }));
+    if (m.remind) parts.push(this._t("monRemindShort", { n: fmtDur(m.remind * 3600) }));
     return parts.join(" · ");
   }
 

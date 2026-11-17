@@ -24,7 +24,7 @@ for (const lang of ["de", "en"]) {
     const order = await s.ev("return [...r.querySelector('.ag-wf').children].map((c) => c.classList.contains('ag-wf-chap') ? 'chap:' + c.querySelector('h3').textContent.trim() : [...c.classList].find((k) => /^ag-wf-(arming|armed|entry|main|end|after|disarmed)$/.test(k)))");
     check(`${tag}: drei Kapitel mit den Punkten in zeitlicher Reihenfolge`, JSON.stringify(order) === JSON.stringify([`chap:${t.chapArm}`, "ag-wf-arming", "ag-wf-armed", `chap:${t.chapAlarm}`, "ag-wf-entry", "ag-wf-main", "ag-wf-end", "ag-wf-after", `chap:${t.chapDisarm}`, "ag-wf-disarmed"]), JSON.stringify(order));
     const titles = await s.ev("return [...r.querySelectorAll('.ag-wf-start')].map((m) => m.firstElementChild.nextSibling?.textContent?.trim() || m.textContent.trim())");
-    check(`${tag}: Titel der neuen Punkte mit Modus, darunter die geltende Zeit`, await s.ev(`const a=r.querySelector('.ag-wf-arming .ag-wf-start'), e=r.querySelector('.ag-wf-entry .ag-wf-start'); return a.textContent.includes('${t.arming} (${t.away})') && /60/.test(a.querySelector('.ag-wf-sub').textContent) && e.textContent.includes('${t.entry} (${t.away})') && /30/.test(e.querySelector('.ag-wf-sub').textContent)`), JSON.stringify(titles));
+    check(`${tag}: Titel der neuen Punkte mit Modus, darunter die geltende Zeit`, await s.ev(`const a=r.querySelector('.ag-wf-arming .ag-wf-start'), e=r.querySelector('.ag-wf-entry .ag-wf-start'); return a.textContent.includes('${t.arming} (${t.away})') && /(^|[^0-9])1 min([^0-9]|$)/.test(a.querySelector('.ag-wf-sub').textContent) && e.textContent.includes('${t.entry} (${t.away})') && /30/.test(e.querySelector('.ag-wf-sub').textContent)`), JSON.stringify(titles));
     check(`${tag}: neue Punkte tragen eine gelbe Uhr`, await s.ev("return ['.ag-wf-arming', '.ag-wf-entry'].every((q) => r.querySelector(q + ' .ag-mini.warn svg'))"));
 
     // ----- Nur wo es die Verzögerung gibt: Anwesend hat keine Ausgangsverzögerung -----
@@ -44,7 +44,7 @@ for (const lang of ["de", "en"]) {
     await s.tap('#ag-step [data-wf="kind"][data-kind="chime"]');
     await s.waitFor("return !!r.querySelector('#ag-step .ag-tone')");
     const ed = await dlg("const sw=d.querySelector('[data-wf=\"delay\"]'); return { on: sw?.getAttribute('aria-checked') === 'true', hint: sw?.closest('.ag-ef-row')?.innerText || '', fixed: d.querySelector('.ag-delayfixed input')?.disabled === true, secs: d.querySelector('.ag-delayfixed input')?.value, chips: d.querySelectorAll('[data-wf=\"playsecs\"]').length, waitOff: d.querySelector('[data-wf=\"waitend\"]')?.disabled === true }");
-    check(`${tag}: Schalter "Solange die Ausgangsverzögerung läuft" an, die feste Dauer ausgegraut mit der Zeit der Anlage (60 s), Warten gesperrt`, ed.on && ed.fixed && ed.secs === "60" && ed.chips === 0 && ed.waitOff && ed.hint.includes("60"), JSON.stringify(ed));
+    check(`${tag}: Schalter "Solange die Ausgangsverzögerung läuft" an, die feste Dauer ausgegraut mit der Zeit der Anlage (60 s, angezeigt als 1 min), Warten gesperrt`, ed.on && ed.fixed && ed.secs === "60" && ed.chips === 0 && ed.waitOff && ed.hint.includes("1 min") && !ed.hint.includes("60 s"), JSON.stringify(ed));
     await s.ev("const i=r.querySelector('#ag-step .ag-combo input, #ag-step input[type=\"search\"]'); i.focus(); i.value='Sonos'; i.dispatchEvent(new Event('input', { bubbles: true })); return 1");
     await s.waitFor("return !!r.querySelector('#ag-step [data-wf=\"pick\"]')");
     await s.ev("r.querySelector('#ag-step [data-wf=\"pick\"]').click(); return 1");

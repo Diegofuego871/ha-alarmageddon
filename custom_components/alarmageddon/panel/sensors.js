@@ -3,7 +3,7 @@
 // Änderungen sind ein Entwurf mit "Abbrechen" und "Speichern" (Regel aus ha-device-panel).
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, DC, OPENINGS, MOTION, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, DC, OPENINGS, MOTION, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText } = await import(`./common.js${V}`);
 const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
@@ -530,7 +530,7 @@ export class SensorsUi {
     let origin;
     if (mode && ownMode) origin = `<button class="ag-origin own" data-sen="delay-reset" data-mode="${mode}" data-ent="${esc(id)}">${ic("undo", 14)} ${esc(this._t("originModeOwn", { mode: modeName }))} · ${esc(this._t("resetToAll"))}</button>`;
     else if (ownSensor) origin = `<button class="ag-origin own" data-sen="delay-reset" data-ent="${esc(id)}">${ic("undo", 14)} ${esc(this._t("originOwn"))} · ${esc(this._t("resetToSystem"))}</button>`;
-    else origin = `<span class="ag-origin">${esc(this._t("originSystem", { n: val }))}</span>`;
+    else origin = `<span class="ag-origin">${esc(this._t("originSystem", { n: fmtDur(val) }))}</span>`;
     const own = ownMode || ownSensor;
     return `<div class="ag-orow"><span class="ag-oav ${own ? "on" : ""}">${ic("timer", 20)}</span><div class="ag-otx"><b>${esc(this._t("senDelay"))}</b><small>${esc(this._t("senDelayHint"))}</small>${origin}</div>
       <span class="ag-num"><input type="number" min="0" max="3600" step="1" inputmode="numeric" data-sen="delay" ${mode ? `data-mode="${mode}"` : ""} data-ent="${esc(id)}" value="${esc(val)}" aria-label="${esc(`${this.host._name(id)}: ${this._t("senDelay")}`)}"><span class="ag-t2">${esc(this._t("seconds"))}</span></span></div>`;

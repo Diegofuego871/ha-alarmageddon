@@ -77,7 +77,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "triggered_title_gas": "⚠️ Gas alarm: {name}",
         "triggered_gas": "{sensor} detected gas at {time}.",
         "pending_title": "⏳ Entry delay: {name}",
-        "pending": "{sensor} opened. Alarm in {seconds} s unless disarmed.",
+        "pending": "{sensor} opened. Alarm in {seconds} unless disarmed.",
         "armed_title": "🔒 {name}: {mode} armed",
         "armed": "Armed by {by}.",
         "armed_noby": "The alarm system is armed.",
@@ -163,7 +163,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "triggered_title_gas": "⚠️ Gasalarm: {name}",
         "triggered_gas": "{sensor} meldet Gas um {time}.",
         "pending_title": "⏳ Eingangsverzögerung: {name}",
-        "pending": "{sensor} geöffnet. Alarm in {seconds} s, wenn niemand deaktiviert.",
+        "pending": "{sensor} geöffnet. Alarm in {seconds}, wenn niemand deaktiviert.",
         "armed_title": "🔒 {name}: {mode} scharf",
         "armed": "Scharf geschaltet von {by}.",
         "armed_noby": "Die Anlage ist scharf.",
@@ -237,6 +237,15 @@ PLACEHOLDER = re.compile(r"\{(?:name|sensor|type|area|time|mode|alarm)\}")
 
 def alarm_kind(device_class: str) -> str:
     return ALARM_KINDS.get(device_class, "alarm")
+
+
+def format_duration(seconds: float) -> str:
+    """Eine Zeit wie im Panel (`fmtDur`): unter 60 s in Sekunden, ab 60 s in Minuten und Sekunden, ab 1 h mit Stunden; Teile, die null sind, entfallen."""
+    n = max(0, round(seconds))
+    if n < 60:
+        return f"{n} s"
+    hours, minutes, secs = n // 3600, n % 3600 // 60, n % 60
+    return " ".join(part for part in (hours and f"{hours} h", minutes and f"{minutes} min", secs and f"{secs} s") if part)
 
 
 def text(hass: HomeAssistant, key: str, **values: Any) -> str:
@@ -447,7 +456,7 @@ class Notifier:
             left = self._ctl.delay_left()
             seconds = self._ctl.entry_delay if left is None else max(0, round(left))
             self._send("pending", self._t("pending_title", name=name),
-                       self._t("pending", sensor=self._name(self._ctl.triggered_by), seconds=seconds))
+                       self._t("pending", sensor=self._name(self._ctl.triggered_by), seconds=format_duration(seconds)))
         elif state in (AlarmControlPanelState.ARMED_HOME, AlarmControlPanelState.ARMED_AWAY, AlarmControlPanelState.ARMED_NIGHT):
             if previous == AlarmControlPanelState.TRIGGERED:
                 # Alarm quittiert (die Anlage bleibt scharf): wie beim Deaktivieren ersetzt "Alarm beendet" die Alarmmeldung

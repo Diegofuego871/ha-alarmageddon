@@ -499,3 +499,27 @@ async def test_data_lists_measured_values_only_with_monitoring_and_never_waits_l
     assert "sensor.keller_temperatur" in (await client.receive_json())["result"]["sensors"]
     await client.send_json({"id": 40, "type": "alarmageddon/data"})
     assert "sensor.keller_temperatur" not in (await client.receive_json())["result"]["sensors"], "auch mit Überwachung: die Übersicht bekommt keine Kandidaten"
+
+
+# ----- Zeitangaben einheitlich (1.61.0) -----
+
+
+@pytest.mark.parametrize(("seconds", "expected"), [(0, "0 s"), (5, "5 s"), (59, "59 s"), (60, "1 min"), (90, "1 min 30 s"), (120, "2 min"),
+                                                  (600, "10 min"), (3600, "1 h"), (3725, "1 h 2 min 5 s"), (7200, "2 h")])
+def test_format_duration_like_the_panel(seconds: int, expected: str) -> None:
+    """Dieselben Regeln wie `fmtDur` im Panel (common.js): unter 60 s Sekunden, ab 60 s Minuten und Sekunden, ab 1 h Stunden; Nullen entfallen."""
+    from custom_components.alarmageddon.notify import format_duration
+
+    assert format_duration(seconds) == expected
+
+
+async def test_entry_delay_message_shows_minutes_from_60_seconds(hass: HomeAssistant, hass_ws_client) -> None:
+    pushes = async_mock_service(hass, "notify", "handy")
+    await setup_alarm(hass, sensor_options={FRONT_DOOR: {"entry_delay": 120}})
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": "alarmageddon/save_notify", "notify": {"alarm_targets": ["notify.handy"], "types": {"pending": {"enabled": True}}}})
+    assert (await client.receive_json())["success"]
+    await call(hass, "alarm_arm_home")
+    await open_sensor(hass, FRONT_DOOR)
+    assert state(hass) == AlarmControlPanelState.PENDING
+    assert "2 min" in pushes[-1].data["message"] and "120 s" not in pushes[-1].data["message"]

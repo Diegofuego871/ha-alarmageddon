@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.61.0] - 2026-11-17
+
+### Geändert
+
+- **Zeiten sehen überall gleich aus.** Ab 60 Sekunden steht eine Zeit in Minuten und Sekunden, ab einer Stunde mit Stunden; Teile, die null sind, entfallen ("45 s", "1 min 30 s", "2 min", "1 h 5 min"). Vorher konnte dieselbe Zeit auf einer Karte "120 s" und auf der nächsten "2 min" heissen, und eine Stunde Gruppenzeit hiess "60 min". Es gilt für die Karten der Aktionen (Warten, Tonlänge, "Rückgängig nach", Gruppe), die Schnellwahl im Editor, die Verzögerungen, die Kurzfassung der Überwachungsregeln (Haltezeit, Erinnerung, früher "30 Min." und "2 Std."), die Routinen, die Länge eines hochgeladenen Tons, die Zeitachse eines Alarms und die Push-Meldung "Alarm in 2 min" während der Eingangsverzögerung. Eingabefelder zählen weiter in Sekunden.
+
 ## [1.60.0] - 2026-11-17
 
 ### Hinzugefügt
@@ -1811,6 +1817,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.61.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.61.0
 [1.60.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.60.0
 [1.59.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.59.0
 [1.57.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.57.0
