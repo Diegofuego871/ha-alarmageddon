@@ -7,6 +7,27 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.62.0] - 2026-11-17
+
+### Hinzugefügt
+
+- **Feste Meldungen im Reiter Aktionen.** "Scharf geschaltet", "Deaktiviert", "Eingangsverzögerung" und "Stiller Alarm" stehen jetzt als festes Element an ihrem Punkt im Ablauf, wie die Abschlussmeldung unter "Alarm endet": immer da, mit einem Schalter zum Ein- und Ausschalten und einem Stift für die Einstellungen. Sie gelten je Alarmanlage und, mit "Einstellungen pro Modus", je Modus; im Reiter "Immer aktiv" gibt es nur "Stiller Alarm". Als Empfänger sind die Standard-Empfänger aus den Benachrichtigungen vorgewählt, eigene Empfänger lassen sich je Meldung wählen.
+- **Eigener Titel und Text für diese Meldungen.** Im Fenster der Meldung: Titel und Text mit Platzhaltern, darunter neu {person} (wer scharf geschaltet oder deaktiviert hat) und {delay} (die Zeit der Eingangsverzögerung), mit Vorschau. Leer gilt der bisherige Standardtext. Dazu wie bisher kritisch mit Lautstärke und "in Home Assistant stehen lassen", neu das Klickziel und eine Testmeldung mit den Werten aus dem Fenster.
+- **Neues Kapitel "Bei einem stillen Alarm" mit eigenen Aktionen.** Vor dem Kapitel "Bei einem Alarm". Spricht ein Sensor mit der Option "Stiller Alarm" an, geht die Meldung hinaus, und die Aktionen darunter laufen: Aktivierungston, Gerät schalten, Warten, Szene, eigene Aktion, auch in einer Gruppe. Es gibt dabei nie einen Alarm, darum auch keine Sirene und keine Alarmmeldung. Sie laufen je Sensor höchstens einmal je Minute, für den Modus, in dem die Anlage scharf ist; für immer aktive Sensoren gilt die Liste im Reiter "Immer aktiv". Ein Alarm, ein Test und eine laufende Ein- oder Ausgangsverzögerung haben Vorrang; ein Alarm oder Deaktivieren beendet sie sofort. Geräte werden nicht zurückgestellt.
+- **Vorschau einer Routine.** Im Fenster "Routinen" hat jede Zeile ein Auge. Es zeigt die Routine so, wie sie der Editor ganz unten zeigt (Auslöser, Prüfung des Zustands, Aktion), nur zum Lesen, im selben Fenster und auf dem Handy als Vollbild. "Schliessen" führt zurück zur Liste (die Suche bleibt), "Bearbeiten" öffnet den Editor.
+- **Eine Gruppe zeigt, dass sie sich wiederholt.** Links neben den Aktionen einer Gruppe führt ein dünner gestrichelter Bogen vom letzten Schritt zurück zum ersten.
+
+### Geändert
+
+- **Die vier Meldungen stehen nicht mehr im Reiter Benachrichtigungen.** Ein Hinweis dort nennt den neuen Ort. Deine bisherigen Einstellungen gelten weiter: Solange eine Alarmanlage für einen Modus nichts Eigenes gespeichert hat, sendet sie diese Meldungen genau wie vor dem Update (ein/aus, kritisch, Lautstärke, eigene Empfänger, auch die Werte je Modus). Der Reiter Aktionen zeigt diesen Stand. Erst was du dort speicherst, gilt für diese Anlage und diesen Modus.
+- **"Empfänger" heisst "Standard-Empfänger".** Das Kapitel im Reiter Benachrichtigungen; die Meldungen im Reiter Aktionen nennen sie ebenso.
+- **"Aktionen übernehmen von …" nimmt die festen Meldungen und die Aktionen bei einem stillen Alarm mit.** Von einem Modus nach "Immer aktiv" und umgekehrt nur die Meldung "Stiller Alarm".
+- **Die Sicherung enthält die festen Meldungen und die Aktionen bei einem stillen Alarm.** Eine ältere Sicherung lässt sich wie bisher einspielen; ihre Anlagen melden dann nach den gemeinsamen Einstellungen.
+
+### Behoben
+
+- **Fenster einer Meldung auf dem Handy: das Auswahlfeld "Klickziel" ragte über den Rand.** Auf Deutsch war es breiter als seine Karte (im Fenster der Abschlussmeldung und der Alarmmeldung). Es bleibt jetzt in der Karte.
+
 ## [1.61.0] - 2026-11-17
 
 ### Geändert
@@ -1817,6 +1838,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.62.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.62.0
 [1.61.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.61.0
 [1.60.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.60.0
 [1.59.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.59.0

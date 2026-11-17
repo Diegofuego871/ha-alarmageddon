@@ -42,6 +42,8 @@ from .const import (
     CONF_WORKFLOWS_AFTER,
     CONF_WORKFLOWS_ARMED,
     CONF_WORKFLOWS_DISARMED,
+    CONF_WORKFLOWS_REPORT,
+    WORKFLOW_ALWAYS,
     CONF_WORKFLOWS_ARMING,
     CONF_WORKFLOWS_ENTRY,
     RESTORABLE_DOMAINS,
@@ -60,7 +62,7 @@ DELAY_PHASES = {
     str(AlarmControlPanelState.ARMING): ("arming", CONF_WORKFLOWS_ARMING),
     str(AlarmControlPanelState.PENDING): ("pending", CONF_WORKFLOWS_ENTRY),
 }
-SIDE_PHASES = ("armed", "arming", "pending")  # Läufe neben dem Alarm, die mit dem Deaktivieren sofort enden
+SIDE_PHASES = ("armed", "arming", "pending", "report")  # Läufe neben dem Alarm, die mit dem Deaktivieren sofort enden
 # Ein Gerät, das länger nicht antwortet, hält den Ablauf nie auf: nach dieser Zeit (Sekunden) läuft er mit dem nächsten Schritt weiter.
 # Der hängende Aufruf wird nicht abgebrochen (ein Skript soll weiterlaufen dürfen), nur nicht mehr abgewartet; Deaktivieren beendet ihn.
 SERVICE_TIMEOUT = 10
@@ -246,6 +248,7 @@ class WorkflowRunner:
         self._last_state = str(self._ctl.state)
         self._mode_seen = self._ctl.mode
         self._unsubs.append(self._ctl.add_listener(self._on_change))
+        self._unsubs.append(self._ctl.add_event_listener(self._on_event))
         saved = await self._store.async_load()
         # "Alarmton stumm" hat den Ablauf dieses Alarms beendet (async_silence): er beginnt nach einem Neustart nicht von vorn
         silenced = isinstance(saved, dict) and bool(saved.get("silenced"))
@@ -505,6 +508,60 @@ class WorkflowRunner:
         self._run = run
         self._begin(run)
         return True
+
+    # ----- Aktionen bei einem stillen Alarm (1.62.0) -----
+
+    @callback
+    def _on_event(self, kind: str, data: dict[str, Any]) -> None:
+        if kind == "sensor_report":
+            self.hass.async_create_task(self._start_report(data.get("scope")))
+
+    def steps_report(self, scope: str | None) -> list[dict[str, Any]]:
+        """Schritte "Stiller Alarm" für den Auslöser: den Modus, in dem die Anlage scharf ist, oder "always" (immer aktiver Sensor)."""
+        return list((self.entry.options.get(CONF_WORKFLOWS_REPORT) or {}).get(scope or "") or [])
+
+    async def _start_report(self, scope: str | None) -> None:
+        """Aktionen eines stillen Alarms starten. Sie sind Zusatz: scheitert ihr Start, steht es im Log, Automat und Alarm laufen weiter."""
+        try:
+            await self.async_run_report(scope)
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa: BLE001 - Sicherheitsregel: die Aktionen eines stillen Alarms dürfen Anlage und Alarm nie berühren
+            _LOGGER.exception("%s: starting the actions of the silent alarm failed; the alarm system goes on", self.entry.title)
+
+    async def async_run_report(self, scope: str | None) -> bool:
+        """
+        Aktionen "Stiller Alarm" starten: ein Sensor auf "Stiller Alarm" hat angesprochen (der Automat meldet es je Sensor höchstens einmal
+        in REPORT_THROTTLE Sekunden). Nie ein Alarm. Der Lauf verhält sich wie die Aktionen beim Scharfschalten: unter Aufsicht, endet von
+        selbst, stellt nichts zurück. Vorrang haben ein Alarm, ein Test und eine laufende Verzögerung (ihre Töne zählen die Zeit zum Alarm
+        oder zum Scharfschalten herunter): dann startet er nicht. Jeden anderen Lauf neben dem Alarm ersetzt er (Aktivierungston, Aktionen
+        nach dem Quittieren, ein früherer stiller Alarm). Ein Alarm bricht ihn ab, Deaktivieren ebenso.
+        """
+        steps = self.steps_report(scope)
+        if not steps or not self._report_possible(scope):
+            return False
+        if self._run is not None:
+            if not self._run.get("after") or self._run.get("phase") in ("arming", "pending"):
+                return False
+            await self._stop_side_run()
+        if self._run is not None or not self._report_possible(scope):
+            return False  # währenddessen begann ein Alarm oder eine Verzögerung, oder die Anlage wurde deaktiviert
+        run: dict[str, Any] = {"trigger": str(scope), "index": 0, "test": False, "after": True, "phase": "report", "snapshot": {}, "sonos": [], "steps": steps}
+        self._run = run
+        try:
+            self._begin(run)
+        except Exception:
+            if self._run is run:
+                self._run = None  # kein halber Lauf bleibt stehen (er gälte sonst als laufend)
+            raise
+        return True
+
+    def _report_possible(self, scope: str | None) -> bool:
+        """Gilt der stille Alarm noch? Nie im Alarm; die Aktionen eines Modus nur, solange die Anlage in diesem Modus scharf ist."""
+        state = str(self._ctl.state)
+        if state == AlarmControlPanelState.TRIGGERED:
+            return False
+        return scope == WORKFLOW_ALWAYS or (state in ARMED_STATES and self._ctl.mode == scope)
 
     def steps_disarmed(self, mode: str | None) -> list[dict[str, Any]]:
         """Schritte "Beim Deaktivieren" für den Modus, der scharf war (nicht für "Immer aktiv": dort wird nie scharf geschaltet)."""

@@ -110,6 +110,20 @@ for (const lang of ["en", "de"]) {
     await page.waitForTimeout(400);
     await toElement(frame, ".ag-wf-line.ag-wf-main");
   } });
+  // Kapitel "Bei einem stillen Alarm" (1.62.0) mit der festen Meldung und einer Aktion, darüber die feste Meldung "Scharf geschaltet" (Handbuch)
+  await shot(lang, "silent", { tab: "config", height: 1240, prepare: async ({ page, frame }) => {
+    await click('[data-sub="actions"]')({ frame });
+    await page.waitForTimeout(800);
+    await frame.evaluate(() => {
+      const a = document.querySelector("alarmageddon-panel").actions;
+      const d = a.ensureDraft();
+      a._setSteps([{ type: "action", action: "light.turn_on", target: ["light.flur"], data: {}, restore: false, wait: false }], "report");
+      d.notices[a.trigger].armed = { ...d.notices[a.trigger].armed, enabled: true };
+      a.render();
+    });
+    await page.waitForTimeout(400);
+    await toElement(frame, ".ag-wf-line.ag-wf-armed");
+  } });
   // Die drei Schritte der README (1.58.0), alle auf dem Handy und gleich hoch: Sensoren wählen, Alarm festlegen, scharf schalten ("mobile")
   await shot(lang, "step-sensors", { mobile: true, tab: "config", prepare: ({ frame }) => toElement(frame, ".ag-table-wrap") });
   await shot(lang, "step-actions", { mobile: true, tab: "config", prepare: async ({ page, frame }) => {

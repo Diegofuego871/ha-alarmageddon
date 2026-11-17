@@ -63,6 +63,10 @@ from .const import (
     GROUP_MODES,
     GROUP_NAME_MAX,
     CONF_WORKFLOW_END,
+    CONF_EVENT_NOTIFY,
+    CONF_WORKFLOWS_REPORT,
+    EVENT_NOTIFY_ALWAYS,
+    EVENT_NOTIFY_KINDS,
     CONF_WORKFLOWS_AFTER,
     CONF_WORKFLOWS,
     CONF_ZONE_PREFIX,
@@ -252,6 +256,44 @@ def valid_end(value: Any) -> dict[str, Any]:
     return END_SCHEMA(value)
 
 
+# Feste Meldung im Reiter Aktionen (1.62.0): "Scharf geschaltet", "Deaktiviert", "Eingangsverzögerung", "Stiller Alarm". Anders als bei
+# "Alarm endet" stehen immer alle Werte da (kein "wie die Art"): die Meldung gehört ganz zur Anlage. Leerer Titel oder Text: der
+# Standardtext. Leere Empfänger: die Standard-Empfänger von Alarmen.
+EVENT_NOTICE_SCHEMA = vol.Schema({
+    vol.Required("enabled"): bool,
+    vol.Optional("title", default=""): vol.All(str, vol.Length(max=100)),
+    vol.Optional("message", default=""): vol.All(str, vol.Length(max=300)),
+    vol.Required("critical"): bool,
+    vol.Optional("volume", default=0.8): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+    vol.Optional("persistent", default=False): bool,
+    vol.Optional("click", default="overview"): vol.In(("log", "overview", "custom")),
+    vol.Optional("click_path", default=""): vol.Any("", vol.All(str, vol.Length(max=200), vol.Match(r"^/[^\s]*$"))),
+    vol.Optional("targets", default=list): NOTIFY_TARGETS,
+})
+
+
+def valid_event_notify(value: Any) -> dict[str, dict[str, Any]]:
+    """
+    Feste Meldungen je Auslöser: {auslöser: {art: Meldung}}. Unbekannter Auslöser, unbekannte Art oder eine Art, die es für den Auslöser
+    nicht gibt ("Scharf geschaltet" für "Immer aktiv"), lehnt das Ganze ab (eigene Prüfung statt eines Wörterbuchs: siehe strict_map).
+    """
+    if not isinstance(value, dict):
+        raise vol.Invalid("expected a dictionary")
+    out: dict[str, dict[str, Any]] = {}
+    for trigger, kinds in value.items():
+        if trigger not in WORKFLOW_TRIGGERS:
+            raise vol.Invalid("unknown trigger")
+        if not isinstance(kinds, dict):
+            raise vol.Invalid("expected a dictionary")
+        allowed = EVENT_NOTIFY_KINDS if trigger in MODES else EVENT_NOTIFY_ALWAYS
+        out[trigger] = {}
+        for kind, notice in kinds.items():
+            if kind not in allowed:
+                raise vol.Invalid("this message does not exist for this trigger")
+            out[trigger][kind] = EVENT_NOTICE_SCHEMA(notice)
+    return out
+
+
 def valid_step(value: Any, delay: bool = False) -> dict[str, Any]:
     """Ein Schritt. `delay`: Liste einer Verzögerung; nur dort bleibt die Angabe "so lange wie die Verzögerung" erhalten."""
     if not isinstance(value, dict) or value.get("type") not in STEP_SCHEMAS:
@@ -301,6 +343,11 @@ def valid_armed_step(value: Any) -> dict[str, Any]:
     if step["type"] == "action":
         step["restore"] = False
     return step
+
+
+def valid_report_step(value: Any) -> dict[str, Any]:
+    """Schritt der Aktionen bei einem stillen Alarm (1.62.0): dieselben wie beim Scharfschalten; nie eine Sirene, nie "bis deaktiviert"."""
+    return valid_armed_step(value)
 
 
 def _valid_delay_step(value: Any, types: tuple[str, ...]) -> dict[str, Any]:
@@ -517,6 +564,8 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_WORKFLOWS_DISARMED): strict_map(vol.In(MODES), step_list(valid_disarmed_step)),
         vol.Optional(CONF_WORKFLOWS_ARMING): strict_map(vol.In(MODES), step_list(valid_arming_step)),
         vol.Optional(CONF_WORKFLOWS_ENTRY): strict_map(vol.In(MODES), step_list(valid_entry_step)),
+        vol.Optional(CONF_WORKFLOWS_REPORT): strict_map(vol.In(WORKFLOW_TRIGGERS), step_list(valid_report_step)),
+        vol.Optional(CONF_EVENT_NOTIFY): valid_event_notify,
     },
     extra=vol.REMOVE_EXTRA,
 )

@@ -185,6 +185,30 @@ Umsetzung:
   Gruppe ist eine Liste wie die anderen (`data-zone="<Liste>:<Stelle>"`, `actions.js baseZone/groupIndex`); wandert eine Gruppe in einen anderen Bereich,
   fallen ungültige Aktionen erst nach einer Rückfrage weg (`_moveAcross`). Tests in `tests/test_group.py` und `tests/test_action_hang.py`, Suite
   `group-e2e.mjs`, Zeilen "Aktions-Gruppe" in `scripts/mutation_check.py`. Jede neue Schrittart ergänzt `GROUP_EXCLUDED` oder ist in Gruppen erlaubt (Test).
+- Feste Meldungen im Reiter Aktionen (seit 1.62.0, Wunsch und Entscheide des Nutzers vom 2026-11-17): "Scharf geschaltet", "Deaktiviert",
+  "Eingangsverzögerung" und "Stiller Alarm" gehören zum Ablauf einer Anlage, je Auslöser (`CONF_EVENT_NOTIFY[auslöser][art]`, `EVENT_NOTICE_SCHEMA`,
+  `valid_event_notify`; für "Immer aktiv" nur "Stiller Alarm", `EVENT_NOTIFY_ALWAYS`). Sie sind feste Elemente wie "Alarm endet": immer da, ein/aus,
+  eigener Text (leer = Standardtext; bleibt vom eigenen Text nichts übrig, gilt ebenfalls der Standardtext), Empfänger (leer = Standard-Empfänger),
+  kritisch, Lautstärke, "stehen lassen", Klickziel, Testmeldung (`alarmageddon/test_event_notify`). **Das Update ändert nichts:** hat eine Anlage für
+  einen Auslöser nichts Eigenes gespeichert, gilt die frühere gemeinsame Einstellung der Art samt den Werten je Modus (`notify.event_notice`; für
+  "Immer aktiv" der Wert des Modus, in dem die Anlage scharf ist, wie bis 1.61.0). Es gibt keine Migration: `settings.notify["types"]` behält die vier
+  Arten, der Reiter Benachrichtigungen zeigt sie nicht mehr und lässt ihre Werte unberührt. Das Panel sendet beim Speichern nur geänderte Meldungen
+  (`actions.js save`); der Server ersetzt je Auslöser und Art und behält den Rest. "Deaktiviert" nimmt die Werte des Modus, der scharf war
+  (`Notifier._mode_seen`); nach einem Alarm geht nur die Abschlussmeldung hinaus. Tests in `tests/test_event_notify.py`, Suite `notices-e2e.mjs`,
+  Zeilen "Feste Meldung" in `scripts/mutation_check.py`. Eine neue feste Meldung ergänzt `EVENT_NOTIFY_KINDS`, `NOTICE_KINDS` und `NOTICE_TOKENS`
+  (`tests/test_alarm_kinds.py` vergleicht Panel und Server).
+- Aktionen bei einem stillen Alarm (seit 1.62.0, Liste `workflows_report` je Auslöser, Kapitel "Bei einem stillen Alarm" vor dem Alarm): Der Automat
+  meldet `sensor_report` mit `scope` (der Modus oder "always", `controller._report`); Meldung und Aktionen nehmen die Werte dieses Auslösers. Die
+  Aktionen sind ein Lauf neben dem Alarm (`phase: "report"`, in `SIDE_PHASES`) mit den Schritten des Scharfschaltens (`valid_report_step`): **nie ein
+  Alarm, nie eine Sirene, nie "bis deaktiviert"**. Vorrang haben Alarm, Test und eine laufende Verzögerung (dann startet er nicht,
+  `workflow.async_run_report`, `_report_possible`); er ersetzt Aktivierungston, Aktionen nach dem Quittieren und einen früheren stillen Alarm; Alarm und
+  Deaktivieren beenden ihn sofort. Kein Gerät und kein Fehler darin hält Alarm oder Deaktivieren auf. Tests in `tests/test_event_notify.py` und
+  `tests/test_action_hang.py` (hängt, scheitert), Zeilen "Aktionen bei einem stillen Alarm" in `scripts/mutation_check.py`.
+- Vorschau einer Routine (seit 1.62.0, Wunsch des Nutzers): das Auge je Zeile im Fenster "Routinen" zeigt `flowHtml` der gespeicherten oder
+  ungespeicherten Routine nur zum Lesen, im selben Fenster anstelle der Liste (`routines.js viewing`, `_viewHtml`); "Schliessen" führt zur Liste
+  zurück (Suche und Rollstand bleiben), "Bearbeiten" öffnet den Editor, das X schliesst das Fenster. Die Vorschau hat nie Felder oder Schalter.
+- Zeichen der Wiederholung in einer Gruppe (seit 1.62.0): `.ag-wf-loop` ist reine Zierde (`aria-hidden`, `pointer-events: none`), nur bei Gruppen
+  mit Schritten; es darf nie Klicks oder das Ziehen stören (Suite `notices-e2e.mjs`, `group-e2e.mjs`).
 - Verträglichkeit mit neueren Versionen von Home Assistant (seit 1.60.0; Aufzeichnung des Nutzers vom 2026-11-17 auf 2026.11.1): Die Tests liefen bis
   1.59.0 nur gegen 2026.2.3, drei Mängel blieben deshalb unbemerkt. **Geräte-Registry:** ein Gerät gehört dort zu einem Konfigurationseintrag
   (`config_entry_id`), es gibt untergeordnete Geräte ohne Hardware-Angaben; die alten Zugriffe (`DeviceEntry.config_entries`, `primary_config_entry`,

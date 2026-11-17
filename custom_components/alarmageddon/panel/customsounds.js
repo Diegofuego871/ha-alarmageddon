@@ -12,7 +12,7 @@ export const customName = (host, id) => customList(host).find((s) => s.id === id
 export const limits = (host) => host._data?.custom_sound_limits || { max: 20, seconds: 30, bytes: 8 * 1024 * 1024, total: 12 * 1024 * 1024, ffmpeg: false };
 
 // Welche Schritte nennen den Ton? Je Anlage alle Listen des Ablaufs
-const LISTS = ["workflows", "workflows_after", "workflows_armed", "workflows_arming", "workflows_entry", "workflows_disarmed"];
+const LISTS = ["workflows", "workflows_after", "workflows_armed", "workflows_arming", "workflows_entry", "workflows_disarmed", "workflows_report"];
 export function usage(host, id) {
   const systems = [];
   let steps = 0;
@@ -20,7 +20,7 @@ export function usage(host, id) {
     let own = 0;
     // Hat der Nutzer die Aktionen dieser Anlage gerade in Bearbeitung, zählt, was er sieht (der Entwurf), sonst der gespeicherte Stand
     const draft = host.actions?.draft?.entry === sys.entry_id ? host.actions.draft : null;
-    const source = draft ? { workflows: draft.wf, workflows_after: draft.after, workflows_armed: draft.armed, workflows_arming: draft.arming, workflows_entry: draft.entrySteps, workflows_disarmed: draft.disarmed } : sys;
+    const source = draft ? { workflows: draft.wf, workflows_after: draft.after, workflows_armed: draft.armed, workflows_arming: draft.arming, workflows_entry: draft.entrySteps, workflows_disarmed: draft.disarmed, workflows_report: draft.report } : sys;
     for (const key of LISTS) for (const list of Object.values(source[key] || {})) for (const step of (list || []).flatMap((item) => (item?.type === "group" ? item.steps || [] : [item]))) if (step?.sound === id) own += 1; // auch in Gruppen
     if (own) systems.push(sys.title);
     steps += own;

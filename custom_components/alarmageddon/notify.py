@@ -23,7 +23,10 @@ from homeassistant.util import dt as dt_util, slugify
 
 from .const import (
     ARM_BUTTONS_VALID,
+    CONF_EVENT_NOTIFY,
     DATA_ARM_FAILED,
+    EVENT_NOTIFY_KINDS,
+    MODES,
     ICON_URL_PATH,
     NOTIFY_MODE_KINDS,
     NOTIFY_TYPES,
@@ -33,6 +36,7 @@ from .const import (
     PUSH_ACTION_OPEN,
     PUSH_ACTION_RETRY,
     PUSH_ACTION_SILENCE,
+    WORKFLOW_ALWAYS,
 )
 from .controller import AlarmController
 from .devices import display_name, sensor_info
@@ -232,7 +236,9 @@ SPECIAL_KINDS = ("fire", "heat", "water", "gas")
 
 
 # Platzhalter eigener Texte (Schritt "Push-Meldung", "Alarm endet"); alles andere in geschweiften Klammern bleibt wie geschrieben
-PLACEHOLDER = re.compile(r"\{(?:name|sensor|type|area|time|mode|alarm)\}")
+# {person} und {delay} (1.62.0) für die festen Meldungen im Reiter Aktionen: wer scharf geschaltet oder deaktiviert hat, und die Zeit der
+# Eingangsverzögerung in Worten. Wo es sie nicht gibt (Alarmmeldung), bleiben sie leer.
+PLACEHOLDER = re.compile(r"\{(?:name|sensor|type|area|time|mode|alarm|person|delay)\}")
 
 
 def alarm_kind(device_class: str) -> str:
@@ -329,6 +335,24 @@ def effective_type(cfg: dict[str, Any], kind: str, mode: str | None) -> dict[str
     return {**cfg["types"][kind], **(own or {})}
 
 
+def event_notice(options: Any, cfg: dict[str, Any], kind: str, trigger: str | None, armed_mode: str | None = None) -> dict[str, Any]:
+    """
+    Wirksame feste Meldung einer Anlage (1.62.0): "Scharf geschaltet", "Deaktiviert", "Eingangsverzögerung", "Stiller Alarm" für einen Auslöser
+    (Modus oder "always"). Hat die Anlage dafür im Reiter Aktionen etwas gespeichert, gilt das. Sonst gilt die bisherige gemeinsame Einstellung
+    der Art (bis 1.61.0 im Reiter Benachrichtigungen, mit den eigenen Werten des Modus): so ändert das Update nichts, und eine Anlage aus
+    einer älteren Sicherung meldet wie zuvor. Immer alle Felder. `armed_mode`: der Modus, in dem die Anlage gerade scharf ist; ohne eigenen
+    Wert für "Immer aktiv" galt bis 1.61.0 für den stillen Alarm eines immer aktiven Sensors der Wert dieses Modus, und so bleibt es.
+    """
+    saved = (options or {}).get(CONF_EVENT_NOTIFY)
+    per_trigger = saved.get(trigger or "") if isinstance(saved, dict) else None
+    own = per_trigger.get(kind) if isinstance(per_trigger, dict) else None
+    if isinstance(own, dict) and isinstance(own.get("enabled"), bool):
+        return {"title": "", "message": "", "critical": False, "volume": 0.8, "persistent": False, "click": "overview", "click_path": "", **own, "targets": list(own.get("targets") or [])}
+    legacy = effective_type(cfg, kind, trigger if trigger in MODES else armed_mode)
+    return {"enabled": bool(legacy["enabled"]), "title": "", "message": "", "critical": bool(legacy["critical"]), "volume": float(legacy["volume"]),
+            "persistent": bool(legacy.get("persistent")), "click": "overview", "click_path": "", "targets": list(legacy.get("targets") or [])}
+
+
 def build_payload(cfg: dict[str, Any], kind: str, title: str, message: str, *, tag: str | None = None,
                   actions: list | None = None, critical: bool | None = None, volume: float | None = None,
                   url: str | None = None, mode: str | None = None) -> dict[str, Any]:
@@ -382,6 +406,9 @@ class Notifier:
         self._ctl = controller
         self._settings = settings
         self._last_state: str | None = None
+        # Modus, solange die Anlage nicht deaktiviert ist: beim Deaktivieren ist er schon gelöscht, die Meldung "Deaktiviert" gehört aber
+        # zum Modus, der scharf war (wie die Aktionen "Beim Deaktivieren")
+        self._mode_seen: str | None = None
         # Auslöser (Modus) des laufenden Alarms: beim Deaktivieren ist der Modus der Anlage schon weg
         self._alarm_trigger: str | None = None
         # Sensor, der den laufenden Alarm ausgelöst hat: beim Deaktivieren und Quittieren löscht der Automat ihn schon,
@@ -409,6 +436,7 @@ class Notifier:
     @callback
     def async_start(self) -> None:
         self._last_state = str(self._ctl.state)
+        self._mode_seen = self._ctl.mode
         # Neustart mitten im Alarm: der Auslöser für "Alarm endet" ist der Modus, in dem die Anlage noch steht
         if self._ctl.state == AlarmControlPanelState.TRIGGERED:
             self._alarm_trigger = self._ctl.alarm_plan()[0]
@@ -435,6 +463,9 @@ class Notifier:
     def _on_change(self) -> None:
         state = str(self._ctl.state)
         previous = self._last_state
+        was_mode = self._mode_seen
+        if state != AlarmControlPanelState.DISARMED:
+            self._mode_seen = self._ctl.mode
         if state == previous:
             return
         self._last_state = state
@@ -442,7 +473,6 @@ class Notifier:
             # Scharf geschaltet (gleich auf welchem Weg): die Knöpfe einer älteren Meldung "Scharfschalten nicht möglich" sind
             # verbraucht, sie schalten nach dem nächsten Deaktivieren nicht noch einmal scharf
             self._arm_attempts().pop(self.entry.entry_id, None)
-        name = self.entry.title
         if state == AlarmControlPanelState.TRIGGERED:
             # Der Hauptablauf des Alarms bestimmt Alarmmeldung und "Alarm endet"; laufen zwei Abläufe (Modus und "Immer aktiv"),
             # entfällt die Standardmeldung, sobald einer von ihnen einen Push-Schritt hat
@@ -451,28 +481,25 @@ class Notifier:
             self._alarm_sensor = self._ctl.triggered_by
             if self._on("triggered") and not any(self.workflow_has_notify(flow) for flow in plan):
                 self.send_alarm()
-        elif state == AlarmControlPanelState.PENDING and self._on("pending", self._ctl.mode):
+        elif state == AlarmControlPanelState.PENDING and self.notice("pending", self._ctl.mode)["enabled"]:
             # Die Zeit, die wirklich läuft: ein Sensor kann eine eigene Eingangsverzögerung haben (bis 1.57.0 stand hier immer die des Modus)
             left = self._ctl.delay_left()
             seconds = self._ctl.entry_delay if left is None else max(0, round(left))
-            self._send("pending", self._t("pending_title", name=name),
-                       self._t("pending", sensor=self._name(self._ctl.triggered_by), seconds=format_duration(seconds)))
+            self.send_event("pending", self._ctl.mode, sensor=self._ctl.triggered_by, seconds=seconds)
         elif state in (AlarmControlPanelState.ARMED_HOME, AlarmControlPanelState.ARMED_AWAY, AlarmControlPanelState.ARMED_NIGHT):
             if previous == AlarmControlPanelState.TRIGGERED:
                 # Alarm quittiert (die Anlage bleibt scharf): wie beim Deaktivieren ersetzt "Alarm beendet" die Alarmmeldung
                 if self._on("triggered"):
                     self.send_alarm_end(self._ctl.changed_by, acknowledged=True)
-            elif self._on("armed", self._ctl.mode):
-                by = self._ctl.changed_by
-                self._send("armed", self._t("armed_title", name=name, mode=self._mode(self._ctl.mode)),
-                           self._t("armed", by=by) if by else self._t("armed_noby"))
+            elif self.notice("armed", self._ctl.mode)["enabled"]:
+                self.send_event("armed", self._ctl.mode, person=self._ctl.changed_by)
         elif state == AlarmControlPanelState.DISARMED:
             by = self._ctl.changed_by
             if previous == AlarmControlPanelState.TRIGGERED and self._on("triggered"):
                 self.send_alarm_end(by)
-            elif self._on("disarmed"):
-                self._send("disarmed", self._t("disarmed_title", name=name),
-                           self._t("disarmed", by=by) if by else self._t("disarmed_noby"))
+            elif self.notice("disarmed", was_mode)["enabled"]:
+                # Die Meldung des Modus, der scharf war (oder gerade scharf wurde)
+                self.send_event("disarmed", was_mode, person=by)
 
     @callback
     def _on_event(self, kind: str, data: dict[str, Any]) -> None:
@@ -491,11 +518,12 @@ class Notifier:
             # Im scharfen Zustand ist ein ausgefallener Melder ein blinder Fleck (Standard: kritisch an die Alarm-Empfänger)
             self._send("sensor_offline", self._t("offline_title", name=self._name(data.get("sensor"))),
                        self._t("offline", sensor=self._name(data.get("sensor"))))
-        elif kind == "sensor_report" and self._on("sensor_report", self._ctl.mode):
-            # Sensor auf "Stiller Alarm": keine Alarmauslösung, aber eine Meldung (Standard: kritisch), eigener tag je Sensor
-            sensor = data.get("sensor")
-            self._send("sensor_report", self._t("report_title", name=self._name(sensor)),
-                       self._t("report", sensor=self._name(sensor)), tag=f"{self._tag()}_report_{sensor}")
+        elif kind == "sensor_report":
+            # Sensor auf "Stiller Alarm": keine Alarmauslösung, aber eine Meldung (Standard: kritisch), eigener tag je Sensor. Es gilt die
+            # Meldung des Auslösers: der Modus, in dem die Anlage scharf ist, oder "Immer aktiv" (ein immer aktiver Sensor)
+            scope = data.get("scope") or self._ctl.mode or WORKFLOW_ALWAYS
+            if self.notice("sensor_report", scope)["enabled"]:
+                self.send_event("sensor_report", scope, sensor=data.get("sensor"))
 
     def _alarm_recipients(self) -> list[str]:
         """Alarm-Empfänger der Konfiguration und die eigenen Empfänger der Meldungen dieser Anlage (Schritt "Push-Meldung", "Alarm endet")."""
@@ -619,10 +647,12 @@ class Notifier:
             return "/alarmageddon"
         return "/alarmageddon?view=log"
 
-    def _fill(self, template: str, sensor: str | None, time: str, mode: str | None = None) -> str:
-        """Platzhalter eines eigenen Texts füllen; nur diese sieben, alles andere bleibt wie geschrieben (kein str.format)."""
+    def _fill(self, template: str, sensor: str | None, time: str, mode: str | None = None, person: str = "", delay: str = "") -> str:
+        """Platzhalter eines eigenen Texts füllen; nur die bekannten (PLACEHOLDER), alles andere bleibt wie geschrieben (kein str.format)."""
         device_class, area = sensor_info(self.hass, sensor)
         values = {
+            "{person}": person,
+            "{delay}": delay,
             "{name}": self.entry.title,
             "{sensor}": self._name(sensor) if sensor else "",
             "{time}": time,
@@ -712,6 +742,65 @@ class Notifier:
         if test:
             title = self._t("test_title", name=title)
         self._send("triggered", title, message, tag=self._tag(), critical=critical, volume=volume, url=target, targets=(own or {}).get("targets"))
+
+    # ----- Feste Meldungen im Reiter Aktionen (1.62.0) -----
+
+    def notice(self, kind: str, trigger: str | None) -> dict[str, Any]:
+        """Die wirksame feste Meldung dieser Anlage für einen Auslöser (siehe event_notice)."""
+        return event_notice(self.entry.options, self.cfg, kind, trigger, self._ctl.mode if trigger == WORKFLOW_ALWAYS else None)
+
+    @callback
+    def send_event(self, kind: str, trigger: str | None, *, sensor: str | None = None, person: str | None = None, seconds: float | None = None,
+                   notice: dict[str, Any] | None = None, test: bool = False) -> list[str]:
+        """
+        Feste Meldung senden: "Scharf geschaltet", "Deaktiviert", "Eingangsverzögerung" oder "Stiller Alarm" mit den Werten der Anlage für
+        den Auslöser (oder den übergebenen, auch ungespeicherten: Test aus dem Fenster). Eigener Titel und Text ersetzen den Standardtext;
+        leer gilt der Standardtext. Ob die Meldung eingeschaltet ist, prüft der Aufrufer. Gibt die Empfänger zurück.
+        """
+        if kind not in EVENT_NOTIFY_KINDS:
+            raise ValueError(kind)
+        notice = notice or self.notice(kind, trigger)
+        name = self.entry.title
+        mode = trigger if trigger in MODES else None
+        delay = format_duration(seconds) if seconds is not None else ""
+        if kind == "pending":
+            title, message = self._t("pending_title", name=name), self._t("pending", sensor=self._name(sensor), seconds=delay)
+        elif kind == "armed":
+            title = self._t("armed_title", name=name, mode=self._mode(mode))
+            message = self._t("armed", by=person) if person else self._t("armed_noby")
+        elif kind == "disarmed":
+            title = self._t("disarmed_title", name=name)
+            message = self._t("disarmed", by=person) if person else self._t("disarmed_noby")
+        else:
+            title, message = self._t("report_title", name=self._name(sensor)), self._t("report", sensor=self._name(sensor))
+        time = dt_util.as_local(dt_util.utcnow()).strftime("%H:%M")
+        if custom := str(notice.get("title") or "").strip():
+            title = self._fill(custom, sensor, time, mode, person or "", delay) or title
+        if custom := str(notice.get("message") or "").strip():
+            message = self._fill(custom, sensor, time, mode, person or "", delay) or message
+        if test:
+            title = self._t("test_title", name=title)
+        # Stiller Alarm: eigener tag je Sensor (mehrere Sensoren ersetzen einander nicht)
+        tag = f"{self._tag()}_report_{sensor}" if kind == "sensor_report" and sensor and not test else None
+        self._ctl.record("notified", type=kind)
+        if notice.get("persistent"):
+            try:
+                persistent_notification.async_create(self.hass, message, title=title, notification_id=tag or f"alarmageddon_{self.entry.entry_id}_{kind}")
+            except Exception:  # noqa: BLE001 - die Benachrichtigung in Home Assistant ist Zusatz: die Meldung aufs Handy geht trotzdem hinaus
+                _LOGGER.exception("%s: persistent notification failed", self.entry.title)
+        targets = [t for t in notice.get("targets") or [] if isinstance(t, str)] or list(self.cfg["alarm_targets"])
+        url = self._click_target({"click": notice.get("click") or "overview", "click_path": notice.get("click_path")})
+        async_send(self.hass, targets, build_payload(self.cfg, kind, title, message, tag=tag, critical=bool(notice.get("critical")),
+                                                     volume=float(notice.get("volume", 0.8)), url=url))
+        return targets
+
+    @callback
+    def send_event_test(self, kind: str, trigger: str, notice: dict[str, Any]) -> list[str]:
+        """Testmeldung einer festen Meldung mit Beispielwerten: der erste Sensor des Auslösers, die Eingangsverzögerung des Modus."""
+        mode = trigger if trigger in MODES else None
+        sensors = self._ctl.zone(mode) if mode else sorted(self._ctl.always_sensors())
+        seconds = (self._ctl.longest_entry_delay(mode) or self._ctl.entry_delay_for(mode)) if kind == "pending" and mode else None
+        return self.send_event(kind, trigger, sensor=sensors[0] if sensors and kind in ("pending", "sensor_report") else None, seconds=seconds, notice=notice, test=True)
 
     @callback
     def send_test(self, kind: str, mode: str | None = None) -> list[str]:

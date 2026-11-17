@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 220  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 221  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -278,6 +278,21 @@ GROUP_NAME_MAX: Final = 40
 GROUP_EXCLUDED: Final = ("group", "acknowledge")  # Schritte, die es in einer Gruppe nie gibt
 WORKFLOW_ALWAYS: Final = "always"  # Alarm durch einen "immer aktiven" Sensor bei deaktivierter Anlage
 WORKFLOW_TRIGGERS: Final = ("home", "away", "night", WORKFLOW_ALWAYS)
+# Feste Meldungen im Reiter Aktionen (1.62.0, Entscheid des Nutzers 2026-11-17): "Scharf geschaltet", "Deaktiviert", "Eingangsverzögerung" und
+# "Stiller Alarm" gehören zum Ablauf der Anlage, nicht mehr zu den gemeinsamen Einstellungen im Reiter Benachrichtigungen. Je Anlage und
+# Auslöser wie die Aktionen: CONF_EVENT_NOTIFY[auslöser][art] = {enabled, title, message, critical, volume, persistent, click, click_path,
+# targets}. Die ersten drei gibt es nur für die Modi (im Reiter "Immer aktiv" wird nie scharf geschaltet), "Stiller Alarm" auch für
+# "Immer aktiv" (ein immer aktiver Sensor auf "Stiller Alarm"). Solange eine Anlage für einen Auslöser nichts Eigenes gespeichert hat, gilt
+# die bisherige gemeinsame Einstellung der Art (notify["types"], notify["modes"]): beim Update ändert sich nichts, und eine Sicherung
+# aus einer älteren Version verhält sich wie zuvor (notify.event_notice).
+CONF_EVENT_NOTIFY: Final = "event_notify"
+EVENT_NOTIFY_KINDS: Final = ("armed", "disarmed", "pending", "sensor_report")
+EVENT_NOTIFY_ALWAYS: Final = ("sensor_report",)  # was es im Reiter "Immer aktiv" gibt
+# Aktionen bei einem stillen Alarm (1.62.0): Schritte, die laufen, wenn ein Sensor auf "Stiller Alarm" anspricht, je Auslöser (Modus, in
+# dem die Anlage scharf ist, oder "Immer aktiv"). Dieselben Schritte wie beim Scharfschalten (Gerät, Aktivierungston, Warten, Szene, eigene
+# Aktion, Gruppe). Nie ein Alarm: der Lauf steht neben dem Alarm wie die Aktionen beim Scharfschalten, ein Alarm und eine laufende
+# Verzögerung haben Vorrang, Deaktivieren beendet ihn. Je Sensor höchstens einmal in REPORT_THROTTLE Sekunden (wie die Meldung).
+CONF_WORKFLOWS_REPORT: Final = "workflows_report"
 WORKFLOW_STORE_KEY: Final = f"{DOMAIN}.workflow"
 BACKUPS_STORE_KEY: Final = f"{DOMAIN}.backups"
 MAX_BACKUPS: Final = 10  # Sicherungen in der Integration; die älteste fällt weg

@@ -8,11 +8,13 @@ for (const lang of ["de", "en"]) {
     const s = await open(browser, { mobile, lang, tab: "config" });
     await s.tap('[data-sub="notify"]');
     await s.waitFor("return !!r.querySelector('.ag-nt [data-nt=\"target-add\"]')");
-    const kind = "pending";
+    // Seit 1.62.0 stehen "Eingangsverzögerung" und die anderen Meldungen des Ablaufs im Reiter Aktionen: hier dient der Sensorausfall im
+    // scharfen Zustand als Beispiel (er hat als einzige Art weiterhin eigene Werte je Modus)
+    const kind = "sensor_offline";
     const box = `.ag-mt:has([data-nt="enabled"][data-kind="${kind}"])`;
     const draftTargets = () => s.ev(`return JSON.stringify(r.host.notify.draft.types.${kind}.targets || [])`);
 
-    await s.tap(`[data-nt="enabled"][data-kind="${kind}"]`); // "Eingangsverzögerung" ist im Nachbau aus
+    if (!(await s.ev(`return r.host.notify.draft.types.${kind}.enabled`))) await s.tap(`[data-nt="enabled"][data-kind="${kind}"]`);
     await s.waitFor(`return !!r.querySelector('${box} select[data-nt="kt-add"]')`);
     check(`${tag}: jede aktive Meldung hat ein Dropdown für die Empfänger`, await s.ev(`const boxes=[...r.querySelectorAll('.ag-mt:not(.off)')]; return boxes.length > 3 && boxes.every((b) => !!b.querySelector('select[data-nt="kt-add"]'))`));
     check(`${tag}: Standard ist vorgewählt: die Empfänger der Gruppe stehen als Pillen, Herkunft "Standard"`, await s.ev(`const b=r.querySelector('${box}'); const o=b.querySelector('.ag-origin'); return o && !o.classList.contains('own') && b.querySelectorAll('.ag-mt-pills .ag-rpill').length === r.host.notify.draft.alarm_targets.length && o.textContent.length > 5`));
@@ -73,9 +75,9 @@ for (const lang of ["de", "en"]) {
     // Je Modus: eigener Wert nur für diesen Modus
     await s.tap('[data-nt="permode"]');
     await s.waitFor("return !!r.querySelector('.ag-mtlist .ag-mt')");
-    const mbox = `.ag-mtlist .ag-mt:has([data-nt="enabled"][data-kind="pending"][data-mode])`;
+    const mbox = `.ag-mtlist .ag-mt:has([data-nt="enabled"][data-kind="${kind}"][data-mode])`;
     await (await s.el(`${mbox} select[data-nt="kt-add"]`)).selectOption("notify.mobile_app_tablet");
-    check(`${tag}: im Reiter eines Modus: eigener Wert nur für diesen Modus`, await s.waitFor(`const d=r.host.notify.draft; const m=Object.keys(d.modes); return m.length === 1 && d.modes[m[0]].pending.targets.includes('notify.mobile_app_tablet') && !(d.types.pending.targets || []).includes('notify.mobile_app_tablet')`));
+    check(`${tag}: im Reiter eines Modus: eigener Wert nur für diesen Modus`, await s.waitFor(`const d=r.host.notify.draft; const m=Object.keys(d.modes); return m.length === 1 && d.modes[m[0]].${kind}.targets.includes('notify.mobile_app_tablet') && !(d.types.${kind}.targets || []).includes('notify.mobile_app_tablet')`));
     await s.tap(`${mbox} [data-nt="kt-reset"]`);
     check(`${tag}: Zurücksetzen entfernt den Wert des Modus`, await s.waitFor("return Object.keys(r.host.notify.draft.modes).length === 0"));
     await s.ctx.close();

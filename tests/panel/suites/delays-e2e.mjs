@@ -4,8 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { arming: "Scharfschalten beginnt", armed: "Anlage scharf geschaltet", entry: "Eingangsverzögerung läuft", start: "Alarm beginnt", chapArm: "Beim Scharfschalten", chapAlarm: "Bei einem Alarm", chapDisarm: "Beim Deaktivieren", pillArm: "Solange die Ausgangsverzögerung läuft", pillEntry: "Solange die Eingangsverzögerung läuft", home: "Anwesend", away: "Abwesend" },
-  en: { arming: "Arming begins", armed: "Alarm system armed", entry: "Entry delay running", start: "Alarm starts", chapArm: "When arming", chapAlarm: "On an alarm", chapDisarm: "When disarming", pillArm: "As long as the exit delay runs", pillEntry: "As long as the entry delay runs", home: "Home", away: "Away" },
+  de: { arming: "Scharfschalten beginnt", armed: "Anlage scharf geschaltet", entry: "Eingangsverzögerung läuft", start: "Alarm beginnt", chapArm: "Beim Scharfschalten", chapReport: "Bei einem stillen Alarm", chapAlarm: "Bei einem Alarm", chapDisarm: "Beim Deaktivieren", pillArm: "Solange die Ausgangsverzögerung läuft", pillEntry: "Solange die Eingangsverzögerung läuft", home: "Anwesend", away: "Abwesend" },
+  en: { arming: "Arming begins", armed: "Alarm system armed", entry: "Entry delay running", start: "Alarm starts", chapArm: "When arming", chapReport: "On a silent alarm", chapAlarm: "On an alarm", chapDisarm: "When disarming", pillArm: "As long as the exit delay runs", pillEntry: "As long as the entry delay runs", home: "Home", away: "Away" },
 };
 
 const browser = await launch();
@@ -21,8 +21,8 @@ for (const lang of ["de", "en"]) {
     const saved = (key) => s.sim(`const c=window.__calls.filter((x) => x.type === 'alarmageddon/save_workflows').pop(); return c ? JSON.parse(JSON.stringify(c.${key} || null)) : null`);
 
     // ----- Aufbau: zwei Kapitel, fünf feste Punkte in der Reihenfolge der Zeit -----
-    const order = await s.ev("return [...r.querySelector('.ag-wf').children].map((c) => c.classList.contains('ag-wf-chap') ? 'chap:' + c.querySelector('h3').textContent.trim() : [...c.classList].find((k) => /^ag-wf-(arming|armed|entry|main|end|after|disarmed)$/.test(k)))");
-    check(`${tag}: drei Kapitel mit den Punkten in zeitlicher Reihenfolge`, JSON.stringify(order) === JSON.stringify([`chap:${t.chapArm}`, "ag-wf-arming", "ag-wf-armed", `chap:${t.chapAlarm}`, "ag-wf-entry", "ag-wf-main", "ag-wf-end", "ag-wf-after", `chap:${t.chapDisarm}`, "ag-wf-disarmed"]), JSON.stringify(order));
+    const order = await s.ev("return [...r.querySelector('.ag-wf').children].map((c) => c.classList.contains('ag-wf-chap') ? 'chap:' + c.querySelector('h3').textContent.trim() : [...c.classList].find((k) => /^ag-wf-(arming|armed|report|entry|main|end|after|disarmed)$/.test(k)))");
+    check(`${tag}: vier Kapitel mit den Punkten in zeitlicher Reihenfolge (seit 1.62.0 "${t.chapReport}" vor dem Alarm)`, JSON.stringify(order) === JSON.stringify([`chap:${t.chapArm}`, "ag-wf-arming", "ag-wf-armed", `chap:${t.chapReport}`, "ag-wf-report", `chap:${t.chapAlarm}`, "ag-wf-entry", "ag-wf-main", "ag-wf-end", "ag-wf-after", `chap:${t.chapDisarm}`, "ag-wf-disarmed"]), JSON.stringify(order));
     const titles = await s.ev("return [...r.querySelectorAll('.ag-wf-start')].map((m) => m.firstElementChild.nextSibling?.textContent?.trim() || m.textContent.trim())");
     check(`${tag}: Titel der neuen Punkte mit Modus, darunter die geltende Zeit`, await s.ev(`const a=r.querySelector('.ag-wf-arming .ag-wf-start'), e=r.querySelector('.ag-wf-entry .ag-wf-start'); return a.textContent.includes('${t.arming} (${t.away})') && /(^|[^0-9])1 min([^0-9]|$)/.test(a.querySelector('.ag-wf-sub').textContent) && e.textContent.includes('${t.entry} (${t.away})') && /30/.test(e.querySelector('.ag-wf-sub').textContent)`), JSON.stringify(titles));
     check(`${tag}: neue Punkte tragen eine gelbe Uhr`, await s.ev("return ['.ag-wf-arming', '.ag-wf-entry'].every((q) => r.querySelector(q + ' .ag-mini.warn svg'))"));
@@ -33,7 +33,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Anwesend (Ausgangsverzögerung 0): kein Punkt "${t.arming}", die Eingangsverzögerung (30 s) schon`, await s.ev("return !r.querySelector('.ag-wf-arming') && !!r.querySelector('.ag-wf-entry') && !!r.querySelector('.ag-wf-armed')"));
     await s.tap('[data-trigger="always"]');
     await s.waitFor("return !r.querySelector('.ag-wf-entry') && !r.querySelector('.ag-wf-armed')");
-    check(`${tag}: "Immer aktiv": weder Verzögerungen noch Kapiteltitel`, await s.ev("return !r.querySelector('.ag-wf-arming, .ag-wf-entry, .ag-wf-armed, .ag-wf-chap')"));
+    check(`${tag}: "Immer aktiv": keine Verzögerungen, kein Scharfschalten, kein Deaktivieren; nur die Kapitel "${t.chapReport}" und "${t.chapAlarm}"`, await s.ev(`return !r.querySelector('.ag-wf-arming, .ag-wf-entry, .ag-wf-armed, .ag-wf-disarmed') && JSON.stringify([...r.querySelectorAll('.ag-wf-chap h3')].map((h) => h.textContent.trim())) === ${JSON.stringify(JSON.stringify([t.chapReport, t.chapAlarm]))}`));
     await s.tap('[data-trigger="away"]');
     await s.waitFor("return !!r.querySelector('.ag-wf-arming')");
 

@@ -171,9 +171,24 @@ def test_panel_and_server_agree() -> None:
     tokens = re.search(r"NOTIFY_TOKENS = \[(.*?)\]", actions).group(1)
     names = ["name", "sensor", "type", "area", "time", "mode", "alarm"]
     assert re.findall(r"\{(\w+)\}", tokens) == names
-    # Server und Vorschau ersetzen genau diese sieben, in einem Durchgang (ein eingesetzter Wert wird nie noch einmal ersetzt)
-    assert re.search(r"\(\?:([a-z|]+)\)", PLACEHOLDER.pattern).group(1).split("|") == names
-    assert re.search(r"text\.replace\(/\\\{\(\?:([a-z|]+)\)\\\}/g", actions).group(1).split("|") == names
+    # Server und Vorschau ersetzen genau diese sieben und die zwei der festen Meldungen (1.62.0: {person}, {delay}), in einem Durchgang
+    # (ein eingesetzter Wert wird nie noch einmal ersetzt)
+    every = [*names, "person", "delay"]
+    assert re.search(r"\(\?:([a-z|]+)\)", PLACEHOLDER.pattern).group(1).split("|") == every
+    assert re.search(r"text\.replace\(/\\\{\(\?:([a-z|]+)\)\\\}/g", actions).group(1).split("|") == every
+    # Feste Meldungen: dieselben vier Arten wie der Server; jede bietet nur Platzhalter an, die der Server kennt und die es dort gibt
+    # ({person} nur beim Schalten, {delay} nur bei der Eingangsverzögerung, {alarm} nie: es gibt dabei keinen Alarm)
+    from custom_components.alarmageddon.const import EVENT_NOTIFY_ALWAYS, EVENT_NOTIFY_KINDS
+
+    assert tuple(re.findall(r'"(\w+)"', re.search(r"NOTICE_KINDS = \[(.*?)\]", actions).group(1))) == EVENT_NOTIFY_KINDS
+    assert re.search(r'noticeKinds = \(trigger\) => \(trigger === "always" \? \[(.*?)\]', actions).group(1) == ", ".join(f'"{k}"' for k in EVENT_NOTIFY_ALWAYS)
+    block = actions[actions.index("export const NOTICE_TOKENS"):]
+    offered = {kind: re.findall(r"\{(\w+)\}", line) for kind, line in re.findall(r"\n  (\w+): \[(.*?)\],", block[:block.index("};")])}
+    assert set(offered) == set(EVENT_NOTIFY_KINDS)
+    assert all(set(tokens) <= set(every) - {"alarm"} and len(set(tokens)) == len(tokens) for tokens in offered.values())
+    assert {kind for kind, tokens in offered.items() if "person" in tokens} == {"armed", "disarmed"}
+    assert {kind for kind, tokens in offered.items() if "delay" in tokens} == {"pending"}
+    assert {kind for kind, tokens in offered.items() if "sensor" in tokens} == {"pending", "sensor_report"}
     strings = (panel / "strings.js").read_text(encoding="utf-8")
     en, de = strings.split("\n  de: {", 1)
     for lang, part in (("en", en), ("de", de)):

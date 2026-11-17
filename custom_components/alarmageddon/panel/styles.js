@@ -478,6 +478,14 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-mon-out { --z: #ffb74d; }
 .ag-wf-mon-ok { --z: #81c784; }
 .ag-wf-disarmed { --z: #2e7d32; }
+.ag-wf-report { --z: #607d8b; max-width: 820px; margin-bottom: 10px; }
+.ag-wf-start .ag-mini.quiet { background-image: linear-gradient(color-mix(in srgb, #607d8b 20%, transparent), color-mix(in srgb, #607d8b 20%, transparent)); color: #546e7a; }
+/* Feste Meldung eines Punkts (1.62.0): Karte wie "Abschlussmeldung", in der Farbe der Zone, mit Schalter; ausgeschaltet blass */
+.ag-wf-line > .ag-wf-notice { max-width: 820px; background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
+.ag-wf-notice > .ag-toggle { flex: none; margin: 0; }
+.ag-wf-notice.off > .ag-wf-icon, .ag-wf-notice.off > .ag-wf-text { opacity: .55; }
+.ag-nt-moved { display: flex; gap: 6px; align-items: flex-start; margin: 10px 4px 0; }
+.ag-nt-moved .ag-ic { flex: none; margin-top: 2px; }
 .ag-wf-line .ag-wf-step { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
 .ag-wf-end .ag-wf-endcard { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
 /* Die Linien zum Plus-Knopf haben seine Farbe (nicht die der Zone) und treffen ihn oben und unten genau in der Mitte */
@@ -708,6 +716,7 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 .ag-rttags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .ag-rttags .ag-tag { height: auto; min-height: 22px; padding-top: 3px; padding-bottom: 3px; white-space: normal; }
 :host([narrow]) .ag-rtrow { flex-wrap: wrap; }
+.ag-rt-view > .ag-rttags { margin-top: -6px; }
 .ag-rtrow { gap: 12px; } /* auch die letzte Zeile: im Fenster steht kein Knopf mehr danach (sonst 16 px, Schalter zu weit vom Text) */
 :host([narrow]) .ag-rtrow .ag-settx { flex: 1 1 0; min-width: 0; }
 :host([narrow]) .ag-codes .ag-rtrow .ag-wf-btns { flex: 0 0 100%; justify-content: flex-end; margin-top: 2px; } /* wie die Knöpfe der Schritte (Kreis, 44 px) */
@@ -914,6 +923,9 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 .ag-efcard > .ag-ef:first-child { margin-top: 0; }
 .ag-efcard > .ag-ef:last-child { margin-bottom: 0; }
 .ag-efcard > .ag-ef-row + .ag-ef-row { margin-top: 12px; }
+/* Auswahlfelder in einer Karte des Fensters (Klickziel einer Meldung): nie breiter als die Karte. Ein select ist sonst so breit wie sein
+   längster Eintrag und ragte auf dem Handy über den Rand (bis 1.61.0 im Fenster der Abschlussmeldung, auf Deutsch). */
+.ag-efcard > select.ag-input { max-width: 100%; }
 .ag-subh { margin: 14px 4px 8px; color: var(--ag-text2); font-size: 12px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; }
 /* Handy: Tippfläche mindestens 44 px; die Leisten füllen die Breite; ab fünf Reitern vier Spalten in Zeilen (schmale Handys drei); Reiter mit Symbol: Symbol über dem Text */
 :host([narrow]) .ag-seg { display: grid; width: 100%; box-sizing: border-box; }
@@ -1284,6 +1296,14 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-grp-intro { margin-bottom: 4px; }
 :host([narrow]) .ag-wf-ghead { flex-wrap: wrap; }
 :host([narrow]) .ag-wf-line.ag-wf-glist { padding: 2px 8px 8px; --wf-x: 26px; }
+/* Die Aktionen einer Gruppe wiederholen sich (1.62.0, Wunsch des Nutzers: dezent zeigen): links läuft eine gestrichelte Linie von der
+   letzten Aktion zurück zur ersten, mit einer Pfeilspitze auf die erste. Nur Zierde, kein Ziel für Zeiger oder Tastatur. */
+.ag-wf-line.ag-wf-glist { position: relative; }
+.ag-wf-line.ag-wf-glist.loop { padding-left: 28px; }
+.ag-wf-loop { position: absolute; left: 9px; top: 74px; bottom: 82px; width: 13px; border: 2px dashed color-mix(in srgb, var(--z) 70%, var(--ag-card)); border-right: 0; border-radius: 12px 0 0 12px; pointer-events: none; }
+.ag-wf-loop::after { content: ""; position: absolute; left: 100%; top: -6.5px; border: 5.5px solid transparent; border-left: 8px solid color-mix(in srgb, var(--z) 80%, var(--ag-card)); border-right: 0; }
+:host([narrow]) .ag-wf-line.ag-wf-glist.loop { padding-left: 24px; }
+:host([narrow]) .ag-wf-loop { left: 6px; }
 /* 1.58.0: unsichtbarer Platzhalter, der seinen Platz behält (Reiterzeile der Aktionen springt beim Wechsel auf "Überwachung" nicht) */
 .ag-ghost { visibility: hidden; pointer-events: none; }
 .ag-ghost .ag-toggle { display: inline-block; flex: none; margin: 0; }

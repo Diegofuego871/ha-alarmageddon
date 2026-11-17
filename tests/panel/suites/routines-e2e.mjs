@@ -156,10 +156,10 @@ for (const lang of ["de", "en"]) {
       && sent.trigger.tree.items[0].entity_id === "lock.haustuer" && sent.trigger.tree.items[1].op === "or" && sent.trigger.tree.items[1].items[0].state === "not_home"
       && sent.trigger.tree.items[1].items[1].kind === "time" && sent.trigger.tree.items[1].items[1].from === "22:00" && !("_device" in sent) && !("_times" in sent), JSON.stringify(sent));
 
-    // Knöpfe der Routinen wie die der Schritte in den Aktionen: rund, 44 px, Reihenfolge Stift, Kopieren, Papierkorb
+    // Knöpfe der Routinen wie die der Schritte in den Aktionen: rund, 44 px, Reihenfolge Auge (Vorschau, 1.62.0), Stift, Kopieren, Papierkorb
     await openList();
-    check(`${tag}: Knöpfe der Routine: Stift, Kopieren, Papierkorb, rund, mindestens 44 px, Abstand`, await s.ev(`const row=r.querySelector('.ag-rtrow .ag-wf-btns'); const b=[...row.querySelectorAll('.ag-iconbtn')]; const gap=b[1].getBoundingClientRect().left-b[0].getBoundingClientRect().right;
-      return b.map((x)=>x.dataset.sys).join()==='rt-edit,rt-dup,rt-del' && b.every((x)=>Math.round(x.getBoundingClientRect().width)>=44 && Math.round(x.getBoundingClientRect().height)>=44) && getComputedStyle(b[0]).borderTopWidth==='1px' && gap>=8`));
+    check(`${tag}: Knöpfe der Routine: Auge, Stift, Kopieren, Papierkorb, rund, mindestens 44 px, Abstand`, await s.ev(`const row=r.querySelector('.ag-rtrow .ag-wf-btns'); const b=[...row.querySelectorAll('.ag-iconbtn')]; const gap=b[1].getBoundingClientRect().left-b[0].getBoundingClientRect().right;
+      return b.map((x)=>x.dataset.sys).join()==='rt-view,rt-edit,rt-dup,rt-del' && b.every((x)=>Math.round(x.getBoundingClientRect().width)>=44 && Math.round(x.getBoundingClientRect().height)>=44) && getComputedStyle(b[0]).borderTopWidth==='1px' && gap>=8`));
     // ----- Bestehende bearbeiten: Deaktivieren verlangt die Bestätigung -----
     await tapIn('[data-sys="rt-edit"][data-index="2"]');
     check(`${tag}: Heimkommen: Oder-Baum mit Gerät und Gruppe, Name steht drin`, await s.waitFor("return r.querySelector('[data-sys=\"rt-name\"]').value === 'Heimkommen' && r.querySelectorAll('.ag-rtleaf').length === 3 && !!r.querySelector('.ag-rtgroup')"));

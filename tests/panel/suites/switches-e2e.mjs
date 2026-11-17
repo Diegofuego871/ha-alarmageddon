@@ -1,6 +1,6 @@
 // Grundregel (Vorgabe des Nutzers, 2026-11-11, 1.17.8): Jeder Schalter steht links, sein Text rechts davon und nahe dabei;
 // der Text wächst nach rechts. Geprüft wird das ganze Panel: alle Reiter der Konfiguration und alle Fenster mit Schaltern
-// (Sensor-Blatt, Voreinstellungen, Schritt-Editor je Schrittart, "Alarm endet", Ansicht, Umbenennen).
+// (Sensor-Blatt, Voreinstellungen, Schritt-Editor je Schrittart, "Alarm endet", feste Meldungen, Ansicht, Umbenennen).
 // Je Sprache auf Desktop und Handy. Ausgenommen sind nur Schalter in Tabellenzellen (die Spalte ist ihre Beschriftung).
 // In einer Zeile aus Eingabefeldern (Zeitplan: Schalter, Uhrzeit, Aktion, Wochentage) steht der Schalter ebenfalls links;
 // dort folgt ihm ein Feld statt eines Textes, deshalb gilt "nahe" nur für Zeilen mit Text.
@@ -67,6 +67,18 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return r.getElementById('ag-step').open");
     await audit('Fenster "Alarm endet"');
     await closeDialogs();
+    // Feste Meldungen (1.62.0): der Schalter auf der Karte steht links von Symbol und Text; im Fenster "Meldung senden", "Kritisch" und
+    // "In Home Assistant stehen lassen"
+    const noticeCards = await s.ev(`return [...r.querySelectorAll('[data-notice]')].map((c) => { const t=c.querySelector('.ag-toggle').getBoundingClientRect(); const x=c.querySelector('.ag-wf-text').getBoundingClientRect(); return [c.dataset.notice, t.right <= x.left, Math.round(x.left - t.right)]; })`);
+    check(`${tag}: feste Meldungen: jeder der ${noticeCards.length} Schalter steht links von seinem Text und nahe dabei`, noticeCards.length >= 3 && noticeCards.every(([, left, gap]) => left && gap <= NEAR), JSON.stringify(noticeCards));
+    for (const kind of ["sensor_report", "armed"]) {
+      await s.ev(`r.querySelector('[data-notice="${kind}"] [data-wf="notice-edit"]').click(); return 1`);
+      await s.waitFor("return r.getElementById('ag-step').open && !!r.querySelector('#ag-step [data-wf=\"notice-enabled\"]')");
+      if (!(await s.ev("return !!r.querySelector('#ag-step [data-wf=\"notice-persist\"]')"))) await s.ev("r.querySelector('#ag-step [data-wf=\"notice-enabled\"]').click(); return 1");
+      await s.waitFor("return !!r.querySelector('#ag-step [data-wf=\"notice-persist\"]')");
+      await audit(`Fenster der festen Meldung (${kind})`, 3);
+      await closeDialogs();
+    }
     // Neuer Schritt: Ton (Lautstärke, bis zum Deaktivieren), Meldung (Knöpfe) und Voralarm
     for (const kind of ["sound", "notify", "prealarm", "device"]) {
       await s.ev("r.querySelector('.ag-wf-main [data-wf=\"add\"]').click(); return 1");

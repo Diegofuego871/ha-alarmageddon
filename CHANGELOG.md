@@ -7,6 +7,27 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.62.0] - 2026-11-17
+
+### Added
+
+- **Fixed messages in the Actions tab.** "Armed", "Disarmed", "Entry delay" and "Silent alarm" now sit as a fixed element at their point in the flow, like the closing message under "Alarm ends": always there, with a switch to turn them on and off and a pencil for the settings. They apply per alarm system and, with "Settings per mode", per mode; the "Always active" tab only has "Silent alarm". The standard recipients from the notifications are preselected, and each message can have its own recipients.
+- **Own title and text for these messages.** In the window of the message: title and text with placeholders, among them the new {person} (who armed or disarmed) and {delay} (the time of the entry delay), with a preview. Left empty, the previous standard text applies. As before, critical with volume and "keep in Home Assistant"; new are the tap target and a test message with the values from the window.
+- **New chapter "On a silent alarm" with its own actions.** Before the chapter "On an alarm". When a sensor with the option "Silent alarm" responds, the message goes out and the actions below it run: arming tone, switch a device, wait, scene, custom action, also in a group. There is never an alarm, so there is no siren and no alarm message either. They run at most once per sensor and minute, for the mode the alarm system is armed in; for always-active sensors the list in the "Always active" tab applies. An alarm, a test and a running entry or exit delay have priority; an alarm or disarming ends them at once. Devices are not restored.
+- **Preview of a routine.** In the "Routines" window every row has an eye. It shows the routine the way the editor shows it at the very bottom (trigger, check of the state, action), read-only, in the same window and full screen on the phone. "Close" leads back to the list (the search stays), "Edit" opens the editor.
+- **A group shows that it repeats.** To the left of the actions of a group, a thin dashed arc leads from the last step back to the first.
+
+### Changed
+
+- **The four messages are no longer in the Notifications tab.** A note there names the new place. Your previous settings still apply: as long as an alarm system has not saved anything of its own for a mode, it sends these messages exactly as before the update (on/off, critical, volume, own recipients, also the values per mode). The Actions tab shows this state. Only what you save there applies to this alarm system and this mode.
+- **"Recipients" is now called "Standard recipients".** The chapter in the Notifications tab; the messages in the Actions tab use the same name.
+- **"Copy actions from …" takes the fixed messages and the actions on a silent alarm along.** From a mode to "Always active" and back only the message "Silent alarm".
+- **The backup contains the fixed messages and the actions on a silent alarm.** An older backup can be restored as before; its alarm systems then send according to the shared settings.
+
+### Fixed
+
+- **Window of a message on the phone: the select field "Tap target" stuck out over the edge.** In German it was wider than its card (in the window of the closing message and of the alarm message). It now stays inside the card.
+
 ## [1.61.0] - 2026-11-17
 
 ### Changed
@@ -1817,6 +1838,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.62.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.62.0
 [1.61.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.61.0
 [1.60.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.60.0
 [1.59.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.59.0

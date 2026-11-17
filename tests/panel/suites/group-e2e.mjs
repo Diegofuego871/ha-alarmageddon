@@ -16,7 +16,9 @@ for (const lang of ["de", "en"]) {
     const tag = `${lang}/${mobile ? "Handy" : "Desktop"}`;
     const t = T[lang];
     const s = await open(browser, { mobile, lang, tab: "config" });
-    await s.page.setViewportSize(mobile ? { width: 390, height: 4200 } : { width: 1440, height: 3400 }); // alle Listen zugleich im Bild
+    // Alle Listen zugleich im Bild (die Maus trifft nur, was sichtbar ist). Seit 1.62.0 höher: die festen Meldungen und das Kapitel
+    // "Bei einem stillen Alarm" machen die Seite länger, mit einer vollen Gruppe reichte die frühere Höhe auf dem Handy nicht mehr.
+    await s.page.setViewportSize(mobile ? { width: 390, height: 5800 } : { width: 1440, height: 4400 });
     await s.page.waitForTimeout(600);
     await s.tap('[data-sub="actions"]');
     await s.waitFor("return !!r.querySelector('.ag-wf-armed') && !!r.querySelector('.ag-wf-main')");

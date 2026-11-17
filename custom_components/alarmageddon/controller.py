@@ -650,7 +650,7 @@ class AlarmController:
                 self.alarm_flows = self._flows_for(entity, by_always=True)
                 self._go_triggered()
                 return
-            self._report(entity)
+            self._report(entity, WORKFLOW_ALWAYS)
 
         if self.state == AlarmControlPanelState.ARMING and self.mode and entity in self.zone(self.mode):
             self._on_arming_change(entity, went_on, went_off)
@@ -672,7 +672,7 @@ class AlarmController:
             return
         # "Stiller Alarm": der Sensor löst nie aus (auch nicht mit Bestätigung), er meldet nur
         if self.option(entity, OPT_REPORT_ONLY, self.mode):
-            self._report(entity)
+            self._report(entity, self.mode)
             return
         if self.state != AlarmControlPanelState.PENDING and not self._confirmed(entity):
             return
@@ -694,13 +694,17 @@ class AlarmController:
             self._go_triggered()
 
     @callback
-    def _report(self, entity: str) -> None:
+    def _report(self, entity: str, scope: str) -> None:
+        """
+        Stiller Alarm: höchstens einmal je Sensor in REPORT_THROTTLE Sekunden. `scope` sagt, wessen Meldung und Aktionen gelten (1.62.0):
+        der Modus, in dem die Anlage scharf ist, oder "always" für einen immer aktiven Sensor.
+        """
         now = dt_util.utcnow()
         last = self._last_report.get(entity)
         if last and (now - last).total_seconds() < REPORT_THROTTLE:
             return
         self._last_report[entity] = now
-        self._emit("sensor_report", sensor=entity)
+        self._emit("sensor_report", sensor=entity, scope=scope)
 
     @callback
     def _confirmed(self, entity: str) -> bool:

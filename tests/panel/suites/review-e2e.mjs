@@ -92,24 +92,25 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: Meldungen offen`, await s.waitFor("return !!r.querySelector('.ag-nt [data-nt=\"permode\"]')"));
       await s.page.waitForTimeout(500);
       const kinds = () => s.ev(`return [...r.querySelectorAll('.ag-nt [data-nt="enabled"]')].map((b) => b.dataset.kind + (b.dataset.mode ? ":" + b.dataset.mode : ""))`);
-      const all = ["sensor_report", "sensor_offline", "pending", "arm_failed", "armed", "disarmed", "battery_low", "sensor_unavailable"];
+      // Seit 1.62.0 ohne "Stiller Alarm", "Eingangsverzögerung", "Scharf geschaltet" und "Deaktiviert" (feste Elemente im Reiter Aktionen)
+      const all = ["sensor_offline", "arm_failed", "battery_low", "sensor_unavailable"];
       const off = await kinds();
       check(`${tag}: Schalter aus: eine Liste mit allen Arten, ohne Modus`, all.every((k) => off.includes(k)) && off.every((k) => !k.includes(":")) && off.length === all.length, off.join(","));
       await s.tap('[data-nt="permode"]');
       await s.page.waitForTimeout(400);
       const on = await kinds();
-      const mode = on.find((k) => k.startsWith("pending:"))?.split(":")[1];
-      check(`${tag}: Schalter ein: die vier Arten des scharfen Zustands je Modus`, Boolean(mode) && ["sensor_report", "sensor_offline", "pending", "armed"].every((k) => on.includes(`${k}:${mode}`)), on.join(","));
-      check(`${tag}: Schalter ein: "Scharfschalten nicht möglich" und "Deaktiviert" bleiben einstellbar (ohne Modus)`, on.includes("arm_failed") && on.includes("disarmed"), on.join(","));
+      const mode = on.find((k) => k.startsWith("sensor_offline:"))?.split(":")[1];
+      check(`${tag}: Schalter ein: der Sensorausfall im scharfen Zustand je Modus`, Boolean(mode) && on.includes(`sensor_offline:${mode}`), on.join(","));
+      check(`${tag}: Schalter ein: "Scharfschalten nicht möglich" bleibt einstellbar (ohne Modus)`, on.includes("arm_failed") && on.includes("battery_low"), on.join(","));
       check(`${tag}: Schalter ein: keine Art fehlt, keine doppelt`, on.length === all.length && new Set(on).size === on.length, on.join(","));
       check(`${tag}: die Arten ohne Modus stehen unter "Für alle Modi"`, await s.ev(`return r.querySelector('.ag-nt').innerText.includes(${JSON.stringify(t.allModes)})`));
-      // Eine der beiden einschalten und speichern: der Wert kommt beim Server an
-      await s.tap('[data-nt="enabled"][data-kind="disarmed"]');
+      // Eine ohne Modus umschalten und speichern: der Wert kommt beim Server an
+      await s.tap('[data-nt="enabled"][data-kind="arm_failed"]');
       await s.page.waitForTimeout(200);
       await s.tap('[data-nt="save"]');
       await s.page.waitForTimeout(500);
-      const saved = await s.sim(`const c = window.__calls.filter((x) => x.type === "alarmageddon/save_notify").pop(); return c ? { per: c.notify.per_mode, on: c.notify.types.disarmed.enabled } : null`);
-      check(`${tag}: gespeichert mit Schalter und eingeschaltetem "Deaktiviert"`, saved && saved.per === true && saved.on === true, JSON.stringify(saved));
+      const saved = await s.sim(`const c = window.__calls.filter((x) => x.type === "alarmageddon/save_notify").pop(); return c ? { per: c.notify.per_mode, on: c.notify.types.arm_failed.enabled } : null`);
+      check(`${tag}: gespeichert mit Schalter und ausgeschaltetem "Scharfschalten nicht möglich"`, saved && saved.per === true && saved.on === false, JSON.stringify(saved));
       await s.tap('[data-nt="permode"]');
       await s.page.waitForTimeout(400);
       const back = await kinds();

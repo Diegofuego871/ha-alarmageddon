@@ -7,11 +7,14 @@ const { ic, esc, errText, chapter, MODE_KEY, MODE_ICON } = await import(`./commo
 
 // Arten je Gruppe in der Reihenfolge der Anzeige, mit Symbol
 const GROUPS = {
-  alarm: [["sensor_report", "bell"], ["sensor_offline", "alert"], ["pending", "timer"], ["arm_failed", "doorOpen"], ["armed", "shieldAway"], ["disarmed", "shieldOff"]],
+  // Seit 1.62.0 ohne "Stiller Alarm", "Eingangsverzögerung", "Scharf geschaltet" und "Deaktiviert": sie stehen als feste Elemente im Reiter
+  // Aktionen (je Anlage und Modus). Ihre früheren gemeinsamen Werte bleiben im Entwurf unberührt erhalten (der Server nimmt sie, solange
+  // eine Anlage nichts Eigenes gespeichert hat).
+  alarm: [["sensor_offline", "alert"], ["arm_failed", "doorOpen"]],
   maintenance: [["battery_low", "battery"], ["sensor_unavailable", "offline"]],
 };
 // Arten, die nur im scharfen Zustand vorkommen: je Modus eigene Werte (Unterreiter), sonst der gemeinsame Wert
-const MODE_KINDS = [["sensor_report", "bell"], ["sensor_offline", "alert"], ["pending", "timer"], ["armed", "shieldAway"]];
+const MODE_KINDS = [["sensor_offline", "alert"]];
 const ALL_MODES = ["home", "away", "night"];
 const TARGET_KEY = { alarm: "alarm_targets", maintenance: "maintenance_targets" };
 const RANGES = { battery_threshold: [5, 50], offline_minutes: [5, 1440] };
@@ -240,7 +243,7 @@ export class NotifyUi {
         <div class="ag-pmscope">${ic("shield", 18)}${esc(this._t("ntAllModesScope"))}</div><div class="ag-card ag-mtlist">${restList()}</div>`
       : `<div class="ag-card ag-mtlist">${list("alarm")}</div>`;
     const html = chapter(this._t("ntChapRecipients"), card(this._recipients("alarm") + this._recipients("maintenance")), this._t("ntChapRecipientsHint"))
-      + chapter(this._t("ntChapAlarm"), `<div class="ag-pmgroup ${d.per_mode ? "on" : ""}">${sw}${alarmBody}</div>`, this._t("ntChapAlarmHint"))
+      + chapter(this._t("ntChapAlarm"), `<div class="ag-pmgroup ${d.per_mode ? "on" : ""}">${sw}${alarmBody}</div><p class="ag-chap-h ag-nt-moved">${ic("info", 14)} ${esc(this._t("ntMovedHint"))}</p>`, this._t("ntChapAlarmHint"))
       + chapter(this._t("ntChapMaint"), `<div class="ag-card ag-mtlist">${list("maintenance")}</div>`, this._t("ntChapMaintHint"));
     h._setHtml(box, html);
     h._placePills();

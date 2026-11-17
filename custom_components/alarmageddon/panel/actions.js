@@ -60,6 +60,8 @@ const AFTER_KINDS = ["device", "sound", "chime", "wait", "scene", "custom"];
 const ARMED_KINDS = ["chime", "device", "wait", "scene", "custom"];
 // Aktionen beim Deaktivieren (1.27.0): Gerät, Deaktivierungston, Warten, Szene und eigene Aktion; je Modus, der scharf war
 const DISARMED_KINDS = ["dechime", "device", "wait", "scene", "custom"];
+// Aktionen bei einem stillen Alarm (1.62.0): dieselben wie beim Scharfschalten (nie eine Sirene); je Auslöser, auch "Immer aktiv"
+const REPORT_KINDS = ["chime", "device", "wait", "scene", "custom"];
 // Alarmton und Aktivierungston teilen sich die Felder (Lautsprecher, Ton, Lautstärke, Dauer)
 // So viele Schritte hat eine Liste höchstens (wie der Server: MAX_STEPS)
 const MAX_STEPS = 40;
@@ -98,8 +100,8 @@ const isShortTone = (kind) => kind === "chime" || kind === "dechime" || kind ===
 const ARMING_KINDS = ["chime", "device", "wait", "scene", "custom"];
 const ENTRY_KINDS = ["chime", "prealarm", "device", "wait", "scene", "custom"];
 const DELAY_ZONES = ["arming", "entry"];
-const ZONE_KEY = { main: "wf", after: "after", armed: "armed", arming: "arming", entry: "entry", disarmed: "disarmed" };
-const ZONE_CLASS = { main: ".ag-wf-main", after: ".ag-wf-after", armed: ".ag-wf-armed", arming: ".ag-wf-arming", entry: ".ag-wf-entry", disarmed: ".ag-wf-disarmed" };
+const ZONE_KEY = { main: "wf", after: "after", armed: "armed", arming: "arming", entry: "entry", disarmed: "disarmed", report: "report" };
+const ZONE_CLASS = { main: ".ag-wf-main", after: ".ag-wf-after", armed: ".ag-wf-armed", arming: ".ag-wf-arming", entry: ".ag-wf-entry", disarmed: ".ag-wf-disarmed", report: ".ag-wf-report" };
 
 export const KINDS = [
   { kind: "notify", icon: "bell", label: "stepNotify", hint: "stepNotifyHint" },
@@ -124,6 +126,39 @@ export function normEnd(value) {
   if (v.notify?.enabled) out.notify = { enabled: true, title: v.notify.title || "", message: v.notify.message || "", critical: v.notify.critical ?? null, volume: v.notify.volume ?? null, click: v.notify.click || "log", click_path: v.notify.click_path || "", ...(v.notify.targets?.length ? { targets: [...v.notify.targets] } : {}) };
   return out;
 }
+
+// Feste Meldungen im Reiter Aktionen (1.62.0, Entscheid des Nutzers): "Scharf geschaltet", "Deaktiviert", "Eingangsverzögerung" und "Stiller
+// Alarm" stehen als festes Element an ihrem Punkt des Ablaufs (wie "Alarm endet"): immer da, anpassen oder ausschalten. Je Anlage und
+// Auslöser; im Reiter "Immer aktiv" gibt es nur "Stiller Alarm". Die Werte kommen vom Server immer vollständig (event_notify).
+export const NOTICE_KINDS = ["armed", "disarmed", "pending", "sensor_report"];
+const NOTICE_DEFAULT = { armed: [false, false], disarmed: [false, false], pending: [false, false], sensor_report: [true, true] };
+export const noticeKinds = (trigger) => (trigger === "always" ? ["sensor_report"] : NOTICE_KINDS);
+// Platzhalter je Meldung: {person} (wer geschaltet hat) und {delay} (Zeit der Eingangsverzögerung) gibt es nur hier
+export const NOTICE_TOKENS = {
+  armed: ["{name}", "{mode}", "{person}", "{time}"],
+  disarmed: ["{name}", "{mode}", "{person}", "{time}"],
+  pending: ["{name}", "{sensor}", "{type}", "{area}", "{delay}", "{mode}", "{time}"],
+  sensor_report: ["{name}", "{sensor}", "{type}", "{area}", "{mode}", "{time}"],
+};
+export function normNotice(kind, value) {
+  const v = value && typeof value === "object" ? value : {};
+  const [on, critical] = NOTICE_DEFAULT[kind] || [false, false];
+  const volume = Number(v.volume);
+  const click = ["log", "overview", "custom"].includes(v.click) ? v.click : "overview";
+  return {
+    enabled: typeof v.enabled === "boolean" ? v.enabled : on,
+    title: String(v.title || "").trim(),
+    message: String(v.message || "").trim(),
+    critical: typeof v.critical === "boolean" ? v.critical : critical,
+    volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8,
+    persistent: v.persistent === true,
+    click,
+    click_path: click === "custom" ? String(v.click_path || "").trim() : "",
+    targets: Array.isArray(v.targets) ? [...v.targets] : [],
+  };
+}
+const normNotices = (map, trigger) => Object.fromEntries(noticeKinds(trigger).map((kind) => [kind, normNotice(kind, map?.[kind])]));
+const canonNotices = (map, trigger) => JSON.stringify(stable(normNotices(map, trigger)));
 
 // ----- Schritt des Servers <-> Formular -----
 
@@ -367,12 +402,14 @@ export class ActionsUi {
       const arming = JSON.parse(JSON.stringify(s.workflows_arming || {})); // Aktionen während der Ausgangsverzögerung (1.19.0)
       const entry = JSON.parse(JSON.stringify(s.workflows_entry || {})); // Aktionen während der Eingangsverzögerung (1.19.0)
       const disarmed = JSON.parse(JSON.stringify(s.workflows_disarmed || {})); // Aktionen beim Deaktivieren, je Modus (1.27.0)
+      const report = JSON.parse(JSON.stringify(s.workflows_report || {})); // Aktionen bei einem stillen Alarm, je Auslöser (1.62.0)
+      const notices = JSON.parse(JSON.stringify(s.event_notify || {})); // feste Meldungen je Auslöser und Art (1.62.0)
       // Ohne gespeicherte Wahl: an, wenn sich die Abläufe der Modi (oder "Immer aktiv") unterscheiden
       const keys = this.triggers(s);
       const modes = keys.filter((t) => t !== "always");
-      const sig = (t) => [canon(wf[t]), canonEnd(end[t]), canon(after[t], "after")].join("|");
-      const sigArmed = (t) => [canon(armed[t], "armed"), canon(arming[t], "arming"), canon(entry[t], "entry"), canon(disarmed[t], "disarmed")].join("|");
-      this.draft = { entry: s.entry_id, wf, end, after, armed, arming, entrySteps: entry, disarmed, perMode: keys.some((t) => sig(t) !== sig(keys[0])) || modes.some((t) => sigArmed(t) !== sigArmed(modes[0])) };
+      const sig = (t) => [canon(wf[t]), canonEnd(end[t]), canon(after[t], "after"), canon(report[t], "report"), canonNotices(notices[t], "always")].join("|");
+      const sigArmed = (t) => [canon(armed[t], "armed"), canon(arming[t], "arming"), canon(entry[t], "entry"), canon(disarmed[t], "disarmed"), canonNotices(notices[t], t)].join("|");
+      this.draft = { entry: s.entry_id, wf, end, after, armed, arming, entrySteps: entry, disarmed, report, notices, perMode: keys.some((t) => sig(t) !== sig(keys[0])) || modes.some((t) => sigArmed(t) !== sigArmed(modes[0])) };
     }
     // "Überwachung" ist ein eigener Reiter neben den Modi (nur bei eingeschalteter Überwachung, Anlage › Modi)
     if (this.trigger === "monitor" && s.monitor_enabled === true) return this.draft;
@@ -384,7 +421,7 @@ export class ActionsUi {
 
   // Der Stand, der gespeichert würde: ohne "Einstellungen pro Modus" gilt der erste Ablauf für alle Modi und "Immer aktiv"
   _effective(d, s = this.system) {
-    if (d.perMode) return { wf: d.wf, end: d.end || {}, after: d.after || {}, armed: d.armed || {}, arming: d.arming || {}, entry: d.entrySteps || {}, disarmed: d.disarmed || {} };
+    if (d.perMode) return { wf: d.wf, end: d.end || {}, after: d.after || {}, armed: d.armed || {}, arming: d.arming || {}, entry: d.entrySteps || {}, disarmed: d.disarmed || {}, report: d.report || {}, notices: d.notices || {} };
     const keys = this.triggers(s);
     const wf = {};
     const end = {};
@@ -393,7 +430,11 @@ export class ActionsUi {
     const arming = {};
     const entry = {};
     const disarmed = {};
+    const report = {};
+    const notices = {};
     for (const t of keys) {
+      report[t] = JSON.parse(JSON.stringify(d.report?.[keys[0]] || []));
+      notices[t] = normNotices(d.notices?.[keys[0]], t); // "Immer aktiv" bekommt nur "Stiller Alarm"
       wf[t] = JSON.parse(JSON.stringify(d.wf[keys[0]] || []));
       end[t] = JSON.parse(JSON.stringify(normEnd(d.end?.[keys[0]])));
       after[t] = JSON.parse(JSON.stringify(d.after?.[keys[0]] || []));
@@ -404,7 +445,7 @@ export class ActionsUi {
         disarmed[t] = JSON.parse(JSON.stringify(d.disarmed?.[keys[0]] || []));
       }
     }
-    return { wf, end, after, armed, arming, entry, disarmed };
+    return { wf, end, after, armed, arming, entry, disarmed, report, notices };
   }
 
   reset() {
@@ -465,12 +506,15 @@ export class ActionsUi {
   // Auslöser (Reiter), deren Entwurf vom gespeicherten Stand abweicht: Ablauf, "Alarm endet", Aktionen danach, beim Scharfschalten
   // und während der beiden Verzögerungen
   _changedTriggers(s, eff) {
-    const keys = new Set([...Object.keys(s.workflows || {}), ...Object.keys(eff.wf), ...Object.keys(s.workflows_after || {}), ...Object.keys(eff.after || {}),
+    const active = this.triggers(s);
+    const keys = new Set([...active, ...Object.keys(s.workflows || {}), ...Object.keys(eff.wf), ...Object.keys(s.workflows_after || {}), ...Object.keys(eff.after || {}),
       ...Object.keys(s.workflows_arming || {}), ...Object.keys(eff.arming || {}), ...Object.keys(s.workflows_entry || {}), ...Object.keys(eff.entry || {}), ...Object.keys(s.workflows_disarmed || {}), ...Object.keys(eff.disarmed || {})]);
     return [...keys].filter((k) => canon((s.workflows || {})[k]) !== canon(eff.wf[k]) || canonEnd((s.workflow_end || {})[k]) !== canonEnd((eff.end || {})[k])
       || canon((s.workflows_after || {})[k], "after") !== canon((eff.after || {})[k], "after") || canon((s.workflows_armed || {})[k], "armed") !== canon((eff.armed || {})[k], "armed")
       || canon((s.workflows_arming || {})[k], "arming") !== canon((eff.arming || {})[k], "arming") || canon((s.workflows_entry || {})[k], "entry") !== canon((eff.entry || {})[k], "entry")
-      || canon((s.workflows_disarmed || {})[k], "disarmed") !== canon((eff.disarmed || {})[k], "disarmed"));
+      || canon((s.workflows_disarmed || {})[k], "disarmed") !== canon((eff.disarmed || {})[k], "disarmed")
+      // Stiller Alarm und feste Meldungen (1.62.0): nur für die Auslöser, die es gerade gibt (der Server nennt die Meldungen für alle)
+      || (active.includes(k) && (canon((s.workflows_report || {})[k], "report") !== canon((eff.report || {})[k], "report") || canonNotices((s.event_notify || {})[k], k) !== canonNotices((eff.notices || {})[k], k))));
   }
 
   // Ein Entwurf, den die Abfrage nicht verwerfen darf, auch wenn kein Inhalt abweicht: der Nutzer hat "Einstellungen pro Modus"
@@ -540,8 +584,12 @@ export class ActionsUi {
     const arm = this._armedHtml(running);
     const entry = this._delayHtml("entry", running);
     // Zwei Kapitel (1.19.0): "Beim Scharfschalten" und "Bei einem Alarm"; im Reiter "Immer aktiv" (nie scharf geschaltet) ohne Titel
-    const chap = (title, hint) => (this.trigger === "always" ? "" : `<div class="ag-wf-chap"><h3 class="ag-chap-t">${esc(this._t(title))}</h3><p class="ag-chap-h">${esc(this._t(hint))}</p></div>`);
-    h._setHtml(body, `${chap("wfChapArm", "wfChapArmHint")}${arm}${chap("wfChapAlarm", "wfChapAlarmHint")}${entry}<div class="ag-wf-line ag-wf-main">
+    const chapHtml = (title, hint) => `<div class="ag-wf-chap"><h3 class="ag-chap-t">${esc(this._t(title))}</h3><p class="ag-chap-h">${esc(this._t(hint))}</p></div>`;
+    const chap = (title, hint) => (this.trigger === "always" ? "" : chapHtml(title, hint));
+    // Seit 1.62.0 steht vor dem Alarm das Kapitel "Bei einem stillen Alarm", auch im Reiter "Immer aktiv": dort trägt darum auch der
+    // Alarm seinen Kapiteltitel (sonst hinge "Alarm beginnt" scheinbar am stillen Alarm)
+    const alarmChap = chapHtml("wfChapAlarm", this.trigger === "always" ? "wfChapAlarmAlwaysHint" : "wfChapAlarmHint");
+    h._setHtml(body, `${chap("wfChapArm", "wfChapArmHint")}${arm}${chapHtml("wfChapReport", "wfChapReportHint")}${this._reportHtml(running)}${alarmChap}${entry}<div class="ag-wf-line ag-wf-main">
         <div class="ag-wf-start"><span class="ag-mini err alarm">${ic("alert", 20)}</span>${esc(this._fixedTitle("wfStart"))}</div>${steps.length ? plus(0) : plus(0).replace('class="ag-wf-plus"', 'class="ag-wf-plus last"')}
         ${cards}
       </div>${this._endHtml()}${this._afterHtml(running)}${this._disarmedHtml(running, chap)}`);
@@ -563,6 +611,31 @@ export class ActionsUi {
     return `<div class="ag-wf-end"><div class="ag-wf-start"><span class="ag-mini ok ag-end-ic">${ic("check", 20)}</span>${esc(this._fixedTitle("wfEnd"))}</div>
       <div class="ag-card ag-wf-endcard"><span class="ag-wf-icon k-end">${ic("bell", 20)}</span><div class="ag-wf-text"><b>${esc(this._t(e.notify ? "wfEndOwn" : "wfEndDefault"))}</b>${e.notify ? "" : `<small class="ag-t2 ag-small">${esc(this._t("wfEndDefaultHint"))}</small>`}</div>
         <div class="ag-wf-btns"><button class="ag-iconbtn" data-wf="end-edit" aria-label="${esc(this._t("wfEndEdit"))}" title="${esc(this._t("wfEndEdit"))}">${ic("pencil", 18)}</button></div></div></div>`;
+  }
+
+  // Feste Meldung eines Punkts (1.62.0): immer da, mit Schalter (an/aus) und Stift (alle Einstellungen im Fenster). Die Zeile darunter
+  // sagt, an wen sie geht und wie; ausgeschaltet ist die Karte blass.
+  _noticeHtml(kind) {
+    const n = normNotice(kind, this.draft?.notices?.[this.trigger]?.[kind]);
+    const short = (x) => x.replace(/^notify\.(mobile_app_)?/, "");
+    const standard = this.host._data?.notify?.alarm_targets || [];
+    const to = n.targets.length ? n.targets.map(short).join(", ") : standard.length ? this._t("ntcToStandard") : this._t("ntcToNone");
+    const parts = n.enabled
+      ? [to, n.critical ? this._t("ntcCritical", { volume: Math.round(n.volume * 100) }) : "", n.persistent ? this._t("ntcPersistent") : "", n.title || n.message ? this._t("ntcOwnText") : ""].filter(Boolean)
+      : [this._t("ntcOff")];
+    const label = this._t(`ntc_${kind}`);
+    return `<div class="ag-card ag-wf-endcard ag-wf-notice ${n.enabled ? "" : "off"}" data-notice="${kind}">
+      <button class="ag-toggle ${n.enabled ? "on" : ""}" data-wf="notice-on" data-kind="${kind}" role="switch" aria-checked="${n.enabled}" aria-label="${esc(label)}"></button>
+      <span class="ag-wf-icon k-notify">${ic("bell", 20)}</span><div class="ag-wf-text"><b>${esc(label)}</b><small class="ag-t2 ag-small ${n.enabled && !n.targets.length && !standard.length ? "ag-warntext" : ""}">${esc(parts.join(" · "))}</small></div>
+      <div class="ag-wf-btns"><button class="ag-iconbtn" data-wf="notice-edit" data-kind="${kind}" aria-label="${esc(this._t("ntcEdit", { name: label }))}" title="${esc(this._t("wfEndEdit"))}">${ic("pencil", 18)}</button></div></div>`;
+  }
+
+  // Aktionen bei einem stillen Alarm (1.62.0): eigenes Kapitel vor dem Alarm, mit der festen Meldung und einer eigenen Liste. Je Auslöser,
+  // auch im Reiter "Immer aktiv" (ein immer aktiver Sensor auf "Stiller Alarm").
+  _reportHtml(running) {
+    const steps = this.steps("report");
+    const plus = (i) => `<div class="ag-wf-plus ${i === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="add" data-at="${i}" aria-label="${esc(this._t("wfReportAdd"))}" title="${esc(this._t("wfReportAdd"))}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span>${i === steps.length ? `<small class="ag-wf-plushint ag-t2 ag-small">${esc(this._t(steps.length ? "wfReportMore" : "wfReportHint"))}</small>` : ""}</div>`;
+    return `<div class="ag-wf-line ag-wf-report" data-zone="report"><div class="ag-wf-start"><span class="ag-mini quiet">${ic("bellOff", 20)}</span>${esc(this._fixedTitle("wfReport"))}</div>${this._noticeHtml("sensor_report")}${plus(0)}${steps.map((step, i) => this._card(step, i, running, "report") + plus(i + 1)).join("")}</div>`;
   }
 
   // Aktionen beim Scharfschalten (1.14.0): ganz oben der feste Punkt "Anlage scharf geschaltet" mit einer eigenen Liste, zum Beispiel
@@ -591,13 +664,13 @@ export class ActionsUi {
     const add = this._t(`wf${part}Add`);
     const plus = (i) => `<div class="ag-wf-plus ${i === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="add" data-at="${i}" aria-label="${esc(add)}" title="${esc(add)}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span>${i === steps.length ? `<small class="ag-wf-plushint ag-t2 ag-small">${esc(this._t(steps.length ? `wf${part}More` : `wf${part}Hint`))}</small>` : ""}</div>`;
     const sub = `<small class="ag-t2 ag-wf-sub">${esc(this._t(`wf${part}Sub`, { n: fmtDur(seconds) }))}</small>`;
-    return `<div class="ag-wf-line ag-wf-${zone}" data-zone="${zone}"><div class="ag-wf-start"><span class="ag-mini warn">${ic("timer", 20)}</span><span>${esc(this._fixedTitle(`wf${part}`))}${sub}</span></div>${plus(0)}${steps.map((step, i) => this._card(step, i, running, zone) + plus(i + 1)).join("")}</div>`;
+    return `<div class="ag-wf-line ag-wf-${zone}" data-zone="${zone}"><div class="ag-wf-start"><span class="ag-mini warn">${ic("timer", 20)}</span><span>${esc(this._fixedTitle(`wf${part}`))}${sub}</span></div>${zone === "entry" ? this._noticeHtml("pending") : ""}${plus(0)}${steps.map((step, i) => this._card(step, i, running, zone) + plus(i + 1)).join("")}</div>`;
   }
 
   _armedPointHtml(running) {
     const steps = this.steps("armed");
     const plus = (i) => `<div class="ag-wf-plus ${i === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="add" data-at="${i}" aria-label="${esc(this._t("wfArmedAdd"))}" title="${esc(this._t("wfArmedAdd"))}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span>${i === steps.length ? `<small class="ag-wf-plushint ag-t2 ag-small">${esc(this._t(steps.length ? "wfArmedMore" : "wfArmedHint"))}</small>` : ""}</div>`;
-    return `<div class="ag-wf-line ag-wf-armed" data-zone="armed"><div class="ag-wf-start"><span class="ag-mini arm">${ic("shield", 20)}</span>${esc(this._fixedTitle("wfArmed"))}</div>${plus(0)}${steps.map((step, i) => this._card(step, i, running, "armed") + plus(i + 1)).join("")}</div>`;
+    return `<div class="ag-wf-line ag-wf-armed" data-zone="armed"><div class="ag-wf-start"><span class="ag-mini arm">${ic("shield", 20)}</span>${esc(this._fixedTitle("wfArmed"))}</div>${this._noticeHtml("armed")}${plus(0)}${steps.map((step, i) => this._card(step, i, running, "armed") + plus(i + 1)).join("")}</div>`;
   }
 
   // Aktionen beim Deaktivieren (1.27.0): ganz unten ein eigenes Kapitel mit dem festen Punkt "Anlage deaktiviert" und einer eigenen
@@ -606,7 +679,7 @@ export class ActionsUi {
     if (this.trigger === "always") return "";
     const steps = this.steps("disarmed");
     const plus = (i) => `<div class="ag-wf-plus ${i === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="add" data-at="${i}" aria-label="${esc(this._t("wfDisarmedAdd"))}" title="${esc(this._t("wfDisarmedAdd"))}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span>${i === steps.length ? `<small class="ag-wf-plushint ag-t2 ag-small">${esc(this._t(steps.length ? "wfDisarmedMore" : "wfDisarmedHint"))}</small>` : ""}</div>`;
-    return `${chap("wfChapDisarm", "wfChapDisarmHint")}<div class="ag-wf-line ag-wf-disarmed" data-zone="disarmed"><div class="ag-wf-start"><span class="ag-mini ok">${ic("shieldOff", 20)}</span>${esc(this._fixedTitle("wfDisarmed"))}</div>${plus(0)}${steps.map((step, i) => this._card(step, i, running, "disarmed") + plus(i + 1)).join("")}</div>`;
+    return `${chap("wfChapDisarm", "wfChapDisarmHint")}<div class="ag-wf-line ag-wf-disarmed" data-zone="disarmed"><div class="ag-wf-start"><span class="ag-mini ok">${ic("shieldOff", 20)}</span>${esc(this._fixedTitle("wfDisarmed"))}</div>${this._noticeHtml("disarmed")}${plus(0)}${steps.map((step, i) => this._card(step, i, running, "disarmed") + plus(i + 1)).join("")}</div>`;
   }
 
   // Aktionen nach dem Quittieren: eigene Liste hinter "Alarm endet", mit denselben Karten und demselben Plus wie oben. Möglich sind
@@ -659,6 +732,52 @@ export class ActionsUi {
       this.host._toast(this._t("wfEndTested"));
     } catch (err) {
       this._editError(null, this._t("saveFailed", { message: errText(err) }));
+    }
+  }
+
+  // Fenster einer festen Meldung (1.62.0): ein/aus, eigener Text mit Platzhaltern, Empfänger (Standard-Empfänger vorgewählt), Kritisch
+  // und Lautstärke, in Home Assistant stehen lassen, Klickziel, Testmeldung. Dieselben Felder wie die Push-Meldung des Alarms.
+  openNoticeEditor(kind) {
+    const n = normNotice(kind, this.ensureDraft().notices?.[this.trigger]?.[kind]);
+    const form = { ...blank(), kind: "notice", nKind: kind, nEnabled: n.enabled, ntTitle: n.title, ntMessage: n.message, ntCritical: n.critical, ntVolume: n.volume, ntPersistent: n.persistent,
+      ntClick: n.click, ntClickPath: n.click_path, ntTargets: n.targets.length ? [...n.targets] : null };
+    this.edit = { index: null, insert: null, notice: true, form, q: "", error: "", open: false };
+    this.renderEditor();
+    this._dlg().showModal();
+  }
+
+  _noticeFields(f) {
+    const send = this._sec("ntcSend", `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("ntcSend"))}</b><small>${esc(this._t(`ntcHint_${f.nKind}`))}</small></div>${this._toggle('data-wf="notice-enabled"', f.nEnabled, "ntcSend")}</div>`);
+    return send + (f.nEnabled ? `${this._notifyFields(f)}<div><button type="button" class="ag-btn" data-wf="notice-test">${ic("play", 16)}${esc(this._t("wfEndTest"))}</button></div>` : "");
+  }
+
+  // Die Meldung, wie sie gespeichert und getestet wird
+  _noticeOf(f) {
+    return normNotice(f.nKind, { enabled: f.nEnabled, title: f.ntTitle, message: f.ntMessage, critical: f.ntCritical, volume: f.ntVolume, persistent: f.ntPersistent, click: f.ntClick || "overview",
+      click_path: f.ntClickPath, targets: f.ntTargets || [] });
+  }
+
+  _noticeApply() {
+    const f = this.edit.form;
+    if (f.nEnabled && f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
+    const d = this.ensureDraft();
+    d.notices = { ...(d.notices || {}), [this.trigger]: { ...(d.notices?.[this.trigger] || {}), [f.nKind]: this._noticeOf(f) } };
+    this.saveState = null;
+    this.edit = null;
+    this._dlg().close();
+    this.render();
+    this.host._renderDots();
+  }
+
+  // Meldung aus dem Fenster (auch ungespeichert) als Test an ihre Empfänger
+  async _noticeTest() {
+    const f = this.edit.form;
+    if (f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
+    try {
+      await this.host._hass.callWS({ type: "alarmageddon/test_event_notify", entry_id: this.system.entry_id, kind: f.nKind, trigger: this.trigger, notice: { ...this._noticeOf(f), enabled: true } });
+      this.host._toast(this._t("wfEndTested"));
+    } catch (err) {
+      this._editError(null, err?.code === "no_targets" ? this._t("ntNoneChosen") : this._t("saveFailed", { message: errText(err) }));
     }
   }
 
@@ -730,7 +849,7 @@ export class ActionsUi {
           <button class="ag-iconbtn" data-wf="edit" data-index="${i}" aria-label="${esc(this._t("grpEdit"))}" title="${esc(this._t("grpEdit"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this._full(zone, 1 + steps.length) ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
           <button class="ag-iconbtn" data-wf="delete" data-index="${i}" aria-label="${esc(this._t("grpDelete"))}" title="${esc(this._t("grpDelete"))}">${ic("trash", 18)}</button></div></div>
-      <div class="ag-wf-line ag-wf-glist" data-zone="${inner}">${plus(0)}${steps.map((s, j) => this._card(s, j, running, inner) + plus(j + 1)).join("")}</div></div>`;
+      <div class="ag-wf-line ag-wf-glist ${steps.length ? "loop" : ""}" data-zone="${inner}">${steps.length ? '<span class="ag-wf-loop" aria-hidden="true"></span>' : ""}${plus(0)}${steps.map((s, j) => this._card(s, j, running, inner) + plus(j + 1)).join("")}</div></div>`;
   }
 
   // "70 %" oder, mit eigenen Werten je Medienplayer, die Spanne "30–70 %"
@@ -921,7 +1040,7 @@ export class ActionsUi {
   // Schrittarten, die in einer Liste Sinn haben (beim Alarm alle ausser dem Aktivierungston)
   _zoneKinds(path) {
     const zone = baseZone(path);
-    const allowed = zone === "after" ? AFTER_KINDS : zone === "armed" ? ARMED_KINDS : zone === "arming" ? ARMING_KINDS : zone === "entry" ? ENTRY_KINDS : zone === "disarmed" ? DISARMED_KINDS : null;
+    const allowed = zone === "after" ? AFTER_KINDS : zone === "armed" ? ARMED_KINDS : zone === "arming" ? ARMING_KINDS : zone === "entry" ? ENTRY_KINDS : zone === "disarmed" ? DISARMED_KINDS : zone === "report" ? REPORT_KINDS : null;
     const kinds = allowed || KINDS.filter((k) => k.kind !== "chime" && k.kind !== "dechime" && k.kind !== "group").map((k) => k.kind);
     // Die Gruppe gibt es in jeder Liste; in einer Gruppe gilt, was in ihrer Liste gilt, ohne Gruppe und ohne "Quittieren"
     return inGroup(path) ? kinds.filter((k) => !GROUP_NO.includes(k)) : [...kinds, "group"];
@@ -1091,11 +1210,12 @@ export class ActionsUi {
   // Titel und Text der Push-Meldung: der Standardtext steht im Feld und lässt sich ändern; Platzhalter füllt der Server beim Alarm
   _notifyFields(f) {
     const [dt, dm] = this._ntDefaults(f);
-    const chips = NOTIFY_TOKENS.map((tok) => `<button type="button" class="ag-chip" data-wf="ins" data-token="${esc(tok)}">${esc(tok)}<small>${esc(this._t(`ntTok_${tok.slice(1, -1)}`))}</small></button>`).join("");
-    return `<div class="ag-t2">${esc(this._t(f.kind === "end" ? "wfEndNotifyHint" : "stepNotifyHint"))}</div>
-      ${this._sec("chapNtContent", `${this._ef("fldNtTitle", `<input class="ag-input" data-wf="f" data-key="ntTitle" maxlength="100" value="${esc(f.ntTitle || dt)}" aria-label="${esc(this._t("fldNtTitle"))}">`, f.kind === "end" ? "" : "fldNtTitleHint")}
+    const notice = f.kind === "notice";
+    const chips = (notice ? NOTICE_TOKENS[f.nKind] : NOTIFY_TOKENS).map((tok) => `<button type="button" class="ag-chip" data-wf="ins" data-token="${esc(tok)}">${esc(tok)}<small>${esc(this._t(`ntTok_${tok.slice(1, -1)}`))}</small></button>`).join("");
+    return `${notice ? "" : `<div class="ag-t2">${esc(this._t(f.kind === "end" ? "wfEndNotifyHint" : "stepNotifyHint"))}</div>`}
+      ${this._sec("chapNtContent", `${this._ef("fldNtTitle", `<input class="ag-input" data-wf="f" data-key="ntTitle" maxlength="100" value="${esc(f.ntTitle || dt)}" aria-label="${esc(this._t("fldNtTitle"))}">`, f.kind === "end" || notice ? "" : "fldNtTitleHint")}
       ${this._ef("fldNtMessage", `<textarea class="ag-input" rows="3" data-wf="f" data-key="ntMessage" maxlength="300" aria-label="${esc(this._t("fldNtMessage"))}">${esc(f.ntMessage || dm)}</textarea>`)}
-      ${this._ef("fldNtTokens", `<div class="ag-zline">${chips}</div>`, "fldNtTokensHint")}
+      ${this._ef("fldNtTokens", `<div class="ag-zline">${chips}</div>`, notice ? "ntcTokensHint" : "fldNtTokensHint")}
       ${this._ef("fldNtPreview", `<div class="ag-ntprev" id="ag-ntprev">${this._ntPreview(f)}</div>
         <div><button type="button" class="ag-btn" data-wf="nt-default">${ic("undo", 16)}${esc(this._t("fldNtDefault"))}</button></div>`)}`)}
       ${this._ntDelivery(f)}`;
@@ -1103,6 +1223,7 @@ export class ActionsUi {
 
   // Standardtext der Meldung: Alarm oder "Alarm endet" (eigener Text, nie kritisch)
   _ntDefaults(f) {
+    if (f.kind === "notice") return [this._t(`ntcDefTitle_${f.nKind}`), this._t(`ntcDefMsg_${f.nKind}`)];
     return f.kind === "end" ? [this._t("ntEndDefaultTitle"), this._t("ntEndDefaultMessage")] : [this._t("ntDefaultTitle"), this._t("ntDefaultMessage")];
   }
 
@@ -1136,7 +1257,8 @@ export class ActionsUi {
 
   _ntDelivery(f) {
     const g = this._ntGlobal();
-    const end = f.kind === "end";
+    const notice = f.kind === "notice";
+    const end = f.kind === "end" || notice; // beide ohne die Knöpfe der Alarmmeldung
     const critical = f.ntCritical ?? (end ? false : g.critical);
     const volume = Math.round((f.ntVolume ?? g.volume) * 100);
     const btn = (key, label, hint, warn) => {
@@ -1145,8 +1267,9 @@ export class ActionsUi {
     };
     return this._ntRecipients(f)
       + this._sec("fldNtDelivery", `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("ntCriticalShort"))}</b><small>${esc(this._t("fldNtCriticalHint"))}</small></div>${this._toggle('data-wf="nt-crit"', critical, "ntCriticalShort")}</div>
-        ${critical ? this._rangeRow('data-wf="nt-vol"', this._t("ntVolumeShort"), volume, 0, 100, 5, `${volume} %`) : ""}`)
-      + this._sec("fldNtClick", `<select class="ag-input" data-wf="nt-click" aria-label="${esc(this._t("fldNtClick"))}">${["log", "overview", "custom"].map((k) => `<option value="${k}" ${(f.ntClick || "log") === k ? "selected" : ""}>${esc(this._t(`ntClick_${k}`))}</option>`).join("")}</select>
+        ${critical ? this._rangeRow('data-wf="nt-vol"', this._t("ntVolumeShort"), volume, 0, 100, 5, `${volume} %`) : ""}
+        ${notice ? `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("ntPersistent"))}</b><small>${esc(this._t("ntPersistentHint"))}</small></div>${this._toggle('data-wf="notice-persist"', f.ntPersistent, "ntPersistent")}</div>` : ""}`)
+      + this._sec("fldNtClick", `<select class="ag-input" data-wf="nt-click" aria-label="${esc(this._t("fldNtClick"))}">${["log", "overview", "custom"].map((k) => `<option value="${k}" ${(f.ntClick || (notice ? "overview" : "log")) === k ? "selected" : ""}>${esc(this._t(`ntClick_${k}`))}</option>`).join("")}</select>
         ${f.ntClick === "custom" ? `<input class="ag-input ag-mono" data-wf="f" data-key="ntClickPath" value="${esc(f.ntClickPath || "")}" placeholder="/lovelace/alarm" aria-label="${esc(this._t("ntClick_custom"))}" autocapitalize="off" autocomplete="off" spellcheck="false">` : ""}`, "fldNtClickHint")
       + (end ? "" : this._sec("fldNtButtons", `${btn("open", "ntOpenAction", "ntOpenActionHint", false)}${btn("silence", "ntSilenceAction", "ntSilenceActionHint", true)}${btn("acknowledge", "ntAckAction", "ntAckActionHint", true)}${btn("disarm", "ntDisarmAction", "ntDisarmActionHint", true)}`));
   }
@@ -1169,8 +1292,11 @@ export class ActionsUi {
       "{time}": new Date().toLocaleTimeString(this.host._hass?.locale?.language || this.host._lang, { hour: "2-digit", minute: "2-digit" }),
       "{mode}": this._t(MODE_KEY[this.trigger] || "modeAway"),
       "{alarm}": this._t(`ntAlarm_${ALARM_KINDS[dc] || "alarm"}`),
+      // Nur in den festen Meldungen (1.62.0): wer geschaltet hat (hier der angemeldete Benutzer) und die Zeit der Eingangsverzögerung
+      "{person}": f.kind === "notice" ? this.host._hass?.user?.name || "" : "",
+      "{delay}": f.kind === "notice" && f.nKind === "pending" ? fmtDur(this._delaySeconds("entry")) : "",
     };
-    const fill = (text) => text.replace(/\{(?:name|sensor|type|area|time|mode|alarm)\}/g, (token) => values[token]);
+    const fill = (text) => text.replace(/\{(?:name|sensor|type|area|time|mode|alarm|person|delay)\}/g, (token) => values[token]);
     const [dt, dm] = this._ntDefaults(f);
     const title = fill(f.ntTitle || dt).trim();
     const message = fill(f.ntMessage || dm).trim();
@@ -1289,9 +1415,10 @@ export class ActionsUi {
   renderEditor() {
     const f = this.edit.form;
     if (this.edit.snap === undefined) this.edit.snap = JSON.stringify(f); // Stand beim Öffnen: Abbrechen fragt nur bei echten Änderungen
-    const k = f.kind === "end" ? { kind: "end", icon: "check", label: "wfEnd" } : KINDS.find((x) => x.kind === f.kind);
+    const k = f.kind === "end" ? { kind: "end", icon: "check", label: "wfEnd" } : f.kind === "notice" ? { kind: "notify", icon: "bell", label: `ntc_${f.nKind}` } : KINDS.find((x) => x.kind === f.kind);
     let fields;
     if (f.kind === "end") fields = this._endFields(f);
+    else if (f.kind === "notice") fields = this._noticeFields(f);
     else if (f.kind === "notify") fields = this._notifyFields(f);
     else if (f.kind === "device") fields = this._deviceFields(f);
     else if (isTone(f.kind)) fields = this._soundFields(f);
@@ -1300,7 +1427,7 @@ export class ActionsUi {
     else if (f.kind === "group") fields = this._groupFields(f);
     else if (f.kind === "scene") fields = this._sceneFields(f);
     else fields = this._customFields(f);
-    this.host._setHtml(this._dlg(), `<div class="ag-dlg-body ag-step-ed"><div class="ag-sys-top"><span class="ag-wf-icon k-${f.kind}">${ic(k.icon, 22)}</span><h3>${esc(this._t(k.label))}</h3></div>
+    this.host._setHtml(this._dlg(), `<div class="ag-dlg-body ag-step-ed"><div class="ag-sys-top"><span class="ag-wf-icon k-${k.kind}">${ic(k.icon, 22)}</span><h3>${esc(this._t(k.label))}</h3></div>
       ${fields}<div class="ag-dlg-err" aria-live="polite">${esc(this.edit.error || "")}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-wf="close">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-wf="apply">${esc(this._t("apply"))}</button></div></div>`);
     if (f.kind === "group") this.host._placePills?.(); // Kapsel der Reiterleiste "Wie lange wiederholen?"
@@ -1309,6 +1436,7 @@ export class ActionsUi {
   apply() {
     const f = this.edit.form;
     if (f.kind === "end") return this._endApply();
+    if (f.kind === "notice") return this._noticeApply();
     if (["device", "sound", "chime", "dechime", "prealarm", "scene"].includes(f.kind) && !f.targets.length) return this._editError("stepNoTargets");
     if (f.kind === "notify" && f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
     if (f.kind === "custom") {
@@ -1417,11 +1545,23 @@ export class ActionsUi {
       const arming = modeOnly(eff.arming);
       const entrySteps = modeOnly(eff.entry);
       const disarmedSteps = modeOnly(eff.disarmed);
-      const saved = await h._hass.callWS({ type: "alarmageddon/save_workflows", entry_id: s.entry_id, workflows: wf, workflow_end: end, workflows_after: after, workflows_armed: armed, workflows_arming: arming, workflows_entry: entrySteps, workflows_disarmed: disarmedSteps });
+      const report = Object.fromEntries(this.triggers(s).map((t) => [t, eff.report?.[t] || []]));
+      // Feste Meldungen: nur, was sich geändert hat. Was fehlt, bleibt beim Server, wie es ist: eine Anlage, die nie etwas Eigenes
+      // gespeichert hat, folgt weiter der früheren gemeinsamen Einstellung, und Speichern ohne Änderung lädt die Anlage nicht neu.
+      const notices = {};
+      for (const t of this.triggers(s)) {
+        const mine = normNotices(eff.notices?.[t], t);
+        const theirs = normNotices(s.event_notify?.[t], t);
+        const changed = Object.fromEntries(Object.entries(mine).filter(([kind, n]) => JSON.stringify(stable(n)) !== JSON.stringify(stable(theirs[kind]))));
+        if (Object.keys(changed).length) notices[t] = changed;
+      }
+      const saved = await h._hass.callWS({ type: "alarmageddon/save_workflows", entry_id: s.entry_id, workflows: wf, workflow_end: end, workflows_after: after, workflows_armed: armed, workflows_arming: arming, workflows_entry: entrySteps, workflows_disarmed: disarmedSteps, workflows_report: report, ...(Object.keys(notices).length ? { event_notify: notices } : {}) });
       const keepNonEmpty = (map) => JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(map).filter(([, v]) => v.length))));
       s.workflows_arming = keepNonEmpty(arming);
       s.workflows_entry = keepNonEmpty(entrySteps);
       s.workflows_disarmed = keepNonEmpty(disarmedSteps);
+      s.workflows_report = keepNonEmpty(report);
+      s.event_notify = Object.fromEntries(Object.entries({ ...(s.event_notify || {}), ...notices }).map(([t, kinds]) => [t, { ...(s.event_notify?.[t] || {}), ...JSON.parse(JSON.stringify(notices[t] || kinds)) }]));
       s.workflows_armed = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(armed).filter(([, v]) => v.length))));
       s.workflows_after = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(after).filter(([, v]) => v.length))));
       s.workflow_end = Object.fromEntries(Object.entries(end).filter(([, v]) => v.notify));
@@ -1851,12 +1991,31 @@ export class ActionsUi {
       form.ntTargets = (form.ntTargets || []).filter((x) => x !== el.dataset.target);
       this.renderEditor();
     } else if (act === "nt-crit") {
-      form.ntCritical = !(form.ntCritical ?? (form.kind === "end" ? false : this._ntGlobal().critical));
+      form.ntCritical = !(form.ntCritical ?? (form.kind === "end" || form.kind === "notice" ? false : this._ntGlobal().critical));
       this.renderEditor();
     } else if (act === "nt-btn") {
       const key = el.dataset.key;
       form.ntButtons = { ...(form.ntButtons || {}), [key]: !(form.ntButtons?.[key] ?? this._ntGlobal()[key]) };
       this.renderEditor();
+    } else if (act === "notice-edit") {
+      this.openNoticeEditor(el.dataset.kind);
+    } else if (act === "notice-on") {
+      // Schalter auf der Karte: nur ein/aus, alles andere bleibt
+      const dr = this.ensureDraft();
+      const kind = el.dataset.kind;
+      const now = normNotice(kind, dr.notices?.[this.trigger]?.[kind]);
+      dr.notices = { ...(dr.notices || {}), [this.trigger]: { ...(dr.notices?.[this.trigger] || {}), [kind]: { ...now, enabled: !now.enabled } } };
+      this.saveState = null;
+      this.render();
+      this.host._renderDots();
+    } else if (act === "notice-enabled") {
+      form.nEnabled = !form.nEnabled;
+      this.renderEditor();
+    } else if (act === "notice-persist") {
+      form.ntPersistent = !form.ntPersistent;
+      this.renderEditor();
+    } else if (act === "notice-test") {
+      this._noticeTest();
     } else if (act === "end-edit") {
       this.openEndEditor();
     } else if (act === "end-notify") {
@@ -1953,7 +2112,8 @@ export class ActionsUi {
     return true;
   }
 
-  // Alle Aktionen (Schritte und "Alarm endet") eines anderen Modus in den Reiter übernehmen; gespeichert wird erst mit "Speichern"
+  // Alle Aktionen (Schritte, "Alarm endet", seit 1.62.0 auch die Aktionen bei einem stillen Alarm und die festen Meldungen) eines anderen
+  // Modus in den Reiter übernehmen; gespeichert wird erst mit "Speichern"
   async _copyFrom(from) {
     const d = this.ensureDraft();
     const to = this.trigger;
@@ -1961,20 +2121,25 @@ export class ActionsUi {
     const name = (t) => (t === "always" ? this._t("wfAlways") : this._t(MODE_KEY[t]));
     // Die Aktionen beim Scharfschalten, in den Verzögerungen und beim Deaktivieren gehen mit, wenn beide Reiter Modi sind ("Immer aktiv" hat keine)
     const modes = from !== "always" && to !== "always";
-    const lists = (t) => [d.wf[t] || [], normEnd(d.end?.[t]), d.after?.[t] || [], ...(modes ? [d.armed?.[t] || [], d.arming?.[t] || [], d.entrySteps?.[t] || [], d.disarmed?.[t] || []] : [])];
+    // Feste Meldungen: die Arten, die es in beiden Reitern gibt ("Immer aktiv" kennt nur "Stiller Alarm"); sie stehen am Ende der Liste
+    const shared = noticeKinds(from).filter((kind) => noticeKinds(to).includes(kind));
+    const notices = (t) => Object.fromEntries(shared.map((kind) => [kind, normNotice(kind, d.notices?.[t]?.[kind])]));
+    const lists = (t) => [d.wf[t] || [], normEnd(d.end?.[t]), d.after?.[t] || [], d.report?.[t] || [], ...(modes ? [d.armed?.[t] || [], d.arming?.[t] || [], d.entrySteps?.[t] || [], d.disarmed?.[t] || []] : []), notices(t)];
     // Verglichen wird der ganze Inhalt aller Listen (auch die Einstellungen im Schritt, etwa die Lautstärke eines Lautsprechers), nicht nur
     // die Aktionen: sonst gälte "Anwesend" als gleich wie "Abwesend", obwohl nur ein Wert im Schritt abweicht
     const copy = lists(from).map((x) => JSON.parse(JSON.stringify(x)));
     const same = JSON.stringify(stable(lists(to))) === JSON.stringify(stable(copy));
     if (same) return;
     // Rückfrage nur, wenn der Entwurf dieses Reiters wirklich ersetzt würde
-    const hasOwn = lists(to).some((x) => (Array.isArray(x) ? x.length : Object.keys(x).length) > 0);
+    const hasOwn = lists(to).slice(0, -1).some((x) => (Array.isArray(x) ? x.length : Object.keys(x).length) > 0);
     if (hasOwn && !(await this.host._confirm(this._t("wfCopyTitle"), this._t("wfCopyText", { from: name(from), to: name(to) }), this._t("wfCopyOk")))) return;
     if (this.trigger !== to || this.draft !== d) return; // während der Rückfrage gewechselt
-    const [wf, end, after, armed, arming, entry, disarmed] = copy;
+    const [wf, end, after, report, armed, arming, entry, disarmed] = copy;
     d.wf = { ...d.wf, [to]: wf };
     d.end = { ...(d.end || {}), [to]: end };
     d.after = { ...(d.after || {}), [to]: after };
+    d.report = { ...(d.report || {}), [to]: report };
+    d.notices = { ...(d.notices || {}), [to]: { ...(d.notices?.[to] || {}), ...copy.at(-1) } };
     if (modes) {
       d.armed = { ...(d.armed || {}), [to]: armed };
       d.arming = { ...(d.arming || {}), [to]: arming };
@@ -2060,7 +2225,7 @@ export class ActionsUi {
       return true;
     }
     if (act === "nt-click") {
-      f.ntClick = el.value === "log" ? null : el.value;
+      f.ntClick = el.value === "log" && f.kind !== "notice" ? null : el.value; // die festen Meldungen führen standardmässig zur Übersicht
       this.renderEditor();
       return true;
     }

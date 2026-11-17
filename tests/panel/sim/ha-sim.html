@@ -218,6 +218,20 @@
       window.__customSounds = list.filter((s) => s.id !== msg.sound_id);
       return { sounds: JSON.parse(JSON.stringify(window.__customSounds)) };
     }
+    // Feste Meldungen des Reiters Aktionen (1.62.0), wie der Server (notify.event_notice): was die Anlage gespeichert hat (event_notify_own),
+    // sonst die frühere gemeinsame Einstellung der Art (mit den eigenen Werten des Modus, wenn "pro Modus" an ist). Immer alle Felder.
+    const eventNotify = (own) => Object.fromEntries(["home", "away", "night", "always"].map((trigger) => [trigger, Object.fromEntries((trigger === "always" ? ["sensor_report"] : ["armed", "disarmed", "pending", "sensor_report"]).map((kind) => {
+      const mine = own?.[trigger]?.[kind];
+      if (mine) return [kind, { title: "", message: "", volume: 0.8, persistent: false, click: "overview", click_path: "", targets: [], ...mine }];
+      const n = window.__notify;
+      const legacy = { ...(n.types?.[kind] || {}), ...(n.per_mode && trigger !== "always" && ["sensor_report", "pending", "armed"].includes(kind) ? n.modes?.[trigger]?.[kind] || {} : {}) };
+      return [kind, { enabled: !!legacy.enabled, title: "", message: "", critical: !!legacy.critical, volume: legacy.volume ?? 0.8, persistent: !!legacy.persistent, click: "overview", click_path: "", targets: [...(legacy.targets || [])] }];
+    }))]));
+    if (msg.type === "alarmageddon/test_event_notify") {
+      const targets = msg.notice?.targets?.length ? msg.notice.targets : window.__notify.alarm_targets;
+      if (!targets.length) throw { code: "no_targets", message: "No recipients configured" };
+      return { ok: true, targets };
+    }
     if (msg.type === "alarmageddon/data" || msg.type === "alarmageddon/sensor_candidates") {
       // Wie der Server (seit 1.60.0): "data" nennt nur die Sensoren der Anlagen (Zonen, Liste, eigene Werte, Überwachung), die Kandidaten
       // des ganzen Hauses kommen erst mit "sensor_candidates" (Fenster "Sensoren hinzufügen")
@@ -235,7 +249,7 @@
       return JSON.parse(JSON.stringify({
         // Nach dem Speichern lädt HA die Anlage neu: sie fehlt kurz in der Antwort und hat danach eine neue Kennung (instance)
         version: "1.20.0",
-        systems: window.__systems.filter((s) => !(window.__reload && window.__reload.id === s.entry_id && Date.now() < window.__reload.until)).map(({ code, pcodes, instance, ...s }) => ({ ...s, instance: instance || "i0" })), sensors,
+        systems: window.__systems.filter((s) => !(window.__reload && window.__reload.id === s.entry_id && Date.now() < window.__reload.until)).map(({ code, pcodes, instance, event_notify_own, ...s }) => ({ ...s, instance: instance || "i0", event_notify: eventNotify(event_notify_own) })), sensors,
         users: [{ id: "u_anna", name: "Anna" }, { id: "u_diego", name: "Diego" }, { id: "u_gast", name: "Gast" }], presets: window.__presets, notify: window.__notify, display: { names_with_device: window.__namesWithDevice !== false }, auto_backup: window.__autoBackup || { enabled: true, every: "weekly" },
         // Letzte echte Änderung (offen <-> zu) vom Server; die meisten Sensoren haben (noch) keine
         last_changes: { "binary_sensor.haustuer": iso(5 * 86400e3), "binary_sensor.fenster_kueche": iso(2 * 3600e3) },
@@ -524,7 +538,7 @@
         return out;
       };
       const keep = (flows) => Object.fromEntries(Object.entries(JSON.parse(JSON.stringify(flows))).filter(([, v]) => v.length).map(([k, v]) => [k, v.map(norm)]));
-      const state = () => JSON.stringify([sys.workflows, sys.workflows_armed || {}, sys.workflows_after || {}, sys.workflow_end || {}, sys.workflows_arming || {}, sys.workflows_entry || {}, sys.workflows_disarmed || {}]);
+      const state = () => JSON.stringify([sys.workflows, sys.workflows_armed || {}, sys.workflows_after || {}, sys.workflow_end || {}, sys.workflows_arming || {}, sys.workflows_entry || {}, sys.workflows_disarmed || {}, sys.workflows_report || {}, sys.event_notify_own || {}]);
       const before = state();
       sys.workflows = keep(msg.workflows);
       if (msg.workflows_armed) sys.workflows_armed = keep(msg.workflows_armed);
@@ -532,6 +546,9 @@
       if (msg.workflows_arming) sys.workflows_arming = keep(msg.workflows_arming);
       if (msg.workflows_entry) sys.workflows_entry = keep(msg.workflows_entry);
       if (msg.workflows_disarmed) sys.workflows_disarmed = keep(msg.workflows_disarmed);
+      if (msg.workflows_report) sys.workflows_report = keep(msg.workflows_report);
+      // Feste Meldungen: je Auslöser und Art ersetzen, der Rest bleibt
+      if (msg.event_notify) sys.event_notify_own = Object.fromEntries([...new Set([...Object.keys(sys.event_notify_own || {}), ...Object.keys(msg.event_notify)])].map((t) => [t, { ...(sys.event_notify_own?.[t] || {}), ...JSON.parse(JSON.stringify(msg.event_notify[t] || {})) }]));
       if (msg.workflow_end) sys.workflow_end = Object.fromEntries(Object.entries(msg.workflow_end).filter(([, v]) => v !== "restore_marked" && Object.keys(v || {}).length));
       // Home Assistant lädt die Anlage nur neu, wenn sich etwas geändert hat
       const reload = before !== state();

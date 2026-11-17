@@ -153,7 +153,7 @@ for (const lang of ["de", "en"]) {
       await s.tap('#ag-step [data-wf="nt-tgt-own"]');
       await (await s.el('#ag-step [data-wf="nt-tgt-add"]')).selectOption("notify.mobile_app_partnerin");
       await s.tap('#ag-step [data-wf="apply"]');
-      check(`${tag}: Wahl ist ein Entwurf (Punkt am Reiter, Karte ohne den Standardhinweis)`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelector('[data-sub=\"actions\"]').classList.contains('has-edit') && r.host.actions.draft?.end && Object.keys(r.host.actions.draft.end).length > 0 && !r.querySelector('.ag-wf-endcard small')"));
+      check(`${tag}: Wahl ist ein Entwurf (Punkt am Reiter, Karte ohne den Standardhinweis)`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelector('[data-sub=\"actions\"]').classList.contains('has-edit') && r.host.actions.draft?.end && Object.keys(r.host.actions.draft.end).length > 0 && !r.querySelector('.ag-wf-end .ag-wf-endcard small')"));
       await s.tap('[data-wf="save"]');
       await s.waitFor("return r.querySelector('.ag-foot').innerText.includes('Gespeichert') || r.querySelector('.ag-foot').innerText.includes('Saved')");
       const wfSent = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_workflows').at(-1)");
@@ -250,7 +250,8 @@ for (const lang of ["de", "en"]) {
       await s.tap('.ag-nt [data-nt="permode"]');
       check(`${tag}: Schalter ein: Reiter der Modi (ohne "Alle Modi"), der erste ist gewählt, Entwurf`, await s.waitFor("const t=[...r.querySelectorAll('[data-seg=\"nt-mode\"] > button')]; return t.length >= 2 && t.every((b) => b.dataset.nt !== 'tab:all') && t[0].classList.contains('on') && r.querySelector('[data-sub=\"notify\"]').classList.contains('has-edit')"));
       await s.tap('[data-nt="tab:away"]');
-      check(`${tag}: Reiter Abwesend zeigt die vier Arten im scharfen Zustand (auch den Ausfall) mit Herkunft`, await s.waitFor("return r.querySelectorAll('.ag-nt [data-nt=\"enabled\"][data-mode=\"away\"]').length === 4 && !!r.querySelector('.ag-nt [data-nt=\"enabled\"][data-kind=\"sensor_offline\"][data-mode=\"away\"]') && r.querySelectorAll('.ag-nt .ag-origin:not(.ag-mt-recip .ag-origin)').length === 4"));
+      // Seit 1.62.0 stehen "Stiller Alarm", "Eingangsverzögerung" und "Scharf geschaltet" im Reiter Aktionen: je Modus bleibt hier der Ausfall
+      check(`${tag}: Reiter Abwesend zeigt die Art im scharfen Zustand (den Ausfall) mit Herkunft`, await s.waitFor("return r.querySelectorAll('.ag-nt [data-nt=\"enabled\"][data-mode=\"away\"]').length === 1 && !!r.querySelector('.ag-nt [data-nt=\"enabled\"][data-kind=\"sensor_offline\"][data-mode=\"away\"]') && r.querySelectorAll('.ag-nt .ag-origin:not(.ag-mt-recip .ag-origin)').length === 1"));
       await s.tap('.ag-nt [data-nt="critical"][data-kind="sensor_offline"][data-mode="away"]');
       check(`${tag}: eigener Wert mit Zurücksetzen`, await s.waitFor("return !!r.querySelector('[data-nt=\"mode-reset\"][data-kind=\"sensor_offline\"]')"));
       await s.tap('[data-nt="save"]');

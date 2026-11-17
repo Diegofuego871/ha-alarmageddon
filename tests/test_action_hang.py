@@ -18,7 +18,7 @@ from pytest_homeassistant_custom_component.common import async_mock_service
 
 from custom_components.alarmageddon import workflow as wf
 
-from .conftest import ALARM, WINDOW, setup_alarm
+from .conftest import ALARM, MOTION, WINDOW, setup_alarm
 from .test_alarm import call
 
 SIREN = "switch.sirene"
@@ -845,3 +845,97 @@ def test_the_disarm_tone_never_blocks_the_steps_after_it() -> None:
     assert wf.step_waits(step) is False
     assert wf.step_waits({**step, "wait": True}) is True
     assert wf.step_budget(step) > 5
+
+
+# ----- Aktionen bei einem stillen Alarm (1.62.0): laufen neben der Meldung, nie ein Alarm -----
+
+
+async def test_hanging_devices_of_the_silent_alarm_never_hold_up_the_alarm_or_disarming(hass: HomeAssistant, monkeypatch) -> None:
+    """
+    Das Gerät in den Aktionen eines stillen Alarms antwortet nie. Beginnt der Alarm, laufen seine Aktionen trotzdem sofort; und
+    Deaktivieren endet, auch wenn der hängende Aufruf Abbrüche ignoriert.
+    """
+    _fast(monkeypatch)
+    on = async_mock_service(hass, "switch", "turn_on")
+    release = asyncio.Event()
+    hung: list[str] = []
+
+    async def hang(service_call: ServiceCall) -> None:
+        hung.append(f"{service_call.domain}.{service_call.service}")
+        await release.wait()
+
+    hass.services.async_register("hang", "now", hang)
+    entry = await setup_alarm(hass, exit_delay_away=0, sensor_options={MOTION: {"report_only": True}}, workflows={"away": [STEP_SIREN]},
+                              workflows_report={"away": [{**STEP_HANG, "wait": True}, {**STEP_SIREN, "target": ["switch.danach"]}]})
+    runner = entry.runtime_data.workflow
+    try:
+        await hass.services.async_call("alarm_control_panel", "alarm_arm_away", {"entity_id": ALARM}, blocking=True)
+        await open_sensor(hass, MOTION)
+        assert hung == ["hang.now"] and runner.running.get("phase") == "report"
+        assert hass.states.get(ALARM).state == AlarmControlPanelState.ARMED_AWAY, "ein stiller Alarm löst nie einen Alarm aus"
+        await open_sensor(hass, WINDOW)
+        assert hass.states.get(ALARM).state == AlarmControlPanelState.TRIGGERED
+        await asyncio.sleep(0.5)
+        await settle(hass)
+        assert [c.data["entity_id"] for c in on] == [[SIREN]], "die Sirene des Alarms schaltet, obwohl das Gerät des stillen Alarms hängt"
+        assert runner.running and not runner.running.get("after")
+        await asyncio.wait_for(hass.services.async_call("alarm_control_panel", "alarm_disarm", {"entity_id": ALARM}, blocking=True), 5)
+        assert hass.states.get(ALARM).state == AlarmControlPanelState.DISARMED
+    finally:
+        release.set()
+        await settle(hass)
+        await asyncio.wait_for(runner.async_stop(), 5)
+        await settle(hass)
+
+
+@pytest.mark.parametrize("part", ["Schritt scheitert", "Schritte nicht lesbar", "Start scheitert", "Start hängt"])
+async def test_failing_actions_of_the_silent_alarm_never_touch_the_alarm(hass: HomeAssistant, monkeypatch, part: str) -> None:
+    """
+    Scheitert bei einem stillen Alarm ein Schritt, das Lesen der Schritte oder der Start des Laufs (oder hängt der Start): die Anlage
+    bleibt scharf, es gibt keinen Alarm, und ein echter Alarm danach läuft wie immer.
+    """
+    _fast(monkeypatch)
+    on = async_mock_service(hass, "switch", "turn_on")
+    release = asyncio.Event()
+
+    async def broken(_service_call: ServiceCall) -> None:
+        raise RuntimeError("Gerät defekt")
+
+    hass.services.async_register("hang", "now", broken)
+    entry = await setup_alarm(hass, exit_delay_away=0, sensor_options={MOTION: {"report_only": True}}, workflows={"away": [STEP_SIREN]},
+                              workflows_report={"away": [{**STEP_HANG, "wait": True}, {**STEP_SIREN, "target": ["switch.danach"]}]})
+    runner = entry.runtime_data.workflow
+
+    def fail(*_args, **_kwargs):
+        raise RuntimeError("kaputt")
+
+    async def stuck(_scope: str) -> None:
+        await release.wait()
+
+    if part == "Schritte nicht lesbar":
+        monkeypatch.setattr(runner, "steps_report", fail)
+    elif part == "Start scheitert":
+        monkeypatch.setattr(runner, "_begin", lambda run: fail() if run.get("phase") == "report" else wf.WorkflowRunner._begin(runner, run))
+    elif part == "Start hängt":
+        monkeypatch.setattr(runner, "async_run_report", stuck)
+    try:
+        await hass.services.async_call("alarm_control_panel", "alarm_arm_away", {"entity_id": ALARM}, blocking=True)
+        await open_sensor(hass, MOTION)
+        await asyncio.sleep(0.2)
+        await settle(hass)
+        assert hass.states.get(ALARM).state == AlarmControlPanelState.ARMED_AWAY
+        if part == "Schritt scheitert":
+            assert [c.data["entity_id"] for c in on] == [["switch.danach"]], "der Schritt nach dem defekten Gerät läuft"
+        else:
+            assert not on and runner.running is None, "kein halber Lauf bleibt stehen"
+        on.clear()
+        await open_sensor(hass, WINDOW)
+        await asyncio.sleep(0.2)
+        await settle(hass)
+        assert hass.states.get(ALARM).state == AlarmControlPanelState.TRIGGERED
+        assert [c.data["entity_id"] for c in on] == [[SIREN]]
+        await asyncio.wait_for(hass.services.async_call("alarm_control_panel", "alarm_disarm", {"entity_id": ALARM}, blocking=True), 5)
+        assert hass.states.get(ALARM).state == AlarmControlPanelState.DISARMED
+    finally:
+        release.set()
+        await settle(hass)

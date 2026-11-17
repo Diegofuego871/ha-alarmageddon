@@ -305,7 +305,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: leerer Ablauf: nur das Plus, kein Hinweisfeld (1.26.1)`, await s.waitFor("return !r.querySelector('.ag-wf-empty, .ag-wf-main .ag-empty') && !!r.querySelector('.ag-wf-main [data-wf=\"add\"][data-at=\"0\"]') && r.querySelector('[data-wf=\"test\"]').disabled"));
     // 1.26.0: das Feld unter "Alarm endet" heisst nur "Abschlussmeldung" (Standardhinweis kurz, mit eigener Meldung ganz ohne Beschreibung)
     const closing = lang === "de" ? "Abschlussmeldung" : "Closing message";
-    check(`${tag}: Feld unter "Alarm endet": nur "${closing}" und der kurze Standardhinweis`, await s.ev(`const c=r.querySelector('.ag-wf-endcard'); return c.querySelector('b').textContent.trim() === ${JSON.stringify(closing)} && c.querySelector('small').textContent.length < 40`));
+    check(`${tag}: Feld unter "Alarm endet": nur "${closing}" und der kurze Standardhinweis`, await s.ev(`const c=r.querySelector('.ag-wf-end .ag-wf-endcard'); return c.querySelector('b').textContent.trim() === ${JSON.stringify(closing)} && c.querySelector('small').textContent.length < 40`));
     check(`${tag}: Auslöser gemerkt`, await s.ev("return localStorage.getItem('alarmageddon.trigger') === 'night'"));
     // Mit Änderung wegklicken verliert nichts: der Ablauf bleibt als Entwurf, ein Punkt am Reiter zeigt es
     await s.tap('.ag-wf-main [data-wf="add"][data-at="0"]');
@@ -348,23 +348,30 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Pille nach der Wahl`, await s.waitFor("return [...r.querySelectorAll('.ag-rpill')].some((p) => p.innerText.includes('partnerin'))"));
     check(`${tag}: gewählter Dienst nicht mehr im Dropdown`, await s.ev("return ![...r.querySelector('select[data-nt=\"target-add\"][data-key=\"maintenance_targets\"]').options].some((o) => o.value === 'notify.mobile_app_partnerin')"));
     check(`${tag}: Testknöpfe gesperrt bei Änderung`, await s.waitFor("return [...r.querySelectorAll('[data-nt=\"test\"]')].length > 0 && [...r.querySelectorAll('[data-nt=\"test\"]')].every((b) => b.disabled)"));
-    // Je Art: Alarm leiser, "Eingangsverzögerung" einschalten und kritisch, Batterie kritisch
-    await s.ev("const i=r.querySelector('[data-nt=\"volume\"][data-kind=\"sensor_report\"]'); i.value='50'; i.dispatchEvent(new Event('input', { bubbles: true }));");
-    check(`${tag}: Lautstärke der Art angezeigt`, await s.waitFor("return r.querySelector('.ag-vol[data-kind=\"sensor_report\"]').textContent.trim() === '50 %'"));
-    check(`${tag}: Regler nur bei kritischen Arten`, await s.ev("return !r.querySelector('[data-nt=\"volume\"][data-kind=\"armed\"]') && !r.querySelector('[data-nt=\"volume\"][data-kind=\"battery_low\"]')"));
-    await s.tap('[data-nt="enabled"][data-kind="pending"]');
-    check(`${tag}: Art eingeschaltet zeigt Einstellungen`, await s.waitFor("return !!r.querySelector('[data-nt=\"critical\"][data-kind=\"pending\"]')"));
-    await s.tap('[data-nt="critical"][data-kind="pending"]');
-    check(`${tag}: kritisch zeigt Regler`, await s.waitFor("return !!r.querySelector('[data-nt=\"volume\"][data-kind=\"pending\"]')"));
+    // Je Art: Sensorausfall leiser, "Scharfschalten fehlgeschlagen" aus und wieder ein und kritisch, Batterie kritisch. Seit 1.62.0 stehen
+    // "Stiller Alarm", "Eingangsverzögerung", "Scharf geschaltet" und "Deaktiviert" nicht mehr hier (feste Elemente im Reiter Aktionen).
+    check(`${tag}: die vier Meldungen des Ablaufs stehen nicht mehr hier, ein Hinweis nennt den Reiter Aktionen`, await s.ev("return ['sensor_report','pending','armed','disarmed'].every((k) => !r.querySelector(`.ag-nt [data-kind=\"${k}\"]`)) && !!r.querySelector('.ag-nt .ag-nt-moved')"));
+    await s.ev("const i=r.querySelector('[data-nt=\"volume\"][data-kind=\"sensor_offline\"]'); i.value='50'; i.dispatchEvent(new Event('input', { bubbles: true }));");
+    check(`${tag}: Lautstärke der Art angezeigt`, await s.waitFor("return r.querySelector('.ag-vol[data-kind=\"sensor_offline\"]').textContent.trim() === '50 %'"));
+    check(`${tag}: Regler nur bei kritischen Arten`, await s.ev("return !r.querySelector('[data-nt=\"volume\"][data-kind=\"arm_failed\"]') && !r.querySelector('[data-nt=\"volume\"][data-kind=\"battery_low\"]')"));
+    await s.tap('[data-nt="enabled"][data-kind="arm_failed"]');
+    check(`${tag}: Art ausgeschaltet versteckt Einstellungen`, await s.waitFor("return !r.querySelector('[data-nt=\"critical\"][data-kind=\"arm_failed\"]')"));
+    await s.tap('[data-nt="enabled"][data-kind="arm_failed"]');
+    check(`${tag}: Art eingeschaltet zeigt Einstellungen`, await s.waitFor("return !!r.querySelector('[data-nt=\"critical\"][data-kind=\"arm_failed\"]')"));
+    await s.tap('[data-nt="critical"][data-kind="arm_failed"]');
+    check(`${tag}: kritisch zeigt Regler`, await s.waitFor("return !!r.querySelector('[data-nt=\"volume\"][data-kind=\"arm_failed\"]')"));
     await s.tap('[data-nt="critical"][data-kind="battery_low"]');
-    await s.tap('[data-nt="enabled"][data-kind="disarmed"]');
-    await s.tap('[data-nt="enabled"][data-kind="disarmed"]');
+    await s.tap('[data-nt="enabled"][data-kind="sensor_unavailable"]');
+    await s.tap('[data-nt="enabled"][data-kind="sensor_unavailable"]');
     await s.page.screenshot({ path: `${outDir}notify-${lang}-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });
     await s.tap('[data-nt="save"]');
     check(`${tag}: Meldungen gespeichert`, await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`));
     const nt = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_notify').at(-1)?.notify");
-    check(`${tag}: Werte je Art gesendet`, nt && JSON.stringify(nt.maintenance_targets) === JSON.stringify(["notify.mobile_app_partnerin"]) && nt.types.sensor_report.volume === 0.5 && nt.types.sensor_report.critical === true
-      && nt.types.pending.enabled === true && nt.types.pending.critical === true && nt.types.battery_low.critical === true && nt.types.armed.enabled === false, JSON.stringify(nt));
+    check(`${tag}: Werte je Art gesendet`, nt && JSON.stringify(nt.maintenance_targets) === JSON.stringify(["notify.mobile_app_partnerin"]) && nt.types.sensor_offline.volume === 0.5 && nt.types.sensor_offline.critical === true
+      && nt.types.arm_failed.enabled === true && nt.types.arm_failed.critical === true && nt.types.battery_low.critical === true, JSON.stringify(nt));
+    // Die früheren gemeinsamen Werte der vier Meldungen gehen unverändert mit: der Server nimmt sie, solange eine Anlage nichts Eigenes gespeichert hat
+    check(`${tag}: die früheren Werte der vier Meldungen des Ablaufs bleiben unberührt erhalten`, nt && nt.types.armed.enabled === false && nt.types.disarmed.enabled === false && nt.types.pending.enabled === false
+      && nt.types.sensor_report.enabled === true && nt.types.sensor_report.critical === true && nt.types.sensor_report.volume === 0.8, JSON.stringify(nt?.types));
     // Pille entfernen mit x
     await s.tap('[data-nt="target-del"][data-key="alarm_targets"][data-target="notify.mobile_app_diego"]');
     check(`${tag}: Pille mit x entfernt`, await s.waitFor("return r.querySelectorAll('.ag-nt .ag-recip .ag-rpill').length === 1 && !!r.querySelector('.ag-recip .ag-warntext')"));

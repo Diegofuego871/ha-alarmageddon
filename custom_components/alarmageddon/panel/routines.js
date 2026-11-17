@@ -65,6 +65,7 @@ export class RoutinesUi {
     this.index = -1; // Platz in der Liste; -1 = neue Routine
     this.pick = null; // Geräteauswahl: { path, q, filter, area }
     this.q = ""; // Suche im Fenster "Routinen": alles, was die Zeile zeigt, dazu die Entitäts-IDs der Geräte
+    this.viewing = null; // Vorschau einer Routine im Fenster "Routinen" (1.62.0): ihre Stelle im Entwurf, null = die Liste
     this.ents = null; // Geräte vom Server { list, byId }, null = noch nicht geladen
     this.loading = false;
   }
@@ -194,6 +195,8 @@ export class RoutinesUi {
   // Popup mit allen Routinen (Handy: ganzer Bildschirm): Übersicht im Design der Zeilen, neue Routine hier; leer: Knopf in der Mitte, sonst in der Fusszeile
   listHtml() {
     const d = this.draft;
+    if (this.viewing !== null && d.routines[this.viewing]) return this._viewHtml(this.viewing);
+    this.viewing = null;
     const rows = d.routines.length > 0;
     const full = d.routines.length >= MAX_ROUTINES;
     const add = (cls) => `<button class="ag-btn ${cls}" data-sys="rt-add" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("rtAdd"))}</button>`;
@@ -204,6 +207,19 @@ export class RoutinesUi {
       : `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(this._t("rtEmpty"))}</span>${add("primary")}</div>`;
     return `<div class="ag-dlg-body ag-rt-pop"><h3>${esc(this._t("rtTitle"))}</h3>${body}
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-close">${esc(this._t("close"))}</button>${rows ? add("primary") : ""}</div></div>`;
+  }
+
+  // Vorschau einer Routine (1.62.0, Wunsch des Nutzers): dieselbe Grafik wie am Ende des Editors, nur zum Lesen, im selben Fenster anstelle
+  // der Liste (Handy: ganzer Bildschirm wie die Liste). "Schliessen" führt zur Liste zurück, "Bearbeiten" öffnet den Editor.
+  _viewHtml(index) {
+    const r = this.draft.routines[index];
+    const on = r.enabled !== false;
+    const tags = [...(on ? [] : [["none", this._t("rtViewOff")]]), ...this._tags(r, this._modes || [])];
+    return `<div class="ag-dlg-body ag-rt-pop ag-rt-view" data-view="${index}"><h3>${esc(r.name)}</h3>
+      <div class="ag-rttags">${tags.map(([cls, text, warn]) => `<span class="ag-tag ${cls}">${warn ? ic("alert", 13) : ""}${esc(text)}</span>`).join("")}</div>
+      ${chapter(this._t("rtFlowTitle"), this.flowHtml(this._formOf(index)))}
+      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-view-close">${esc(this._t("close"))}</button>
+        <button class="ag-btn primary" data-sys="rt-view-edit" data-index="${index}">${ic("pencil", 18)}${esc(this._t("rtViewEdit"))}</button></div></div>`;
   }
 
   // Die Zeilen, die zur Suche passen (jede behält ihre Stelle im Entwurf: Knöpfe wirken auf die richtige Routine)
@@ -226,7 +242,7 @@ export class RoutinesUi {
 
   openList() {
     const dlg = this.listDlg;
-    if (!dlg.open) this.q = "";
+    if (!dlg.open) Object.assign(this, { q: "", viewing: null });
     this.refreshList(true);
     if (!dlg.open) dlg.showModal();
   }
@@ -266,7 +282,8 @@ export class RoutinesUi {
       <span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span>
       <div class="ag-settx"><b>${esc(r.name)}</b><small>${esc(this.whenText(r))}</small><small>→ ${esc(this.thenText(r))}</small>
         <div class="ag-rttags">${tags.map(([cls, text, warn]) => `<span class="ag-tag ${cls}">${warn ? ic("alert", 13) : ""}${esc(text)}</span>`).join("")}</div>${pending ? `<small class="ag-unsaved">${esc(this._t("unsavedOne"))}</small>` : ""}</div>
-      <div class="ag-wf-btns"><button class="ag-iconbtn" data-sys="rt-edit" data-index="${i}" aria-label="${esc(this._t("rtEdit"))}" title="${esc(this._t("rtEdit"))}">${ic("pencil", 18)}</button>
+      <div class="ag-wf-btns"><button class="ag-iconbtn" data-sys="rt-view" data-index="${i}" aria-label="${esc(this._t("rtView"))}" title="${esc(this._t("rtView"))}">${ic("eye", 18)}</button>
+        <button class="ag-iconbtn" data-sys="rt-edit" data-index="${i}" aria-label="${esc(this._t("rtEdit"))}" title="${esc(this._t("rtEdit"))}">${ic("pencil", 18)}</button>
         <button class="ag-iconbtn" data-sys="rt-dup" data-index="${i}" aria-label="${esc(this._t("rtDuplicate"))}" title="${esc(this._t("rtDuplicate"))}" ${this.draft.routines.length >= MAX_ROUTINES ? "disabled" : ""}>${ic("copy", 18)}</button>
         <button class="ag-iconbtn" data-sys="rt-del" data-index="${i}" aria-label="${esc(this._t("rtDelete"))}">${ic("trash", 18)}</button></div></div>`;
   }
@@ -290,14 +307,19 @@ export class RoutinesUi {
     };
   }
 
-  open(index) {
+  // Formular einer Routine: eine Kopie mit den Entwürfen beider Auslöser (Editor und Vorschau im Fenster "Routinen"); -1: eine neue
+  _formOf(index) {
     const base = index >= 0 ? clone(this.draft.routines[index]) : this.blank();
     if (index >= 0) {
       base._times = base.trigger.type === "schedule" ? clone(base.trigger.times) : [{ time: "08:00", days: [0, 1, 2, 3, 4] }];
       base._device = base.trigger.type === "device" ? { tree: clone(base.trigger.tree), hold: base.trigger.hold || 0 } : { tree: { op: "and", items: [] }, hold: 0 };
     }
     base.trigger = { type: base.trigger.type };
-    this.form = base;
+    return base;
+  }
+
+  open(index) {
+    this.form = this._formOf(index);
     this.index = index;
     this.pick = null;
     this.snap = JSON.stringify(this.form);
@@ -358,12 +380,12 @@ export class RoutinesUi {
   }
 
   // Tasten gelten nur im Augenblick des Drückens: eine Haltezeit ergibt dort keinen Sinn
-  _hasEvent() {
-    return this._leaves().some((l) => l.kind === "event");
+  _hasEvent(f = this.form) {
+    return this._leaves(f).some((l) => l.kind === "event");
   }
 
-  _leaves() {
-    return this.form._device.tree.items.flatMap((i) => (i.items ? i.items : [i]));
+  _leaves(f = this.form) {
+    return f._device.tree.items.flatMap((i) => (i.items ? i.items : [i]));
   }
 
   // Probleme in der Reihenfolge, in der sie im Fenster stehen; leer = speicherbar
@@ -536,14 +558,13 @@ export class RoutinesUi {
     return `<div class="ag-fl-tree">${parts.join(word(tree.op))}</div>`;
   }
 
-  flowHtml() {
-    const f = this.form;
+  flowHtml(f = this.form) {
     const arm = f.action !== "off";
     const trigger = f.trigger.type === "schedule"
       ? `<div class="ag-fl-t">${esc(this._t("rtFlowWhenTime"))}</div><div class="ag-fl-tree">${f._times.map((t) => `<span class="ag-fl-leaf">${ic("clock", 16)}<span>${esc(this._t("rtAtTime", { days: this.daysText(t.days), time: t.time || "–" }))}</span></span>`).join("")}</div>`
       : `<div class="ag-fl-t">${esc(this._t("rtFlowWhenDevice"))}</div>${this._flowTree(f._device.tree)}`
-        + `<div class="ag-fl-s">${esc(this._hasEvent() ? this._t("rtFlowEventNote") : this._t("rtFlowEdgeNote"))}${!this._hasEvent() && Number(f._device.hold) > 0 ? ` ${esc(this._t("rtFlowHold", { seconds: fmtDur(f._device.hold) }))}` : ""}</div>`;
-    const band = STATES.map(([key, label]) => `<div class="${f.states.includes(key) && !(arm && ALARM_STATES.includes(key)) ? "on" : ""}">${esc(key === "armed" ? this._armedLabel({ armed_modes: this._armedModes() }) : this._t(label))}</div>`).join("");
+        + `<div class="ag-fl-s">${esc(this._hasEvent(f) ? this._t("rtFlowEventNote") : this._t("rtFlowEdgeNote"))}${!this._hasEvent(f) && Number(f._device.hold) > 0 ? ` ${esc(this._t("rtFlowHold", { seconds: fmtDur(f._device.hold) }))}` : ""}</div>`;
+    const band = STATES.map(([key, label]) => `<div class="${f.states.includes(key) && !(arm && ALARM_STATES.includes(key)) ? "on" : ""}">${esc(key === "armed" ? this._armedLabel({ armed_modes: this._armedModes(f) }) : this._t(label))}</div>`).join("");
     const actionText = f.action === "off" ? this._t("rtThenOff") : this._t("rtThenArm", { mode: this._t(MODE_KEY[f.action]) });
     const step = (n, cls, node, last = false) => `<div class="ag-fl-step ${cls}"><div class="ag-fl-rail"><span class="ag-fl-num">${n}</span><span class="ag-fl-line"></span></div>${node}</div>`;
     return `<div class="ag-fl">
@@ -626,7 +647,18 @@ export class RoutinesUi {
     const f = this.form;
     if (act === "rt-open") this.openList();
     else if (act === "rt-close") this.listDlg.close();
-    else if (act === "rt-search-clear") {
+    else if (act === "rt-view" || act === "rt-view-close") {
+      // Vorschau im selben Fenster anstelle der Liste; "Schliessen" führt zur Liste zurück (die Suche bleibt)
+      const body = () => this.listDlg.querySelector(".ag-dlg-body");
+      if (act === "rt-view") this._listTop = body()?.scrollTop || 0; // die Liste steht nach "Schliessen" wieder an derselben Stelle
+      this.viewing = act === "rt-view" ? i : null;
+      this.refreshList();
+      if (body()) body().scrollTop = act === "rt-view" ? 0 : this._listTop || 0;
+    } else if (act === "rt-view-edit") {
+      this.viewing = null;
+      this.refreshList();
+      this.open(i);
+    } else if (act === "rt-search-clear") {
       const input = this.listDlg.querySelector('[data-sys="rt-search"]');
       input.value = "";
       input.dispatchEvent(new Event("input", { bubbles: true }));

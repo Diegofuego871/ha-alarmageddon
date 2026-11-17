@@ -74,6 +74,10 @@ from .const import (
     MAX_UPLOAD_BYTES,
     CONF_WORKFLOWS_ARMED,
     CONF_WORKFLOWS_DISARMED,
+    CONF_WORKFLOWS_REPORT,
+    CONF_EVENT_NOTIFY,
+    EVENT_NOTIFY_ALWAYS,
+    EVENT_NOTIFY_KINDS,
     CONF_WORKFLOWS_ARMING,
     CONF_WORKFLOWS_ENTRY,
     CONF_WORKFLOWS,
@@ -100,7 +104,7 @@ from .devices import battery_of, device_field, device_sensors, display_name, fre
 from .forecast import async_forecasts
 from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
-from .schemas import step_list, END_NOTIFY_SCHEMA, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
+from .schemas import step_list, END_NOTIFY_SCHEMA, EVENT_NOTICE_SCHEMA, valid_event_notify, valid_report_step, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
 from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_get_stats, async_measure_history, async_numeric_history, async_state_history
 from .settings import async_get_settings, sensor_type
 
@@ -139,6 +143,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_routine_entities)
     websocket_api.async_register_command(hass, ws_monitor_entities)
     websocket_api.async_register_command(hass, ws_sensor_candidates)
+    websocket_api.async_register_command(hass, ws_test_event_notify)
     websocket_api.async_register_command(hass, ws_save_monitors)
     websocket_api.async_register_command(hass, ws_test_monitor_step)
     websocket_api.async_register_command(hass, ws_battery_forecast)
@@ -356,6 +361,13 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "workflows_arming": entry.options.get(CONF_WORKFLOWS_ARMING) or {},
                 "workflows_entry": entry.options.get(CONF_WORKFLOWS_ENTRY) or {},
                 "workflows_disarmed": entry.options.get(CONF_WORKFLOWS_DISARMED) or {},
+                # Aktionen bei einem stillen Alarm und die festen Meldungen des Reiters Aktionen (1.62.0). Die Meldungen immer als wirksamer
+                # Stand je Auslöser: was die Anlage gespeichert hat, sonst die bisherige gemeinsame Einstellung (notify.event_notice)
+                "workflows_report": entry.options.get(CONF_WORKFLOWS_REPORT) or {},
+                "event_notify": {
+                    trigger: {kind: entry.runtime_data.notifier.notice(kind, trigger) for kind in (EVENT_NOTIFY_KINDS if trigger in MODES else EVENT_NOTIFY_ALWAYS)}
+                    for trigger in WORKFLOW_TRIGGERS
+                } if entry.runtime_data.notifier else {},
                 # Läuft gerade ein Alarm oder ein Test (die Aktionen nach dem Quittieren zählen nicht dazu)
                 "workflow_running": _alarm_run(entry).get("trigger"),
                 "workflow_test": bool((entry.runtime_data.workflow.running or {}).get("test")) if entry.runtime_data.workflow else False,
@@ -844,6 +856,31 @@ async def ws_test_end_notify(hass: HomeAssistant, connection, msg: dict[str, Any
     connection.send_result(msg["id"], {"ok": True})
 
 
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/test_event_notify",
+        vol.Required("entry_id"): str,
+        vol.Required("kind"): vol.In(EVENT_NOTIFY_KINDS),
+        vol.Required("trigger"): vol.In(WORKFLOW_TRIGGERS),
+        vol.Required("notice"): vol.All(dict, EVENT_NOTICE_SCHEMA),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_test_event_notify(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """Testmeldung einer festen Meldung des Reiters Aktionen mit den (auch ungespeicherten) Werten aus dem Fenster; an ihre Empfänger."""
+    if (entry := _entry(hass, connection, msg)) is None:
+        return
+    if msg["trigger"] not in MODES and msg["kind"] not in EVENT_NOTIFY_ALWAYS:
+        connection.send_error(msg["id"], "invalid_format", "This message does not exist for this trigger")
+        return
+    targets = entry.runtime_data.notifier.send_event_test(msg["kind"], msg["trigger"], msg["notice"])
+    if not targets:
+        connection.send_error(msg["id"], "no_targets", "No recipients configured")
+        return
+    connection.send_result(msg["id"], {"ok": True, "targets": targets})
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS)), vol.Optional("keep"): vol.All(int, vol.Range(min=1, max=AUTO_BACKUP_KEEP_MAX))})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -878,6 +915,9 @@ async def ws_save_display(hass: HomeAssistant, connection, msg: dict[str, Any]) 
         vol.Optional("workflows_entry"): {vol.In(MODES): step_list(valid_entry_step)},
         # Aktionen beim Deaktivieren (1.27.0), je Modus, der gerade scharf war
         vol.Optional("workflows_disarmed"): {vol.In(MODES): step_list(valid_disarmed_step)},
+        # Aktionen bei einem stillen Alarm und die festen Meldungen (1.62.0), je Auslöser
+        vol.Optional("workflows_report"): {vol.In(WORKFLOW_TRIGGERS): step_list(valid_report_step)},
+        vol.Optional("event_notify"): valid_event_notify,
     }
 )
 @websocket_api.require_admin
@@ -897,7 +937,14 @@ async def ws_save_workflows(hass: HomeAssistant, connection, msg: dict[str, Any]
     if "workflows_armed" in msg:
         kept_armed = {k: v for k, v in (options.get(CONF_WORKFLOWS_ARMED) or {}).items() if k not in msg["workflows_armed"]}
         options[CONF_WORKFLOWS_ARMED] = {**kept_armed, **{k: v for k, v in msg["workflows_armed"].items() if v}}
-    for key, conf in (("workflows_arming", CONF_WORKFLOWS_ARMING), ("workflows_entry", CONF_WORKFLOWS_ENTRY), ("workflows_disarmed", CONF_WORKFLOWS_DISARMED)):
+    if "event_notify" in msg:
+        # Je Auslöser und Art ersetzen; was in der Meldung fehlt, bleibt, wie es ist (auch "noch nie gespeichert": dann gilt weiter die
+        # bisherige gemeinsame Einstellung)
+        notices = {trigger: dict(kinds) for trigger, kinds in (options.get(CONF_EVENT_NOTIFY) or {}).items() if isinstance(kinds, dict)}
+        for trigger, kinds in msg["event_notify"].items():
+            notices[trigger] = {**notices.get(trigger, {}), **kinds}
+        options[CONF_EVENT_NOTIFY] = notices
+    for key, conf in (("workflows_arming", CONF_WORKFLOWS_ARMING), ("workflows_entry", CONF_WORKFLOWS_ENTRY), ("workflows_disarmed", CONF_WORKFLOWS_DISARMED), ("workflows_report", CONF_WORKFLOWS_REPORT)):
         if key in msg:
             kept_delay = {k: v for k, v in (options.get(conf) or {}).items() if k not in msg[key]}
             options[conf] = {**kept_delay, **{k: v for k, v in msg[key].items() if v}}
