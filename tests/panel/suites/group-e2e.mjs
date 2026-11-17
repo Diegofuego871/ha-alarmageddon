@@ -172,6 +172,19 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: Pfeil nach oben hinter einer Gruppe: der Schritt geht an ihr Ende`, main.length === 1 && main[0].steps.map((x) => x.type).join() === "action,wait", JSON.stringify(main));
     }
 
+    // ----- "Nach einer Zeit rückgängig machen" gibt es auch in der Gruppe (1.60.0): beim Hineinziehen bleibt die Einstellung erhalten -----
+    await setSteps("main", [{ ...ON, undo_after: 120 }, { type: "group", mode: "count", count: 2, seconds: 60, steps: [WAIT], wait: false }]);
+    await s.page.waitForTimeout(300);
+    await drag('.ag-wf-main > .ag-wf-step[data-index="0"] > [data-wf="grab"]', '.ag-wf-glist[data-zone="main:1"] > .ag-wf-step[data-index="0"]', { dy: -30 });
+    main = await draft("main");
+    check(`${tag}: ein Schritt mit "Nach einer Zeit rückgängig" behält die Einstellung, wenn er in eine Gruppe gezogen wird`, main.length === 1 && main[0].steps.length === 2 && main[0].steps[0].undo_after === 120, JSON.stringify(main));
+    await s.tap('.ag-wf-glist[data-zone="main:0"] > .ag-wf-step[data-index="0"] [data-wf="edit"]');
+    await s.waitFor("return !!r.querySelector('#ag-step [data-wf=\"undo\"]')");
+    check(`${tag}: das Fenster des Schritts in der Gruppe zeigt die Option (an, 120 s) mit dem Hinweis, dass jede Runde die Zeit neu beginnt`, await s.ev("const d=r.getElementById('ag-step'); return d.querySelector('[data-wf=\"undo\"]').classList.contains('on') && d.querySelector('[data-key=\"undoSeconds\"]').value === '120' && !!d.querySelector('.ag-undo-group')?.textContent.trim()"));
+    await s.tap('#ag-step [data-wf="apply"]');
+    await s.waitFor("return !r.getElementById('ag-step').open");
+    check(`${tag}: nach "Übernehmen" steht die Zeit weiter im Schritt, die Karte nennt sie`, (await draft("main"))[0].steps[0].undo_after === 120 && await s.ev("return /2\\s*min/.test(r.querySelector('.ag-wf-glist[data-zone=\"main:0\"] > .ag-wf-step[data-index=\"0\"] .ag-wf-text').textContent)"), await s.ev("return r.querySelector('.ag-wf-glist[data-zone=\"main:0\"] > .ag-wf-step[data-index=\"0\"] .ag-wf-text').textContent"));
+
     // ----- Grenzen: 10 Schritte je Gruppe -----
     await setSteps("main", [{ type: "group", mode: "count", count: 2, seconds: 60, steps: Array.from({ length: 10 }, () => WAIT), wait: false }, { type: "wait", seconds: 9 }]);
     await s.page.waitForTimeout(300);

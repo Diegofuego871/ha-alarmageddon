@@ -7,6 +7,28 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.60.0] - 2026-11-17
+
+### Hinzugefügt
+
+- **"Nach einer Zeit rückgängig machen" auch in einer Aktions-Gruppe.** Die Option von "Gerät schalten" (zum Beispiel eine Steckdose mit Sirene: ein, nach 2 Minuten aus) gab es in einer Gruppe nicht. Jetzt gibt es sie dort wie überall. In einer Gruppe gilt je Gerät nur ein vorgemerktes Zurückschalten, und jede Runde beginnt die Zeit neu: Ist die Runde länger als die Zeit, schaltet das Gerät in jeder Runde nach der Zeit zurück. Ist sie kürzer, schaltet es erst zurück, wenn keine Runde es mehr schaltet, also nach der letzten Runde. Deaktivieren, Quittieren und "Alarmton stumm" schalten wie bisher sofort zurück. Das Fenster des Schritts sagt das in der Gruppe dazu.
+- **Suchfeld in den Fenstern "Routinen", "Eigene Töne" und "Sicherungen".** Über jeder Liste steht ein Suchfeld. Es findet alles, was die Zeile zeigt (Name, Auslöser und Wirkung in Worten, Marken wie "Umgeht den Code", Länge und Grösse eines Tons, Datum und Anlagen einer Sicherung), bei Routinen auch die Entitäts-IDs der Geräte, zum Beispiel "lock.haustuer". Mehrere Wörter müssen alle vorkommen, Gross- und Kleinschreibung zählen nicht. Die Knöpfe einer gefundenen Zeile wirken wie gewohnt.
+- **Filter "Nur automatische" bei den Sicherungen.** Neben dem Suchfeld; zeigt nur die automatischen Sicherungen und lässt sich mit der Suche verbinden.
+
+### Geändert
+
+- **Die Übersicht hält Home Assistant nicht mehr an.** Auf neueren Versionen von Home Assistant (gemessen an 2026.10.4 und 2026.11.1) stand bei jedem Abruf der Übersicht ganz Home Assistant still: an einer echten Anlage mit 151 Sensoren rund 1,4 Sekunden, beim Öffnen des Panels und danach alle 30 Sekunden. Ursache: Alarmageddon las je Sensor zweimal ein Feld der Geräte-Registry, das Home Assistant dort nur noch als veraltete Brücke führt, und jeder Zugriff darauf kostet mehrere Millisekunden. Mit eingeschalteter Überwachung zählte jede Temperatur und Luftfeuchtigkeit des Hauses mit, darum wurde es mit den Messwerten spürbar. Jetzt wird das neue Feld gelesen, und Empfang und Hardware je Gerät nur einmal. Im Test mit 151 Sensoren sinkt der Abruf von rund 250 auf rund 6 Millisekunden. Dasselbe traf einmal je Minute die Aufzeichnung des Empfangs.
+- **Die Antwort für die Übersicht ist kleiner.** Sie nennt nur noch die Sensoren der Anlagen. Die Liste aller passenden Sensoren des Hauses holt das Panel erst, wenn du "Sensoren hinzufügen" öffnest (dort kurz mit der Ladeanzeige). In einem Haus mit 400 Geräten sind das rund 14 kB statt 475 kB, bei jedem Öffnen der Übersicht und danach alle 30 Sekunden.
+- **Wechselnde Messwerte bauen die Liste nicht mehr laufend neu.** Seit 1.58.0 übernimmt das Panel neue Zustände viermal je Sekunde; jede Änderung irgendeines passenden Sensors des Hauses baute dabei die ganze Sensorliste neu auf. Jetzt zählen nur Sensoren, die zu sehen sind. Zustände (Tür offen, Bewegung, Alarm) erscheinen weiterhin sofort; Messwerte, Batterie und Empfang werden gesammelt und höchstens alle 2 Sekunden neu gezeichnet. In der Messung mit 20 Messwerten und 10 Änderungen je Sekunde wird die Liste in 10 Sekunden 4-mal statt 40-mal neu aufgebaut.
+- **Getestet gegen eine aktuelle Version von Home Assistant.** Die Tests liefen bisher nur gegen 2026.2.3; die Mängel dieser Version waren dort nicht zu sehen. Jetzt laufen sie zusätzlich gegen 2026.10.4, und ein Test scheitert, sobald Home Assistant eine veraltete Nutzung durch Alarmageddon meldet.
+
+### Behoben
+
+- **Die Einstellung "Nach einer Zeit rückgängig machen" ging verloren, wenn ein Schritt in eine Gruppe gezogen wurde.** Sie fiel ohne Hinweis weg: Das Gerät wäre eingeschaltet geblieben, bis jemand deaktiviert. Sie bleibt jetzt erhalten.
+- **Sensoransicht eines Messwerts: "Batterie" und "Empfang" zeigten nur "Der Verlauf konnte nicht geladen werden".** Der Server lehnte beide Reiter für jeden Messwert-Sensor ab (zum Beispiel einen Temperatursensor). Sie zeigen jetzt den Verlauf wie bei Tür- und Fenstersensoren.
+- **Eine Sicherung mit einem unbekannten Eintrag wird auf neueren Versionen von Home Assistant wieder als Ganzes abgelehnt.** Dort wurde ein unbekannter Eintrag in den Einstellungen je Modus oder in den Aktionen stillschweigend weggelassen und der Rest eingespielt. Gespeichert wurde davon nichts; die Regel "eine Sicherung mit einem ungültigen Wert wird abgelehnt" gilt jetzt wieder mit jeder Version.
+- **Keine veralteten Schnittstellen von Home Assistant mehr.** Das Umbenennen einer Anlage und die Vorschau der Entitäts-ID nutzten Funktionen, die Home Assistant 2027 entfernt (bisher eine Warnung im Log).
+
 ## [1.59.0] - 2026-11-17
 
 Enthält die Änderungen aus 1.58.0.
@@ -1789,6 +1811,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.60.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.60.0
 [1.59.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.59.0
 [1.57.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.57.0
 [1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0

@@ -27,6 +27,23 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 
 @pytest.fixture(autouse=True)
+def no_deprecated_home_assistant_use(caplog):
+    """
+    Kein Test darf eine veraltete Schnittstelle von Home Assistant benutzen (1.60.0). Home Assistant meldet das im Log ("Detected that
+    custom integration 'alarmageddon' ..."); jede solche Meldung kostet im Betrieb mehrere Millisekunden im Event-Loop, und die
+    Schnittstelle fällt später weg. Bis 1.59.0 stand Home Assistant deswegen bei jedem Abruf der Übersicht still (siehe devices.py).
+    """
+    yield
+    hits = [
+        record.getMessage()
+        for when in ("setup", "call", "teardown")
+        for record in caplog.get_records(when)
+        if "Detected that custom integration 'alarmageddon'" in record.getMessage()
+    ]
+    assert not hits, f"Veraltete Schnittstelle von Home Assistant benutzt: {hits[0]}"
+
+
+@pytest.fixture(autouse=True)
 def skip_frontend(hass):
     """Das Testpaket bringt das HA-Frontend nicht mit: als geladen markieren (LEARNINGS)."""
     hass.config.components.add("frontend")

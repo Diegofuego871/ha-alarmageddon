@@ -9,7 +9,7 @@ const V = new URL(import.meta.url).search;
 // erschien erst nach einem Dutzend Anfragen hintereinander. panel.html meldet die Dateien zusätzlich vorab an (modulepreload).
 const [
   { pickLang, translate }, { CSS },
-  { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY },
+  { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, SOFT_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY },
   { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart },
 ] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader"].map((name) => import(`./${name}.js${V}`)));
 /** Nach so langer Abwesenheit startet das Panel wieder auf der Übersicht (Merkzettel für Reiter und Unterreiter) */
@@ -65,10 +65,24 @@ class AlarmageddonPanel extends HTMLElement {
     }
     // Wird bei jeder Zustandsänderung in HA aufgerufen: nur günstige Arbeit (LEARNINGS)
     if (this.sensors.paint) return; // während des Ziehens nichts neu aufbauen
-    const sig = this._stateSig();
-    if (sig !== this._sig) {
-      this._sig = sig;
+    const [hard, soft] = this._stateSigs();
+    if (hard !== this._sig) {
+      // Zustand einer Anlage oder eines Sensors (offen, zu, Bewegung): sofort
+      this._sig = hard;
+      this._softSig = soft;
+      clearTimeout(this._softTimer);
+      this._softTimer = 0;
       this._renderLive();
+    } else if (soft !== this._softSig) {
+      // Messwerte, Batterie und Empfang ändern sich laufend (eine Temperatur alle paar Sekunden): gesammelt, höchstens alle SOFT_MS neu
+      // zeichnen. Bis 1.59.0 baute jede solche Änderung die ganze Liste neu auf, bis zu viermal je Sekunde (1.60.0).
+      this._softSig = soft;
+      if (!this._softTimer) {
+        this._softTimer = setTimeout(() => {
+          this._softTimer = 0;
+          if (!this.sensors.paint) this._renderLive();
+        }, SOFT_MS);
+      }
     }
   }
 
@@ -283,7 +297,7 @@ class AlarmageddonPanel extends HTMLElement {
       this._connError = false;
       if (!this._systems().some((s) => s.entry_id === this._sel)) this._sel = this._systems()[0]?.entry_id || null;
       for (const ui of [this.sensors, this.systemUi, this.actions, this.notify]) if (!ui.dirtyCount() && !ui.pinned?.()) ui.draft = null;
-      this._sig = this._stateSig();
+      [this._sig, this._softSig] = this._stateSigs();
       this._fetchForecast();
       // Erstes Laden: alles; danach nur die Ansicht, damit Suchfeld und Fokus bleiben
       if (!this._loaded || !this._view) {
@@ -367,7 +381,24 @@ class AlarmageddonPanel extends HTMLElement {
   }
 
   _sensor(entityId) {
-    return this._data?.sensors?.[entityId] || { name: entityId, missing: true };
+    return this._data?.sensors?.[entityId] || this._candidates?.[entityId] || { name: entityId, missing: true };
+  }
+
+  // Sensoren, die das Panel kennt: die der Anlagen (aus jeder Abfrage) und, sobald geholt, die Kandidaten für "Sensoren hinzufügen"
+  _known() {
+    if (this._knownFor?.[0] !== this._data || this._knownFor[1] !== this._candidates) {
+      this._knownFor = [this._data, this._candidates];
+      this._knownAll = { ...(this._candidates || {}), ...(this._data?.sensors || {}) };
+    }
+    return this._knownAll;
+  }
+
+  // Kandidaten für "Sensoren hinzufügen": erst auf Abruf (1.60.0). Die Übersicht braucht nur die gewählten Sensoren; die Liste aller
+  // passenden Sensoren des Hauses ist gross (mit Überwachung jede Temperatur) und ging bis 1.59.0 mit jeder Abfrage mit.
+  async _loadCandidates() {
+    const res = await this._hass.callWS({ type: "alarmageddon/sensor_candidates" });
+    this._candidates = res?.sensors || {};
+    return this._candidates;
   }
 
   _state(entityId) {
@@ -377,7 +408,7 @@ class AlarmageddonPanel extends HTMLElement {
   // Name eines Sensors überall gleich: der eigene Name der Entität vom Server (devices.display_name), ohne den Namen des Geräts davor;
   // nur ohne Angabe des Servers (Entität nicht in der Anlage, Daten noch nicht da) der Anzeigename von Home Assistant
   _name(entityId) {
-    const info = this._data?.sensors?.[entityId];
+    const info = this._data?.sensors?.[entityId] || this._candidates?.[entityId];
     if (info && !info.missing && info.name) return info.name;
     return this._state(entityId)?.attributes?.friendly_name || entityId;
   }
@@ -393,21 +424,54 @@ class AlarmageddonPanel extends HTMLElement {
     return Number.isFinite(v) ? Math.round(v) : null;
   }
 
-  // Nur was die Ansichten zeigen: Alarm-Entitäten, Sensoren mit ihren Batterien und ihrem Empfang
-  _stateSig() {
-    const parts = [];
+  // Die Sensoren, die eine Ansicht zeigt: die der Anlagen (Zonen, Liste der Konfiguration, eigene Werte, Überwachung) und die im Entwurf
+  // der Konfiguration neu gewählten. Nicht die Kandidaten: die Antwort des Servers nennt jeden passenden Sensor des Hauses (für "Sensoren
+  // hinzufügen"), mit eingeschalteter Überwachung auch jede Temperatur. Bis 1.59.0 löste jede Änderung eines solchen Sensors, der nirgends
+  // zu sehen ist, einen Neuaufbau der Liste aus (1.60.0).
+  _shownSensors() {
+    const draft = this.sensors?.draft || null;
+    const picked = draft ? (draft.sensors?.size || 0) + (draft.monitorSensors?.size || 0) : -1;
+    if (this._shownFor?.[0] === this._data && this._shownFor[1] === draft && this._shownFor[2] === picked) return this._shown;
+    const ids = new Set();
+    for (const s of this._systems()) {
+      for (const list of [...Object.values(s.zones || {}), s.sensors, s.monitor_sensors, s.entry_sensors, Object.keys(s.sensor_options || {})]) for (const id of list || []) ids.add(id);
+      for (const per of Object.values(s.sensor_modes || {})) for (const id of Object.keys(per || {})) ids.add(id);
+      for (const active of Object.values(s.monitor_active || {})) if (active?.entity_id) ids.add(active.entity_id);
+    }
+    for (const id of draft?.sensors || []) ids.add(id);
+    for (const id of draft?.monitorSensors || []) ids.add(id);
+    this._shownFor = [this._data, draft, picked];
+    this._shown = [...ids];
+    return this._shown;
+  }
+
+  // Was die Ansichten zeigen, in zwei Teilen: [Zustände der Anlagen und der Sensoren, Messwerte mit Batterie und Empfang]. Der erste Teil
+  // wird sofort gezeichnet, der zweite gesammelt (set hass).
+  _stateSigs() {
+    const hard = [];
+    const soft = [];
     for (const s of this._systems()) {
       const st = this._state(s.entity_id);
-      parts.push(st ? `${st.state}|${st.attributes.changed_by}|${st.attributes.deadline}|${st.attributes.triggered_by}|${st.attributes.armed_at}|${st.attributes.armed_by}` : "-");
+      hard.push(st ? `${st.state}|${st.attributes.changed_by}|${st.attributes.deadline}|${st.attributes.triggered_by}|${st.attributes.armed_at}|${st.attributes.armed_by}` : "-");
     }
-    for (const [id, info] of Object.entries(this._data?.sensors || {})) {
+    const sensors = this._data?.sensors || {};
+    for (const id of this._shownSensors()) {
+      const info = sensors[id] || {};
       const st = this._state(id);
-      parts.push(st ? `${st.state}|${st.last_changed}` : "-");
-      if (info.battery) parts.push(this._state(info.battery)?.state ?? "-");
-      if (info.signal_live) parts.push(info.signal_live.value ?? "-");
-      else if (info.signal) parts.push(this._state(info.signal)?.state ?? "-");
+      // Ein Messwert ist nur da oder nicht da (sofort); sein Wert gehört zum zweiten Teil
+      if (info.kind === "value") {
+        hard.push(st && !GONE.has(st.state) ? "+" : "-");
+        soft.push(st?.state ?? "-");
+      } else hard.push(st ? `${st.state}|${st.last_changed}` : "-");
+      if (info.battery) soft.push(this._state(info.battery)?.state ?? "-");
+      if (info.signal_live) soft.push(info.signal_live.value ?? "-");
+      else if (info.signal) soft.push(this._state(info.signal)?.state ?? "-");
     }
-    return parts.join(",");
+    return [hard.join(","), soft.join(",")];
+  }
+
+  _stateSig() {
+    return this._stateSigs()[0];
   }
 
   // ----- Darstellung -----

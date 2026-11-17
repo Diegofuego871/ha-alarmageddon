@@ -43,6 +43,12 @@
     "sensor.keller_luftfeuchtigkeit": { name: "Keller Luftfeuchtigkeit", device_class: "humidity", area: "Keller", platform: "zha", integration: "Zigbee Home Automation", battery: "sensor.keller_luftfeuchtigkeit_batterie", kind: "value", unit: "%" },
     "sensor.wohnzimmer_co2": { name: "Wohnzimmer CO2", device_class: "carbon_dioxide", area: "Wohnzimmer", platform: "esphome", integration: "ESPHome", battery: null, kind: "value", unit: "ppm" },
   };
+  // ?house=N (1.60.0): ein grosses Haus, um die Geschwindigkeit zu messen und zu sichern (Suite perf-e2e): N weitere Messwert-Sensoren, wie sie
+  // ein echtes Haus hat (jedes Gerät bringt eine Temperatur mit). Sie sind Kandidaten der Überwachung; die ersten ?housechosen=K davon gehören
+  // zur Überwachung der ersten Anlage. ?churn=ms ändert alle ms Millisekunden den Wert eines dieser Sensoren, wie es echte Messwerte laufend tun.
+  const HOUSE = Number(params.get("house") || 0);
+  const HOUSE_IDS = Array.from({ length: HOUSE }, (_x, i) => `sensor.raum_${i}_temperatur`);
+  HOUSE_IDS.forEach((id, i) => (SENSORS[id] = { name: `Raum ${i} Temperatur`, device_class: "temperature", area: `Raum ${i % 12}`, platform: "matter", integration: "Matter", battery: null, kind: "value", unit: "°C" }));
   const BINARY = Object.keys(SENSORS).filter((id) => id.startsWith("binary_sensor."));
   // ?longnames=1: Namen wie bei echten Geräten (bis vier Zeilen), für den Test der gleich hohen Karten
   if (params.get("longnames")) {
@@ -118,6 +124,7 @@
   ];
 
   // ?routineevents=1: Ereignisse von Routinen im Protokoll (1.52.0)
+  if (HOUSE && window.__systems[0]) window.__systems[0].monitor_sensors = [...window.__systems[0].monitor_sensors, ...HOUSE_IDS.slice(0, Number(params.get("housechosen") || 0))];
   if (params.get("routineevents") === "1" && window.__systems[0]) {
     window.__systems[0].events.unshift(
       { t: iso(30 * 60e3), kind: "routine_skipped", state: "disarmed", mode: null, routine: "Heimkommen", action: "off", reason: "state", at: "disarmed" },
@@ -132,6 +139,7 @@
   };
   for (const id of BINARY) set(id, "off", { device_class: SENSORS[id].device_class });
   for (const [id, v] of [["sensor.kuehlschrank_temperatur", "5.4"], ["sensor.keller_luftfeuchtigkeit", "58"], ["sensor.wohnzimmer_co2", "720"]]) set(id, v, { device_class: SENSORS[id].device_class, unit_of_measurement: SENSORS[id].unit, state_class: "measurement" });
+  for (const id of HOUSE_IDS) set(id, "21.0", { device_class: "temperature", unit_of_measurement: "°C", state_class: "measurement" });
   set("binary_sensor.garagentor", "on", { device_class: "garage_door" }, now - 12 * 60e3);
   for (const [k, v] of Object.entries(BATT)) set(`sensor.${k}_batterie`, String(v), { device_class: "battery", unit_of_measurement: "%" });
   for (const [k, v] of Object.entries(SIGNAL)) set(`sensor.${k}_signal`, String(v), v < 0 ? { device_class: "signal_strength", unit_of_measurement: "dBm" } : { unit_of_measurement: "lqi" });
@@ -210,14 +218,20 @@
       window.__customSounds = list.filter((s) => s.id !== msg.sound_id);
       return { sounds: JSON.parse(JSON.stringify(window.__customSounds)) };
     }
-    if (msg.type === "alarmageddon/data") {
+    if (msg.type === "alarmageddon/data" || msg.type === "alarmageddon/sensor_candidates") {
+      // Wie der Server (seit 1.60.0): "data" nennt nur die Sensoren der Anlagen (Zonen, Liste, eigene Werte, Überwachung), die Kandidaten
+      // des ganzen Hauses kommen erst mit "sensor_candidates" (Fenster "Sensoren hinzufügen")
+      const chosen = new Set(window.__systems.flatMap((sys) => [...Object.values(sys.zones || {}).flat(), ...(sys.sensors || []), ...(sys.monitor_sensors || []), ...Object.keys(sys.sensor_options || {})]));
+      const all = msg.type === "alarmageddon/sensor_candidates";
       const sensors = {};
       for (const [id, info] of Object.entries(SENSORS)) {
+        if (!all && !chosen.has(id)) continue;
         sensors[id] = { ...info };
         // Namen wie der Server (devices.display_name): Tests geben einem Sensor über window.__deviceNames ein Gerät und einen eigenen Namen
         const named = window.__deviceNames?.[id];
         if (named) Object.assign(sensors[id], { device_name: named.device, name: window.__namesWithDevice === false ? named.own : `${named.device} - ${named.own}` });
       }
+      if (all) return JSON.parse(JSON.stringify({ sensors }));
       return JSON.parse(JSON.stringify({
         // Nach dem Speichern lädt HA die Anlage neu: sie fehlt kurz in der Antwort und hat danach eine neue Kennung (instance)
         version: "1.20.0",
@@ -656,6 +670,15 @@
   window.hass = makeHass();
   document.querySelector("home-assistant").hass = window.hass;
   document.getElementById("panel-frame").src = "/alarmageddon_panel/panel.html?v=sim";
+  // ?churn=ms: laufend wechselnde Messwerte (jedes Mal ein neues hass-Objekt, wie im echten Home Assistant)
+  if (HOUSE && Number(params.get("churn"))) {
+    let turn = 0;
+    setInterval(() => {
+      turn += 1;
+      window.__churned = turn;
+      window.__setState(HOUSE_IDS[turn % HOUSE], (20 + (turn % 50) / 10).toFixed(1));
+    }, Number(params.get("churn")));
+  }
 </script>
 </body>
 </html>

@@ -209,9 +209,6 @@ def _valid_group(value: Any, inner: Any, until: bool) -> dict[str, Any]:
         if raw.get("type") in GROUP_EXCLUDED:
             raise vol.Invalid("this step is not possible in a group")
         step = inner(raw)
-        if step.get("undo_after") is not None:
-            # Je Runde käme ein vorgemerkter Gegendienst dazu; in einer Gruppe steht das Zurückschalten als eigener Schritt
-            raise vol.Invalid("undo after a time is not possible in a group")
         step.pop("delay", None)  # "so lange wie die Verzögerung" gilt nur für einen Schritt der Liste selbst
         steps.append(step)
     group["steps"] = steps
@@ -462,7 +459,26 @@ def _measure_sensors(value: Any) -> list[str]:
     return list(dict.fromkeys(ids))
 
 
-# Optionen einer Anlage aus einer Sicherung. Codes gehören nie dazu (siehe backup.py).
+def strict_map(key: Any, value: Any) -> Any:
+    """
+    Wörterbuch, in dem jeder Schlüssel und jeder Wert gültig sein muss: ein unbekannter Schlüssel lehnt das Ganze ab.
+
+    Als eigene Prüfung statt `{vol.In(...): ...}`: In einem Schema mit REMOVE_EXTRA (Sicherungen, unbekannte Optionen anderer Versionen
+    fallen dort weg) verwirft die Prüf-Bibliothek neuerer Versionen von Home Assistant (probatio statt voluptuous; gemessen an 2026.10.4)
+    auch in den Wörterbüchern darunter einen unbekannten Schlüssel stillschweigend. Mit voluptuous wurde die Sicherung abgelehnt. Die Regel
+    "eine Sicherung mit einem ungültigen Wert wird als Ganzes abgelehnt" darf nicht von der Bibliothek abhängen.
+    """
+    key_schema, value_schema = vol.Schema(key), vol.Schema(value)
+
+    def check(data: Any) -> dict[Any, Any]:
+        if not isinstance(data, dict):
+            raise vol.Invalid("expected a dictionary")
+        return {key_schema(k): value_schema(v) for k, v in data.items()}
+
+    return check
+
+
+# Optionen einer Anlage aus einer Sicherung. Codes gehören nie dazu (siehe backup.py). Wörterbücher darunter immer mit strict_map.
 SYSTEM_OPTIONS_SCHEMA = vol.Schema(
     {
         **{vol.Optional(f"{CONF_ZONE_PREFIX}{m}"): _binary_sensors for m in MODES},
@@ -490,17 +506,17 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_CODE_ARM_REQUIRED): bool,
         vol.Optional(CONF_CODE_ACK_REQUIRED): bool,
         vol.Optional(CONF_CONFIRM_WINDOW): vol.All(vol.Coerce(int), vol.Range(min=5, max=MAX_CONFIRM_WINDOW)),
-        vol.Optional(CONF_SENSOR_OPTIONS): {cv.entity_id: SENSOR_VALUES},
+        vol.Optional(CONF_SENSOR_OPTIONS): strict_map(cv.entity_id, SENSOR_VALUES),
         vol.Optional(CONF_PER_MODE_SENSORS): bool,
         vol.Optional(CONF_PER_MODE_SETTINGS): bool,
-        vol.Optional(CONF_SENSOR_MODES): {vol.In([*MODES, SCOPE_ALWAYS]): {cv.entity_id: SENSOR_VALUES}},
-        vol.Optional(CONF_WORKFLOWS): {vol.In(WORKFLOW_TRIGGERS): step_list(valid_step)},
-        vol.Optional(CONF_WORKFLOW_END): {vol.In(WORKFLOW_TRIGGERS): valid_end},
-        vol.Optional(CONF_WORKFLOWS_AFTER): {vol.In(WORKFLOW_TRIGGERS): step_list(valid_after_step)},
-        vol.Optional(CONF_WORKFLOWS_ARMED): {vol.In(MODES): step_list(valid_armed_step)},
-        vol.Optional(CONF_WORKFLOWS_DISARMED): {vol.In(MODES): step_list(valid_disarmed_step)},
-        vol.Optional(CONF_WORKFLOWS_ARMING): {vol.In(MODES): step_list(valid_arming_step)},
-        vol.Optional(CONF_WORKFLOWS_ENTRY): {vol.In(MODES): step_list(valid_entry_step)},
+        vol.Optional(CONF_SENSOR_MODES): strict_map(vol.In([*MODES, SCOPE_ALWAYS]), strict_map(cv.entity_id, SENSOR_VALUES)),
+        vol.Optional(CONF_WORKFLOWS): strict_map(vol.In(WORKFLOW_TRIGGERS), step_list(valid_step)),
+        vol.Optional(CONF_WORKFLOW_END): strict_map(vol.In(WORKFLOW_TRIGGERS), valid_end),
+        vol.Optional(CONF_WORKFLOWS_AFTER): strict_map(vol.In(WORKFLOW_TRIGGERS), step_list(valid_after_step)),
+        vol.Optional(CONF_WORKFLOWS_ARMED): strict_map(vol.In(MODES), step_list(valid_armed_step)),
+        vol.Optional(CONF_WORKFLOWS_DISARMED): strict_map(vol.In(MODES), step_list(valid_disarmed_step)),
+        vol.Optional(CONF_WORKFLOWS_ARMING): strict_map(vol.In(MODES), step_list(valid_arming_step)),
+        vol.Optional(CONF_WORKFLOWS_ENTRY): strict_map(vol.In(MODES), step_list(valid_entry_step)),
     },
     extra=vol.REMOVE_EXTRA,
 )

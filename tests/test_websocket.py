@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.alarmageddon.code import hash_code
 from custom_components.alarmageddon.const import PANEL_URL_PATH
+from custom_components.alarmageddon.devices import system_device
 
 from .conftest import ALARM, FRONT_DOOR, MOTION, WINDOW, setup_alarm
 
@@ -82,10 +83,14 @@ async def test_data(hass: HomeAssistant, hass_ws_client) -> None:
     assert sensors[WINDOW]["area"] == "Küche"
     assert sensors[WINDOW]["battery"] == "sensor.fenster_kueche_batterie"
     assert sensors[WINDOW]["device_class"] == "window"
-    assert "binary_sensor.bewegung_keller" in sensors
-    assert "binary_sensor.licht_schalter" not in sensors
+    # Seit 1.60.0 nennt "data" nur die Sensoren der Anlagen; die Kandidaten des Hauses kommen auf Abruf (für "Sensoren hinzufügen")
+    assert "binary_sensor.bewegung_keller" not in sensors and set(sensors) == {FRONT_DOOR, WINDOW, MOTION}
+    candidates = (await _ws(hass, hass_ws_client, type="alarmageddon/sensor_candidates"))["result"]["sensors"]
+    assert "binary_sensor.bewegung_keller" in candidates and candidates["binary_sensor.bewegung_keller"]["integration"] is None
+    assert candidates[WINDOW] == sensors[WINDOW], "ein gewählter Sensor steht in beiden Antworten gleich da"
+    assert "binary_sensor.licht_schalter" not in candidates
     # Eigene Zonen-Entitäten nie als Kandidaten
-    assert not any(e.startswith("binary_sensor.haus_zone") for e in sensors)
+    assert not any(e.startswith("binary_sensor.haus_zone") for e in candidates)
 
 
 async def test_events_logged(hass: HomeAssistant, hass_ws_client) -> None:
@@ -248,7 +253,7 @@ async def test_rename_system(hass: HomeAssistant, hass_ws_client) -> None:
     assert result["success"] and result["result"]["renamed_ids"] == 0
     await hass.async_block_till_done()
     assert entry.title == "Wohnhaus" and entry.data["name"] == "Wohnhaus"
-    assert dr.async_get(hass).async_get_device(identifiers={("alarmageddon", entry.entry_id)}).name == "Wohnhaus"
+    assert system_device(hass, entry.entry_id).name == "Wohnhaus"
     assert hass.states.get("alarm_control_panel.haus").attributes["friendly_name"] == "Wohnhaus"
     # Mit neuen IDs: Alarm-Entität und die übrigen Entitäten der Anlage folgen
     result = await _ws(hass, hass_ws_client, type="alarmageddon/rename", entry_id=entry.entry_id, name="Villa", regenerate_ids=True)

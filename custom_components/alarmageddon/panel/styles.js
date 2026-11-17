@@ -1211,6 +1211,20 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-bkwrap .ag-table td { height: 52px; }
 .ag-bkwrap .ag-sortbtn { padding: 14px; }
 .ag-rtempty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 34px 18px; text-align: center; } .ag-rtfoot { margin: 0 4px; }
+/* Suchfeld (und Filter) über den Listen der Fenster Routinen, Eigene Töne, Sicherungen (1.60.0) */
+.ag-pop-tools { margin: 0; flex-wrap: nowrap; }
+.ag-rtrows > .ag-codes, .ag-pop-tools + .ag-codes { margin-top: 0; }
+.ag-pop-tools[hidden] { display: none; }
+.ag-dlg-body .ag-pop-tools .list-search { flex: 1 1 0; min-width: 0; }
+.ag-pop-tools .ag-chip { flex: none; -webkit-tap-highlight-color: transparent; }
+/* Handy: das Suchfeld über die ganze Breite, der Filter darunter (nie breiter als das Fenster) */
+:host([narrow]) .ag-dlg-body .ag-pop-tools { flex-wrap: wrap; }
+:host([narrow]) .ag-dlg-body .ag-pop-tools .list-search { flex: 1 1 100%; }
+.ag-popempty { padding: 22px 18px; text-align: center; justify-content: center; }
+.ag-rtrows { display: flex; flex-direction: column; }
+/* Die Zeilen der Töne stehen in einem eigenen Behälter (nur sie werden beim Suchen neu gezeichnet): der Strich zur Zeile danach bleibt */
+.ag-csrows { display: contents; }
+.ag-csrows:not(:last-child) > .ag-setrow:last-child { border-bottom: 1px solid var(--ag-divider); }
 .ag-rtsum { align-items: center; flex-wrap: nowrap; } .ag-rtsum .ag-settx { flex: 1 1 0; min-width: 0; } /* Zusammenfassung links, Knopf rechts, auch auf dem Handy in einer Zeile */
 /* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */
 :host([narrow]) .ag-cs-pop .ag-csrow { flex-wrap: wrap; }

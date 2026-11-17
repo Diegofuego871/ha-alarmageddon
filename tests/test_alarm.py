@@ -15,7 +15,7 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.alarmageddon.code import hash_code
-from custom_components.alarmageddon.const import DOMAIN
+from custom_components.alarmageddon.devices import system_device
 
 from .conftest import ALARM, FRONT_DOOR, MOTION, WINDOW, setup_alarm
 
@@ -49,7 +49,7 @@ async def open_sensor(hass: HomeAssistant, entity: str) -> None:
 
 async def test_device_and_entities(hass: HomeAssistant) -> None:
     entry = await setup_alarm(hass)
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = system_device(hass, entry.entry_id)
     assert device is not None and device.name == "Haus"
     entities = {e.entity_id for e in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)}
     assert entities == {
@@ -66,11 +66,11 @@ async def test_device_and_entities(hass: HomeAssistant) -> None:
 
 async def test_several_alarm_systems(hass: HomeAssistant) -> None:
     """Mehrere Anlagen pro HA, je ein Gerät und eine Alarm-Entität (Vorgabe des Nutzers)."""
-    await setup_alarm(hass, "Haus")
-    await setup_alarm(hass, "Garage")
+    entries = [await setup_alarm(hass, "Haus"), await setup_alarm(hass, "Garage")]
     assert hass.states.get("alarm_control_panel.haus") is not None
     assert hass.states.get("alarm_control_panel.garage") is not None
-    assert len([d for d in dr.async_get(hass).devices.values() if d.manufacturer == "Alarmageddon"]) == 2
+    devices = [d for e in entries for d in dr.async_entries_for_config_entry(dr.async_get(hass), e.entry_id)]
+    assert len(devices) == 2 and all(d.manufacturer == "Alarmageddon" for d in devices)
 
 
 async def test_arm_away_with_exit_delay(hass: HomeAssistant, freezer) -> None:

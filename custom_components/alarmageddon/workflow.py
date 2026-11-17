@@ -164,6 +164,9 @@ def start_budget() -> float:
 # Der Ablauf, in dem der laufende Code steht ("home", "away", "night" oder "always"). Zwei Abläufe können nebeneinander laufen
 # (Modus und "Immer aktiv"); jeder läuft in seiner eigenen Aufgabe, darum trägt die Aufgabe ihren Ablauf mit.
 _LANE: ContextVar[str | None] = ContextVar("alarmageddon_lane", default=None)
+# Läuft der Code in einer Aktions-Gruppe? Dort gilt je Gerät nur ein vorgemerkter Gegendienst (siehe _plan_undo). Die Aufgabe der Gruppe
+# setzt die Marke, die Aufgaben ihrer Schritte erben sie.
+_IN_GROUP: ContextVar[bool] = ContextVar("alarmageddon_in_group", default=False)
 
 
 def _retrieve(task: asyncio.Task) -> None:
@@ -217,6 +220,7 @@ class WorkflowRunner:
         # Gruppen "bis deaktiviert", die in diesem Prozess laufen: (Ablauf, Schritt). Nach einem Neustart ist die Menge leer, die
         # abgelegten Gruppen des Laufs starten dann wieder (_execute)
         self._endless: set[tuple[str, int]] = set()
+        self._undo_tasks: dict[int, asyncio.Task] = {}  # Aufgabe je vorgemerktem Gegendienst (Schlüssel: der Eintrag), um ihn ersetzen zu können
 
     # ----- Konfiguration -----
 
@@ -1020,6 +1024,9 @@ class WorkflowRunner:
     # - Dauer: die Zeit bestimmt der Nutzer und zählt ab dem ersten Start, auch über Neuladen und Neustart (_remaining). Eine Runde beginnt nur,
     #   wenn sie nach der Dauer der vorigen noch ganz in die Zeit passt: die Gruppe endet nie mitten in einer Runde (das Licht bliebe an) und
     #   läuft nie länger als eingestellt. Die erste Runde läuft immer ganz. Die Gruppe selbst dauert genau die eingestellte Zeit.
+    # - "Nach einer Zeit rückgängig machen" in einer Gruppe (1.60.0, Entscheid des Nutzers 2026-11-17): je Gerät gilt nur ein vorgemerkter
+    #   Gegendienst, jede Runde ersetzt den der vorigen (_plan_undo). So wächst die Liste nie mit den Runden; ist die Runde kürzer als die
+    #   Zeit, schaltet das Gerät erst nach der letzten Runde zurück (oder sofort beim Deaktivieren, Quittieren, "Alarmton stumm").
     # - Bis deaktiviert: nur im Ablauf des Alarms, läuft immer nebenher und beginnt nach einem Neustart mitten im Alarm wieder (_resume_endless).
     # Jede Runde dauert mindestens GROUP_MIN_ROUND Sekunden. Auf die Zeitachse des Alarms kommen die Schritte nur in der ersten Runde.
 
@@ -1028,6 +1035,7 @@ class WorkflowRunner:
         run = self._run
         if not inner or run is None:
             return
+        _IN_GROUP.set(True)  # gilt für diese Aufgabe (die der Gruppe) und alle, die sie startet
         mode = step.get("mode")
         rounds = group_rounds(step) if mode == "count" else None
         done = self._group_done(run) if resumable and rounds is not None else 0
@@ -1148,17 +1156,34 @@ class WorkflowRunner:
                 return
             entry = {"domain": domain, "service": inverse, "target": list(targets) if isinstance(targets, (list, tuple)) else [targets],
                      "at": (dt_util.utcnow() + timedelta(seconds=seconds)).isoformat()}
+            if _IN_GROUP.get():
+                # In einer Gruppe käme sonst mit jeder Runde ein Eintrag dazu (bei "bis deaktiviert" ohne Grenze), und die Gegendienste
+                # früherer Runden liefen mitten in spätere hinein: der neue Eintrag ersetzt den für dieselben Geräte
+                for old in [e for e in run.get("undo") or [] if self._same_undo(e, entry)]:
+                    run["undo"].remove(old)
+                    task = self._undo_tasks.pop(id(old), None)
+                    if task is not None:
+                        task.cancel()
             run.setdefault("undo", []).append(entry)
             self._store.async_delay_save(lambda: self._run or {}, 0)
             self._arm_undo(run, entry)
         except Exception:  # noqa: BLE001 - der Schritt selbst ist erledigt, das Vormerken hält nichts auf
             _LOGGER.exception("%s: planning the undo of a step failed", self.entry.title)
 
+    @staticmethod
+    def _same_undo(one: Any, other: dict[str, Any]) -> bool:
+        """Derselbe Gegendienst für dieselben Geräte (die Zeit zählt nicht)?"""
+        return (isinstance(one, dict) and one.get("domain") == other.get("domain") and one.get("service") == other.get("service")
+                and sorted(str(t) for t in one.get("target") or []) == sorted(str(t) for t in other.get("target") or []))
+
     def _arm_undo(self, run: dict[str, Any], entry: dict[str, Any]) -> None:
         """Den Gegendienst zur vorgemerkten Zeit ausführen (Aufgabe nebenher: sie endet mit dem Lauf)."""
         task = self._background(self._undo_task(run, entry))
         self._side_tasks.add(task)
         task.add_done_callback(self._side_tasks.discard)
+        key = id(entry)
+        self._undo_tasks[key] = task
+        task.add_done_callback(lambda done, key=key: self._undo_tasks.pop(key, None) if self._undo_tasks.get(key) is done else None)
 
     async def _undo_task(self, run: dict[str, Any], entry: dict[str, Any]) -> None:
         try:
@@ -1364,6 +1389,7 @@ class WorkflowRunner:
         late, self._late = list(self._late), set()
         side, self._side_tasks = list(self._side_tasks), set()
         self._endless = set()  # mit den Aufgaben enden auch die Gruppen "bis deaktiviert" dieses Laufs
+        self._undo_tasks = {}  # ihre Aufgaben sind unter den Aufgaben nebenher (die Einträge bleiben im Lauf: _flush_undos)
         task, self._task = self._task, None
         also, self._also_task = self._also_task, None
         for item in late:

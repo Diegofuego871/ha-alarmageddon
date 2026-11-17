@@ -394,10 +394,14 @@ async def test_restart_keeps_state_in_the_store(hass: HomeAssistant, hass_storag
     await hass.config_entries.async_reload(entry.entry_id)
     await settle(hass)
     assert len(pushes) == 1
-    # Zwischenzeitlich wieder in Ordnung (während HA aus war): "wieder in Ordnung" kommt nach dem Start
-    hass.data[DATA_MONITOR].pop(entry.entry_id)
+    # Zwischenzeitlich wieder in Ordnung (während HA aus war): "wieder in Ordnung" kommt nach dem Start. HA ist dabei wirklich aus: die
+    # Anlage ist entladen, niemand hört dem Sensor zu (mit laufender Anlage käme die Meldung sofort, und die Ablage wäre noch die alte)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await settle(hass)
+    hass.data[DATA_MONITOR].pop(entry.entry_id, None)
     hass.states.async_set(TEMP, "5", {"friendly_name": "Kühlschrank Temperatur", "unit_of_measurement": "°C"})
-    await hass.config_entries.async_reload(entry.entry_id)
+    assert len(pushes) == 1
+    assert await hass.config_entries.async_setup(entry.entry_id)
     await settle(hass)
     assert len(pushes) == 2 and pushes[1].data["title"].startswith("✅")
 

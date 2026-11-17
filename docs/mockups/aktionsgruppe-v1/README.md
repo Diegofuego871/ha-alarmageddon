@@ -16,7 +16,7 @@ gut erkennbar sein, zum Beispiel leicht nach rechts versetzt mit einer Klammer d
 - Zusatz: Wandert eine Gruppe in einen anderen Bereich, fallen nach einer Rückfrage die Aktionen weg, die es dort nicht gibt.
 
 Was vom Konzept unten abweicht, steht in `docs/HANDOVER.md` (Abschnitt 1.59.0): flache Angaben `mode`/`count`/`seconds` statt `repeat`, die
-Dauer endet nie mitten in einer Runde, "Rückgängig nach einer Zeit" gibt es in einer Gruppe nicht.
+Dauer endet nie mitten in einer Runde; "Rückgängig nach einer Zeit" gibt es in einer Gruppe seit 1.60.0 (je Gerät ein vorgemerkter Gegendienst).
 
 ## Varianten
 

@@ -4,6 +4,7 @@
 
 const V = new URL(import.meta.url).search;
 const { ic, esc, DC, OPENINGS, MOTION, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText } = await import(`./common.js${V}`);
+const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
 const SCOPES = [...ALL_MODES, "always"]; // Bereiche mit eigenen Werten: die Modi und der Reiter "Immer aktiv" (deaktivierter Zustand)
@@ -126,7 +127,7 @@ export class SensorsUi {
 
   // Messwert-Sensor (Temperatur, Luftfeuchtigkeit, CO2 ...): nur für die Überwachung, ohne Zonen, "Immer aktiv" und Eingangsverzögerung
   isValue(id) {
-    return this.host._data?.sensors?.[id]?.kind === "value";
+    return this.host._sensor(id).kind === "value";
   }
 
   // "Immer aktiv" insgesamt an (Anlage › Modi): sonst entfallen Reiter, Spalte und Option in der Ansicht, die Werte bleiben gespeichert
@@ -259,7 +260,7 @@ export class SensorsUi {
     const d = this.ensureDraft();
     if (!d) return [];
     const q = this.q.trim().toLowerCase();
-    return Object.entries(h._data?.sensors || {})
+    return Object.entries(h._known())
       .filter(([id, info]) => {
         // Nur Sensoren, die der Nutzer für diese Anlage gewählt hat (Plus); sonst wäre alles drin, was HA kennt.
         // Messwerte stehen nur bei eingeschalteter Überwachung in der Liste (ihre Wahl bleibt sonst gespeichert).
@@ -631,7 +632,7 @@ export class SensorsUi {
     const q = (this.pick?.q || "").trim().toLowerCase();
     const f = this.pick?.filter || "all";
     const kind = (info) => (info.kind === "value" ? "measure" : OPENINGS.has(info.device_class) ? "openings" : MOTION.has(info.device_class) ? "motion" : "other");
-    return Object.entries(h._data?.sensors || {})
+    return Object.entries(h._known())
       // Messwerte nur bei eingeschalteter Überwachung (sie haben eine eigene Liste)
       .filter(([id, info]) => !info.missing && !this.draft.sensors.has(id) && !this.draft.monitorSensors.has(id) && (info.kind !== "value" || this.monitorOn)
         && (f === "all" || kind(info) === f)
@@ -640,16 +641,32 @@ export class SensorsUi {
       .sort((a, b) => Number(!a.info.area) - Number(!b.info.area) || a.area.localeCompare(b.area) || a.name.localeCompare(b.name));
   }
 
-  openPick() {
+  // Das Fenster öffnet sofort (mit den Kandidaten vom letzten Mal, beim ersten Mal mit der Ladeanzeige); die Liste aller Sensoren des
+  // Hauses kommt erst jetzt vom Server (1.60.0) und ersetzt sie, sobald sie da ist
+  async openPick() {
     if (!this.ensureDraft()) return;
-    this.pick = { q: "", filter: "all", sel: new Set() };
+    const pick = { q: "", filter: "all", sel: new Set(), loading: true };
+    this.pick = pick;
     this.renderPick();
     const dlg = this.host._root.getElementById("ag-pick");
     if (!dlg.open) dlg.showModal();
+    try {
+      await this.host._loadCandidates();
+    } catch (err) {
+      if (this.pick === pick) this.host._toast(this._t("errGeneric", { message: errText(err) }));
+    }
+    if (this.pick !== pick) return; // inzwischen geschlossen
+    pick.loading = false;
+    this.renderPick();
   }
 
   _pickListHtml() {
     const rows = this.pickCandidates();
+    // Erstes Öffnen: die Kandidaten sind unterwegs (Ladeanzeige nach der Regel: drei Punkte, kein Text)
+    if (this.pick.loading && !this.host._candidates) {
+      loaderStart(this.host._root, this.host);
+      return `<div class="ag-pick-wait" style="position:relative;min-height:120px">${loaderHtml(esc(this._t("loading")))}</div>`;
+    }
     if (!rows.length) return `<div class="ag-t2 ag-small" style="padding:14px">${esc(this._t("pickNone"))}</div>`;
     let area = null;
     return rows.map((r) => {
@@ -709,7 +726,7 @@ export class SensorsUi {
 
   addPicked() {
     const d = this.ensureDraft();
-    for (const id of this.pick.sel) (this.host._data?.sensors?.[id]?.kind === "value" ? d.monitorSensors : d.sensors).add(id);
+    for (const id of this.pick.sel) (this.host._sensor(id).kind === "value" ? d.monitorSensors : d.sensors).add(id);
     this.pick = null;
     this.saveState = null;
     this.host._closeDialog("ag-pick");

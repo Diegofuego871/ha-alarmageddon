@@ -5,7 +5,7 @@
 // Dieselben Regeln wie routines.check_routines und schemas.py: der Server prüft alles noch einmal.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, MODE_KEY, MODE_ICON, chapter } = await import(`./common.js${V}`);
+const { ic, esc, MODE_KEY, MODE_ICON, chapter, matchQuery, searchField } = await import(`./common.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
 const CLOCK_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -64,6 +64,7 @@ export class RoutinesUi {
     this.snap = "";
     this.index = -1; // Platz in der Liste; -1 = neue Routine
     this.pick = null; // Geräteauswahl: { path, q, filter, area }
+    this.q = ""; // Suche im Fenster "Routinen": alles, was die Zeile zeigt, dazu die Entitäts-IDs der Geräte
     this.ents = null; // Geräte vom Server { list, byId }, null = noch nicht geladen
     this.loading = false;
   }
@@ -193,20 +194,39 @@ export class RoutinesUi {
   // Popup mit allen Routinen (Handy: ganzer Bildschirm): Übersicht im Design der Zeilen, neue Routine hier; leer: Knopf in der Mitte, sonst in der Fusszeile
   listHtml() {
     const d = this.draft;
-    const modes = this._modes || [];
-    const pending = this.unsaved().ids;
-    const rows = d.routines.map((r, i) => this._row(r, i, modes, pending.has(r.id))).join("");
+    const rows = d.routines.length > 0;
     const full = d.routines.length >= MAX_ROUTINES;
     const add = (cls) => `<button class="ag-btn ${cls}" data-sys="rt-add" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("rtAdd"))}</button>`;
+    // Suchfeld über der Liste (1.60.0, Wunsch des Nutzers); beim Tippen wird nur die Liste darunter neu gezeichnet, das Feld behält den Fokus
     const body = rows
-      ? `<div class="ag-card ag-setlist ag-codes ag-rt">${rows}</div><p class="ag-chap-h ag-rtfoot">${esc(this._t("rtFootHint"))}</p>`
+      ? `<div class="ag-tools ag-pop-tools">${searchField("data-sys", "rt-search", this.q, this._t("rtFilter"), this._t("clearSearch"))}</div>
+        <div class="ag-rtrows">${this._rowsHtml()}</div><p class="ag-chap-h ag-rtfoot">${esc(this._t("rtFootHint"))}</p>`
       : `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(this._t("rtEmpty"))}</span>${add("primary")}</div>`;
     return `<div class="ag-dlg-body ag-rt-pop"><h3>${esc(this._t("rtTitle"))}</h3>${body}
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-close">${esc(this._t("close"))}</button>${rows ? add("primary") : ""}</div></div>`;
   }
 
+  // Die Zeilen, die zur Suche passen (jede behält ihre Stelle im Entwurf: Knöpfe wirken auf die richtige Routine)
+  _rowsHtml() {
+    const d = this.draft;
+    const modes = this._modes || [];
+    const pending = this.unsaved().ids;
+    const rows = d.routines.map((r, i) => (this._matches(r, modes, pending.has(r.id)) ? this._row(r, i, modes, pending.has(r.id)) : "")).join("");
+    return rows ? `<div class="ag-card ag-setlist ag-codes ag-rt">${rows}</div>` : `<div class="ag-card ag-popempty"><span class="ag-t2">${esc(this._t("rtNoMatch"))}</span></div>`;
+  }
+
+  // Passt die Routine zur Suche? Alles, was die Zeile zeigt (Name, Auslöser und Wirkung in Worten, die Marken), dazu die Entitäts-IDs der
+  // Geräte im Auslöser (die Zeile zeigt nur ihre Namen)
+  _matches(r, modes, pending) {
+    if (!this.q.trim()) return true;
+    const leaves = r.trigger.type === "device" ? r.trigger.tree.items.flatMap((item) => (item.items ? item.items : [item])) : [];
+    return matchQuery(this.q, r.name, this.whenText(r), this.thenText(r), this._tags(r, modes).map((tag) => tag[1]), leaves.map((leaf) => leaf.entity_id),
+      pending ? this._t("unsavedOne") : "");
+  }
+
   openList() {
     const dlg = this.listDlg;
+    if (!dlg.open) this.q = "";
     this.refreshList(true);
     if (!dlg.open) dlg.showModal();
   }
@@ -222,8 +242,8 @@ export class RoutinesUi {
     if (again && top) again.scrollTop = top;
   }
 
-  _row(r, i, modes, pending = false) {
-    const on = r.enabled !== false;
+  // Die Marken einer Zeile: [Klasse, Text, mit Warnsymbol]
+  _tags(r, modes) {
     const tags = [];
     if (r.action === "off" && needsConfirm(r.states)) {
       tags.push(["err", this._t("rtBypass"), true]);
@@ -235,6 +255,12 @@ export class RoutinesUi {
     else if (r.states.length === 1 && r.states[0] === "armed") tags.push(["none", this._armedLabel(r) === this._t("rtStArmed") ? this._t("rtOnlyArmed") : this._t("rtIn", { states: this._armedLabel(r) })]);
     else tags.push(["none", this._t("rtIn", { states: names.map((s) => (s[0] === "armed" ? this._armedLabel(r) : this._t(s[1]))).join(", ") })]);
     if (r.action !== "off" && !modes.includes(r.action)) tags.push(["warn", this._t("rtModeOff"), true]);
+    return tags;
+  }
+
+  _row(r, i, modes, pending = false) {
+    const on = r.enabled !== false;
+    const tags = this._tags(r, modes);
     const icon = r.trigger.type === "schedule" ? "clock" : DEVICE_ICON[(r.trigger.tree.items[0]?.items?.[0] || r.trigger.tree.items[0])?.entity_id?.split(".")[0]] || "sensor";
     return `<div class="ag-setrow ag-csrow ag-rtrow ${on ? "" : "dim"}"><button class="ag-toggle ${on ? "on" : ""}" data-sys="rt-on" data-index="${i}" role="switch" aria-checked="${on}" aria-label="${esc(this._t("rtActive"))}"></button>
       <span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span>
@@ -600,6 +626,12 @@ export class RoutinesUi {
     const f = this.form;
     if (act === "rt-open") this.openList();
     else if (act === "rt-close") this.listDlg.close();
+    else if (act === "rt-search-clear") {
+      const input = this.listDlg.querySelector('[data-sys="rt-search"]');
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    }
     else if (act === "rt-add" || act === "rt-add-page") this.open(-1);
     else if (act === "rt-edit") this.open(i);
     else if (act === "rt-dup") {
@@ -727,6 +759,14 @@ export class RoutinesUi {
   onInput(el) {
     const act = el.dataset.sys;
     const f = this.form;
+    if (act === "rt-search") {
+      // Nur die Zeilen neu zeichnen: das Suchfeld behält Fokus und Schreibmarke
+      this.q = el.value;
+      const dlg = this.listDlg;
+      dlg.querySelector('[data-sys="rt-search-clear"]').hidden = !this.q;
+      dlg.querySelector(".ag-rtrows").innerHTML = this._rowsHtml();
+      return true;
+    }
     if (!f || !act?.startsWith("rt-")) return false;
     if (act === "rt-q") {
       this.pick.q = el.value;

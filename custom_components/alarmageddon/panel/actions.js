@@ -201,8 +201,7 @@ export function toStep(f, path = "main") {
     if (step.type === "sound" && step.duration === 0) step.duration = Math.min(3600, Math.max(1, Math.round(Number(f.playSeconds) || 30)));
   }
   if (inGroup(path)) {
-    // In einer Gruppe: kein "Rückgängig nach einer Zeit" (je Runde käme ein Eintrag dazu) und kein Ton, der der Verzögerung folgt
-    delete step.undo_after;
+    // In einer Gruppe: kein Ton, der der Verzögerung folgt. "Nach einer Zeit rückgängig machen" bleibt (seit 1.60.0)
     if (step.delay) {
       delete step.delay;
       step.wait = Boolean(f.wait);
@@ -987,15 +986,16 @@ export class ActionsUi {
 
   // "Danach wieder rückgängig machen" (1.37.0): Gerät schalten, zum Beispiel eine Steckdose mit Sirene: ein, nach N Sekunden aus
   _undoRow(f) {
-    if (inGroup(this.edit?.zone)) return ""; // in einer Gruppe steht das Zurückschalten als eigener Schritt
     if (f.kind !== "device" || !UNDO_SERVICES[toStep(f, this.edit?.zone || "main").action?.split(".")[1]]) return "";
     const domains = [...new Set(f.targets.map((e) => e.split(".")[0]))];
     const back = UNDO_ACTION[f.action];
     const label = this._t(cap(domains.length === 1 ? domains[0] : "", back));
     const head = `<div class="ag-ef ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldUndo"))}</b><small>${esc(this._t("fldUndoHint", { action: label }))}</small></div>${this._toggle('data-wf="undo"', f.undoOn, "fldUndo")}</div>`;
+    // In einer Gruppe gilt je Gerät nur ein vorgemerktes Zurückschalten: jede Runde beginnt die Zeit neu (1.60.0)
+    const group = inGroup(this.edit?.zone) ? `<div class="ag-ef-h ag-undo-group">${esc(this._t("fldUndoGroupHint"))}</div>` : "";
     if (!f.undoOn) return head;
     const quick = [10, 30, 60, 120, 300].map((s) => `<button class="ag-chip ${Number(f.undoSeconds) === s ? "on" : ""}" data-wf="undosecs" data-value="${s}">${esc(s >= 60 ? this._t("durMin", { n: s / 60 }) : this._t("durS", { n: s }))}</button>`).join("");
-    return `${head}<div class="ag-ef"><div class="ag-ef-l">${esc(this._t("fldUndoAfter"))}</div><span class="ag-num"><input type="number" min="1" max="3600" data-wf="f" data-key="undoSeconds" value="${esc(f.undoSeconds)}" aria-label="${esc(this._t("fldUndoAfter"))}"><span class="ag-t2">s</span></span><div class="ag-zline">${quick}</div></div>`;
+    return `${head}<div class="ag-ef"><div class="ag-ef-l">${esc(this._t("fldUndoAfter"))}</div><span class="ag-num"><input type="number" min="1" max="3600" data-wf="f" data-key="undoSeconds" value="${esc(f.undoSeconds)}" aria-label="${esc(this._t("fldUndoAfter"))}"><span class="ag-t2">s</span></span><div class="ag-zline">${quick}</div>${group}</div>`;
   }
 
   _rangeRow(attr, label, value, min, max, step, text) {

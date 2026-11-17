@@ -173,7 +173,8 @@ Umsetzung:
 - Aktions-Gruppe (seit 1.59.0, Schritt `group`; Entscheide des Nutzers, 2026-11-17): wiederholt ihre Schritte eine Anzahl Durchläufe, für eine Dauer oder
   bis deaktiviert wird (`mode`: `count`, `duration`, `until_disarmed`). In allen Listen der Aktionen (nicht in der Überwachung), mit den Schritten, die dort
   erlaubt sind (`schemas._valid_group` prüft die Schritte mit der Prüfung ihrer Liste); "bis deaktiviert" nur im Ablauf des Alarms; nie eine Gruppe in der
-  Gruppe, nie "Quittieren", nie `undo_after` darin; höchstens `GROUP_MAX_STEPS` Schritte, sie zählen zu `MAX_STEPS` (`schemas.step_list`). "wait" wie bei den
+  Gruppe, nie "Quittieren" darin; `undo_after` in einer Gruppe (seit 1.60.0, Entscheid des Nutzers): je Gerät nur ein vorgemerkter Gegendienst, jede Runde
+  ersetzt den der vorigen (`workflow._plan_undo`, `_IN_GROUP`), nie eine Liste, die mit den Runden wächst; höchstens `GROUP_MAX_STEPS` Schritte, sie zählen zu `MAX_STEPS` (`schemas.step_list`). "wait" wie bei den
   anderen Schritten (Standard: läuft nebenher); "bis deaktiviert" wartet nie (`workflow.step_waits`). Jeder Schritt der Gruppe steht unter denselben Grenzen
   wie im Ablauf (`workflow._group`: `_watched` je abgewartetem Schritt, ein Fehler bricht nie die übrigen ab); jede Runde dauert mindestens `GROUP_MIN_ROUND`
   Sekunden (nie eine Schleife ohne Pause). Die Dauer bestimmt der Nutzer und zählt ab dem ersten Start, auch über Neuladen und Neustart; eine Runde beginnt
@@ -184,6 +185,35 @@ Umsetzung:
   Gruppe ist eine Liste wie die anderen (`data-zone="<Liste>:<Stelle>"`, `actions.js baseZone/groupIndex`); wandert eine Gruppe in einen anderen Bereich,
   fallen ungültige Aktionen erst nach einer Rückfrage weg (`_moveAcross`). Tests in `tests/test_group.py` und `tests/test_action_hang.py`, Suite
   `group-e2e.mjs`, Zeilen "Aktions-Gruppe" in `scripts/mutation_check.py`. Jede neue Schrittart ergänzt `GROUP_EXCLUDED` oder ist in Gruppen erlaubt (Test).
+- Verträglichkeit mit neueren Versionen von Home Assistant (seit 1.60.0; Aufzeichnung des Nutzers vom 2026-11-17 auf 2026.11.1): Die Tests liefen bis
+  1.59.0 nur gegen 2026.2.3, drei Mängel blieben deshalb unbemerkt. **Geräte-Registry:** ein Gerät gehört dort zu einem Konfigurationseintrag
+  (`config_entry_id`), es gibt untergeordnete Geräte ohne Hardware-Angaben; die alten Zugriffe (`DeviceEntry.config_entries`, `primary_config_entry`,
+  `registry.devices` als Wörterbuch, `async_get_device`, Hardware-Felder am untergeordneten Gerät) sind veraltete Brücken, die bei **jedem** Zugriff den
+  Aufrufer in allen geladenen Modulen suchen (`frame.report_usage`, mehrere Millisekunden im Event-Loop). `reception._domains` las `config_entries` je
+  Sensor zweimal: bei 151 Sensoren stand ganz Home Assistant bei jedem Abruf der Übersicht rund 1,4 Sekunden still, bei offenem Panel alle 30 Sekunden.
+  Darum: Geräte nur über `devices.entry_ids`, `main_device`, `device_field`, `system_device` lesen, freie Entitäts-IDs über `devices.free_entity_id`; nie
+  die alten Zugriffe direkt. Was je Gerät gleich ist (Empfang, Hardware), je Abruf einmal je Gerät lesen, nicht je Sensor. `tests/conftest.py` lässt
+  jeden Test scheitern, bei dem Home Assistant eine veraltete Nutzung durch die Integration meldet (wirkt in der aktuellen Testumgebung);
+  `tests/test_ha_compat.py` baut die neuen Geräte nach und läuft in beiden. **Prüf-Bibliothek:** neuere Versionen ersetzen voluptuous durch probatio;
+  in einem Schema mit `REMOVE_EXTRA` (Sicherungen) verwirft sie auch in den Wörterbüchern darunter unbekannte Schlüssel, statt abzulehnen: dort nie
+  `{vol.In(...): ...}`, immer `schemas.strict_map` (Test `-k lenient_nested_maps`). **Zwei Testumgebungen:** `requirements_test.txt` (2026.2.3, Python
+  3.13) und `requirements_test_current.txt` (2026.10.4, Python 3.14); beide müssen bestehen (`.github/workflows/tests.yml`, Matrix). Beim Anheben der
+  aktuellen Umgebung die Liste der veralteten Schnittstellen in `homeassistant/helpers/device_registry.py` und `entity_registry.py` ansehen
+  (`report_usage`).
+- Geschwindigkeit der Übersicht (seit 1.60.0, Meldung des Nutzers): `alarmageddon/data` nennt nur die Sensoren der Anlagen (`_sensor_info(..., candidates=False)`); die
+  Kandidaten des ganzen Hauses kommen nur auf Abruf (`alarmageddon/sensor_candidates`, Panel `_loadCandidates`, Fenster "Sensoren hinzufügen"). Nie wieder alles,
+  was das Haus hat, in eine Antwort legen, die bei jedem Öffnen und alle 30 Sekunden läuft; `ws_data` läuft ohne Unterbrechung im Event-Loop, jede Millisekunde
+  darin hält ganz Home Assistant an. Das Panel bekommt `hass` viermal je Sekunde (`panel.html`): in `set hass` nur billige Arbeit, und neu gezeichnet wird nur
+  für Sensoren, die zu sehen sind (`_shownSensors`), Zustände sofort, Messwerte, Batterie und Empfang gesammelt höchstens alle `SOFT_MS` (`_stateSigs`: zwei
+  Signaturen). Wer eine Ansicht um laufend wechselnde Werte erweitert, legt sie in die zweite Signatur. Suite `perf-e2e.mjs` (grosses Haus im Nachbau:
+  `?house=`, `?housechosen=`, `?churn=`), Tests `test_websocket.py::test_data`, `test_review_1_58.py -k data_lists`, `test_ha_compat.py -k once_per_device`.
+- Suche in den Fenstern mit Listen (seit 1.60.0, Wunsch des Nutzers): Routinen, Eigene Töne, Sicherungen haben ein Suchfeld über der Liste
+  (`common.js searchField`, `matchQuery`: jedes Wort muss vorkommen), die Sicherungen dazu den Filter "Nur automatische". Gesucht wird in allem, was die
+  Zeile zeigt, bei Routinen auch in den Entitäts-IDs. Beim Tippen wird nur der Behälter der Zeilen neu gezeichnet (`.ag-rtrows`, `.ag-csrows`,
+  `.ag-bkbody`): das Feld behält den Fokus, ein offenes Formular seinen Inhalt. Gefilterte Zeilen behalten ihre Stelle im Entwurf (`data-index`).
+  Suite `popsearch-e2e.mjs`. Ein neues Fenster mit einer Liste bekommt dasselbe Suchfeld.
+- Sensoransicht (seit 1.60.0): ein Messwert hat Werteverlauf, Batterie und Empfang, ein Binärsensor Verlauf, Batterie und Empfang
+  (`ws_sensor_history`; bis 1.59.0 waren Batterie und Empfang für Messwerte abgelehnt). Test `test_measure_history.py -k battery_and_signal`.
 - Neustart und Absturz (seit 1.58.0, Code-Review): Der Zustand steht in einer eigenen Ablage (`controller._save_state`, `STATE_STORE_KEY`), sofort bei jedem
   Wechsel geschrieben; beim Start gilt der neuere von eigener Ablage und Restore-Stand von HA (`controller.newer_state`). Was beim Wiederherstellen
   auslösen muss (abgelaufene Eingangsverzögerung), löst erst in `controller.async_finish_restore()` aus, wenn alle Zuhörer angemeldet sind
@@ -371,7 +401,8 @@ Gelten, sobald der jeweilige Teil existiert:
   (`node --check` allein findet in Modulen keine Syntaxfehler)
 - kein "ß" in Code, Texten, README, CHANGELOG
 - README und CHANGELOG EN/DE gleich aufgebaut (Test)
-- `python -m pytest` (Python 3.13, `pip install -r requirements_test.txt`)
+- `python -m pytest` in beiden Testumgebungen: Python 3.13 mit `pip install -r requirements_test.txt` (Home Assistant 2026.2.3) und Python 3.14 mit
+  `pip install -r requirements_test_current.txt` (Home Assistant 2026.10.4)
 - `python scripts/mutation_check.py` (Mutationsprobe der Sicherheitstests, siehe "Sicherheitstests")
 - Panel-Tests mit HA-Nachbau und Playwright, je Sprache, Desktop und Handy
   (390 × 844), echte Klicks/Taps.

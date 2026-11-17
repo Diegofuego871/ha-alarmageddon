@@ -3,7 +3,7 @@
 // Dieselben Schlüssel wie der Optionsdialog von HA (WebSocket alarmageddon/save_system). Der Code bleibt im Optionsdialog.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter } = await import(`./common.js${V}`);
+const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, matchQuery, searchField } = await import(`./common.js${V}`);
 const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo, soundBadge } = await import(`./customsounds.js${V}`);
 const { RoutinesUi, normRoutines, canon } = await import(`./routines.js${V}`);
 
@@ -210,31 +210,47 @@ export class SystemUi {
   csListHtml() {
     const t = (k, v) => this._t(k, v);
     const list = customList(this.host);
+    const rows = this._csRows();
+    const full = list.length >= (this.host._data?.custom_sound_limits?.max || 20);
+    const add = (cls) => `<button class="ag-btn ${cls}" data-sys="cs-upload-open" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(t("csUpload"))}</button>`;
+    const up = this.cs.upload ? `<div class="ag-setrow ag-up-row">${uploadHtml(t, this.host, this.cs.upload, (name) => `data-sys="${name}"`)}</div>` : "";
+    // Suchfeld über der Liste (1.60.0, wie bei den Routinen); die Zeilen stehen in einem eigenen Behälter, damit beim Tippen nur sie neu
+    // gezeichnet werden (das Suchfeld behält den Fokus, ein offenes Formular zum Hochladen seine gewählte Datei)
+    const tools = list.length ? `<div class="ag-tools ag-pop-tools">${searchField("data-sys", "cs-search", this.cs.q || "", t("csFilter"), t("clearSearch"))}</div>` : "";
+    const body = list.length || up
+      ? `${tools}<div class="ag-card ag-setlist ag-codes" data-cs="manage"><div class="ag-csrows">${rows}</div>${up}</div>`
+      : `<div class="ag-card ag-rtempty" data-cs="manage"><span class="ag-t2">${esc(t("csEmpty"))}</span>${add("primary")}</div>`;
+    return `<div class="ag-dlg-body ag-cs-pop"><h3>${esc(t("csTitle"))}</h3>${body}
+      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="cs-close">${esc(t("close"))}</button>${list.length && !up ? add("primary") : ""}</div></div>`;
+  }
+
+  // Die Zeilen der Töne, die zur Suche passen: Name, Länge und Grösse, "genutzt" in Worten und die Anlagen, die den Ton nutzen. Die Zeile,
+  // die gerade umbenannt wird, bleibt immer stehen.
+  _csRows() {
+    const t = (k, v) => this._t(k, v);
+    const list = customList(this.host);
+    const q = this.cs.q || "";
     const rows = list.map((s) => {
+      const u = usage(this.host, s.id);
+      const used = t(u.steps > 1 ? "csUsedMany" : u.steps ? "csUsed" : "csUnused", { n: u.steps });
+      if (this.cs.rename !== s.id && !matchQuery(q, s.name, soundInfo(s), used, u.systems)) return "";
       if (this.cs.rename === s.id) {
         return `<div class="ag-setrow ag-csrow"><div class="ag-settx"><input class="ag-input" type="text" maxlength="40" value="${esc(this.cs.text)}" data-sys="cs-name-edit" aria-label="${esc(t("upName"))}">
           <small class="ag-dlg-err ag-up-err" aria-live="polite">${esc(this.cs.error)}</small></div>
           <div class="ag-btnrow"><button class="ag-btn primary" data-sys="cs-rename-ok">${esc(t("save"))}</button><button class="ag-btn" data-sys="cs-rename-cancel">${esc(t("cancel"))}</button></div></div>`;
       }
-      const u = usage(this.host, s.id);
       const playing = this.cs.playing === s.url;
-      return `<div class="ag-setrow ag-csrow" data-sound="${esc(s.id)}">${soundBadge(s.id, playing)}<div class="ag-settx"><b>${esc(s.name)}</b><small>${esc(soundInfo(s))} · ${esc(t(u.steps > 1 ? "csUsedMany" : u.steps ? "csUsed" : "csUnused", { n: u.steps }))}</small></div>
+      return `<div class="ag-setrow ag-csrow" data-sound="${esc(s.id)}">${soundBadge(s.id, playing)}<div class="ag-settx"><b>${esc(s.name)}</b><small>${esc(soundInfo(s))} · ${esc(used)}</small></div>
         <div class="ag-btnrow"><button class="ag-iconbtn ${playing ? "on" : ""}" data-sys="${playing ? "cs-stop" : "cs-play"}" data-url="${esc(s.url)}" aria-label="${esc(t(playing ? "pvStop" : "pvPlay"))}" title="${esc(t(playing ? "pvStop" : "pvPlay"))}">${ic(playing ? "stop" : "play", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-rename" data-id="${esc(s.id)}" aria-label="${esc(t("csRename"))}" title="${esc(t("csRename"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-delete" data-id="${esc(s.id)}" aria-label="${esc(t("csDelete"))}" title="${esc(t("csDelete"))}">${ic("trash", 18)}</button></div></div>`;
     }).join("");
-    const full = list.length >= (this.host._data?.custom_sound_limits?.max || 20);
-    const add = (cls) => `<button class="ag-btn ${cls}" data-sys="cs-upload-open" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(t("csUpload"))}</button>`;
-    const up = this.cs.upload ? `<div class="ag-setrow ag-up-row">${uploadHtml(t, this.host, this.cs.upload, (name) => `data-sys="${name}"`)}</div>` : "";
-    const body = rows || up
-      ? `<div class="ag-card ag-setlist ag-codes" data-cs="manage">${rows}${up}</div>`
-      : `<div class="ag-card ag-rtempty" data-cs="manage"><span class="ag-t2">${esc(t("csEmpty"))}</span>${add("primary")}</div>`;
-    return `<div class="ag-dlg-body ag-cs-pop"><h3>${esc(t("csTitle"))}</h3>${body}
-      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="cs-close">${esc(t("close"))}</button>${rows && !up ? add("primary") : ""}</div></div>`;
+    return rows || (list.length ? `<div class="ag-setrow ag-popempty"><span class="ag-t2">${esc(t("csNoMatch"))}</span></div>` : "");
   }
 
   openCsList() {
     const dlg = this._csDlg();
+    if (!dlg.open) this.cs.q = "";
     this.refreshCsList(true);
     if (dlg.open) return;
     // Beim Schliessen (Knopf, X, Esc): Ton anhalten, halbfertiges Umbenennen und Hochladen verwerfen
@@ -345,7 +361,13 @@ export class SystemUi {
   openBackupList() {
     const dlg = this._bkDlg();
     if (this.backups === null && !this._bkLoading) this.loadBackups();
-    dlg.innerHTML = `<div class="ag-dlg-body ag-bk-pop"><h3>${esc(this._t("bkListTitle"))}</h3><div class="ag-bkbody">${this._bkBody()}</div>
+    // Suchfeld und Filter "Automatisch" (1.60.0, Wunsch des Nutzers) stehen über der Liste und ausserhalb davon: die Liste wird beim Tippen
+    // und beim Laden für sich neu gezeichnet. Ohne Sicherungen bleiben sie verborgen.
+    if (!dlg.open) Object.assign(this, { bkQ: "", bkAutoOnly: false });
+    dlg.innerHTML = `<div class="ag-dlg-body ag-bk-pop"><h3>${esc(this._t("bkListTitle"))}</h3>
+      <div class="ag-tools ag-pop-tools ag-bktools" ${this.backups?.length ? "" : "hidden"}>${searchField("data-sys", "bk-search", this.bkQ || "", this._t("bkFilter"), this._t("clearSearch"))}
+        <button type="button" class="ag-chip ${this.bkAutoOnly ? "on" : ""}" data-sys="bk-auto-only" aria-pressed="${Boolean(this.bkAutoOnly)}">${ic("restore", 16)}${esc(this._t("bkFilterAuto"))}</button></div>
+      <div class="ag-bkbody">${this._bkBody()}</div>
       <div class="ag-dlg-btns ag-bkfoot"><button class="ag-btn" data-sys="export">${ic("arrowDown", 18)}${esc(this._t("bkExport"))}</button>
         <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden>
         <span class="ag-grow"></span><button class="ag-btn primary" data-sys="bk-close">${esc(this._t("close"))}</button></div></div>`;
@@ -372,7 +394,9 @@ export class SystemUi {
     // Sortierbare Spalten (Standard: Datum, neueste oben); die Tabelle rollt für sich ab zehn Zeilen, der Kopf bleibt stehen
     const sort = this.bkSort || (this.bkSort = { key: "date", dir: "desc" });
     const val = { name: (b) => (b.name || "").toLowerCase(), date: (b) => b.created || "", systems: (b) => (b.systems || []).join(", ").toLowerCase() }[sort.key];
-    const list = [...this.backups].sort((x, y) => (val(x) < val(y) ? -1 : val(x) > val(y) ? 1 : 0) * (sort.dir === "desc" ? -1 : 1) || (x.created < y.created ? 1 : -1));
+    // Suche: Name, "Automatisch", Datum (wie angezeigt) und die Anlagen; der Filter "Automatisch" zeigt nur die automatischen Sicherungen
+    const shown = this.backups.filter((b) => (!this.bkAutoOnly || b.auto) && matchQuery(this.bkQ, b.name, b.auto ? this._t("bkAutoTag") : "", date(b.created), b.systems));
+    const list = shown.sort((x, y) => (val(x) < val(y) ? -1 : val(x) > val(y) ? 1 : 0) * (sort.dir === "desc" ? -1 : 1) || (x.created < y.created ? 1 : -1));
     const rows = list.map((b) => `<tr data-bk="${esc(b.id)}"><td>${b.name || !b.auto ? `<b class="ag-bkname">${esc(b.name || "–")}</b>` : ""}${b.auto ? `<span class="ag-tag none ag-bkauto-tag">${esc(this._t("bkAutoTag"))}</span>` : ""}<small class="ag-t2 ag-bksys-m">${esc((b.systems || []).join(", ") || "–")}</small></td><td class="ag-t2 ag-bkdate">${esc(date(b.created))}</td><td class="ag-t2 ag-bksys">${esc((b.systems || []).join(", ") || "–")}</td>
         <td class="ag-acts"><div class="ag-actrow">${btn("bk-download", "arrowLine", "bkDownload", b.id)}${btn("bk-restore", "restore", "bkRestoreOne", b.id)}${btn("bk-delete", "trash", "bkDelete", b.id)}</div></td></tr>`).join("");
     const th = (key, label) => {
@@ -380,12 +404,15 @@ export class SystemUi {
       return `<th aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sortbtn ${on ? "on" : ""}" data-sys="bk-sort" data-key="${key}" title="${esc(this._t("sortBy", { column: label }))}">${esc(label)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;
     };
     return `<div class="ag-t2 ag-small" style="margin:10px 4px 6px">${esc(this._t("bkCount", { count: this.backups.filter((b) => !b.auto).length, max: this.bkMax }))}${this.backups.some((b) => b.auto) ? ` · ${esc(this._t("bkCountAuto", { count: this.backups.filter((b) => b.auto).length, max: this.bkMaxAuto }))}` : ""}</div>
-      <div class="ag-card ag-bkwrap"><table class="ag-table ag-bktable"><tr>${th("name", this._t("bkColName"))}${th("date", this._t("bkColDate"))}${th("systems", this._t("bkColSystems")).replace("<th ", '<th class="ag-bksys" ')}<th></th></tr>${rows}</table></div>`;
+      ${rows ? `<div class="ag-card ag-bkwrap"><table class="ag-table ag-bktable"><tr>${th("name", this._t("bkColName"))}${th("date", this._t("bkColDate"))}${th("systems", this._t("bkColSystems")).replace("<th ", '<th class="ag-bksys" ')}<th></th></tr>${rows}</table></div>`
+        : `<div class="ag-card ag-popempty"><span class="ag-t2">${esc(this._t("bkNoMatch"))}</span></div>`}`;
   }
 
   renderBackups() {
     const el = this._bkDlg()?.querySelector(".ag-bkbody");
     if (el) this.host._setHtml(el, this._bkBody());
+    const tools = this._bkDlg()?.querySelector(".ag-bktools");
+    if (tools) tools.hidden = !this.backups?.length;
     const last = this.host._view?.querySelector(".ag-bklast-tx");
     if (last) last.innerHTML = this._bkLastHtml();
     this.host._stickySync?.();
@@ -771,6 +798,21 @@ export class SystemUi {
       this.openCsList();
       return true;
     }
+    if (act === "cs-search-clear" || act === "bk-search-clear") {
+      const input = el.closest(".list-search").querySelector("input");
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+      return true;
+    }
+    if (act === "cs-search" || act === "bk-search") return true; // ein Klick ins Suchfeld löst nichts aus
+    if (act === "bk-auto-only") {
+      this.bkAutoOnly = !this.bkAutoOnly;
+      el.classList.toggle("on", this.bkAutoOnly);
+      el.setAttribute("aria-pressed", String(this.bkAutoOnly));
+      this.renderBackups();
+      return true;
+    }
     if (act === "cs-close") {
       this._csDlg().close();
       return true;
@@ -924,6 +966,20 @@ export class SystemUi {
     }
     if (el.dataset.sys === "cs-name") {
       if (this.cs.upload) this.cs.upload.name = el.value;
+      return true;
+    }
+    if (el.dataset.sys === "cs-search") {
+      // Nur die Zeilen neu zeichnen: Suchfeld und ein offenes Formular zum Hochladen bleiben, wie sie sind
+      this.cs.q = el.value;
+      const dlg = this._csDlg();
+      dlg.querySelector('[data-sys="cs-search-clear"]').hidden = !this.cs.q;
+      dlg.querySelector(".ag-csrows").innerHTML = this._csRows();
+      return true;
+    }
+    if (el.dataset.sys === "bk-search") {
+      this.bkQ = el.value;
+      this._bkDlg().querySelector('[data-sys="bk-search-clear"]').hidden = !this.bkQ;
+      this.renderBackups();
       return true;
     }
     if (el.dataset.sys === "cs-name-edit") {

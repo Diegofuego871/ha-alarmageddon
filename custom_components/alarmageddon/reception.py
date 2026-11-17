@@ -34,6 +34,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import DATA_BLE_BEST, DATA_BLE_STAMPS, DATA_RECEPTION, DOMAIN
+from .devices import device_field, entry_ids, main_device
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -208,11 +209,12 @@ def _thread(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, Any] | Non
 
 
 def _address(device: dr.DeviceEntry) -> str | None:
-    return next((c[1] for c in device.connections if c[0] == dr.CONNECTION_BLUETOOTH), None)
+    return next((c[1] for c in device_field(device, "connections") or () if c[0] == dr.CONNECTION_BLUETOOTH), None)
 
 
 def _domains(hass: HomeAssistant, device: dr.DeviceEntry) -> set[str]:
-    return {e.domain for entry_id in device.config_entries if (e := hass.config_entries.async_get_entry(entry_id))}
+    # Nie `device.config_entries`: in neueren Versionen von Home Assistant kostet jeder Zugriff mehrere Millisekunden (siehe devices.py)
+    return {e.domain for entry_id in entry_ids(device) if (e := hass.config_entries.async_get_entry(entry_id))}
 
 
 def live_signal(hass: HomeAssistant, device: dr.DeviceEntry | None, smooth: bool = True) -> dict[str, Any] | None:
@@ -225,10 +227,13 @@ def live_signal(hass: HomeAssistant, device: dr.DeviceEntry | None, smooth: bool
         return None
     signal: dict[str, Any] | None = None
     known = False
-    if "zha" in _domains(hass, device):
+    # Das Funkteil gehört dem Gerät mit der Hardware: für ein untergeordnetes Gerät dem übergeordneten. Der Verlauf bleibt beim Gerät selbst.
+    radio = main_device(hass, device)
+    domains = _domains(hass, radio)
+    if "zha" in domains:
         known = True
-        signal = _zha(hass, device.id)
-    address = _address(device)
+        signal = _zha(hass, radio.id)
+    address = _address(radio)
     if address:
         known = True
         # Bluetooth vor dem Sensor des Geräts: dessen Wert liest oft den Scanner, der das Gerät steuern kann, nicht den besten Empfang
@@ -236,7 +241,7 @@ def live_signal(hass: HomeAssistant, device: dr.DeviceEntry | None, smooth: bool
             signal = {"kind": KIND_DBM, "value": rssi}
         elif signal is None:
             signal = {"kind": KIND_DBM, "value": None}
-    if not known and "matter" in _domains(hass, device) and (thread := _thread(hass, device)) is not None:
+    if not known and "matter" in domains and (thread := _thread(hass, radio)) is not None:
         known = True
         signal = thread
     if not known:

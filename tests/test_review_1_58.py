@@ -481,17 +481,21 @@ async def test_data_lists_measured_values_only_with_monitoring_and_never_waits_l
     client = await hass_ws_client(hass)
     await client.send_json({"id": 1, "type": "alarmageddon/data"})
     data = (await asyncio.wait_for(client.receive_json(), 5))["result"]
-    # Überwachung aus: kein Messwert als Kandidat (der gewählte bleibt), und der Verlauf hält die Antwort nicht auf
+    # Kein Kandidat in der Antwort für die Übersicht (seit 1.60.0: nur die gewählten Sensoren), und der Verlauf hält die Antwort nicht auf
     assert "sensor.keller_temperatur" not in data["sensors"] and "sensor.gewaehlt" in data["sensors"]
+    await client.send_json({"id": 10, "type": "alarmageddon/sensor_candidates"})
+    assert "sensor.keller_temperatur" not in (await client.receive_json())["result"]["sensors"], "Überwachung aus: kein Messwert als Kandidat"
     assert WINDOW not in data["last_changes"]
     assert asked and all(e.startswith("binary_sensor.") for e in asked[0]), "Messwerte werden nie im Verlauf gesucht"
     release.set()
     await settle(hass)
-    await client.send_json({"id": 2, "type": "alarmageddon/data"})
+    await client.send_json({"id": 20, "type": "alarmageddon/data"})
     assert (await client.receive_json())["result"]["last_changes"][WINDOW] == "2026-11-01T10:00:00+00:00"
     assert len(asked) == 1, "nur einmal je Lauf von Home Assistant"
     # Überwachung an: die Messwerte stehen zur Wahl
     hass.config_entries.async_update_entry(entry, options={**entry.options, "monitor_enabled": True})
     await hass.async_block_till_done()
-    await client.send_json({"id": 3, "type": "alarmageddon/data"})
+    await client.send_json({"id": 30, "type": "alarmageddon/sensor_candidates"})
     assert "sensor.keller_temperatur" in (await client.receive_json())["result"]["sensors"]
+    await client.send_json({"id": 40, "type": "alarmageddon/data"})
+    assert "sensor.keller_temperatur" not in (await client.receive_json())["result"]["sensors"], "auch mit Überwachung: die Übersicht bekommt keine Kandidaten"

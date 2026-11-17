@@ -1,0 +1,14 @@
+# Zweite Testumgebung: eine aktuelle Version von Home Assistant (hier 2026.10.4, Python 3.14). Die Nutzer fahren die aktuelle Version;
+# bis 1.59.0 liefen die Tests nur gegen 2026.2.3 (requirements_test.txt), und drei Mängel blieben deshalb unbemerkt: veraltete Zugriffe auf
+# die Geräte-Registry (hielten den Event-Loop bei jedem Abruf der Übersicht an), die neue Prüf-Bibliothek (verwarf unbekannte Schlüssel in
+# Sicherungen, statt die Sicherung abzulehnen) und zwei Tests, die sich auf das alte Zeitverhalten verliessen.
+# Zum Aktualisieren die Nummern anheben (HomeKit-Versionen aus homekit/manifest.json der neuen Version) und die Tests laufen lassen.
+pytest-homeassistant-custom-component==0.13.375
+pyflakes==4.1.0
+HAP-python==5.0.0
+fnv-hash-fast==2.0.3
+homekit-audio-proxy==1.2.1
+PyQRCode==1.2.1
+base36==0.1.1
+PyTurboJPEG==1.8.3
+ha-ffmpeg==3.2.2

@@ -7,6 +7,28 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.60.0] - 2026-11-17
+
+### Added
+
+- **"Undo after a time" in an action group as well.** The option of "Switch device" (for example a socket with a siren: on, off after 2 minutes) did not exist in a group. Now it exists there as everywhere. In a group only one pending switch-back counts per device, and every round starts the time anew: if the round is longer than the time, the device switches back after the time in every round. If it is shorter, the device only switches back once no round switches it any more, so after the last round. Disarming, acknowledging and "Silence alarm sound" switch back at once as before. The window of the step says so inside a group.
+- **Search field in the windows "Routines", "Your own sounds" and "Backups".** A search field stands above each list. It finds everything the row shows (name, trigger and effect in words, tags such as "Bypasses the code", length and size of a sound, date and alarm systems of a backup), for routines also the entity IDs of the devices, for example "lock.haustuer". Several words must all occur, upper and lower case do not matter. The buttons of a found row work as usual.
+- **Filter "Automatic only" for the backups.** Next to the search field; it shows only the automatic backups and can be combined with the search.
+
+### Changed
+
+- **The overview no longer stops Home Assistant.** On newer versions of Home Assistant (measured on 2026.10.4 and 2026.11.1) all of Home Assistant stood still on every request of the overview: about 1.4 seconds on a real installation with 151 sensors, when the panel opens and every 30 seconds after that. Cause: Alarmageddon read a field of the device registry twice per sensor that Home Assistant only keeps there as a deprecated bridge, and every access to it costs several milliseconds. With monitoring switched on every temperature and humidity of the house counted as well, which is why it became noticeable with the measurements. Now the new field is read, and signal and hardware only once per device. In the test with 151 sensors the request drops from about 250 to about 6 milliseconds. The same hit the recording of the signal once a minute.
+- **The response for the overview is smaller.** It only lists the sensors of the alarm systems. The list of all matching sensors of the house is fetched only when you open "Add sensors" (briefly with the loading indicator there). In a house with 400 devices that is about 14 kB instead of 475 kB, every time the overview opens and every 30 seconds after that.
+- **Changing measurements no longer rebuild the list all the time.** Since 1.58.0 the panel takes over new states four times a second; every change of any matching sensor of the house then rebuilt the whole sensor list. Now only sensors that are shown count. States (door open, motion, alarm) still appear at once; measurements, battery and signal are collected and redrawn at most every 2 seconds. Measured with 20 measurements and 10 changes per second, the list is rebuilt 4 times instead of 40 times in 10 seconds.
+- **Tested against a current version of Home Assistant.** The tests only ran against 2026.2.3 so far; the defects of this version could not be seen there. Now they also run against 2026.10.4, and a test fails as soon as Home Assistant reports a deprecated use by Alarmageddon.
+
+### Fixed
+
+- **The setting "Undo after a time" was lost when a step was dragged into a group.** It was dropped without any notice: the device would have stayed on until someone disarms. It is now kept.
+- **Sensor view of a measurement: "Battery" and "Signal" only showed "The history could not be loaded".** The server rejected both tabs for every measurement sensor (for example a temperature sensor). They now show the history as for door and window sensors.
+- **A backup with an unknown entry is rejected as a whole again on newer versions of Home Assistant.** There an unknown entry in the settings per mode or in the actions was silently left out and the rest was imported. Nothing of it was stored; the rule "a backup with an invalid value is rejected" now holds with every version again.
+- **No deprecated interfaces of Home Assistant any more.** Renaming an alarm system and the preview of the entity ID used functions that Home Assistant removes in 2027 (a warning in the log so far).
+
 ## [1.59.0] - 2026-11-17
 
 Includes the changes from 1.58.0.
@@ -1789,6 +1811,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.60.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.60.0
 [1.59.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.59.0
 [1.57.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.57.0
 [1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0

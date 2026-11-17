@@ -96,7 +96,7 @@ from .const import (
     SENSOR_OPTIONS,
     SENSOR_TYPES,
 )
-from .devices import battery_of, device_sensors, display_name
+from .devices import battery_of, device_field, device_sensors, display_name, free_entity_id, main_device, system_device
 from .forecast import async_forecasts
 from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
@@ -138,6 +138,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_delete_recording)
     websocket_api.async_register_command(hass, ws_routine_entities)
     websocket_api.async_register_command(hass, ws_monitor_entities)
+    websocket_api.async_register_command(hass, ws_sensor_candidates)
     websocket_api.async_register_command(hass, ws_save_monitors)
     websocket_api.async_register_command(hass, ws_test_monitor_step)
     websocket_api.async_register_command(hass, ws_battery_forecast)
@@ -173,11 +174,16 @@ def _alarm_run(entry: ConfigEntry) -> dict[str, Any]:
     return {} if run.get("after") else run
 
 
-async def _sensor_info(hass: HomeAssistant, extra: set[str], measures: bool = True) -> dict[str, dict[str, Any]]:
+async def _sensor_info(hass: HomeAssistant, extra: set[str], measures: bool = True, candidates: bool = True) -> dict[str, dict[str, Any]]:
     """
     Kandidaten für Zonen: binary_sensor mit passender Geräteklasse, dazu alle
     schon gewählten (auch wenn ihre Klasse nicht passt). Batterie über den
     Batteriesensor desselben Geräts, damit jede Integration funktioniert.
+
+    `candidates`: ohne (1.60.0) nur die gewählten Sensoren (`extra`). Die Übersicht braucht nur sie; die Kandidaten des ganzen Hauses
+    (jeder Tür-, Fenster- und Bewegungssensor, mit eingeschalteter Überwachung jede Temperatur und Luftfeuchtigkeit) holt das Panel
+    erst für "Sensoren hinzufügen" (ws_sensor_candidates). Bis 1.59.0 gingen sie bei jedem Öffnen der Übersicht und danach alle 30
+    Sekunden über die Leitung: in einem Haus mit 400 Geräten rund 475 kB statt rund 15 kB.
 
     `measures`: Messwerte (Temperatur, Luftfeuchtigkeit ...) als Kandidaten der Überwachung. Ohne eingeschaltete Überwachung bietet das
     Panel sie nirgends an; dann kommen nur die schon gewählten mit (1.58.0: ein Haus hat oft Hunderte davon, und die Antwort geht bei
@@ -189,7 +195,14 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str], measures: bool = Tr
     batteries, signals = device_sensors(hass)
 
     out: dict[str, dict[str, Any]] = {}
-    for state in [*hass.states.async_all("binary_sensor"), *hass.states.async_all("sensor")]:
+    # Empfang und Hardware je Gerät nur einmal: ein Gerät hat oft mehrere Sensoren (Temperatur, Luftfeuchtigkeit, Batterie ...)
+    live: dict[str, dict[str, Any] | None] = {}
+    hardware: dict[str, Any] = {}
+    if candidates:
+        states = [*hass.states.async_all("binary_sensor"), *hass.states.async_all("sensor")]
+    else:
+        states = [state for state in (hass.states.get(entity_id) for entity_id in sorted(extra)) if state is not None and state.domain in ("binary_sensor", "sensor")]
+    for state in states:
         # Messwerte (Temperatur, Luftfeuchtigkeit, CO2 ...) für die Überwachung (1.48.0): nur Sensoren mit Zahl und Einheit. Zuerst die
         # billige Prüfung am Zustand: ein Haus hat oft Tausende "sensor"-Entitäten, die Liste wird bei jeder Abfrage des Panels gebaut.
         measure = state.entity_id.startswith("sensor.")
@@ -203,6 +216,10 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str], measures: bool = Tr
         if not measure and device_class not in SENSOR_CLASSES and state.entity_id not in extra:
             continue
         device = dev_reg.async_get(reg.device_id) if reg and reg.device_id else None
+        if device is not None and device.id not in live:
+            live[device.id] = reception.live_signal(hass, device)
+            hardware[device.id] = main_device(hass, device)
+        made = hardware.get(device.id) if device is not None else None
         area_id = (reg.area_id if reg else None) or (device.area_id if device else None)
         area = area_reg.async_get_area(area_id) if area_id else None
         out[state.entity_id] = {
@@ -217,10 +234,10 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str], measures: bool = Tr
             "battery": batteries.get(reg.device_id) if reg and reg.device_id else None,
             "signal": signals.get(reg.device_id) if reg and reg.device_id else None,
             # ZHA und Bluetooth (seit 1.41.0): der Wert kommt direkt aus der Integration, ohne Entität; sonst None
-            "signal_live": reception.live_signal(hass, device),
-            "manufacturer": device.manufacturer if device else None,
-            "model": device.model if device else None,
-            "sw_version": device.sw_version if device else None,
+            "signal_live": live.get(device.id) if device is not None else None,
+            "manufacturer": device_field(made, "manufacturer"),
+            "model": device_field(made, "model"),
+            "sw_version": device_field(made, "sw_version"),
             "device_id": device.id if device else None,
         }
     # Gewählte Sensoren, die es (gerade) nicht gibt, trotzdem zeigen: der Nutzer soll sie entfernen können
@@ -229,6 +246,41 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str], measures: bool = Tr
                           "kind": "value" if entity_id.startswith("sensor.") else "state", "unit": None, "area": None, "platform": None, "battery": None,
                           "signal": None, "signal_live": None, "manufacturer": None, "model": None, "sw_version": None, "device_id": None, "missing": True}
     return out
+
+
+async def _with_integration(hass: HomeAssistant, sensors: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Den Anzeigenamen der Integration je Sensor ergänzen."""
+    platforms = {s["platform"] for s in sensors.values() if s["platform"]}
+    integrations = await async_get_integrations(hass, platforms)
+    names = {p: (i.name if not isinstance(i, Exception) else p) for p, i in integrations.items()}
+    for info in sensors.values():
+        info["integration"] = names.get(info["platform"], info["platform"])
+    return sensors
+
+
+def _chosen_sensors(hass: HomeAssistant) -> tuple[set[str], bool]:
+    """Die Sensoren aller geladenen Anlagen (Zonen, Liste, eigene Werte, Überwachung) und ob eine Anlage die Überwachung eingeschaltet hat."""
+    chosen: set[str] = set()
+    monitoring = False
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.state is not ConfigEntryState.LOADED:
+            continue
+        ctl = entry.runtime_data.controller
+        chosen |= {e for mode in ctl.modes for e in ctl.zone(mode)} | set(ctl.sensor_overrides) | set(entry.options.get(CONF_SENSORS) or []) | set(entry.options.get(CONF_MONITOR_SENSORS) or [])
+        monitoring = monitoring or ctl.monitor_enabled
+    return chosen, monitoring
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/sensor_candidates"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_sensor_candidates(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Alle Sensoren, die sich einer Anlage hinzufügen lassen (Fenster "Sensoren hinzufügen"), samt den schon gewählten; Messwerte nur,
+    wenn eine Anlage die Überwachung eingeschaltet hat. Auf Abruf, nicht mit jeder Abfrage der Übersicht (1.60.0).
+    """
+    chosen, monitoring = _chosen_sensors(hass)
+    connection.send_result(msg["id"], {"sensors": await _with_integration(hass, await _sensor_info(hass, chosen, measures=monitoring))})
 
 
 async def _last_changes(hass: HomeAssistant, settings, entities: list[str]) -> dict[str, str]:
@@ -317,12 +369,8 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
             }
         )
     systems.sort(key=lambda s: s["title"].lower())
-    sensors = await _sensor_info(hass, chosen, measures=any(s["monitor_enabled"] for s in systems))
-    platforms = {s["platform"] for s in sensors.values() if s["platform"]}
-    integrations = await async_get_integrations(hass, platforms)
-    names = {p: (i.name if not isinstance(i, Exception) else p) for p, i in integrations.items()}
-    for info in sensors.values():
-        info["integration"] = names.get(info["platform"], info["platform"])
+    # Nur die gewählten Sensoren (1.60.0); die Kandidaten für "Sensoren hinzufügen" liefert ws_sensor_candidates
+    sensors = await _with_integration(hass, await _sensor_info(hass, chosen, candidates=False))
     settings = await async_get_settings(hass)
     notify_services = sorted(f"notify.{name}" for name in hass.services.async_services().get("notify", {}) if name not in ("notify", "send_message", "persistent_notification"))
     loaded = [e for e in hass.config_entries.async_entries(DOMAIN) if e.state is ConfigEntryState.LOADED]
@@ -466,7 +514,7 @@ def ws_preview_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -> N
     name, error = new_system_name(hass, msg["name"])
     alarm_id = None
     if error is None and (slug := slugify(name)):
-        alarm_id = er.async_get(hass).async_generate_entity_id("alarm_control_panel", slug)
+        alarm_id = free_entity_id(er.async_get(hass), "alarm_control_panel", slug)
     connection.send_result(msg["id"], {"name": name, "error": error, "alarm_entity_id": alarm_id})
 
 
@@ -565,14 +613,13 @@ async def ws_rename(hass: HomeAssistant, connection, msg: dict[str, Any]) -> Non
             old = next((p for p in sorted(prefixes, key=len, reverse=True) if obj == p or obj.startswith(p + "_")), None)
             if old is None:
                 continue
-            new_id = registry.async_generate_entity_id(domain, new_slug + obj[len(old):], current_entity_id=ent.entity_id)
+            new_id = free_entity_id(registry, domain, new_slug + obj[len(old):], current_entity_id=ent.entity_id)
             if new_id != ent.entity_id:
                 registry.async_update_entity(ent.entity_id, new_entity_id=new_id)
                 renamed += 1
     # Gerät sofort umbenennen (ein eigener Name am Gerät würde sonst den neuen Namen verdecken)
-    devices = dr.async_get(hass)
-    if device := devices.async_get_device(identifiers={(DOMAIN, entry.entry_id)}):
-        devices.async_update_device(device.id, name=name, name_by_user=None)
+    if device := system_device(hass, entry.entry_id):
+        dr.async_get(hass).async_update_device(device.id, name=name, name_by_user=None)
     # Löst das Neuladen aus; der Zustand übersteht es über die Wiederherstellung der Entität
     hass.config_entries.async_update_entry(entry, title=name, data={**entry.data, CONF_NAME: name})
     connection.send_result(msg["id"], {"ok": True, "renamed_ids": renamed})
@@ -1304,7 +1351,9 @@ async def ws_sensor_history(hass: HomeAssistant, connection, msg: dict[str, Any]
     measure = entity_id.startswith("sensor.")
     # Ein Binärsensor hat Verlauf ("state"), Batterie und Empfang; ein Messwert (1.54.0) Werteverlauf ("value"), Batterie und Empfang. Messwerte
     # nur, wenn eine geladene Anlage sie in der Überwachung führt (bei eingeschalteter Überwachung); nie ein beliebiger Sensor.
-    if (kind == "value") != measure or (measure and kind == "state"):
+    # Batterie und Empfang gibt es für beide (bis 1.59.0 lehnte die Prüfung sie für jeden Messwert ab: die Reiter "Batterie" und "Empfang"
+    # eines Temperatursensors zeigten nur "Der Verlauf konnte nicht geladen werden")
+    if (kind == "value" and not measure) or (kind == "state" and measure):
         connection.send_error(msg["id"], "invalid_format", "Kind does not fit the sensor")
         return
     entries = [e for e in hass.config_entries.async_entries(DOMAIN)

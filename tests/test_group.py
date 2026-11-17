@@ -5,7 +5,7 @@ Durchläufe, für eine Dauer oder bis deaktiviert wird.
 Die Gruppe greift in den Ablauf der Alarmaktionen ein. Diese Tests sichern die Zusagen:
 
 - Prüfung: je Liste nur, was dort erlaubt ist; "bis deaktiviert" nur im Ablauf des Alarms; keine Gruppe in der Gruppe, kein
-  "Quittieren", kein "Rückgängig nach einer Zeit"; die Schritte zählen zur Grenze je Liste.
+  "Quittieren"; die Schritte zählen zur Grenze je Liste.
 - Ablauf: die Zahl der Runden und die Dauer gelten genau (die Dauer wird nie überschritten, die Gruppe endet nie mitten in einer
   Runde); "Warten, bis die Aktion beendet ist" wie bei den anderen Schritten; "bis deaktiviert" wartet nie.
 - Sicherheit: ein scheiternder oder hängender Schritt hält weder die Gruppe noch den Ablauf auf; Deaktivieren, Quittieren und
@@ -97,7 +97,7 @@ def test_a_group_is_valid_in_the_alarm_actions_with_every_mode() -> None:
 BAD_GROUPS = {
     "Gruppe in der Gruppe": _group("count", [_group("count", [ON])]),
     "Quittieren in der Gruppe": _group("count", [{"type": "acknowledge"}]),
-    "Rückgängig nach einer Zeit in der Gruppe": _group("count", [{**ON, "undo_after": 30}]),
+    "Rückgängig nach einer Zeit ohne Gegendienst (Szene) in der Gruppe": _group("count", [{"type": "action", "action": "scene.turn_on", "target": ["scene.abend"], "undo_after": 30}]),
     "unbekannter Schritt in der Gruppe": _group("count", [{"type": "explode"}]),
     "mehr Schritte als erlaubt": _group("count", [ON] * (GROUP_MAX_STEPS + 1)),
     "keine Runde": _group("count", [ON], count=0),
@@ -140,8 +140,8 @@ def test_in_the_other_lists_a_group_follows_the_rules_of_its_list(zone: str) -> 
         check(_group("count", [FOREIGN[zone]]))
     with pytest.raises(vol.Invalid):
         check(_group("count", [_group("count", [ON])]))
-    with pytest.raises(vol.Invalid):
-        check(_group("count", [{**ON, "undo_after": 10}]))
+    # "Nach einer Zeit rückgängig machen" gibt es seit 1.60.0 auch in einer Gruppe
+    assert check(_group("count", [{**ON, "undo_after": 10}]))["steps"][0]["undo_after"] == 10
 
 
 def test_a_sound_in_a_group_after_the_alarm_needs_a_duration_and_a_tone_never_follows_a_delay_inside_a_group() -> None:
@@ -300,6 +300,69 @@ async def test_devices_of_a_group_return_when_disarming(hass: HomeAssistant, fre
     await call(hass, "alarm_disarm")
     await settle(hass)
     assert _to(s["switch.turn_off"], LIGHT) == 1
+
+
+# ----- Nach einer Zeit rückgängig machen in einer Gruppe (1.60.0) -----
+#
+# Entscheid des Nutzers (2026-11-17): die Option gibt es auch in einer Gruppe. Je Gerät gilt dann nur ein vorgemerkter Gegendienst, jede
+# Runde ersetzt den der vorigen: die Liste wächst nie mit den Runden, und kein Gegendienst einer früheren Runde läuft in eine spätere.
+
+
+def _undo(seconds: int, entity: str = LIGHT) -> dict[str, Any]:
+    return {"type": "action", "action": "switch.turn_on", "target": [entity], "undo_after": seconds}
+
+
+async def test_undo_in_a_group_keeps_one_pending_entry_per_device_however_many_rounds(hass: HomeAssistant, freezer) -> None:
+    """Runde (3 s) kürzer als die Zeit (10 s), bis deaktiviert: nie mehr als ein Eintrag je Gerät; Deaktivieren schaltet sofort zurück, einmal."""
+    s = _services(hass)
+    assert valid_step(_group("until_disarmed", [_undo(10)]))["steps"][0]["undo_after"] == 10
+    entry = await _alarm(hass, [_group("until_disarmed", [_undo(10), _undo(10, SIREN), _wait(3)])])
+    runner = entry.runtime_data.workflow
+    await _tick(hass, freezer, 60)
+    assert _to(s["switch.turn_on"], LIGHT) == 21
+    pending = runner.running["undo"]
+    assert len(pending) == 2 and sorted(e["target"][0] for e in pending) == [LIGHT, SIREN], "ein Eintrag je Gerät, nicht je Runde"
+    assert len(runner._undo_tasks) == 2, "die Aufgaben der ersetzten Einträge sind beendet"
+    assert not s["switch.turn_off"], "solange jede Runde neu schaltet, schaltet nichts zurück"
+    await call(hass, "alarm_disarm")
+    await settle(hass)
+    assert _to(s["switch.turn_off"], LIGHT) == 1 and _to(s["switch.turn_off"], SIREN) == 1
+    await _tick(hass, freezer, 30)
+    assert len(s["switch.turn_off"]) == 2 and not runner._undo_tasks
+
+
+async def test_undo_in_a_group_switches_back_after_its_time_when_the_round_is_longer(hass: HomeAssistant, freezer) -> None:
+    """Runde (20 s) länger als die Zeit (5 s): in jeder Runde schaltet das Gerät nach 5 Sekunden zurück."""
+    s = _services(hass)
+    entry = await _alarm(hass, [_group("count", [_undo(5), _wait(20)], count=2, wait=True), SIREN_ON])
+    await _tick(hass, freezer, 4)
+    assert not s["switch.turn_off"]
+    await _tick(hass, freezer, 2)
+    assert _to(s["switch.turn_off"], LIGHT) == 1
+    await _tick(hass, freezer, 20)
+    assert _to(s["switch.turn_on"], LIGHT) == 2 and _to(s["switch.turn_off"], LIGHT) == 2
+    assert entry.runtime_data.workflow.running["undo"] == []
+
+
+async def test_undo_in_a_group_switches_back_after_the_last_round(hass: HomeAssistant, freezer) -> None:
+    """Drei Runden zu 2 Sekunden, Zeit 10 Sekunden: einmal zurück, 10 Sekunden nach dem letzten Einschalten (bei 14 s), nicht dreimal."""
+    s = _services(hass)
+    await _alarm(hass, [_group("count", [_undo(10), _wait(2)], count=3, wait=True)])
+    await _tick(hass, freezer, 13)
+    assert _to(s["switch.turn_on"], LIGHT) == 3 and not s["switch.turn_off"]
+    await _tick(hass, freezer, 2)
+    assert _to(s["switch.turn_off"], LIGHT) == 1
+    await _tick(hass, freezer, 30)
+    assert _to(s["switch.turn_off"], LIGHT) == 1
+
+
+async def test_undo_outside_a_group_is_unchanged(hass: HomeAssistant, freezer) -> None:
+    """Ausserhalb einer Gruppe bleibt es wie bisher: jeder Schritt merkt seinen eigenen Gegendienst vor."""
+    s = _services(hass)
+    entry = await _alarm(hass, [_undo(30), _undo(30)])
+    assert len(entry.runtime_data.workflow.running["undo"]) == 2
+    await _tick(hass, freezer, 31)
+    assert _to(s["switch.turn_off"], LIGHT) == 2
 
 
 # ----- Sicherheit: scheitern, hängen -----

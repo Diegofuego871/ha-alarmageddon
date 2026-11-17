@@ -6,7 +6,10 @@ from datetime import timedelta
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.alarmageddon import sensor_history
 
@@ -118,3 +121,31 @@ async def test_monitor_events_carry_value_and_unit(hass: HomeAssistant, freezer)
     back = next(e for e in entry.runtime_data.events.events if e.get("kind") == "monitor_ok")
     assert back["value"] == "5" and back["unit"] == "°C"
     await settle(hass)
+
+
+async def test_battery_and_signal_of_a_measured_value(hass: HomeAssistant, hass_ws_client, values) -> None:
+    """
+    Ein Messwert hat wie ein Binärsensor die Reiter "Batterie" und "Empfang". Bis 1.59.0 lehnte der Server beide für jeden Messwert ab
+    ("Kind does not fit the sensor", Meldung des Nutzers vom 2026-11-17 an einem Temperatursensor).
+    """
+    source = MockConfigEntry(domain="test")
+    source.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(config_entry_id=source.entry_id, identifiers={("test", "kuehlschrank")})
+    registry = er.async_get(hass)
+    temp = registry.async_get_or_create("sensor", "test", "temp", device_id=device.id, original_device_class="temperature", suggested_object_id=TEMP.split(".")[1])
+    assert temp.entity_id == TEMP
+    battery = registry.async_get_or_create("sensor", "test", "bat", device_id=device.id, original_device_class="battery", suggested_object_id="kuehlschrank_batterie")
+    signal = registry.async_get_or_create("sensor", "test", "rssi", device_id=device.id, original_device_class="signal_strength", suggested_object_id="kuehlschrank_rssi")
+    await _setup(hass)
+    client = await hass_ws_client(hass)
+    reply = await _ask(client, 1, entity_id=TEMP, kind="battery", hours=720)
+    assert reply["success"], reply
+    assert reply["result"]["entity_id"] == battery.entity_id and reply["result"]["points"]
+    reply = await _ask(client, 2, entity_id=TEMP, kind="signal", hours=24)
+    assert reply["success"], reply
+    assert reply["result"]["entity_id"] == signal.entity_id and reply["result"]["points"]
+    # Weiterhin abgelehnt: der Zustandsverlauf eines Messwerts und der Werteverlauf eines Binärsensors
+    assert (await _ask(client, 3, entity_id=TEMP, kind="state", hours=24))["error"]["code"] == "invalid_format"
+    assert (await _ask(client, 4, entity_id=WINDOW, kind="value", hours=24))["error"]["code"] == "invalid_format"
+    # Und nur für Messwerte, die eine Anlage in der Überwachung führt
+    assert (await _ask(client, 5, entity_id=HUM, kind="battery", hours=720))["error"]["code"] == "not_found"

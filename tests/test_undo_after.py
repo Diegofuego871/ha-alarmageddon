@@ -151,6 +151,9 @@ async def test_a_counter_service_that_does_not_answer_never_holds_up_the_end(has
     await asyncio.wait_for(entry.runtime_data.controller.async_disarm(None, skip_code=True), 5)
     await asyncio.wait_for(entry.runtime_data.workflow.async_stop(), 5)
     assert entry.runtime_data.workflow.running is None
+    # Der hängende Aufruf ist abgebrochen; der Abbruch braucht noch einen Durchlauf der Schleife, bis die Aufgabe wirklich zu Ende ist
+    for _ in range(5):
+        await asyncio.sleep(0)
 
 
 async def test_a_test_switches_back_when_it_ends(hass: HomeAssistant, freezer) -> None:

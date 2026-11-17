@@ -114,6 +114,9 @@ export const OPENINGS = new Set(["door", "window", "opening", "garage_door"]);
 export const MOTION = new Set(["motion", "occupancy", "presence"]);
 export const LOW_BATTERY = 20;
 export const POLL_MS = 30000;
+// Messwerte, Batterie und Empfang: so oft werden die Ansichten höchstens neu gezeichnet, wenn sich nur solche Werte ändern (1.60.0).
+// Zustände der Anlagen und der Sensoren (offen, zu, Bewegung, Alarm) erscheinen sofort.
+export const SOFT_MS = 2000;
 export const WS_TIMEOUT_MS = 20000;
 
 // callWS wirft nicht immer einen Error (LEARNINGS): Text und Verbindungsfehler robust erkennen
@@ -137,6 +140,17 @@ export const TYPES = [
 ];
 export const DEFAULT_PRESETS = { door: ["arm_on_close"], window: [], motion: ["open_ok"], environment: ["always"], tamper: ["offline_alarm"], other: [] };
 export const GONE = new Set(["unavailable", "unknown"]);
+
+// Suche in den Listen der Fenster (Routinen, eigene Töne, Sicherungen; 1.60.0): jedes Wort der Eingabe muss in einem der Texte vorkommen,
+// Gross- und Kleinschreibung zählen nicht. Die Texte sind alles, was die Zeile zeigt, dazu, was man kennt, aber nicht sieht (Entitäts-IDs).
+export const matchQuery = (q, ...parts) => {
+  const hay = parts.flat().filter(Boolean).join(" ").toLowerCase();
+  return String(q || "").toLowerCase().split(/\s+/).filter(Boolean).every((word) => hay.includes(word));
+};
+// Das Suchfeld dazu, im Design der übrigen Listen: `attr` ist das Ereignis-Attribut des Moduls (data-sys ...), `name` der Wert darin;
+// der Knopf zum Leeren heisst `<name>-clear`
+export const searchField = (attr, name, value, label, clearLabel) => `<label class="list-search">${ic("search", 18)}<input type="search" ${attr}="${name}" placeholder="${esc(label)}" value="${esc(value)}" aria-label="${esc(label)}" autocomplete="off">
+  <button type="button" class="ag-clear" ${attr}="${name}-clear" aria-label="${esc(clearLabel)}" ${value ? "" : "hidden"}>${ic("close", 16)}</button></label>`;
 
 // Kapitel in den Einstellungen (wie in Device Panel): Titel mit Strich davor, optional eine Zeile Erklärung, darunter die Karte
 export const chapter = (title, body, hint = "", extra = "") => `<section class="ag-chap ${extra}"><h3 class="ag-chap-t">${esc(title)}</h3>${hint ? `<p class="ag-chap-h">${esc(hint)}</p>` : ""}${body}</section>`;

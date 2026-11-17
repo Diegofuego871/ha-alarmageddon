@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 217  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 219  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -266,7 +266,8 @@ DISARMED_STEP_TYPES: Final = ("action", "dechime", "wait")
 # Aktions-Gruppe (1.59.0, Wunsch des Nutzers 2026-11-17): eine Gruppe von Schritten, die sich in ihrer Reihenfolge wiederholt: eine Anzahl
 # Durchläufe ("count"), für eine Dauer ("duration") oder bis zum Deaktivieren ("until_disarmed", nur im Ablauf des Alarms: nur dort
 # deaktiviert oder quittiert jemand). In allen Listen der Aktionen, mit den Schritten, die dort erlaubt sind; keine Gruppe in einer
-# Gruppe, kein "Quittieren" (es beendet den Alarm) und kein "Rückgängig nach einer Zeit" (je Runde käme ein Eintrag dazu) darin.
+# Gruppe und kein "Quittieren" (es beendet den Alarm) darin. "Rückgängig nach einer Zeit" gibt es seit 1.60.0 auch in einer Gruppe: je Gerät gilt
+# dann nur ein vorgemerkter Gegendienst, jede Runde ersetzt den der vorigen (workflow._plan_undo).
 # Jede Runde dauert mindestens GROUP_MIN_ROUND Sekunden: eine Gruppe ohne "Warten" liefe sonst als Schleife ohne Pause (Flut von
 # Schaltbefehlen und Meldungen). Die Schritte der Gruppe zählen zur Grenze MAX_STEPS je Liste.
 GROUP_MODES: Final = ("count", "duration", "until_disarmed")
