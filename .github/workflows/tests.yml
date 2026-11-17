@@ -13,8 +13,8 @@ jobs:
   python:
     name: Python (Home Assistant ${{ matrix.homeassistant }})
     runs-on: ubuntu-latest
-    # Ein Lauf dauert etwa 2 Minuten; hängt er, soll er nicht 6 Stunden Laufzeit verbrauchen
-    timeout-minutes: 20
+    # Die Tests dauern etwa 3 Minuten, die Mutationsprobe (nur im ersten Lauf) rund 12; hängt ein Lauf, soll er nicht 6 Stunden Laufzeit verbrauchen
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -61,7 +61,8 @@ jobs:
   panel:
     name: Panel (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Die 59 Suiten brauchen auf dem Runner rund 20 bis 25 Minuten (die Grenze von 20 Minuten brach den Lauf ab); jede neue Suite verlängert sie
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: tests/panel
