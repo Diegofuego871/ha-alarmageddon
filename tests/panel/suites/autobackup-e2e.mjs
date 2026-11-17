@@ -69,6 +69,7 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="bk-close"]');
     await s.waitFor("return !r.getElementById('ag-bklist').open");
     check(`${tag}: Seite: "Letzte Sicherung" mit Datum und Knopf "Sicherungen anzeigen"`, await s.ev("const l=r.querySelector('.ag-bklast'); return !!l && /(Letzte Sicherung|Last backup)/.test(l.innerText) && !!l.querySelector('[data-sys=\"bk-open\"]')"));
+    check(`${tag}: der Knopf "Sicherungen anzeigen" trägt das Listen-Symbol wie "Routinen anzeigen" (nicht das einer Sicherung)`, await s.ev("const d=(sel) => r.querySelector(sel)?.querySelector('svg path')?.getAttribute('d'); const a=d('[data-sys=\"bk-open\"]'); return !!a && a === d('[data-sys=\"rt-open\"]')"));
     check(`${tag}: kein Überlauf`, await s.ev("return document.documentElement.scrollWidth <= window.innerWidth"));
     check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();

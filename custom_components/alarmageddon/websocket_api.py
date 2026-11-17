@@ -9,6 +9,7 @@ Texte liefert der Server keine: Fehler kommen als Schlüssel
 
 from __future__ import annotations
 
+import asyncio
 import re
 import secrets
 from typing import Any
@@ -77,7 +78,6 @@ from .const import (
     CONF_WORKFLOWS_ENTRY,
     CONF_WORKFLOWS,
     CONF_ZONE_PREFIX,
-    MAX_STEPS,
     NOTIFY_MODE_KINDS,
     NOTIFY_TYPES,
     PREALARMS,
@@ -100,9 +100,12 @@ from .devices import battery_of, device_sensors, display_name
 from .forecast import async_forecasts
 from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
-from .schemas import END_NOTIFY_SCHEMA, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
+from .schemas import step_list, END_NOTIFY_SCHEMA, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
 from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_get_stats, async_measure_history, async_numeric_history, async_state_history
 from .settings import async_get_settings, sensor_type
+
+# So lange wartet die Antwort von "data" höchstens auf den Verlauf für "Letzte Änderung" (Sekunden)
+LAST_CHANGE_WAIT = 1.5
 
 ALARM_SERVICES = {
     "off": "alarm_disarm",
@@ -170,11 +173,15 @@ def _alarm_run(entry: ConfigEntry) -> dict[str, Any]:
     return {} if run.get("after") else run
 
 
-async def _sensor_info(hass: HomeAssistant, extra: set[str]) -> dict[str, dict[str, Any]]:
+async def _sensor_info(hass: HomeAssistant, extra: set[str], measures: bool = True) -> dict[str, dict[str, Any]]:
     """
     Kandidaten für Zonen: binary_sensor mit passender Geräteklasse, dazu alle
     schon gewählten (auch wenn ihre Klasse nicht passt). Batterie über den
     Batteriesensor desselben Geräts, damit jede Integration funktioniert.
+
+    `measures`: Messwerte (Temperatur, Luftfeuchtigkeit ...) als Kandidaten der Überwachung. Ohne eingeschaltete Überwachung bietet das
+    Panel sie nirgends an; dann kommen nur die schon gewählten mit (1.58.0: ein Haus hat oft Hunderte davon, und die Antwort geht bei
+    jedem Öffnen der Übersicht und danach alle 30 Sekunden über die Leitung).
     """
     ent_reg = er.async_get(hass)
     dev_reg = dr.async_get(hass)
@@ -186,7 +193,7 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str]) -> dict[str, dict[s
         # Messwerte (Temperatur, Luftfeuchtigkeit, CO2 ...) für die Überwachung (1.48.0): nur Sensoren mit Zahl und Einheit. Zuerst die
         # billige Prüfung am Zustand: ein Haus hat oft Tausende "sensor"-Entitäten, die Liste wird bei jeder Abfrage des Panels gebaut.
         measure = state.entity_id.startswith("sensor.")
-        if measure and not (state.attributes.get("device_class") in MEASURE_CLASSES and state.attributes.get("unit_of_measurement") or state.entity_id in extra):
+        if measure and not (measures and state.attributes.get("device_class") in MEASURE_CLASSES and state.attributes.get("unit_of_measurement") or state.entity_id in extra):
             continue
         reg = ent_reg.async_get(state.entity_id)
         if reg and reg.platform == DOMAIN:
@@ -227,10 +234,20 @@ async def _sensor_info(hass: HomeAssistant, extra: set[str]) -> dict[str, dict[s
 async def _last_changes(hass: HomeAssistant, settings, entities: list[str]) -> dict[str, str]:
     """Letzte echte Änderung (offen <-> zu) je Sensor: gemerkt, sonst einmal aus dem Verlauf geholt (nicht bei jedem Abruf)."""
     tried: set[str] = hass.data.setdefault(f"{DOMAIN}_changes_tried", set())
-    missing = [e for e in entities if e not in settings.last_changes and e not in tried]
+    # Nur Binärsensoren: ein Messwert (Temperatur ...) wechselt nie zwischen "offen" und "zu", sein Verlauf über 90 Tage ist aber der grösste
+    # (bis 1.57.0 wurde er nach jedem Neustart von Home Assistant einmal ganz gelesen, und die Übersicht wartete darauf)
+    missing = [e for e in entities if e.startswith("binary_sensor.") and e not in settings.last_changes and e not in tried]
     if missing:
         tried.update(missing)
-        settings.seed_changes(await last_change.async_history_changes(hass, missing))
+
+        async def seed() -> None:
+            settings.seed_changes(await last_change.async_history_changes(hass, missing))
+
+        # Die Übersicht wartet höchstens LAST_CHANGE_WAIT auf den Verlauf: dauert er länger (grosse Datenbank), kommt die Antwort ohne ihn,
+        # und die Zeitpunkte stehen beim nächsten Abruf da (das Lesen läuft im Hintergrund zu Ende)
+        task = hass.async_create_background_task(seed(), f"{DOMAIN} last changes")
+        task.add_done_callback(lambda t: t.cancelled() or t.exception())
+        await asyncio.wait({task}, timeout=LAST_CHANGE_WAIT)
     return {e: settings.last_changes[e] for e in entities if e in settings.last_changes}
 
 
@@ -300,7 +317,7 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
             }
         )
     systems.sort(key=lambda s: s["title"].lower())
-    sensors = await _sensor_info(hass, chosen)
+    sensors = await _sensor_info(hass, chosen, measures=any(s["monitor_enabled"] for s in systems))
     platforms = {s["platform"] for s in sensors.values() if s["platform"]}
     integrations = await async_get_integrations(hass, platforms)
     names = {p: (i.name if not isinstance(i, Exception) else p) for p, i in integrations.items()}
@@ -505,8 +522,9 @@ async def ws_delete_system(hass: HomeAssistant, connection, msg: dict[str, Any])
         if entry.runtime_data.controller.state != AlarmControlPanelState.DISARMED:
             connection.send_error(msg["id"], "not_disarmed", "Disarm the alarm system first")
             return
+    # Das Entfernen wartet das Entladen der Anlage selbst ab. Kein hass.async_block_till_done() (bis 1.57.0): es wartet auf jede laufende
+    # Aufgabe von Home Assistant (eine Automation mit langer Wartezeit), die Antwort käme dann nie und das Fenster im Panel bliebe stehen.
     await hass.config_entries.async_remove(entry.entry_id)
-    await hass.async_block_till_done()
     connection.send_result(msg["id"], {"ok": True})
 
 
@@ -803,16 +821,16 @@ async def ws_save_display(hass: HomeAssistant, connection, msg: dict[str, Any]) 
     {
         vol.Required("type"): f"{DOMAIN}/save_workflows",
         vol.Required("entry_id"): str,
-        vol.Required("workflows"): {vol.In(WORKFLOW_TRIGGERS): vol.All([valid_step], vol.Length(max=MAX_STEPS))},
+        vol.Required("workflows"): {vol.In(WORKFLOW_TRIGGERS): step_list(valid_step)},
         # Element "Alarm endet": was Deaktivieren mit den Geräten macht, je Auslöser (fehlt: Standard)
         vol.Optional("workflow_end"): {vol.In(WORKFLOW_TRIGGERS): valid_end},
-        vol.Optional("workflows_after"): {vol.In(WORKFLOW_TRIGGERS): vol.All([valid_after_step], vol.Length(max=MAX_STEPS))},
-        vol.Optional("workflows_armed"): {vol.In(MODES): vol.All([valid_armed_step], vol.Length(max=MAX_STEPS))},
+        vol.Optional("workflows_after"): {vol.In(WORKFLOW_TRIGGERS): step_list(valid_after_step)},
+        vol.Optional("workflows_armed"): {vol.In(MODES): step_list(valid_armed_step)},
         # Aktionen während der Ausgangs- und der Eingangsverzögerung (1.18.0), je Modus
-        vol.Optional("workflows_arming"): {vol.In(MODES): vol.All([valid_arming_step], vol.Length(max=MAX_STEPS))},
-        vol.Optional("workflows_entry"): {vol.In(MODES): vol.All([valid_entry_step], vol.Length(max=MAX_STEPS))},
+        vol.Optional("workflows_arming"): {vol.In(MODES): step_list(valid_arming_step)},
+        vol.Optional("workflows_entry"): {vol.In(MODES): step_list(valid_entry_step)},
         # Aktionen beim Deaktivieren (1.27.0), je Modus, der gerade scharf war
-        vol.Optional("workflows_disarmed"): {vol.In(MODES): vol.All([valid_disarmed_step], vol.Length(max=MAX_STEPS))},
+        vol.Optional("workflows_disarmed"): {vol.In(MODES): step_list(valid_disarmed_step)},
     }
 )
 @websocket_api.require_admin

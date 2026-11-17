@@ -68,7 +68,7 @@ def test_every_option_and_error_is_translated() -> None:
 
 def test_no_sharp_s() -> None:
     files = [*INTEGRATION.glob("*.py"), *INTEGRATION.glob("translations/*.json"), INTEGRATION / "strings.json", *INTEGRATION.glob("panel/*")]
-    files += [ROOT / name for name in ("README.md", "README.de.md", "CHANGELOG.md", "CHANGELOG.de.md")]
+    files += [ROOT / name for name in ("README.md", "README.de.md", "CHANGELOG.md", "CHANGELOG.de.md", "docs/MANUAL.md", "docs/MANUAL.de.md")]
     offenders = [str(f.relative_to(ROOT)) for f in files if "ß" in f.read_text(encoding="utf-8")]
     assert not offenders, f"Eszett statt ss in: {offenders}"
 
@@ -100,9 +100,9 @@ def _structure(path: Path) -> list[str]:
     return out
 
 
-@pytest.mark.parametrize(("en", "de"), [("README.md", "README.de.md"), ("CHANGELOG.md", "CHANGELOG.de.md")])
+@pytest.mark.parametrize(("en", "de"), [("README.md", "README.de.md"), ("CHANGELOG.md", "CHANGELOG.de.md"), ("docs/MANUAL.md", "docs/MANUAL.de.md")])
 def test_docs_bilingual(en: str, de: str) -> None:
-    """README und CHANGELOG gibt es in beiden Sprachen, gleich aufgebaut und gegenseitig verlinkt."""
+    """README, CHANGELOG und Handbuch (seit 1.58.0) gibt es in beiden Sprachen, gleich aufgebaut und gegenseitig verlinkt."""
     assert _structure(ROOT / en) == _structure(ROOT / de)
     assert re.search(rf"\]\((\S*/)?{re.escape(de)}\)", (ROOT / en).read_text(encoding="utf-8"))
     assert re.search(rf"\]\((\S*/)?{re.escape(en)}\)", (ROOT / de).read_text(encoding="utf-8"))

@@ -14,11 +14,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
 from . import websocket_api
-from .const import CONF_PER_MODE_SENSORS, CONF_SENSOR_MODES, CONF_SENSOR_OPTIONS, CONF_SENSORS, CONF_ZONE_PREFIX, DOMAIN, MODES, OPT_BYPASS
+from .const import CONF_PER_MODE_SENSORS, CONF_SENSOR_MODES, CONF_SENSOR_OPTIONS, CONF_SENSORS, CONF_ZONE_PREFIX, DOMAIN, MODES, OPT_BYPASS, STATE_STORE_KEY
 from .controller import AlarmController
 from .events import EventLog, async_remove_events
 from .recording import AlarmRecorder, async_remove_recordings
@@ -147,6 +148,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
     entry.async_on_unload(notifier.async_stop)
     # Die Aktionen sind Zusatz zur Anlage selbst: scheitert ihr Start (Ablage), hört die Anlage trotzdem auf ihre Sensoren und meldet
     await _isolated(entry, workflow.async_start(), "starting the alarm actions")
+    # Erst jetzt hören Protokoll, Aufzeichnung, Meldungen und Aktionen zu: eine während des Neustarts abgelaufene Eingangsverzögerung
+    # wird hier zum Alarm (vorher stand der Alarm nur im Zustand, ohne Sirene und ohne Meldung)
+    controller.async_finish_restore()
     routines = RoutineEngine(hass, entry, controller)
     routines.async_start()
     entry.async_on_unload(routines.async_stop)
@@ -217,5 +221,6 @@ async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     await async_remove_recordings(hass, entry.entry_id)
     await async_remove_workflow_store(hass, entry.entry_id)
     await async_remove_monitor_store(hass, entry.entry_id)
+    await Store(hass, 1, f"{STATE_STORE_KEY}.{entry.entry_id}").async_remove()
     if not any(e.entry_id != entry.entry_id for e in hass.config_entries.async_entries(DOMAIN)):
         async_remove_panel(hass)

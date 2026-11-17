@@ -195,8 +195,11 @@ export class SystemUi {
     const t = (k, v) => this._t(k, v);
     const n = customList(this.host).length;
     const summary = n ? t(n === 1 ? "csSummaryOne" : "csSummary", { count: n }) : t("csNone");
+    // Hochladen direkt von der Seite (1.58.0, Wunsch des Nutzers): nicht blau; öffnet das Fenster mit dem Formular
+    const full = n >= (this.host._data?.custom_sound_limits?.max || 20);
     return chapter(t("csTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum"><span class="ag-oav ${n ? "on" : ""}">${ic("speaker", 20)}</span>
-      <div class="ag-settx"><b>${esc(summary)}</b></div><button class="ag-btn" data-sys="cs-open">${ic("speaker", 18)}${esc(t("csShow"))}</button></div></div>`, t("csHint"));
+      <div class="ag-settx"><b>${esc(summary)}</b></div><div class="ag-btnrow"><button class="ag-btn" data-sys="cs-upload-page" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(t("csUpload"))}</button>
+        <button class="ag-btn" data-sys="cs-open">${ic("speaker", 18)}${esc(t("csShow"))}</button></div></div></div>`, t("csHint"));
   }
 
   _csDlg() {
@@ -320,7 +323,7 @@ export class SystemUi {
     return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes">${autoRow}<div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("bkHint"))}</small></div>
       <div class="ag-btnrow"><button class="ag-btn" data-sys="bk-create">${ic("plus", 18)}${esc(this._t("bkSave"))}</button></div></div>
       <div class="ag-setrow ag-bklast"><div class="ag-settx ag-bklast-tx">${this._bkLastHtml()}</div>
-        <button class="ag-btn" data-sys="bk-open">${ic("restoreEye", 18)}${esc(this._t("bkShow"))}</button></div></div>`);
+        <button class="ag-btn" data-sys="bk-open">${ic("groups", 18)}${esc(this._t("bkShow"))}</button></div></div>`);
   }
 
   // "Letzte Sicherung: Datum, Name" (die Liste selbst steht im Popup)
@@ -608,7 +611,7 @@ export class SystemUi {
       this.host._toast(this._t("bkDone"));
       this.host._fetch();
     } catch (err) {
-      this._codeError(err?.code === "name_taken" ? this._t("renameTaken") : err?.code === "name_required" ? this._t("renameEmpty") : err?.code === "invalid_mapping" ? this._t("bkErrMapping") : this._backupErr(err));
+      this._codeError(err?.code === "name_taken" ? this._t("renameTaken") : err?.code === "name_required" ? this._t("renameEmpty") : err?.code === "invalid_mapping" ? this._t("bkErrMapping") : err?.code === "mode_active" ? this._t("bkErrModeActive") : this._backupErr(err));
     }
   }
 
@@ -811,7 +814,11 @@ export class SystemUi {
         this.render();
       } else if (act === "cs-rename-ok") this._csRenameOk();
       else if (act === "cs-delete") this._csDelete(el.dataset.id);
-      else if (act === "cs-upload-open") {
+      else if (act === "cs-upload-page") {
+        // Von der Seite: das Fenster öffnet gleich mit dem Formular zum Hochladen
+        this.cs.upload = { name: "", error: "", busy: false };
+        this.openCsList();
+      } else if (act === "cs-upload-open") {
         this.cs.upload = { name: "", error: "", busy: false };
         this.render();
       } else if (act === "cs-cancel") {

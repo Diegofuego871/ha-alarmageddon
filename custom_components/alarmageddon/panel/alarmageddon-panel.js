@@ -5,17 +5,13 @@
 
 // Gleicher Cache-Buster wie die Seite (?v=...), damit nie eine alte Datei zur neuen passt (LEARNINGS)
 const V = new URL(import.meta.url).search;
-const { pickLang, translate } = await import(`./strings.js${V}`);
-const { CSS } = await import(`./styles.js${V}`);
-const { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY } = await import(`./common.js${V}`);
-const { ListUi } = await import(`./list.js${V}`);
-const { SensorsUi } = await import(`./sensors.js${V}`);
-const { SystemUi } = await import(`./system.js${V}`);
-const { ActionsUi } = await import(`./actions.js${V}`);
-const { NotifyUi } = await import(`./notify.js${V}`);
-const { LogUi } = await import(`./log.js${V}`);
-const { SensorView } = await import(`./sensorview.js${V}`);
-const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
+// Alle Module zugleich laden statt eines nach dem anderen (1.58.0): jedes `await import` in Folge wartete auf das vorige, die Übersicht
+// erschien erst nach einem Dutzend Anfragen hintereinander. panel.html meldet die Dateien zusätzlich vorab an (modulepreload).
+const [
+  { pickLang, translate }, { CSS },
+  { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY },
+  { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart },
+] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader"].map((name) => import(`./${name}.js${V}`)));
 /** Nach so langer Abwesenheit startet das Panel wieder auf der Übersicht (Merkzettel für Reiter und Unterreiter) */
 const AWAY_MS = 30 * 60 * 1000;
 const SUBS = ["sensors", "actions", "notify", "system"];

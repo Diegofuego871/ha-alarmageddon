@@ -65,6 +65,11 @@ for (const lang of ["de", "en"]) {
     await s.tap('#ag-step [data-wf="cs-go"]');
     check(`${tag}: der Ton ist hochgeladen und im Schritt gewählt, das Formular ist zu`, await s.waitFor("const e=r.getElementById('ag-step'); const sel=e.querySelector('[data-key=\"sound\"]'); return sel.selectedOptions[0].textContent === 'Garage Tor' && !e.querySelector('[data-cs=upload]')"));
     check(`${tag}: der Server hat Name und Datei bekommen (Name bereinigt)`, await s.sim("return window.__uploads.at(-1).name === 'Garage Tor' && window.__uploads.at(-1).file === 'garage.wav'"));
+    // 1.58.0: der Ton ist gespeichert, die Wahl im Schritt noch nicht: dezenter orange Hinweis am Ton
+    check(`${tag}: nach dem Hochladen sagt ein dezenter orange Hinweis am Ton, dass der Schritt noch nicht gespeichert ist`, await dlg("const n=d.querySelector('.ag-unsaved-note'); if (!n) return false; const dot=getComputedStyle(n, '::before'); return n.textContent.trim().length > 10 && dot.width === '8px' && dot.borderRadius === '50%'"));
+    await (await s.el('#ag-step [data-key="sound"]')).selectOption("siren");
+    check(`${tag}: mit einem anderen Ton verschwindet der Hinweis`, await s.waitFor("return !r.getElementById('ag-step').querySelector('.ag-unsaved-note')"));
+    await (await s.el('#ag-step [data-key="sound"]')).selectOption({ label: "Garage Tor" });
     await s.tap('#ag-step [data-wf="apply"]');
     check(`${tag}: die Karte nennt den Namen des Tons`, await s.waitFor("return r.querySelector('.ag-wf-main .ag-wf-step .ag-t2').textContent.includes('Garage Tor')"));
 
@@ -80,6 +85,13 @@ for (const lang of ["de", "en"]) {
     // Seit 1.56.0 zeigt die Seite nur eine Zusammenfassung und einen Knopf, die Liste steht im Fenster
     await s.waitFor("return !!r.querySelector('[data-sys=\"cs-open\"]')");
     check(`${tag}: Seite: nur Zusammenfassung "2 ${lang === "de" ? "eigene Töne" : "own sounds"}" und Knopf, keine Liste auf der Seite`, await s.ev(`const row=r.querySelector('.ag-sys-form .ag-rtsum [data-sys="cs-open"]')?.closest('.ag-rtsum'); return !!row && /2 /.test(row.innerText) && !r.querySelector('.ag-sys-form [data-cs=manage]') && !r.querySelector('.ag-sys-form .ag-csrow')`));
+    // 1.58.0: Hochladen direkt von der Seite (Knopf nicht blau)
+    check(`${tag}: Seite: Knopf "Ton hochladen" neben "Töne anzeigen", nicht blau`, await s.ev("const b=r.querySelector('.ag-sys-form .ag-rtsum [data-sys=\"cs-upload-page\"]'); return !!b && !b.classList.contains('primary') && !b.disabled"));
+    await s.tap('[data-sys="cs-upload-page"]');
+    check(`${tag}: der Knopf der Seite öffnet das Fenster gleich mit dem Formular zum Hochladen`, await s.waitFor("const d=r.getElementById('ag-cslist'); return d.open && !!d.querySelector('[data-cs=upload]')"));
+    await s.tap('#ag-cslist [data-sys="cs-cancel"]');
+    await s.tap('#ag-cslist [data-sys="cs-close"]');
+    await s.waitFor("return !r.getElementById('ag-cslist').open");
     await s.tap('[data-sys="cs-open"]');
     await s.waitFor("return r.getElementById('ag-cslist').open && !!r.querySelector('#ag-cslist [data-cs=manage]')");
     check(`${tag}: Fenster: Fusszeile mit "Schliessen" und "Ton hochladen"`, await s.ev("const f=r.querySelector('#ag-cslist .ag-dlg-btns'); return [...f.querySelectorAll('button')].map((b) => b.dataset.sys).join() === 'cs-close,cs-upload-open'"));

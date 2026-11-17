@@ -469,9 +469,17 @@ class MonitorEngine:
     async def _sleep(self, seconds: float) -> None:
         if seconds <= 0:
             return
-        done = asyncio.Event()
-        cancel = async_call_later(self.hass, seconds, lambda _now: done.set())
+        future = self.hass.loop.create_future()
+
+        # Ziel ist eine @callback-Funktion, keine lambda (LEARNINGS): eine lambda liefe als Executor-Job in einem Thread und weckte den
+        # Ablauf von dort (nicht threadsicher: der Schritt nach "Warten" käme verspätet oder, im Debug-Modus von asyncio, gar nicht)
+        @callback
+        def _done(_now: Any = None) -> None:
+            if not future.done():
+                future.set_result(None)
+
+        cancel = async_call_later(self.hass, seconds, _done)
         try:
-            await done.wait()
+            await future
         finally:
             cancel()

@@ -32,7 +32,7 @@ for (const lang of ["de", "en"]) {
     // ----- Aktivierungston hinzufügen -----
     await s.ev("r.querySelector('.ag-wf-armed [data-wf=\"add\"]').click(); return 1");
     await s.waitFor("return r.getElementById('ag-step').open");
-    check(`${tag}: Auswahl beim Scharfschalten: Aktivierungston zuerst, keine Sirene, keine Alarmmeldung, kein Quittieren`, JSON.stringify(await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => b.dataset.kind)")) === JSON.stringify(["chime", "device", "wait", "scene", "custom"]) && (await dlg(`return d.querySelector('[data-kind="chime"]').innerText.includes(${JSON.stringify(t.chime)})`)));
+    check(`${tag}: Auswahl beim Scharfschalten: Aktivierungston zuerst, keine Sirene, keine Alarmmeldung, kein Quittieren`, JSON.stringify(await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => b.dataset.kind)")) === JSON.stringify(["chime", "device", "wait", "scene", "custom", "group"]) && (await dlg(`return d.querySelector('[data-kind="chime"]').innerText.includes(${JSON.stringify(t.chime)})`)));
     await s.tap('#ag-step [data-wf="kind"][data-kind="chime"]');
     await s.waitFor("return !!r.querySelector('#ag-step .ag-tone')");
     const ed = await dlg(`return { tone: d.querySelector('.ag-tone select').value, tones: [...d.querySelectorAll('.ag-tone select option:not([value=\"__upload\"])')].map((o) => o.value), note: d.innerText.includes(${JSON.stringify(lang === "de" ? "so oft er ganz in diese Zeit passt" : "as often as it fits completely")}), until: !!d.querySelector('[data-wf="until"]'), restore: !!d.querySelector('[data-wf="restore"]') || d.innerText.includes(${JSON.stringify(t.restore)}), wait: d.querySelector('[data-wf="waitend"]')?.getAttribute('aria-checked'), seconds: [...d.querySelectorAll('input')].map((i) => i.value).includes('3'), preview: !!d.querySelector('[data-wf="pv-play"]') }`);
@@ -69,7 +69,7 @@ for (const lang of ["de", "en"]) {
     await s.ev("r.querySelector('.ag-wf-main [data-wf=\"add\"]').click(); return 1");
     await s.waitFor("return r.getElementById('ag-step').open");
     const kinds = await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => [b.dataset.kind, b.querySelector('b').textContent])");
-    check(`${tag}: beim Alarm zur Wahl: "${t.alarm}" und "${t.pre}", kein Aktivierungston`, kinds.some(([k, l]) => k === "sound" && l === t.alarm) && kinds.some(([k, l]) => k === "prealarm" && l === t.pre) && !kinds.some(([k]) => k === "chime") && kinds.length === 8, JSON.stringify(kinds));
+    check(`${tag}: beim Alarm zur Wahl: "${t.alarm}" und "${t.pre}", kein Aktivierungston`, kinds.some(([k, l]) => k === "sound" && l === t.alarm) && kinds.some(([k, l]) => k === "prealarm" && l === t.pre) && !kinds.some(([k]) => k === "chime") && kinds.length === 9, JSON.stringify(kinds));
     await s.tap('#ag-step [data-wf="kind"][data-kind="prealarm"]');
     await s.waitFor("return !!r.querySelector('#ag-step .ag-tone')");
     const pe = await dlg(`return { tone: d.querySelector('.ag-tone select').value, tones: [...d.querySelectorAll('.ag-tone select option:not([value=\"__upload\"])')].map((o) => o.value), until: !!d.querySelector('[data-wf="until"]'), restore: !!d.querySelector('[data-wf="restore"]'), wait: d.querySelector('[data-wf="waitend"]')?.getAttribute('aria-checked'), seconds: [...d.querySelectorAll('input')].map((i) => i.value).includes('20'), vol: d.innerText.includes('30 %') }`);

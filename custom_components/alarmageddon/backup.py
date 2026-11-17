@@ -25,13 +25,14 @@ from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later, async_track_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS
+from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS, MODE_ENABLED_DEFAULT, MODE_ENABLED_KEY
 from .custom_sounds import valid_backup_sounds
 from .monitor import check_monitors
 from .routines import check_routines, migrate_options
@@ -162,9 +163,27 @@ def _resolve(hass: HomeAssistant, backup: dict[str, Any], mapping: list[dict[str
     return out
 
 
+def _check_active_modes(targets: list[tuple[dict[str, Any], ConfigEntry | str]]) -> None:
+    """
+    Vor jeder Änderung: Eine Sicherung darf nie den Modus abschalten, in dem die Zielanlage gerade scharf ist oder wird (auch nicht in der
+    Verzögerung oder im Alarm). Nach dem Neuladen fände der Zustand keinen Modus mehr und die Anlage wäre still deaktiviert (dieselbe
+    Sperre wie beim Speichern der Anlage im Panel, Fehler "mode_active").
+    """
+    for item, target in targets:
+        if isinstance(target, str):
+            continue
+        ctl = target.runtime_data.controller
+        if not ctl.mode or ctl.state == AlarmControlPanelState.DISARMED:
+            continue
+        merged = {**target.options, **item["options"]}
+        if not merged.get(MODE_ENABLED_KEY[ctl.mode], MODE_ENABLED_DEFAULT[ctl.mode]):
+            raise RestoreError("mode_active")
+
+
 async def async_restore(hass: HomeAssistant, backup: dict[str, Any], mapping: list[dict[str, Any]] | None = None, restore_settings: bool = True) -> dict[str, Any]:
     result = plan(hass, backup)
     targets = _resolve(hass, backup, mapping)
+    _check_active_modes(targets)
     settings = await async_get_settings(hass)
     # Eigene Töne zuerst: die Schritte der Anlagen verweisen auf sie (nur was fehlt wird zurückgeholt, Vorhandenes bleibt)
     registry = hass.data.get(DATA_CUSTOM_SOUNDS)

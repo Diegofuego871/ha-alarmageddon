@@ -47,6 +47,17 @@ for (const lang of ["de", "en"]) {
     };
     await openList();
     check(`${tag}: Seite: nur eine Zeile "3 Routinen · 3 aktiv" mit Knopf "Routinen anzeigen", keine Liste auf der Seite`, await s.waitFor(`const row=r.querySelector('.ag-sys-form .ag-rtsum'); return !!row && /3 .* 3/.test(row.innerText) && !!row.querySelector('[data-sys="rt-open"]') && !r.querySelector('.ag-sys-form .ag-rtrow')`));
+    // 1.58.0: Routine direkt von der Seite anlegen (Knopf nicht blau), dezenter orange Hinweis auf Ungespeichertes
+    check(`${tag}: Seite: Knopf "Routine hinzufügen" neben "Routinen anzeigen", nicht blau; ohne Änderung kein Hinweis "nicht gespeichert"`, await s.ev("const row=r.querySelector('.ag-sys-form .ag-rtsum'); const b=row.querySelector('[data-sys=\"rt-add-page\"]'); return !!b && !b.classList.contains('primary') && !b.disabled && !row.querySelector('.ag-unsaved')"));
+    await closeList();
+    await s.tap('[data-sys="rt-add-page"]');
+    check(`${tag}: der Knopf der Seite öffnet gleich den Editor einer neuen Routine`, await s.waitFor("return r.getElementById('ag-step').open && !!r.querySelector('#ag-step [data-sys=\"rt-save\"]')"));
+    await s.tap('#ag-step [data-sys="rt-cancel"]');
+    await s.waitFor("return !r.getElementById('ag-step').open");
+    await tapIn('.ag-rtrow [data-sys="rt-on"]');
+    check(`${tag}: geänderte Routine: dezenter orange Hinweis "noch nicht gespeichert" in ihrer Zeile und auf der Seite, die anderen Zeilen ohne`, await s.waitFor("const rows=[...r.querySelectorAll('#ag-rtlist .ag-rtrow')]; const sum=r.querySelector('.ag-sys-form .ag-rtsum .ag-unsaved'); const n=rows[0]?.querySelector('.ag-unsaved'); return !!n && !!sum && rows.slice(1).every((x) => !x.querySelector('.ag-unsaved')) && getComputedStyle(n, '::before').borderRadius === '50%' && getComputedStyle(n, '::before').width === '8px'"));
+    await tapIn('.ag-rtrow [data-sys="rt-on"]');
+    check(`${tag}: zurückgestellt: der Hinweis verschwindet`, await s.waitFor("return !r.querySelector('#ag-rtlist .ag-unsaved') && !r.querySelector('.ag-sys-form .ag-rtsum .ag-unsaved')"));
     await openList();
     check(`${tag}: Popup: Überschrift, Fusszeile mit "Schliessen" und "Routine hinzufügen"`, await s.ev("const d=r.getElementById('ag-rtlist'); return !!d.querySelector('h3') && !!d.querySelector('[data-sys=\"rt-close\"]') && !!d.querySelector('.ag-dlg-btns [data-sys=\"rt-add\"]')"));
     await openList();
@@ -129,7 +140,9 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="rt-save"]');
     await openList();
     check(`${tag}: Editor zu, vier Routinen, Änderung offen`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelectorAll('.ag-rtrow').length === 4 && r.host.systemUi.dirtyCount() === 1"));
+    check(`${tag}: die neue Routine trägt bis zum Speichern der Seite den Hinweis "noch nicht gespeichert"`, await s.ev("return !!r.querySelector('.ag-sys-form .ag-rtsum .ag-unsaved')"));
     await savePage();
+    check(`${tag}: nach dem Speichern der Seite ist der orange Hinweis weg (Seite und Liste)`, await s.waitFor("return !r.querySelector('.ag-sys-form .ag-rtsum .ag-unsaved')", 12000) && (await openList(), await s.waitFor("return r.querySelectorAll('#ag-rtlist .ag-rtrow').length > 3 && !r.querySelector('#ag-rtlist .ag-unsaved')")));
     check(`${tag}: gespeichert`, await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`, 30000));
     // Nach dem Speichern und einer neuen Abfrage des Servers (der ergänzt Vorgaben und ordnet Schlüssel anders) darf nichts mehr offen sein: kein orange Punkt
     await s.waitFor("return !r.host._wait", 30000);

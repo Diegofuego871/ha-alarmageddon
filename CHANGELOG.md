@@ -7,6 +7,57 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.59.0] - 2026-11-17
+
+Includes the changes from 1.58.0.
+
+### Added
+
+- **Action group.** A new element under Configuration › Actions: a group repeats its actions in their order, for example "light on, wait 2 seconds, light off, wait 2 seconds" as a flashing light, or a siren in a rhythm. You choose for how long: a **number** of rounds (1 to 100), a **duration** (1 to 3600 seconds) or **until disarmed** (only in the flow of the alarm; ends with disarming, acknowledging or "Silence alarm sound"). The group is a frame with a header in the colour of its area (red for the alarm, light red when armed, orange for the delays, green after acknowledging and when disarming); inside, the actions are the same cards as everywhere. Actions get into the group with the plus or by dragging, and out again the same way; with the keyboard an action moves into a group, through it and out of it with the arrow keys. The group exists in all lists of the actions (not in the monitoring rules), each with the actions that are possible there; a group has at most 10 actions, which count towards the limit of 40 per list.
+- **"Wait until the action has finished" for the group as well.** As for the other actions: off (default) the group runs alongside and the following actions start at once, on the flow waits for its end. A group "until disarmed" cannot be waited for.
+- **A question when a group moves to another area.** When you drag a group, for example, from the alarm to arming, a window names the actions that do not exist there (such as push notification or alarm sound) and removes them only after you confirm; "until disarmed" becomes a number of rounds there. "Cancel" leaves the group where and as it is.
+- **As safe as the other alarm actions.** Every action in the group is under the same limits (a device that does not answer is skipped after 10 seconds, a failure never stops the others). Every round takes at least 1 second, so that a group without "Wait" does not cause a flood of switching commands and notifications. With "duration" a round only starts if it still fits into the time completely: the group never runs longer than set and never ends in the middle of a round (the light does not stay on). After a restart of Home Assistant in the middle of an alarm a group "until disarmed" starts again; a group that is waited for goes on with the remaining rounds or the remaining time. A device with "Undo" returns to its previous state when disarming, also when disarming happens in the middle of a round.
+
+### Changed
+
+- **The recording of an alarm has a hard limit.** Actions and notifications used to be added to the timeline always. From 600 entries on only state changes and the end are added: a group that sends a notification every round until disarmed can no longer make the recording grow without end. The actions of a group appear on the timeline only for the first round.
+
+## [1.58.0] - 2026-11-17
+
+Not released; included in 1.59.0.
+
+Result of a full code review (logic, stability, speed) and requests for the interface.
+
+### Added
+
+- **"Upload sound" directly on the page Alarm system.** The chapter "Your own sounds" has the button "Upload sound" next to "Show sounds" (a normal button, not blue); it opens the window with the form right away. When you upload a sound in the editor of a step, a subtle orange note below the selection says: "Uploaded and selected for this step. The step is not saved yet." The sound itself is stored at once; only the step is still open.
+- **"Add routine" directly on the page Alarm system.** The chapter "Routines" has the button "Add routine" next to "Show routines" (not blue); it opens the editor right away. A new or changed routine carries the orange mark "Not saved yet" in the list, and the summary on the page says "Changes not saved yet" until you save the page.
+- **Own storage for the state of the alarm system.** Every change (armed, delay, alarm, disarmed) is written at once. Home Assistant itself stores states only every 15 minutes and on a clean shutdown: after a crash or power loss the system used to come back with a state up to 15 minutes old (for example disarmed although it was armed). At startup the newer of the two states wins; the storage is removed together with the system.
+
+### Changed
+
+- **The overview loads faster.** The 15 files of the panel were fetched one after the other, each only after the previous one; now the browser loads all of them at once (measured with 120 ms delay per request: 2.7 s before, 1.0 s now until the overview is ready; on a local network 0.4 s before, 0.27 s now). The response with the data lists the measurement sensors of the house only when a system has monitoring switched on, and the first response after a restart waits at most 1.5 seconds for the history behind "Last change" (the rest follows).
+- **States appear in the panel at once.** The panel took over the state of Home Assistant only every 5 seconds: an alarm or an open sensor showed up to 5 seconds late, and after arming the loading indicator kept spinning for up to 4 seconds. It now checks every 250 ms whether there is a new state.
+- **New icon for "Show backups":** a list, as for "Show routines". The previous icon (arrow with an eye) read as "create a backup" or "restore".
+- **The tab row under Configuration › Actions stays at the same height when switching to "Monitoring".** The place of the switch "Settings per mode" stays empty there instead of the row jumping up.
+- **Restart in the middle of an alarm without a stored run:** the alarm actions start from the beginning instead of staying silent (when in doubt, sound the alarm). An alarm silenced with "Silence alarm sound" stays silent after a restart. A test or the actions after acknowledging are no longer resumed as an alarm run after a restart.
+- **Less work per sensor event.** The check for "Always active" and the status entity searched all sensors and the registry on every event of a sensor; an alarm sound was built separately for every speaker. Both now happen once.
+
+### Fixed
+
+- **Alarm without siren after a restart.** When the entry delay ran out during a restart of Home Assistant, the system did change to "alarm", but alarm actions, push message, log and recording stayed out: they were not listening yet at that moment. The alarm now begins as soon as all parts are ready.
+- **Damaged stored data made the system "unavailable".** An unreadable point in time or a wrong type in the stored state aborted loading. Every value is now checked on its own; what cannot be read is skipped and the state is kept.
+- **The mode the system is armed in could be switched off.** In the dialog "Configure" of the integration and when restoring a backup: the system was disarmed afterwards without any message. Both are now refused, with the note to disarm first.
+- **Sensor view over 7 and 30 days froze after the clock change in autumn.** On the day with 25 hours the calculation of the day rows ran forever ("Invalid string length") as long as that day was within the period, so for up to 30 days.
+- **Adding or deleting a system got stuck in the panel** while a long task was running in Home Assistant (for example an automation with a delay): the command waited for all tasks of Home Assistant instead of only its own.
+- **The message "Entry delay" named the time of the mode,** also when the triggering sensor has its own delay. It now names the time that is really running.
+- **Monitoring: the step "Wait" ended its waiting time from a foreign thread.** That is not allowed in Home Assistant and could delay or lose the following steps.
+- **Recording of an alarm: writing was postponed again and again during many events.** It is now written at the latest 2 seconds after the first event.
+
+### Security
+
+- **The lock after five wrong codes could be bypassed with simultaneous attempts.** Checking a code takes a moment; attempts arriving during that time were all checked before the counter rose. Codes are now checked strictly one after the other.
+
 ## [1.57.0] - 2026-11-17
 
 ### Added
@@ -1738,6 +1789,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.59.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.59.0
 [1.57.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.57.0
 [1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0
 [1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0

@@ -12,6 +12,7 @@ Alarm und nicht zu "scharf".
 
 from __future__ import annotations
 
+import asyncio
 from uuid import uuid4
 
 from collections.abc import Callable
@@ -26,6 +27,7 @@ from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UN
 from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.event import async_track_point_in_utc_time, async_track_state_change_event
+from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .code import match_code
@@ -74,6 +76,7 @@ from .const import (
     DEFAULT_ENTRY_DELAY,
     DEFAULT_EXIT_DELAY,
     DOMAIN,
+    STATE_STORE_KEY,
     MODE_AWAY,
     MODE_HOME,
     MODE_NIGHT,
@@ -92,6 +95,29 @@ STATE_MODE = {state: mode for mode, state in ARMED_STATE.items()}
 # Zustände, in denen Sensoren überwacht werden
 WATCHING = {*ARMED_STATE.values(), AlarmControlPanelState.PENDING}
 GONE = {STATE_UNAVAILABLE, STATE_UNKNOWN}
+
+
+def _as_time(value: Any) -> datetime | None:
+    """
+    Gespeicherte Zeit lesen, ohne je zu scheitern: kein Text, kein Datum oder ein Datum ohne Zeitzone (dann UTC) darf die Wiederherstellung
+    nicht abbrechen. Eine Anlage, deren gespeicherter Stand beschädigt ist, muss trotzdem laden (Sicherheitsregel: im Zweifel alarmieren).
+    """
+    if isinstance(value, datetime):
+        parsed: datetime | None = value
+    elif isinstance(value, str) and value:
+        try:
+            parsed = dt_util.parse_datetime(value)
+        except (ValueError, TypeError):
+            parsed = None
+    else:
+        parsed = None
+    if parsed is not None and parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt_util.UTC)
+    return parsed
+
+
+def _as_text(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
 
 
 def _error(key: str, **placeholders: str) -> ServiceValidationError:
@@ -141,6 +167,14 @@ class AlarmController:
         self._unsub_sensors: CALLBACK_TYPE | None = None
         self._failed_codes = 0
         self._locked_until: datetime | None = None
+        # Eine Code-Prüfung nach der anderen (1.58.0): die Prüfung rechnet im Hintergrund. Liefen mehrere zugleich, sähe jede den Zähler
+        # der Fehlversuche von vor ihrem Start, und gleichzeitig abgeschickte Versuche umgingen die Sperre nach CODE_MAX_ATTEMPTS.
+        self._code_lock = asyncio.Lock()
+        # Eigene Ablage des Zustands (1.58.0, siehe _save_state): Home Assistant schreibt den Zustand von Entitäten nur alle 15 Minuten
+        # und beim sauberen Beenden; nach einem Absturz oder Stromausfall käme sonst ein bis zu 15 Minuten alter Zustand zurück.
+        self._state_store: Store[dict[str, Any]] = Store(hass, 1, f"{STATE_STORE_KEY}.{entry.entry_id}")
+        # Die Eingangsverzögerung ist während des Neustarts abgelaufen: der Alarm beginnt, sobald alle Teile zuhören (async_finish_restore)
+        self._alarm_after_restore = False
         # Sensoren mit "braucht Bestätigung", die angesprochen haben, und wann (Zwei-Sensor-Bestätigung)
         self._unconfirmed: dict[str, datetime] = {}
         # Wann ein Sensor mit "Stiller Alarm" zuletzt gemeldet hat (höchstens eine Meldung pro Minute)
@@ -381,6 +415,13 @@ class AlarmController:
             known |= {e for per in (self.options.get(CONF_SENSOR_MODES) or {}).values() if isinstance(per, dict) for e in per}
         return {e for e in known if isinstance(e, str) and self.option(e, OPT_ALWAYS, mode)}
 
+    def is_always(self, entity_id: str) -> bool:
+        """
+        Ist dieser Sensor immer aktiv? Dasselbe wie `entity_id in always_sensors()` für jeden Sensor, auf den die Anlage hört (Zonen, Liste,
+        eigene Werte), aber ohne bei jedem Sensorereignis die Optionen aller Sensoren zu lesen.
+        """
+        return self.always_enabled and self.option(entity_id, OPT_ALWAYS, None)
+
     def all_sensors(self) -> set[str]:
         """Alle Sensoren, auf die gehört wird: die der Zonen und alle, die in irgendeinem Modus immer aktiv sein können."""
         return {entity for mode in self.modes for entity in self.zone(mode)} | self.always_sensors()
@@ -458,7 +499,55 @@ class AlarmController:
 
     @callback
     def _notify(self) -> None:
+        self._save_state()
         self._call_each(self._listeners)
+
+    # ----- Eigene Ablage des Zustands (1.58.0) -----
+
+    @callback
+    def _save_state(self) -> None:
+        """
+        Zustand sofort in die eigene Ablage schreiben (bei jedem Wechsel und jeder Änderung einer Frist). Home Assistant sichert den Zustand
+        von Entitäten nur alle 15 Minuten und beim sauberen Beenden: nach einem Absturz oder Stromausfall wäre eine eben scharf geschaltete
+        Anlage sonst deaktiviert und ein laufender Alarm vergessen. Zusatz wie jedes Mitschreiben: ein Fehler hier hält nichts auf.
+        """
+        if self._restoring:
+            return
+        try:
+            self._state_store.async_delay_save(self._state_for_save, 0)
+        except Exception:  # noqa: BLE001 - Sicherheitsregel: das Mitschreiben hält den Zustandswechsel nie auf
+            _LOGGER.exception("%s: saving the state of the alarm system failed", self.entry.title)
+
+    def _state_for_save(self) -> dict[str, Any]:
+        return {"state": str(self.state), "data": self.restore_data(), "saved": dt_util.utcnow().isoformat()}
+
+    async def async_load_state(self) -> tuple[str, dict[str, Any]] | None:
+        """Der zuletzt selbst gespeicherte Zustand (Zustand, Daten) oder None. Nie ein Fehler: ohne lesbare Ablage gilt der Stand von Home Assistant."""
+        try:
+            stored = await self._state_store.async_load()
+        except Exception:  # noqa: BLE001 - beschädigte Ablage: der Stand von Home Assistant gilt
+            _LOGGER.exception("%s: the saved state of the alarm system cannot be read; using the state Home Assistant restored", self.entry.title)
+            return None
+        if not isinstance(stored, dict) or not isinstance(stored.get("state"), str) or not isinstance(stored.get("data"), dict):
+            return None
+        return stored["state"], stored["data"]
+
+    async def async_remove_state(self) -> None:
+        await self._state_store.async_remove()
+
+    @staticmethod
+    def newer_state(own: tuple[str, dict[str, Any]] | None, last_state: str | None, data: dict[str, Any] | None) -> tuple[str | None, dict[str, Any] | None]:
+        """
+        Welcher Stand gilt beim Wiederherstellen: der eigene (sofort geschrieben) oder der von Home Assistant (alle 15 Minuten und beim Beenden)?
+        Der eigene, ausser der von Home Assistant ist nachweislich neuer (spätere Zeit des Zustands): dann konnte die eigene Ablage zuletzt
+        nicht schreiben.
+        """
+        if own is None:
+            return last_state, data
+        mine, theirs = _as_time(own[1].get("state_since")), _as_time((data or {}).get("state_since"))
+        if last_state is not None and theirs is not None and (mine is None or theirs > mine):
+            return last_state, data
+        return own
 
     # ----- Zeitgeber -----
 
@@ -555,7 +644,7 @@ class AlarmController:
         # enthält. Seine Optionen stehen im Bereich "Immer aktiv" (Modus None). Steht er in der Zone des scharfen Modus, zählt
         # standardmässig nur der Modus (only_mode): Regel und Aktionen des Modus. Ist das ausgeschaltet, gilt "Immer aktiv"
         # zusätzlich: sofort Alarm, beide Abläufe (_flows_for). Mit "Stiller Alarm" nur eine Meldung, danach die Regel des Modus.
-        if went_on and entity in self.always_sensors(self.mode) and self.state != AlarmControlPanelState.TRIGGERED and not self.always_ignored(entity):
+        if went_on and self.state != AlarmControlPanelState.TRIGGERED and self.is_always(entity) and not self.always_ignored(entity):
             if not self.option(entity, OPT_REPORT_ONLY, None):
                 self.triggered_by = entity
                 self.alarm_flows = self._flows_for(entity, by_always=True)
@@ -657,7 +746,15 @@ class AlarmController:
     # ----- Code -----
 
     async def _async_check_code(self, code: str | None) -> str | None:
-        """Prüft den Code; gibt den Namen der Person zurück, wenn es ein persönlicher Code ist."""
+        """
+        Prüft den Code; gibt den Namen der Person zurück, wenn es ein persönlicher Code ist. Immer nur eine Prüfung zugleich: so sieht jeder
+        Versuch die Fehlversuche und die Sperre aller vorigen, auch wenn viele gleichzeitig eintreffen (sonst liesse sich die Sperre mit
+        parallelen Aufrufen umgehen).
+        """
+        async with self._code_lock:
+            return await self._async_check_code_now(code)
+
+    async def _async_check_code_now(self, code: str | None) -> str | None:
         now = dt_util.utcnow()
         if self._locked_until and now < self._locked_until:
             raise _error("code_locked", seconds=str(int((self._locked_until - now).total_seconds()) + 1))
@@ -790,37 +887,57 @@ class AlarmController:
         mit der Restzeit weiter; eine während des Neustarts abgelaufene
         Eingangsverzögerung wird zum Alarm.
         """
+        data = data if isinstance(data, dict) else {}
         self._restoring = True
         try:
             self._restore(last_state, data)
+        except Exception:  # noqa: BLE001 - Sicherheitsregel: ein beschädigter Stand darf die Anlage nie am Laden hindern oder still deaktivieren
+            _LOGGER.exception("%s: the saved state is damaged; restoring from the last state alone", self.entry.title)
+            self._restore(last_state, {})
         finally:
             self._restoring = False
         # Ältere Stände kennen die Zeit nicht: dann bleibt sie leer und die Oberfläche nimmt `last_changed`. Hat sich der Zustand während
         # des Neustarts geändert (Eingangsverzögerung abgelaufen), gilt jetzt.
-        stored = dt_util.parse_datetime(str((data or {}).get("state_since"))) if (data or {}).get("state_since") else None
+        stored = _as_time(data.get("state_since"))
         self.state_since = stored if stored and str(self.state) == str(last_state) else (dt_util.utcnow() if stored else None)
+        # Der wiederhergestellte Stand gilt ab jetzt auch in der eigenen Ablage (nach einem Update von einer Version ohne sie)
+        self._save_state()
+
+    @callback
+    def async_finish_restore(self) -> None:
+        """
+        Nach dem Start aller Teile (Protokoll, Aufzeichnung, Meldungen, Aktionen) rufen. Ist die Eingangsverzögerung während des Neustarts
+        abgelaufen, beginnt der Alarm erst hier: beim Wiederherstellen in der Entität hört noch niemand zu, der Alarm stünde sonst nur im
+        Zustand, ohne Sirene, ohne Meldung und ohne Aufzeichnung (so war es bis 1.57.0).
+        """
+        if not self._alarm_after_restore:
+            return
+        self._alarm_after_restore = False
+        if self.state == AlarmControlPanelState.PENDING:
+            self._go_triggered()
 
     def _restore(self, last_state: str | None, data: dict[str, Any] | None) -> None:
         data = data or {}
         now = dt_util.utcnow()
-        mode = data.get("mode")
+        mode = _as_text(data.get("mode"))
         if mode not in self.modes:
             mode = STATE_MODE.get(last_state) if last_state in STATE_MODE else None
             mode = mode if mode in self.modes else None
-        raw = data.get("deadline")
-        deadline = dt_util.parse_datetime(raw) if raw else None
+        deadline = _as_time(data.get("deadline"))
         remaining = (deadline - now).total_seconds() if deadline else None
-        self.bypassed = set(data.get("bypassed") or []) & self.all_sensors()
-        self.triggered_by = data.get("triggered_by")
-        self.changed_by = data.get("changed_by")
+        raw_bypassed = data.get("bypassed")
+        self.bypassed = {e for e in raw_bypassed if isinstance(e, str)} & self.all_sensors() if isinstance(raw_bypassed, (list, tuple, set)) else set()
+        self.triggered_by = _as_text(data.get("triggered_by"))
+        self.changed_by = _as_text(data.get("changed_by"))
         self.mode = mode
         # Ältere Stände kennen die Angabe nicht: dann fehlt sie bis zum nächsten Scharfschalten
-        self.armed_at = (dt_util.parse_datetime(str(data["armed_at"])) if data.get("armed_at") else None) if mode else None
-        self.armed_by = data.get("armed_by") if mode else None
+        self.armed_at = _as_time(data.get("armed_at")) if mode else None
+        self.armed_by = _as_text(data.get("armed_by")) if mode else None
         # Abläufe des laufenden Alarms; ältere Stände kennen sie nicht (dann gilt der Modus bzw. "Immer aktiv", siehe alarm_plan)
         flows = data.get("alarm_flows")
         valid = {*self.modes, WORKFLOW_ALWAYS}
-        self.alarm_flows = [f for f in flows if f in valid] if isinstance(flows, list) else []
+        self.alarm_flows = [f for f in flows if isinstance(f, str) and f in valid] if isinstance(flows, list) else []
+        self._alarm_after_restore = False
 
         if last_state in STATE_MODE and mode:
             self._go_armed()
@@ -834,7 +951,11 @@ class AlarmController:
             if remaining and remaining > 0:
                 self._go_pending(remaining)
             else:
-                self._go_triggered()
+                # Im Zweifel alarmieren: die Verzögerung ist abgelaufen. Der Alarm beginnt in async_finish_restore, wenn Aktionen und
+                # Meldungen zuhören; bis dahin steht die Anlage in der (abgelaufenen) Eingangsverzögerung.
+                self._alarm_after_restore = True
+                self.deadline = now
+                self._set(AlarmControlPanelState.PENDING)
         elif last_state == AlarmControlPanelState.TRIGGERED:
             if deadline is None:
                 self._set(AlarmControlPanelState.TRIGGERED)  # Alarm bis zum Deaktivieren

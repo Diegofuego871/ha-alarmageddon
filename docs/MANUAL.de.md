@@ -1,0 +1,240 @@
+# Alarmageddon: Handbuch
+
+[English](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.md) · [Zurück zur Übersicht](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/README.de.md)
+
+Alle Einzelheiten zu Alarmageddon. Der schnelle Einstieg (Idee, Installation, Rundgang) steht in der [README](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/README.de.md).
+
+## Inhalt
+
+- [Die Oberfläche](#die-oberfläche): Übersicht, Sensoransicht, Sensoren und Zonen, Alarmaktionen, Benachrichtigungen, Überwachung, Alarm, Protokoll, Dashboard-Karten
+- [Sicherheitsmechanismen](#sicherheitsmechanismen) und ihre Grenzen
+- [Apple HomeKit](#apple-homekit)
+- [Entitäten](#entitäten)
+- [Gut zu wissen](#gut-zu-wissen): Ablauf eines Alarms, Zahlen und Grenzen, Optionen pro Sensor, Aktionen, Routinen, Sicherung, für Entwickler
+
+## Die Oberfläche
+
+### Übersicht
+
+Alle Anlagen auf einen Blick: scharf schalten und deaktivieren, "Bereit für" je Modus mit den Sensoren, die das Scharfschalten noch verhindern, eine Statuskachel für Warnungen und alle Sensoren als Liste oder als Karten (alle gleich hoch), mit Suche, Filtern, Sortierung, wählbaren Spalten und Gruppierung nach Bereich, Sensorart oder Anlage. Ein Tipp auf einen Sensor öffnet seine Ansicht: was er in den letzten Stunden oder bis zu 30 Tagen getan hat (mit einer Grafik je Sensorart und der Liste der Ereignisse), wie es um Batterie und Empfang steht, und ein Knopf, der ihn in Home Assistant öffnet. In der Ansicht wählst du auch, wie die Sensoren heissen: "Gerät - Sensor" oder nur der Name des Sensors, überall gleich bis in die Push-Meldung. Dasselbe auf dem Handy:
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/mobile-de.png" alt="Übersicht auf dem Handy" width="270"></p>
+
+### Sensoransicht
+
+Ein Tipp auf einen Sensor zeigt, was er getan hat: je Sensorart eine eigene Grafik über 3 Stunden bis 30 Tage (Türen und Fenster als Zeitleiste, Bewegung als Raster aus Tag und Stunde), darunter die Ereignisse mit Dauer und dem Zustand der Anlage in diesem Moment. Die Kacheln "Batterie" und "Empfang" zeigen deren Verlauf, die Batterie mit Warnschwelle, Batteriewechsel und Prognose. "Empfang" gibt es auch für Bluetooth- und ZHA-Geräte ohne Empfangssensor: Alarmageddon liest den Wert von Home Assistant selbst (bei mehreren Bluetooth-Adaptern oder Proxys zählt der stärkste, ohne Hin und Her) und zeichnet den Verlauf selbst auf. Du siehst nur den Wert und die Grafik. Thread-Geräte (Matter) funktionieren gleich, über die Nachbartabelle des Geräts.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sensor-de.png" alt="Sensoransicht einer Tür: Verlauf über 7 Tage mit Kennzahlen und Ereignisliste" width="100%"></p>
+
+### Sensoren und Zonen
+
+Eine Tabelle für Sensoren und Zonen: ankreuzen, wohin ein Sensor gehört, oder über mehrere Kästchen ziehen. Jede Sensorart hat sinnvolle Voreinstellungen (ein Rauchmelder ist immer aktiv, ein Bewegungsmelder darf beim Scharfschalten noch Bewegung melden), jeder Sensor kann eigene Werte haben, und der Schalter "Einstellungen pro Modus" bringt einen Reiter je Modus für alle, die mehr wollen.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sensors-de.png" alt="Sensoren und Zonen" width="100%"></p>
+
+### Alarmaktionen
+
+Was bei einem Alarm passiert, ist ein Ablauf aus Schritten, auf Wunsch je Modus. Geräte mit dem Pfeilsymbol kehren beim Deaktivieren in ihren vorherigen Zustand zurück, und jeder Schritt lässt sich mit seinem Abspielknopf an den echten Geräten testen.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/actions-de.png" alt="Alarmaktionen als Ablauf: Push-Meldung, Sirene ein, Warten, Sirene aus" width="100%"></p>
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/actions-disarm-de.png" alt="Das Kapitel Beim Deaktivieren ganz unten auf der Seite Aktionen, mit einem Deaktivierungston" width="100%"></p>
+
+| Schritt | Macht |
+| --- | --- |
+| Push-Meldung | Kritische Alarmmeldung an die Alarm-Empfänger, mit eigenem Titel und Text (Platzhalter für Anlage, Sensor, Sensorart, Bereich, Uhrzeit, Modus und Alarmart; Rauch-, Wasser-, Gas- und Hitzesensoren bringen einen passenden Standardtext mit), wählbaren Knöpfen und auf Wunsch eigenen Empfängern (jeder Titel beginnt mit einem Emoji) |
+| Gerät schalten | Lichter, Steckdosen, Sirenen, Storen, Schlösser und mehr: ein, aus, öffnen, schliessen, mit Helligkeit oder Position; auf Wunsch nach einer eingestellten Zeit rückgängig (Steckdose mit Sirene: ein, nach 2 Minuten aus) |
+| Alarmton abspielen | Einer von fünf Tönen auf Medienplayern, mit Lautstärke, für eine Dauer oder bis zum Deaktivieren |
+| Warten | Hält die folgenden Schritte an, zum Beispiel zwischen "Sirene ein" und "Sirene aus" |
+| Alarm beenden (quittieren) | Beendet den Alarm nach den Schritten davor (zum Beispiel nach 3 Minuten), stellt die Geräte zurück und lässt die Anlage scharf; die Schritte danach laufen nicht mehr |
+| Szene, Skript oder eigene Aktion | Alles andere, was Home Assistant kann |
+| Aktions-Gruppe | Wiederholt mehrere Aktionen in ihrer Reihenfolge (zum Beispiel ein Blinklicht): eine Anzahl Durchläufe, für eine Dauer oder bis deaktiviert wird |
+
+### Benachrichtigungen
+
+Empfänger wählst du getrennt für Alarme und für Wartungsmeldungen, und jede Meldung kann sie mit eigenen Empfängern überschreiben (auch je Modus). Jede Art von Meldung (Eingangsverzögerung, scharf, deaktiviert, Scharfschalten nicht möglich, Stiller Alarm, Sensor nicht erreichbar, Batterie schwach) lässt sich ein- und ausschalten, kritisch senden (ertönt auch im Stumm-Modus) und hat ihre eigene Lautstärke, auf Wunsch je Modus. "Scharfschalten nicht möglich" trägt zwei Knöpfe: "Erneut versuchen" schaltet denselben Modus noch einmal scharf, "Trotzdem scharf schalten" schaltet scharf, obwohl Sensoren offen sind, und übergeht sie bis zum Deaktivieren. Sie gelten eine Stunde, nur solange die Anlage deaktiviert ist und nur vom Handy eines Empfängers dieser Meldung; jeder lässt sich abschalten.
+
+### Überwachung
+
+Neben dem Alarm kann Alarmageddon beobachten, was nichts mit Einbrechern zu tun hat: einen Kühlschrank, der zu warm wird, einen feuchten Keller, schlechte Luft, eine offen gelassene Kühlschranktür. Eingeschaltet wird sie unter Konfiguration › Anlage › Modi (standardmässig aus); dann lassen sich Messwerte (Temperatur, Luftfeuchtigkeit, CO2 ...) in der Sensorliste hinzufügen (dort ausgegraut: keine Zone, nie immer aktiv, keine Eingangsverzögerung), und unter Konfiguration › Aktionen erscheint der Reiter "Überwachung" neben den Modi.
+
+Jede Regel ist ein Kapitel mit ihrem Ablauf: "Ausserhalb der Grenzen" (orange) und "Wieder in Ordnung" (grün), gebaut aus denselben Schritten wie die Alarmaktionen, aber nur Push-Meldung, Gerät schalten und Warten. Eine Regel hat eine Bedingung (Messwert über, unter oder ausserhalb von Grenzen, Gerätezustand, Uhrzeit, "Anlage ist scharf", verbunden mit Und/Oder), eine Dauer, die die Bedingung gelten muss (zum Beispiel 30 Minuten), eine Rückkehr-Spanne gegen Flattern um die Grenze und auf Wunsch eine Erinnerung alle paar Stunden. Texte kennen die Platzhalter `{rule}`, `{sensor}`, `{value}`, `{unit}`, `{limit}`, `{since}` und `{name}`; ohne eigenen Text geht ein passender Standardtext an die gewählten Empfänger oder an die Empfänger der Wartungsmeldungen.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/monitor-de.png" alt="Regeln der Überwachung: Kühlschrank zu warm mit den Abläufen ausserhalb der Grenzen und wieder in Ordnung" width="100%"></p>
+
+Jeder Schritt einer Regel hat einen Play-Knopf, der nur diesen Schritt einmal ausführt (eine Push-Meldung mit dem Titel "Test: ..." oder das Gerät wird geschaltet), auch bevor die Regel gespeichert ist; "Warten" gibt es nicht zu testen.
+
+Die Überwachung läuft immer, auch bei deaktivierter Anlage, und löst nie die Sirene oder den Alarm aus (Feuer und Wasser bleiben bei "Immer aktiv"). Ein Sensor, der nicht antwortet, zählt nie: Er löst keine Regel aus und beendet auch keine, ein Funkabriss meldet also nie "wieder in Ordnung". Eine laufende Regel meldet sich nach einem Neustart nicht noch einmal.
+
+Die Messwert-Sensoren der Überwachung (Temperatur, Luftfeuchtigkeit, CO2) stehen auch in der Übersicht des Panels mit ihrem Wert, und ein Tipp öffnet dieselbe Ansicht wie bei jedem Sensor: der Reiter "Verlauf" mit dem Werteverlauf, Batterie, Empfang und Gerät. Unter der Grafik stehen nur die Ereignisse der Überwachung ("Ausserhalb der Grenzen", "Wieder in Ordnung"), nie die einzelnen Werte. Der Editor einer Regel erklärt die Rückkehr-Spanne mit deinen eigenen Werten: bei welchem Wert die Regel auslöst, ab welchem sie wieder in Ordnung ist und wo die Pufferzone liegt.
+
+### Bei einem Alarm
+
+Ein Alarm ist nicht zu übersehen: ein rotes Band mit dem Sensor, der ausgelöst hat, und den Knöpfen "Quittieren" (der Alarm endet, die Anlage bleibt scharf) und "Deaktivieren". Die Kachel der Anlage nennt, seit wann der Alarm läuft, was ihn ausgelöst hat und wer wann scharf geschaltet hat. Dieselben Knöpfe stehen in der Push-Meldung auf dem Sperrbildschirm.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/alarm-de.png" alt="Alarm auf dem Handy: rotes Band mit Quittieren und Deaktivieren, darunter die Kachel der Anlage" width="270"></p>
+
+### Protokoll und Zeitachse des Alarms
+
+Jeder Alarm wird vom ersten Auslösen bis zum Quittieren aufgezeichnet: welcher Sensor wann angesprochen hat, welche Schritte liefen, welche Meldungen hinausgingen. Alle anderen Ereignisse (scharf, deaktiviert, Routinen, Sensorausfälle) stehen im zweiten Reiter, mit Filter nach Zeitraum und CSV-Export. Beides bleibt ein Jahr; einen einzelnen Alarm kannst du löschen.
+
+Ein Alarm, wie er abläuft, mit erfundenen Daten (links das Handy, rechts der Computer):
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/alarm-live-handy-de.gif" alt="Ein Alarm live auf dem Handy: Eingangsverzögerung, Alarm, Quittieren" width="240"> <img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/alarm-live-desktop-de.gif" alt="Derselbe Alarm auf dem Computer: die Zeitachse füllt sich im Protokoll" width="520"></p>
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/log-de.png" alt="Protokoll mit der Zeitachse eines Alarms" width="100%"></p>
+
+### Dashboard-Karten
+
+Das Bedienteil und die Info-Kachel des Seitenpanels gibt es auch als Karten für jedes Dashboard: "Karte hinzufügen" › "Alarmageddon". Jede Person, die das Dashboard sehen darf, kann die Karte benutzen, nicht nur Administratoren. Wo ein Code programmiert ist, wird er verlangt; ob "Quittieren" ihn braucht, bestimmt der Administrator unter Konfiguration › Anlage.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/cards-de.png" alt="Die Karten Alarmageddon und Alarmageddon Status auf einem Dashboard" width="100%"></p>
+
+Erscheint die Karte nicht im Auswahldialog: Home Assistant nach dem Update neu starten, die Seite neu laden (Strg+Shift+R; in der App: Einstellungen › Fehlerbehebung › Frontend-Cache zurücksetzen) oder eine Karte von Hand mit `type: custom:alarmageddon-card` und `entity: alarm_control_panel.<name>` einfügen. Die Meldung "Das Custom-Element existiert nicht" heisst, dass die Kartendatei noch nicht geladen wurde.
+
+### Mehr
+
+- **Routinen:** zu festen Zeiten an gewählten Wochentagen scharf schalten oder deaktivieren, oder wenn ein Gerät etwas tut, zum Beispiel wenn das Smart Lock abschliesst. Mehrere Bedingungen lassen sich mit "und" und "oder" verbinden, auch in Gruppen. Jede Routine gilt nur in den Zuständen der Anlage, die du wählst.
+- **Codes pro Person:** jede Person bekommt ihren eigenen Code; das Protokoll zeigt, wer scharf geschaltet und deaktiviert hat.
+- **Modi:** "Anwesend", "Abwesend" und "Nacht", jeder ein- und ausschaltbar, jeder mit eigener Zone, eigenen Verzögerungen und Aktionen.
+- **Bestätigung durch zwei Sensoren:** ein Bewegungsmelder kann einen zweiten Sensor verlangen, bevor er auslöst, gegen Fehlalarme.
+- **Sicherung:** alle Einstellungen als Datei oder in der Integration abgelegt, nie mit Codes. Eine automatische Sicherung (täglich, wöchentlich oder monatlich; standardmässig an und wöchentlich) behält die letzten 5 (1 bis 50 wählbar), zusätzlich zu deinen 10 eigenen.
+- **Mehrere Anlagen:** Haus und Garage, jede als eigenes Gerät.
+- **Zurück zur Übersicht:** das Panel merkt sich 30 Minuten lang, wo du warst; danach startet es wieder auf der Übersicht.
+
+## Sicherheitsmechanismen
+
+Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Diese Mechanismen sind eingebaut und werden bei jeder Änderung von Tests geprüft.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/safety-de.svg" alt="Was die Alarmaktionen absichert" width="100%"></p>
+
+| Mechanismus | Was er sicherstellt |
+| --- | --- |
+| Im Zweifel alarmieren | Eine Eingangsverzögerung, die während eines Neustarts von Home Assistant abgelaufen ist, wird zum Alarm, mit Alarmaktionen, Meldung und Aufzeichnung. Während Eingangsverzögerung und Alarm wird Scharfschalten abgelehnt: nur Deaktivieren führt heraus |
+| Sicher beim Neustart | Zustand, Verzögerungen und ein laufender Alarm gehen nach einem Neustart weiter; die Alarmaktionen setzen beim erreichten Schritt fort oder beginnen von vorn, wenn kein Ablauf abgelegt war. Jeder Wechsel des Zustands wird sofort geschrieben, damit auch nach einem Absturz oder Stromausfall der letzte Stand gilt |
+| Codes | 4 bis 8 Ziffern, nur als Hash mit Salz gespeichert, nie angezeigt, nie in einer Sicherung oder im Log. Fünf falsche Codes sperren die Anlage für eine Minute, auch für den richtigen Code; gleichzeitige Versuche werden einzeln nacheinander geprüft |
+| Nur Administratoren | Das Seitenpanel und jeder seiner Befehle verlangen Administratorrechte. Die Dashboard-Karten nutzen nur Entitäten und Dienste, mit den Codes, die Home Assistant prüft |
+| Knöpfe in der Alarmmeldung | "Deaktivieren" und "Alarmton stumm" sind standardmässig aus, "Quittieren" ist an. Sie wirken nur, solange der Alarm läuft, und nur vom Handy eines konfigurierten Alarm-Empfängers |
+| Nichts hält die Sirene auf | Ein Gerät, das nicht antwortet, wird nach 10 Sekunden übergangen, auf eine Push-Meldung wird nie gewartet, und ein scheiternder Schritt, ein scheiterndes Protokoll, eine scheiternde Aufzeichnung oder Meldung stoppt den Rest nie |
+| Wächter | Die Alarmaktionen stehen als Ganzes unter Aufsicht: der erste Schritt beginnt innert 8 Sekunden, kein Schritt verzögert den nächsten über seine Grenze hinaus, und ein abgebrochener Ablauf macht mit dem nächsten Schritt weiter. Eingriffe stehen in der Zeitachse des Alarms |
+| Du bestimmst, wie lange die Sirene läuft | Im Code steht keine feste Dauer. Du stellst sie im Ablauf ein ("Warten" zwischen Ein und Aus oder eine Dauer beim Ton, bis zu einer Stunde je Schritt). Sie gilt genau und zählt ab dem ersten Start, auch über einen Neustart hinweg |
+| Sensoren, die ausfallen | Ein Sensor, der im scharfen Zustand nicht mehr erreichbar ist, wird sofort gemeldet oder löst mit der Option "Ausfall gilt als Alarm" den Alarm aus. Schwache Batterien werden gemeldet, bevor sie leer sind |
+| Getestet | Über 1300 automatische Tests gegen ein echtes Home Assistant, rund 5700 Prüfungen der Oberfläche auf Computer und Handy und eine Mutationsprobe, die jede von 285 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert |
+
+### Grenzen
+
+Alarmageddon ist keine zertifizierte Alarmanlage. Bitte beachte:
+
+- Fällt Home Assistant, der Strom, das Netzwerk oder der Funk-Koordinator aus, gibt es keinen Alarm. Für kritische Einsätze hilft eine Sirene mit eigenem Akku.
+- Wie lange eine Sirene laufen darf, ist von Ort zu Ort verschieden geregelt. Kläre, was bei dir gilt, und stelle die Dauer in den Alarmaktionen ein; am sichersten ist eine Sirene mit eigener Zeitbegrenzung.
+- Ein Ton "bis zum Deaktivieren" und eine Sirene ohne Schritt "aus" laufen, bis jemand deaktiviert. Das wählst du im Ablauf.
+
+## Apple HomeKit
+
+1. Die Alarm-Entität in die HomeKit Bridge von Home Assistant aufnehmen (Domäne `alarm_control_panel` oder die Entität einschliessen).
+2. Apple Home zeigt "Aus" und die eingeschalteten Modi.
+3. Mit Code: HomeKit fragt nicht danach. Trage ihn in der Konfiguration der HomeKit Bridge ein (`entity_config` → `code`) oder als Standardcode in den Einstellungen der Entität.
+
+## Entitäten
+
+| Entität | Inhalt |
+| --- | --- |
+| `alarm_control_panel.<name>` | Die Anlage. Attribute: `arm_mode`, `triggered_by`, `bypassed_sensors`, `deadline`, `changed_by`, `armed_at`, `armed_by`, `state_since` (seit wann sie in ihrem Zustand ist; übersteht einen Neustart) |
+| `binary_sensor.<name>_zone_<modus>` | An, wenn ein Sensor der Zone dieses Modus offen ist |
+| "Bereit zum Scharfschalten" je Modus | An, wenn kein offener Sensor das Scharfschalten in diesem Modus verhindert. Attribut: `blocking_sensors` |
+| `sensor.<name>_status` | Zahl der offenen Probleme: Alarm, nicht erreichbare Sensoren, schwache Batterien. Attribute: `alarm`, `offline`, `low_battery`, `battery_threshold` |
+
+Zonen- und "Bereit"-Entitäten gibt es nur für die eingeschalteten Modi.
+
+Dienst `alarmageddon.acknowledge` (Ziel: die Alarm-Entität, optional `code`): stellt einen laufenden Alarm ab; für jede Person nutzbar, von der Dashboard-Karte verwendet.
+
+## Gut zu wissen
+
+Details für alle, die es genau wissen wollen.
+
+### So läuft ein Alarm ab
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/flow-de.svg" alt="Zustände einer Anlage" width="100%"></p>
+
+- Nur ein echter Wechsel von zu auf offen löst aus. Ein Sensor, der aus "nicht verfügbar" offen zurückkommt, löst nicht aus.
+- Ein Sensor mit Eingangsverzögerung (zum Beispiel die Haustür) startet die Eingangsverzögerung; jeder andere Sensor löst sofort aus. Ein Eingangssensor kann eine eigene Verzögerung haben (Sensor-Optionen), sonst gilt die der Anlage. Ein zweiter Eingangssensor verlängert die Verzögerung nicht.
+- Sensoren mit "Immer aktiv" (Rauch, Wasser, Gas) lösen in jedem Zustand aus, auch deaktiviert.
+- Der Alarm bleibt, bis jemand deaktiviert. Wie lange Sirene, Licht und Ton laufen, steht in den Alarmaktionen.
+- Offene Sensoren verhindern das Scharfschalten, ausser sie dürfen offen sein oder werden bis zum nächsten Deaktivieren umgangen.
+
+### Zahlen und Grenzen
+
+| Was | Wert |
+| --- | --- |
+| Ausgangsverzögerung | Standard 60 s für "Abwesend", keine für "Anwesend" und "Nacht"; bis 3600 s je Modus |
+| Eingangsverzögerung | Standard 30 s, auf Wunsch je Modus und je Sensor |
+| Bestätigungsfenster für den zweiten Sensor | Standard 60 s |
+| Falsche Codes | Fünf, dann 60 s gesperrt |
+| Ablage der Codes | PBKDF2-SHA256 mit 120 000 Runden und einem Salz je Code |
+| Gerät antwortet nicht | Nächster Schritt nach 10 s |
+| Erster Schritt nach dem Auslösen | Höchstens 8 s (Wächter) |
+| Warten und Dauer des Tons | 0 bis 3600 s je Schritt, bis 40 Schritte je Ablauf |
+| Aktions-Gruppe | 1 bis 100 Durchläufe oder 1 bis 3600 s, höchstens 10 Aktionen, mindestens 1 s je Runde |
+| Test der Alarmaktionen | Endet spätestens nach 60 s |
+| Batterie schwach, Sensor nicht erreichbar | Unter 20 %, nach 60 Minuten (beides einstellbar) |
+| Aufbewahrt je Anlage | Ereignisse und Alarme ein Jahr (höchstens 5000 Ereignisse und 200 Alarme mit je 300 Einträgen, mit Aktionen und Meldungen höchstens 600); insgesamt 10 Sicherungen |
+
+### Optionen pro Sensor
+
+- **Immer aktiv:** lässt sich als Ganzes abschalten (Konfiguration › Anlage). Löst in jedem Zustand aus, scharf wie deaktiviert, und zwar sofort (Rauch, Wasser, Gas), mit den Optionen aus dem Reiter "Immer aktiv". Steht der Sensor zugleich in der Zone eines Modus, zählt nur dieser Modus, solange die Anlage darin scharf ist (seine Einstellungen und seine Aktionen); mit ausgeschaltetem Schalter "Scharf in <Modus>: nur <Modus> zählt" gilt "Immer aktiv" zusätzlich: der Sensor löst sofort aus, und beide Abläufe der Alarmaktionen laufen. Bei deaktivierter Anlage und in Modi, die den Sensor nicht enthalten, laufen die Aktionen von "Immer aktiv".
+- **Darf beim Scharfschalten offen sein:** ein offener Sensor verhindert das Scharfschalten nicht und löst aus, nachdem er geschlossen und wieder geöffnet wurde.
+- **Beim Scharfschalten umgehen:** ein offener Sensor wird bis zum nächsten Deaktivieren ignoriert.
+- **Scharf, sobald geschlossen:** wird dieser Sensor in der Ausgangsverzögerung geschlossen (die Haustür hinter dir), ist die Anlage sofort scharf, statt das Ende der Verzögerung abzuwarten.
+- **Ausfall gilt als Alarm:** ein nicht erreichbarer Sensor löst im scharfen Zustand den Alarm aus.
+- **Braucht einen zweiten Sensor:** löst nur aus, wenn ein anderer Sensor mit dieser Option innerhalb des Bestätigungsfensters anspricht.
+- **Stiller Alarm:** sendet eine Meldung, statt den Alarm auszulösen, höchstens einmal pro Minute.
+
+### Alarmaktionen und Benachrichtigungen im Detail
+
+- **Aktions-Gruppe:** eine Gruppe ist ein Rahmen in der Farbe ihres Bereichs; Aktionen kommen über das Plus in der Gruppe hinein oder durch Ziehen, und ebenso wieder heraus (mit der Tastatur: Pfeiltasten am Griff). Sie wiederholt ihre Aktionen eine **Anzahl** Durchläufe (1 bis 100), für eine **Dauer** (1 bis 3600 s) oder **bis deaktiviert** (nur beim Alarm; endet mit Deaktivieren, Quittieren oder "Alarmton stumm"). Jede Runde dauert mindestens 1 Sekunde. Bei "Dauer" beginnt eine Runde nur, wenn sie noch ganz in die Zeit passt: Die Gruppe läuft nie länger als eingestellt und endet nie mitten in einer Runde; die erste Runde läuft immer ganz. "Warten, bis die Aktion beendet ist" gilt wie bei den anderen Aktionen (Standard aus: die folgenden Aktionen starten sofort); auf "bis deaktiviert" lässt sich nicht warten. In einer Gruppe gibt es keine Gruppe, kein "Quittieren" und kein "Rückgängig nach einer Zeit"; höchstens 10 Aktionen, sie zählen zur Grenze von 40 je Liste. Ziehst du eine Gruppe in einen anderen Bereich, fallen nach einer Rückfrage die Aktionen weg, die es dort nicht gibt. Nach einem Neustart mitten im Alarm läuft eine Gruppe "bis deaktiviert" wieder an. Schaltet eine Gruppe ein Gerät und wird mitten in der Runde deaktiviert, kehrt es nur mit "Rückgängig" in seinen vorherigen Zustand zurück.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/group-de.png" alt="Eine Aktions-Gruppe im Ablauf des Alarms: Rahmen in Rot mit Kopfzeile, darin Licht ein, Warten, Licht aus, Warten" width="100%"></p>
+
+- **Schritte laufen weiter:** standardmässig startet der nächste Schritt sofort, die Aktionen laufen so schnell wie möglich nacheinander durch. Mit "Warten, bis die Aktion beendet ist" startet der nächste erst, wenn dieser fertig ist; der Schritt trägt dann eine Pille. Auf einen Ton "bis zum Deaktivieren" lässt sich nicht warten. Abläufe aus früheren Versionen verhalten sich wie bisher.
+- **Vier Arten von Tönen, jede mit eigenen Klängen:** der **Alarmton** (der Ton des Alarms, fünf Klänge von Sirene bis Jaulton; ihn stoppt der Knopf "Alarmton stumm" der Push-Meldung), der **Voralarm** (ein leiser Warnton vor dem Alarmton, fünf Klänge wie Gong, Warnung oder langsames Piepsen; danach folgt der nächste Schritt) der **Aktivierungston** (kurz, dezent oder freundlich, sieben Klänge von Piepsen bis Dreiklang) und der **Deaktivierungston** (sein Gegenstück, fünf fallende Klänge wie ein absteigender Dreiklang oder eine tiefe Glocke). Jeder lässt sich im Panel probehören. Ein Ton spielt für seine ganze Dauer am Stück: der Lautsprecher wird einmal gestartet, der Ton beginnt und endet weich. Die Lautstärke stellst du für alle Medienplayer gemeinsam ein oder für jeden einzeln, zum Beispiel leiser im Schlafzimmer.
+- **Beim Scharfschalten:** unter "Anlage scharf geschaltet" stehen Aktionen, die laufen, sobald die Anlage scharf ist, je Modus: zum Beispiel ein Aktivierungston (ein kurzes Piepsen, die Dauer stellst du ein), dazu Gerät, Warten, Szene und eigene Aktion. Deaktivieren stoppt einen laufenden Ton sofort, ein Alarm hat Vorrang.
+- **Während der Verzögerungen:** "Scharfschalten beginnt" (solange die Ausgangsverzögerung läuft) und "Eingangsverzögerung läuft" (solange die Zeit zum Deaktivieren läuft) sind je Modus feste Punkte für sich. Aktivierungston oder Voralarm können dort genau so lange dauern wie die Verzögerung, die gerade läuft (Schalter im Schritt), damit er alle zum Gehen oder zum Deaktivieren auffordert. Der Alarm wartet nie auf diese Aktionen. Die Punkte stehen nur da, wo es die Verzögerung gibt (über 0). Ein Schritt lässt sich am Griff auf eine andere Liste ziehen (auch auf eine leere) und springt dorthin; die Listen nehmen nur Schritte auf, die dort Sinn haben; am Rand scrollt die Seite mit.
+- **Zonenfarben:** jede Zone des Ablaufs hat ihre eigene Farbe (Ausgangsverzögerung helles Orange, Eingangsverzögerung dunkles Orange, scharf geschaltet helles Rot, Alarm dunkles Rot, nach dem Quittieren helles Grün, beim Deaktivieren dunkles Grün). Die Schritte laufen von dieser Farbe nach neutral, die Linie dazwischen trägt sie, und eine Pille an jedem Schritt nennt die Zone: so siehst du sofort, wohin ein Schritt gehört.
+- **Eigene Töne:** jede Liste von Tönen endet mit "Eigenen Ton hochladen …". Namen geben und eine Datei wählen (WAV; MP3, OGG, FLAC und M4A wandelt PyAV um, das Home Assistant mitbringt, oder das Programm ffmpeg; bis 30 Sekunden, 8 MB). Der Ton steht danach in allen vier Arten von Tönen und in jeder Alarmanlage, Schritte verweisen nur auf ihn. Umbenennen und Löschen unter Konfiguration › Anlage › "Eigene Töne". Hochladen dürfen nur Administratoren. Eigene Töne gehören zur Sicherung. Löschst du einen Ton, der noch genutzt wird, sagt das Panel, wie viele Schritte betroffen sind; diese spielen dann den Standardton ihrer Art, ein Alarm klingt also weiter. Unter Konfiguration › Anlage › Eigene Töne öffnet der Knopf "Töne anzeigen" die Liste (abspielen, umbenennen, löschen, hochladen), "Ton hochladen" daneben gleich das Formular. Ein Ton ist sofort abgelegt; hast du ihn im Editor eines Schritts hochgeladen, erinnert ein oranger Hinweis daran, dass der Schritt noch zu speichern ist.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sounds-de.png" alt="Das Kapitel Eigene Töne in Konfiguration › Anlage, mit einem hochgeladenen Ton" width="100%"></p>
+
+- **Töne stellen den Lautsprecher zurück.** Aktivierungston, Deaktivierungston, Voralarm und der Alarmton in den Listen ausserhalb des Alarmablaufs merken sich, wie der Lautsprecher war (ein oder aus, Lautstärke, Wiedergabe), spielen in der gewählten Lautstärke und stellen ihn danach zurück. Standardmässig an, je Schritt abschaltbar.
+- **Beim Deaktivieren:** ganz unten auf der Seite "Aktionen" hat das Kapitel "Beim Deaktivieren" unter dem festen Punkt "Anlage deaktiviert" eine eigene Liste, je Modus (der Modus, der scharf war). Was dort steht, läuft immer, wenn die Alarmanlage deaktiviert wird, auch mitten in einer Verzögerung oder im Alarm (nach den Aktionen nach dem Quittieren): zum Beispiel ein Deaktivierungston, ein Gerät, Warten, eine Szene oder eine eigene Aktion. Wieder scharf schalten oder ein Alarm beendet sie sofort.
+- **Nach dem Quittieren:** hinter "Alarm endet (quittiert)" stehen eigene Aktionen, die laufen, sobald der Alarm quittiert oder die Anlage deaktiviert ist, zum Beispiel Storen schliessen oder Licht aus. Möglich sind Gerät, Ton mit Dauer, Warten, Szene und eigene Aktion. Ein neuer Alarm bricht sie ab.
+- **Zurück in den vorherigen Zustand:** ein oder aus, Helligkeit, Position, Lautstärke und Quelle; Medienplayer, die ihre ganze Wiedergabe sichern können (Quelle, Titel, Gruppe), nutzen das.
+- **Test:** führt den gespeicherten Ablauf ohne Alarm aus und endet spätestens nach 60 Sekunden. Ein echter Alarm während eines Tests startet den echten Ablauf sofort.
+- **Medienplayer** holen die Töne bei Home Assistant und müssen darum dessen lokale Adresse erreichen (Einstellungen → System → Netzwerk).
+- **Knöpfe der Alarmmeldung:** "Öffnen" (standardmässig an), "Alarmton stumm" (stoppt die Schritte, der Alarm bleibt), "Quittieren" (standardmässig an; beendet den Alarm, die Anlage bleibt scharf und alarmiert beim nächsten Auslöser wieder) und "Deaktivieren" (iOS fragt nach Face ID oder dem Gerätecode, Android nicht).
+- **Kritische Meldungen:** die Lautstärke gilt für iOS; Android spielt sie auf dem Alarmkanal, dessen Lautstärke stellst du am Handy ein.
+- **Wartungsmeldungen:** jedes Problem einmal, mehrere in einer Meldung, erneut nach dem Batteriewechsel oder wenn der Sensor wieder antwortet.
+- **Batterieprognose:** aus dem Verlauf des Recorders der letzten 90 Tage; leer ohne genug Verlauf.
+
+### Routinen, Sicherung und HomeKit im Detail
+
+- **Routinen:** unter Konfiguration › Anlage. Der Auslöser ist ein **Zeitplan** (eine oder mehrere Zeiten mit Wochentagen) oder ein **Gerät** (ein Schloss, Schalter, Türsensor, eine Person, jede Taste eines Fernbedieners oder Dimmers mit jeder Art des Drückens ...; Bedingungen "Gerät ist Zustand", "Tastendruck" und "Uhrzeit", verbunden mit "und"/"oder", mit einer Ebene Gruppen, wahlweise "muss N Sekunden gelten"). Eine Routine läuft, wenn ihre Bedingungen neu zutreffen: nicht solange sie zutreffen, nicht nach einem Neustart von Home Assistant und nicht bei der Rückkehr aus "nicht verfügbar" (ein Funkabriss schaltet die Anlage nie). Je Routine wählen fünf Schalter die Zustände der Anlage, in denen sie laufen darf (Ausgangsverzögerung, scharf, Eingangsverzögerung, beim Alarm, deaktiviert; standardmässig nur der letzte); im Moment des Auslösens zählt der Zustand, sonst wird die Routine übersprungen und das steht im Protokoll. Scharfschalten gilt nie bei Eingangsverzögerung oder Alarm. Offene Sensoren verhindern das Scharfschalten wie sonst; ein Code ist nicht nötig. Eine Routine löst keine andere aus, und eine Routine läuft nie zweimal innerhalb von 10 Sekunden.
+- **Routinen im Panel:** die Seite zeigt eine Zusammenfassung und die Knöpfe "Routine hinzufügen" und "Routinen anzeigen"; die Liste öffnet in einem eigenen Fenster (auf dem Handy als Vollbild), Änderungen werden mit "Speichern" der Seite gesichert. Bis dahin tragen neue und geänderte Routinen die orange Marke "Noch nicht gespeichert". Jede Routine ist eine Zeile mit dem Auslöser in Klartext, dem Ziel und Marken ("Umgeht den Code", die Zustände, in denen sie gilt). Der Stift öffnet den Editor, der mit einer Vorschau des Ablaufs endet (Auslöser, Prüfung des Zustands, Aktion oder "Übersprungen").
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/routines-de.png" alt="Das Kapitel Routinen unter Konfiguration › Anlage, mit Routinen nach Zeit und nach Gerät" width="100%"></p>
+
+- **Nur "Anlage deaktiviert" braucht keine Bestätigung.** Eine Routine läuft nur in den Zuständen, die du wählst. Eine neue Routine startet nur mit "Anlage deaktiviert"; jeder andere Zustand (Schärfe läuft, scharf, Eingangsverzögerung, Alarm) braucht zuerst die Bestätigung "Ich habe das verstanden" unter "Sicherheit", beim Deaktivieren wie beim Scharfschalten: Wer den Auslöser bedienen kann, würde sonst ohne Code deaktivieren oder den Modus wechseln (zum Beispiel von Anwesend auf Abwesend). Bis du bestätigst, lassen sich die anderen Zustände nicht einschalten, und schaltest du die Bestätigung aus, fallen sie wieder weg. Deaktivieren in anderen Zuständen trägt die Marke "Umgeht den Code". Routinen, die vor dieser Regel gespeichert wurden, laufen weiter und zeigen die Marke "Bestätigung fehlt", bis du sie erneut speicherst. Zeitpläne früherer Versionen sind beim Update zu Routinen geworden (Zustände: Ausgangsverzögerung, scharf, deaktiviert); alte Sicherungen werden beim Wiederherstellen umgewandelt.
+- **Sicherung:** bis zu 10 eigene Sicherungen in der Integration, dazu die letzten automatischen (standardmässig 5, 1 bis 50 wählbar; Schalter, Anzahl und Abstand unter Konfiguration › Anlage › Sicherung, gespeichert mit "Speichern" der Seite; die Liste der Sicherungen öffnet in einem eigenen Fenster; geprüft jede Nacht um 03:17 und nach einem Start; eine gleiche Kopie wird nicht abgelegt), dazu Export und Import als Datei (im Fenster "Sicherungen anzeigen"). Beim Wiederherstellen wählst du für jede Anlage der Sicherung, worauf sie angewendet wird: eine bestehende Anlage (gleich wie sie heisst), eine neue oder keine; die gemeinsamen Einstellungen lassen sich weglassen. Codes sind nie enthalten; die Sicherung von Home Assistant selbst enthält alles.
+- **HomeKit, Ausgangsverzögerung:** Apple Home zeigt während der Ausgangsverzögerung "Aus" mit dem Ziel "Abwesend". Für "Anwesend" und "Nacht" keine Ausgangsverzögerung verwenden (Standard).
+- **HomeKit, Eingangsverzögerung:** Apple Home zeigt weiter "scharf" und wechselt auf "Alarm", wenn der Alarm beginnt.
+
+### Für Entwickler
+
+```bash
+pip install -r requirements_test.txt
+python -m pytest                      # Tests gegen ein echtes Home Assistant
+python scripts/mutation_check.py      # baut jede Schutzmassnahme aus, ein Test muss scheitern
+cd tests/panel && npm ci && node run.mjs   # Tests der Oberfläche (Playwright)
+```
+
+- Die Bilder der README und dieses Handbuchs stammen aus dem Nachbau: `node tests/panel/readme-shots.mjs`, danach `python scripts/optimize_images.py`; die Schaubilder aus `python scripts/make_diagrams.py`.
+- Konzept und Entscheide: [docs/CONCEPT.md](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/CONCEPT.md). Änderungen: [CHANGELOG.de.md](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/CHANGELOG.de.md).

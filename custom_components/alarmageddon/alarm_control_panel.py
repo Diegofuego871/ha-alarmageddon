@@ -103,7 +103,10 @@ class AlarmageddonAlarm(AlarmageddonEntity, AlarmControlPanelEntity, RestoreEnti
         await super().async_added_to_hass()
         last = await self.async_get_last_state()
         extra = await self.async_get_last_extra_data()
-        self._ctl.async_restore(last.state if last else None, extra.as_dict() if extra else None)
+        # Der eigene, sofort geschriebene Stand geht vor (1.58.0): Home Assistant sichert Entitäten nur alle 15 Minuten und beim sauberen
+        # Beenden, nach einem Absturz oder Stromausfall wäre sein Stand veraltet (eben scharf geschaltet: wieder deaktiviert).
+        state, data = self._ctl.newer_state(await self._ctl.async_load_state(), last.state if last else None, extra.as_dict() if extra else None)
+        self._ctl.async_restore(state, data)
         self.async_on_remove(self._ctl.add_listener(self.async_write_ha_state))
 
     async def _user_name(self) -> str | None:

@@ -27,7 +27,7 @@ for (const lang of ["de", "en"]) {
     await s.ev("const b=r.querySelector('.ag-wf-disarmed [data-wf=\"add\"]'); b.scrollIntoView({ block: 'center' }); b.click(); return 1");
     await s.waitFor("return r.getElementById('ag-step').open");
     const kinds = await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => [b.dataset.kind, b.querySelector('b').textContent.trim()])");
-    check(`${tag}: Auswahl: Deaktivierungston, Gerät, Warten, Szene, eigene Aktion; keine Sirene, kein Aktivierungston, kein Voralarm, keine Meldung`, JSON.stringify(kinds.map((k) => k[0])) === JSON.stringify(["dechime", "device", "wait", "scene", "custom"]) && kinds[0][1] === t.kind, JSON.stringify(kinds));
+    check(`${tag}: Auswahl: Deaktivierungston, Gerät, Warten, Szene, eigene Aktion; keine Sirene, kein Aktivierungston, kein Voralarm, keine Meldung`, JSON.stringify(kinds.map((k) => k[0])) === JSON.stringify(["dechime", "device", "wait", "scene", "custom", "group"]) && kinds[0][1] === t.kind, JSON.stringify(kinds));
     await s.tap('#ag-step [data-wf="kind"][data-kind="dechime"]');
     await s.waitFor("return !!r.querySelector('#ag-step .ag-tone select')");
     const ed = await dlg("const sel=d.querySelector('.ag-tone select'); const sw=d.querySelector('[data-wf=\"restore\"]'); return { tones: [...sel.options].filter((o) => o.value !== '__upload').map((o) => [o.value, o.textContent.trim()]), cur: sel.value, restore: sw?.getAttribute('aria-checked'), until: !!d.querySelector('[data-wf=\"until\"]'), secs: d.querySelector('input[data-key=\"playSeconds\"]')?.value, vol: !!d.querySelector('input[type=range]') }");
@@ -47,7 +47,7 @@ for (const lang of ["de", "en"]) {
 
     // ----- Ein Gerät aus dem Alarmablauf in "Beim Deaktivieren" ziehen; die Sirene und der Aktivierungston gehen nicht -----
     const kindsOk = await s.ev("const a=r.host.actions; return { device: a._zoneKinds('disarmed').join(), main: a._zoneKinds('main').join() }");
-    check(`${tag}: Liste nimmt nur Deaktivierungston, Gerät, Warten, Szene, eigene Aktion; der Alarmablauf keinen Deaktivierungston`, kindsOk.device === "dechime,device,wait,scene,custom" && !kindsOk.main.includes("dechime"), JSON.stringify(kindsOk));
+    check(`${tag}: Liste nimmt nur Deaktivierungston, Gerät, Warten, Szene, eigene Aktion; der Alarmablauf keinen Deaktivierungston`, kindsOk.device === "dechime,device,wait,scene,custom,group" && !kindsOk.main.includes("dechime"), JSON.stringify(kindsOk));
 
     // ----- Speichern: Liste je Modus -----
     await s.tap('.ag-foot [data-wf="save"]');

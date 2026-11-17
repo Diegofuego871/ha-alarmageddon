@@ -427,10 +427,17 @@ export class SensorView {
         const day = new Date(t);
         const i = index.get(day.toDateString());
         const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
-        const end = Math.min(to, dayStart + 24 * HOUR);
+        // Der nächste Tag beginnt nach dem Kalender, nicht nach 24 Stunden (1.58.0): am Tag der Zeitumstellung im Herbst hat der Tag
+        // 25 Stunden. Mit "Beginn + 24 h" blieb die Schleife um 23 Uhr desselben Tages stehen und lief endlos, bis der Browser mit
+        // "Invalid string length" abbrach: die Ansichten über 7 und 30 Tage waren wochenlang nicht benutzbar.
+        const nextDay = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
+        const end = Math.min(to, nextDay);
+        if (end <= t) break; // nie ohne Fortschritt weiter (Sicherung gegen jede Endlosschleife)
         if (i !== undefined) {
-          const x0 = L + ((t - dayStart) / HOUR) * hourW;
-          s += `<rect class="${cls}" x="${x0.toFixed(1)}" y="${top + i * (rowH + gap)}" width="${Math.max(minW, ((end - t) / HOUR) * hourW).toFixed(1)}" height="${rowH}"/>`;
+          // Die Zeile zeigt 0 bis 24 Uhr: an einem Tag mit 25 Stunden endet der Balken am rechten Rand
+          const x0 = Math.min(R, L + ((t - dayStart) / HOUR) * hourW);
+          const width = Math.min(R - x0, Math.max(minW, ((end - t) / HOUR) * hourW));
+          if (width > 0) s += `<rect class="${cls}" x="${x0.toFixed(1)}" y="${top + i * (rowH + gap)}" width="${width.toFixed(1)}" height="${rowH}"/>`;
         }
         t = end;
       }

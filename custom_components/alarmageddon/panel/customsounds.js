@@ -21,7 +21,7 @@ export function usage(host, id) {
     // Hat der Nutzer die Aktionen dieser Anlage gerade in Bearbeitung, zählt, was er sieht (der Entwurf), sonst der gespeicherte Stand
     const draft = host.actions?.draft?.entry === sys.entry_id ? host.actions.draft : null;
     const source = draft ? { workflows: draft.wf, workflows_after: draft.after, workflows_armed: draft.armed, workflows_arming: draft.arming, workflows_entry: draft.entrySteps, workflows_disarmed: draft.disarmed } : sys;
-    for (const key of LISTS) for (const list of Object.values(source[key] || {})) for (const step of list || []) if (step?.sound === id) own += 1;
+    for (const key of LISTS) for (const list of Object.values(source[key] || {})) for (const step of (list || []).flatMap((item) => (item?.type === "group" ? item.steps || [] : [item]))) if (step?.sound === id) own += 1; // auch in Gruppen
     if (own) systems.push(sys.title);
     steps += own;
   }

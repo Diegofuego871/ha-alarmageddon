@@ -59,6 +59,8 @@ async def test_state_since_is_now_when_the_state_changed_during_the_restart(hass
     await settle(hass)
     data = {**ctl.restore_data(), "deadline": (dt_util.utcnow() - timedelta(seconds=5)).isoformat(), "state_since": "2020-01-01T00:00:00+00:00"}
     ctl.async_restore("pending", data)
+    # Seit 1.58.0 beginnt der Alarm, sobald alle Teile zuhören (async_finish_restore, von der Einrichtung gerufen)
+    ctl.async_finish_restore()
     assert state(hass) == AlarmControlPanelState.TRIGGERED
     assert ctl.state_since > dt_util.parse_datetime("2020-01-02T00:00:00+00:00")
 

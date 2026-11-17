@@ -95,7 +95,8 @@
       "entry_not_in_zone": "Every sensor with entry delay must be in one of the active zones.",
       "invalid_code_format": "The code must have 4 to 8 digits.",
       "code_and_remove": "Enter a new code or remove the code, not both.",
-      "code_missing": "\"Code required to arm\" needs a code."
+      "code_missing": "\"Code required to arm\" needs a code.",
+      "mode_active": "Disarm the alarm system first: the mode it is armed in cannot be switched off."
     }
   },
   "entity": {

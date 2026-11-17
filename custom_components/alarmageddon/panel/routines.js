@@ -168,8 +168,22 @@ export class RoutinesUi {
     if (this.ents === null && !this.loading && d.routines.some((r) => r.trigger.type === "device")) this.load();
     const active = d.routines.filter((r) => r.enabled !== false).length;
     const summary = d.routines.length ? this._t(d.routines.length === 1 ? "rtSummaryOne" : "rtSummary", { count: d.routines.length, active }) : this._t("rtNone");
+    // Routine direkt von der Seite anlegen (1.58.0, Wunsch des Nutzers): nicht blau, der blaue Knopf der Seite bleibt "Speichern". Eine Routine
+    // gehört zum Entwurf der Seite: solange sie nicht gespeichert ist, steht ein dezenter orange Hinweis in der Zeile.
+    const full = d.routines.length >= MAX_ROUTINES;
+    const pending = this.unsaved().any ? `<small class="ag-unsaved">${esc(this._t("unsavedChanges"))}</small>` : "";
     return chapter(this._t("rtTitle"), `<div class="ag-card ag-setlist ag-codes ag-rt"><div class="ag-setrow ag-rtsum"><span class="ag-oav ${d.routines.length ? "on" : ""}">${ic("flash", 20)}</span>
-      <div class="ag-settx"><b>${esc(summary)}</b></div><button class="ag-btn" data-sys="rt-open">${ic("groups", 18)}${esc(this._t("rtShow"))}</button></div></div>`, this._t("rtHint"));
+      <div class="ag-settx"><b>${esc(summary)}</b>${pending}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="rt-add-page" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("rtAdd"))}</button>
+        <button class="ag-btn" data-sys="rt-open">${ic("groups", 18)}${esc(this._t("rtShow"))}</button></div></div></div>`, this._t("rtHint"));
+  }
+
+  // Was an den Routinen noch nicht gespeichert ist: die Kennungen neuer oder geänderter Routinen und ob überhaupt etwas offen ist (auch
+  // Gelöschtes oder eine andere Reihenfolge). Verglichen wird wie beim Zählen der Änderungen der Seite (canon, normRoutines).
+  unsaved() {
+    const saved = normRoutines(this.host._system()?.routines);
+    const mine = normRoutines(this.draft?.routines);
+    const before = new Map(saved.map((r) => [r.id, canon(r)]));
+    return { ids: new Set(mine.filter((r) => before.get(r.id) !== canon(r)).map((r) => r.id)), any: canon(saved) !== canon(mine) };
   }
 
   get listDlg() {
@@ -180,7 +194,8 @@ export class RoutinesUi {
   listHtml() {
     const d = this.draft;
     const modes = this._modes || [];
-    const rows = d.routines.map((r, i) => this._row(r, i, modes)).join("");
+    const pending = this.unsaved().ids;
+    const rows = d.routines.map((r, i) => this._row(r, i, modes, pending.has(r.id))).join("");
     const full = d.routines.length >= MAX_ROUTINES;
     const add = (cls) => `<button class="ag-btn ${cls}" data-sys="rt-add" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("rtAdd"))}</button>`;
     const body = rows
@@ -207,7 +222,7 @@ export class RoutinesUi {
     if (again && top) again.scrollTop = top;
   }
 
-  _row(r, i, modes) {
+  _row(r, i, modes, pending = false) {
     const on = r.enabled !== false;
     const tags = [];
     if (r.action === "off" && needsConfirm(r.states)) {
@@ -224,7 +239,7 @@ export class RoutinesUi {
     return `<div class="ag-setrow ag-csrow ag-rtrow ${on ? "" : "dim"}"><button class="ag-toggle ${on ? "on" : ""}" data-sys="rt-on" data-index="${i}" role="switch" aria-checked="${on}" aria-label="${esc(this._t("rtActive"))}"></button>
       <span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span>
       <div class="ag-settx"><b>${esc(r.name)}</b><small>${esc(this.whenText(r))}</small><small>→ ${esc(this.thenText(r))}</small>
-        <div class="ag-rttags">${tags.map(([cls, text, warn]) => `<span class="ag-tag ${cls}">${warn ? ic("alert", 13) : ""}${esc(text)}</span>`).join("")}</div></div>
+        <div class="ag-rttags">${tags.map(([cls, text, warn]) => `<span class="ag-tag ${cls}">${warn ? ic("alert", 13) : ""}${esc(text)}</span>`).join("")}</div>${pending ? `<small class="ag-unsaved">${esc(this._t("unsavedOne"))}</small>` : ""}</div>
       <div class="ag-wf-btns"><button class="ag-iconbtn" data-sys="rt-edit" data-index="${i}" aria-label="${esc(this._t("rtEdit"))}" title="${esc(this._t("rtEdit"))}">${ic("pencil", 18)}</button>
         <button class="ag-iconbtn" data-sys="rt-dup" data-index="${i}" aria-label="${esc(this._t("rtDuplicate"))}" title="${esc(this._t("rtDuplicate"))}" ${this.draft.routines.length >= MAX_ROUTINES ? "disabled" : ""}>${ic("copy", 18)}</button>
         <button class="ag-iconbtn" data-sys="rt-del" data-index="${i}" aria-label="${esc(this._t("rtDelete"))}">${ic("trash", 18)}</button></div></div>`;
@@ -585,7 +600,7 @@ export class RoutinesUi {
     const f = this.form;
     if (act === "rt-open") this.openList();
     else if (act === "rt-close") this.listDlg.close();
-    else if (act === "rt-add") this.open(-1);
+    else if (act === "rt-add" || act === "rt-add-page") this.open(-1);
     else if (act === "rt-edit") this.open(i);
     else if (act === "rt-dup") {
       // Kopie gleich hinter dem Original, ausgeschaltet (sie soll nicht doppelt schalten, bis sie angepasst ist); sie gilt erst nach dem Speichern der Seite

@@ -34,6 +34,9 @@ from .const import (
     ALL_SOUNDS,
     CUSTOM_SOUND_ID_RE,
     DATA_CUSTOM_SOUNDS,
+    GROUP_EXCLUDED,
+    GROUP_MAX_ROUNDS,
+    GROUP_MIN_ROUND,
     MAX_CUSTOM_SECONDS,
     CONF_WORKFLOWS,
     CONF_WORKFLOWS_AFTER,
@@ -77,6 +80,13 @@ def step_budget(step: dict[str, Any]) -> float:
     Jede Art von Schritt hat eine endliche Grenze (tests/test_action_hang.py prüft das für jeden Typ aus schemas.STEP_SCHEMAS).
     """
     kind = step.get("type")
+    if kind == "group":
+        # Eine abgewartete Gruppe: jeder Schritt darin steht selbst unter Aufsicht (seine eigene Grenze), dazu die Mindestdauer je Runde.
+        # Anzahl: so viele Runden; Dauer: die eingestellte Zeit und eine angefangene Runde. "Bis deaktiviert" wird nie abgewartet.
+        inner = sum(step_budget(item) for item in group_steps(step) if step_waits(item)) + 2 * GROUP_MIN_ROUND
+        if step.get("mode") == "duration":
+            return max(1, int(step.get("seconds", 0) or 0)) + inner + WATCHDOG_GRACE
+        return group_rounds(step) * inner + WATCHDOG_GRACE
     if kind == "notify":
         return WATCHDOG_GRACE  # Meldungen gehen ohne Abwarten hinaus
     if kind == "acknowledge":
@@ -106,6 +116,9 @@ def step_waits(step: dict[str, Any]) -> bool:
     selbst, auf ihn lässt sich nicht warten. Warten, Meldung und Quittieren gehören zum Ablauf selbst (kein Nebenher).
     """
     kind = step.get("type")
+    if kind == "group":
+        # Wie die anderen Schritte, die etwas ausführen: ohne "wait" läuft die Gruppe nebenher. "Bis deaktiviert" endet nie von selbst
+        return bool(step.get("wait")) and step.get("mode") != "until_disarmed"
     if kind not in ("action", "sound", "chime", "dechime", "prealarm"):
         return True
     if kind == "sound" and step.get("duration") == 0:
@@ -120,6 +133,27 @@ def step_waits(step: dict[str, Any]) -> bool:
     if kind == "prealarm":
         return True  # Voralarm (1.15.0): er steht vor der Sirene, ohne Angabe wartet der Ablauf auf sein Ende
     return not step.get("detach")
+
+
+def group_steps(step: dict[str, Any]) -> list[dict[str, Any]]:
+    """Die Schritte einer Gruppe, die laufen dürfen (nie eine Gruppe in der Gruppe, nie "Quittieren": auch wenn die Ablage so etwas enthielte)."""
+    return [item for item in step.get("steps") or [] if isinstance(item, dict) and item.get("type") not in GROUP_EXCLUDED]
+
+
+def group_rounds(step: dict[str, Any]) -> int:
+    """Zahl der Durchläufe einer Gruppe mit "Anzahl" (immer innerhalb der Grenzen, auch bei einem beschädigten Wert)."""
+    try:
+        return min(GROUP_MAX_ROUNDS, max(1, int(step.get("count", 1) or 1)))
+    except (TypeError, ValueError):
+        return 1
+
+
+def flat_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Alle Schritte einer Liste, die Schritte von Gruppen eingeschlossen (für Fragen wie "gibt es eine Meldung", "welche Lautsprecher")."""
+    out: list[dict[str, Any]] = []
+    for step in steps:
+        out.extend(group_steps(step) if step.get("type") == "group" else [step])
+    return out
 
 
 def start_budget() -> float:
@@ -148,6 +182,8 @@ async def async_remove_workflow_store(hass: HomeAssistant, entry_id: str) -> Non
 
 def step_entities(step: dict[str, Any]) -> list[str]:
     """Geräte, die ein Schritt verändert und die beim Deaktivieren zurückgesetzt werden sollen (Einstellung "Rückgängig" des Schritts)."""
+    if step.get("type") == "group":
+        return sorted({entity for item in group_steps(step) for entity in step_entities(item)})
     if step.get("type") in ("sound", "prealarm") and step.get("restore", True):
         return list(step.get("players", []))
     if step.get("type") == "action" and step.get("restore", False):
@@ -178,6 +214,9 @@ class WorkflowRunner:
         self._positions: dict[str, int] = {}
         self._also_task: asyncio.Task | None = None
         self._guard: asyncio.Task | None = None
+        # Gruppen "bis deaktiviert", die in diesem Prozess laufen: (Ablauf, Schritt). Nach einem Neustart ist die Menge leer, die
+        # abgelegten Gruppen des Laufs starten dann wieder (_execute)
+        self._endless: set[tuple[str, int]] = set()
 
     # ----- Konfiguration -----
 
@@ -185,7 +224,7 @@ class WorkflowRunner:
         return list((self.entry.options.get(CONF_WORKFLOWS) or {}).get(trigger, []))
 
     def has_notify(self, trigger: str) -> bool:
-        return any(s.get("type") == "notify" for s in self.steps(trigger))
+        return any(s.get("type") == "notify" for s in flat_steps(self.steps(trigger)))
 
     @property
     def running(self) -> dict[str, Any] | None:
@@ -204,9 +243,13 @@ class WorkflowRunner:
         self._mode_seen = self._ctl.mode
         self._unsubs.append(self._ctl.add_listener(self._on_change))
         saved = await self._store.async_load()
+        # "Alarmton stumm" hat den Ablauf dieses Alarms beendet (async_silence): er beginnt nach einem Neustart nicht von vorn
+        silenced = isinstance(saved, dict) and bool(saved.get("silenced"))
         if isinstance(saved, dict) and saved.get("trigger"):
             self._run = saved
-            if self._ctl.state == AlarmControlPanelState.TRIGGERED and not saved.get("test"):
+            # Fortgesetzt wird nur der Ablauf eines Alarms. Ein Lauf neben dem Alarm (Töne einer Verzögerung, Aktivierungston: "after")
+            # ist kein Alarmablauf: bis 1.57.0 liefen nach einem Neustart im Alarm seine Schritte weiter statt der Alarmaktionen.
+            if self._ctl.state == AlarmControlPanelState.TRIGGERED and not saved.get("test") and not saved.get("after"):
                 self._begun = saved
                 self._spawn(saved, int(saved.get("index", 0) or 0))
                 also = saved.get("also")
@@ -216,6 +259,17 @@ class WorkflowRunner:
                     self._arm_undo(saved, entry)  # Restzeit; war die Zeit schon um, schaltet es sofort zurück
             else:
                 await self.async_stop()
+        if self._ctl.state == AlarmControlPanelState.TRIGGERED and self._run is None and not silenced:
+            # Alarm ohne gespeicherten Ablauf (Home Assistant fiel aus, bevor der Stand geschrieben war, oder nur ein Lauf neben dem Alarm
+            # war gespeichert): die Alarmaktionen beginnen jetzt, unter derselben Aufsicht wie beim Auslösen (im Zweifel alarmieren)
+            try:
+                self._plan = list(self._ctl.alarm_plan())
+                trigger = self._plan[0]
+                if self.steps(trigger):
+                    self._watch_start(trigger)
+                    self.hass.async_create_task(self._start(trigger))
+            except Exception:  # noqa: BLE001 - der Start der Anlage geht in jedem Fall weiter
+                _LOGGER.exception("%s: the alarm actions could not be started after the restart", self.entry.title)
         if str(self._ctl.state) in DELAY_PHASES and self._run is None:
             # Neuladen oder Neustart mitten in einer Verzögerung: ihre Töne laufen für die Restzeit weiter
             self.hass.async_create_task(self._start_delay(self._ctl.mode, resumed=True))
@@ -792,7 +846,7 @@ class WorkflowRunner:
         """Besteht der Test nur aus Tönen (und Meldung, Warten)? Bei Geräteaktionen bleibt er bis zum Ende des Zeitfensters: der Nutzer soll die Wirkung sehen."""
         try:
             steps = run.get("steps") or self.steps(run["trigger"])
-            return all(step.get("type") in ("sound", "chime", "dechime", "prealarm", "notify", "wait") for step in steps)
+            return all(step.get("type") in ("sound", "chime", "dechime", "prealarm", "notify", "wait") for step in flat_steps(steps))
         except Exception:  # noqa: BLE001 - ohne lesbare Schritte bleibt es beim Zeitfenster
             return False
 
@@ -819,6 +873,10 @@ class WorkflowRunner:
         main = trigger == (self._run or {}).get("trigger")
         steps = ((self._run or {}).get("steps") if main else None) or self.steps(trigger)
         test = bool(self._run and self._run.get("test"))
+        try:
+            self._resume_endless(trigger, steps, start, test)
+        except Exception:  # noqa: BLE001 - Sicherheitsregel: die Schritte laufen in jedem Fall
+            _LOGGER.exception("%s: resuming the groups of the alarm actions failed", self.entry.title)
         for index in range(start, len(steps)):
             if self._run is None:
                 return
@@ -843,6 +901,8 @@ class WorkflowRunner:
             try:
                 if self._runs_alongside(step):
                     # Nicht abwarten: läuft nebenher, der nächste Schritt startet sofort (langer Alarmton, träges Gerät)
+                    if step.get("type") == "group" and step.get("mode") == "until_disarmed":
+                        self._note_endless(trigger, index, test)
                     task = self._background(self._side(step, test, index))
                     self._side_tasks.add(task)
                     task.add_done_callback(self._side_tasks.discard)
@@ -880,6 +940,11 @@ class WorkflowRunner:
             entry["sound"] = step.get("sound")
         elif step.get("type") == "wait":
             entry["seconds"] = step.get("seconds")
+        elif step.get("type") == "group":
+            entry["mode"] = step.get("mode")
+            entry["count"] = group_rounds(step) if step.get("mode") == "count" else None
+            entry["seconds"] = step.get("seconds") if step.get("mode") == "duration" else None
+            entry["steps"] = len(group_steps(step))
         self._ctl.record("step", **entry)
 
     def _remaining(self, seconds: float) -> float:
@@ -915,7 +980,9 @@ class WorkflowRunner:
     async def _step(self, step: dict[str, Any], test: bool, resumable: bool = True) -> None:
         """Einen Schritt ausführen. `resumable`: abgewarteter Schritt (seine Dauer zählt über Neuladen und Neustart hinweg)."""
         kind = step.get("type")
-        if kind == "wait":
+        if kind == "group":
+            await self._group(step, test, resumable)
+        elif kind == "wait":
             seconds = max(0, int(step.get("seconds", 0) or 0))
             await self._sleep(self._remaining(seconds) if resumable else seconds)
         elif kind == "notify":
@@ -942,6 +1009,126 @@ class WorkflowRunner:
             # Aufgabe (_on_change), dieser Schritt kehrt vorher zurück und wird nicht selbst abgebrochen
             if not test:
                 self._ctl.acknowledge(self._notifier.text("by_step"))
+
+    # ----- Aktions-Gruppe (1.59.0) -----
+    #
+    # Eine Gruppe wiederholt ihre Schritte in der Reihenfolge. Für jeden Schritt darin gilt dasselbe wie im Ablauf: abgewartete Schritte
+    # stehen unter Aufsicht des Wächters (ihre Grenze aus step_budget), die anderen laufen nebenher, ein Fehler bricht nie die übrigen ab.
+    # Deaktivieren, Quittieren und "Alarmton stumm" beenden die Gruppe sofort (ihre Aufgabe endet mit dem Lauf). Geräte, die ein Schritt
+    # mit "Rückgängig" schaltet, kehren dabei in ihren vorherigen Zustand zurück (Schnappschuss vor dem ersten Schritt, step_entities).
+    # - Anzahl: so viele Runden. Eine abgewartete Gruppe merkt sich die fertigen Runden im Lauf: nach Neuladen oder Neustart läuft nur der Rest.
+    # - Dauer: die Zeit bestimmt der Nutzer und zählt ab dem ersten Start, auch über Neuladen und Neustart (_remaining). Eine Runde beginnt nur,
+    #   wenn sie nach der Dauer der vorigen noch ganz in die Zeit passt: die Gruppe endet nie mitten in einer Runde (das Licht bliebe an) und
+    #   läuft nie länger als eingestellt. Die erste Runde läuft immer ganz. Die Gruppe selbst dauert genau die eingestellte Zeit.
+    # - Bis deaktiviert: nur im Ablauf des Alarms, läuft immer nebenher und beginnt nach einem Neustart mitten im Alarm wieder (_resume_endless).
+    # Jede Runde dauert mindestens GROUP_MIN_ROUND Sekunden. Auf die Zeitachse des Alarms kommen die Schritte nur in der ersten Runde.
+
+    async def _group(self, step: dict[str, Any], test: bool, resumable: bool = True) -> None:
+        inner = group_steps(step)
+        run = self._run
+        if not inner or run is None:
+            return
+        mode = step.get("mode")
+        rounds = group_rounds(step) if mode == "count" else None
+        done = self._group_done(run) if resumable and rounds is not None else 0
+        # Zwei Uhren für die Dauer: die Uhr von Home Assistant (wie _remaining, zählt über Neuladen und Neustart) und die des Prozesses
+        # (springt nie). Ist nach einer von beiden die Zeit um, beginnt keine Runde mehr: auch ein Sprung der Uhr verlängert die Gruppe nie.
+        now = dt_util.utcnow
+        mono = self.hass.loop.time
+        end = mono_end = None
+        if mode == "duration":
+            seconds = max(1, int(step.get("seconds", 0) or 0))
+            left = self._remaining(seconds) if resumable else float(seconds)
+            if left <= 0:
+                return  # die Zeit war beim Wiederanlauf schon um
+            end = now() + timedelta(seconds=left)
+            mono_end = mono() + left
+        last = 0.0
+        first = True
+        while self._run is run:
+            if rounds is not None and done >= rounds:
+                return
+            if end is not None and not first and (now() + timedelta(seconds=last) > end or mono() + last > mono_end):
+                # Die nächste Runde passte nicht mehr ganz in die Zeit: den Rest abwarten, damit die Gruppe genau so lange dauert wie eingestellt
+                await self._sleep(min((end - now()).total_seconds(), mono_end - mono()))
+                return
+            started = now()
+            for item in inner:
+                if self._run is not run:
+                    return
+                try:
+                    if first:
+                        self._record(item, test)
+                except Exception:  # noqa: BLE001 - Mitschreiben hält keinen Schritt auf
+                    _LOGGER.exception("%s: bookkeeping for a step of a group failed", self.entry.title)
+                try:
+                    if self._runs_alongside(item):
+                        task = self._background(self._side(item, test, -1))
+                        self._side_tasks.add(task)
+                        task.add_done_callback(self._side_tasks.discard)
+                    else:
+                        # Nie fortsetzbar: jede Runde zählt ihre Zeiten neu (die Dauer der Gruppe zählt die Gruppe selbst)
+                        await self._watched(self._step(item, test, resumable=False), step_budget(item), self._label(item))
+                except asyncio.CancelledError:
+                    raise
+                except Exception:  # noqa: BLE001 - Sicherheitsregel: ein fehlerhafter Schritt stoppt die anderen nicht
+                    _LOGGER.exception("%s: a step of a group of the alarm actions failed", self.entry.title)
+            first = False
+            done += 1
+            if resumable and rounds is not None:
+                self._group_done(run, done)
+            if rounds is not None and done >= rounds:
+                return
+            elapsed = max(0.0, (now() - started).total_seconds())
+            last = max(elapsed, float(GROUP_MIN_ROUND))
+            if elapsed < GROUP_MIN_ROUND:
+                await self._sleep(GROUP_MIN_ROUND - elapsed)
+
+    def _group_done(self, run: dict[str, Any], done: int | None = None) -> int:
+        """Fertige Runden der abgewarteten Gruppe, an der der Ablauf steht: lesen oder (mit `done`) merken. Nie ein Hindernis."""
+        try:
+            lane = _LANE.get() or run.get("trigger")
+            state = self._state(run, lane)
+            position = self._positions.get(lane, 0)
+            if done is None:
+                saved = state.get("group")
+                return max(0, int(saved.get("round", 0) or 0)) if isinstance(saved, dict) and saved.get("index") == position else 0
+            state["group"] = {"index": position, "round": done}
+            self._store.async_delay_save(lambda: self._run or {}, 0)
+            return done
+        except Exception:  # noqa: BLE001 - Mitschreiben hält die Gruppe nie auf
+            _LOGGER.exception("%s: saving the round of a group failed", self.entry.title)
+            return done or 0
+
+    def _note_endless(self, trigger: str, index: int, test: bool) -> None:
+        """Eine Gruppe "bis deaktiviert" beginnt: im Lauf ablegen (für den Neustart) und in diesem Prozess merken (nie doppelt starten)."""
+        self._endless.add((trigger, index))
+        run = self._run
+        if run is None or test:
+            return
+        state = self._state(run, trigger)
+        state["endless"] = sorted({*[i for i in state.get("endless") or [] if isinstance(i, int)], index})
+        self._store.async_delay_save(lambda: self._run or {}, 0)
+
+    def _resume_endless(self, trigger: str, steps: list[dict[str, Any]], start: int, test: bool) -> None:
+        """
+        Nach einem Neustart von Home Assistant mitten im Alarm: Gruppen "bis deaktiviert", die vor dem gespeicherten Schritt begonnen
+        haben, laufen wieder (im Zweifel alarmieren: ein Blinklicht oder eine getaktete Sirene hört nicht still auf). Läuft die Gruppe
+        in diesem Prozess schon (der Wächter setzt einen abgebrochenen Ablauf fort), startet sie nicht noch einmal.
+        """
+        run = self._run
+        if run is None or test:
+            return
+        for index in self._state(run, trigger).get("endless") or []:
+            if not isinstance(index, int) or not 0 <= index < min(start, len(steps)) or (trigger, index) in self._endless:
+                continue
+            step = steps[index]
+            if step.get("type") != "group" or step.get("mode") != "until_disarmed":
+                continue
+            self._endless.add((trigger, index))
+            task = self._background(self._side(step, test, index))
+            self._side_tasks.add(task)
+            task.add_done_callback(self._side_tasks.discard)
 
     # ----- Rückgängig nach einer Zeit (1.37.0) -----
     #
@@ -1176,6 +1363,7 @@ class WorkflowRunner:
         """
         late, self._late = list(self._late), set()
         side, self._side_tasks = list(self._side_tasks), set()
+        self._endless = set()  # mit den Aufgaben enden auch die Gruppen "bis deaktiviert" dieses Laufs
         task, self._task = self._task, None
         also, self._also_task = self._also_task, None
         for item in late:
@@ -1201,14 +1389,29 @@ class WorkflowRunner:
         """
         if self._run and not self._run.get("test"):
             await self.async_stop()
+            await self._mark_silenced()
             return True
         # Ablauf schon zu Ende (alle Schritte durch), der Ton klingt aber vielleicht noch: auf jeden Fall stoppen
         if self._run is None and self._ctl.state == AlarmControlPanelState.TRIGGERED:
-            players = sorted({p for flow in self._ctl.alarm_plan() for st in self.steps(flow) if st.get("type") in ("sound", "prealarm", "chime", "dechime") for p in st.get("players", [])})
+            players = sorted({p for flow in self._ctl.alarm_plan() for st in flat_steps(self.steps(flow)) if st.get("type") in ("sound", "prealarm", "chime", "dechime") for p in st.get("players", [])})
             if players:
                 await self._call("media_player", "media_stop", {"entity_id": players})
+                await self._mark_silenced()
                 return True
         return False
+
+    async def _mark_silenced(self) -> None:
+        """
+        Merken, dass der Ablauf dieses Alarms mit "Alarmton stumm" beendet wurde: nach einem Neustart von Home Assistant mitten im (stummen)
+        Alarm beginnen die Alarmaktionen nicht von vorn (async_start). Die Marke verschwindet mit dem Alarm (async_stop löscht die Ablage,
+        ein neuer Alarm überschreibt sie). Zusatz: ein Fehler hier steht nur im Log.
+        """
+        if self._run is not None or self._ctl.state != AlarmControlPanelState.TRIGGERED:
+            return
+        try:
+            await self._watched(self._store.async_save({"silenced": True}), SNAPSHOT_TIMEOUT, "store")
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("%s: remembering the silenced alarm failed", self.entry.title)
 
     async def async_stop(self) -> None:
         """Alle Schritte abbrechen und den Zustand vor dem Alarm wiederherstellen."""

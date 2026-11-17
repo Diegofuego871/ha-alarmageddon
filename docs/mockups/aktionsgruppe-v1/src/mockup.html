@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup Aktions-Gruppe v1</title>
+<style>
+  :root { --text:#1c1c1e; --t2:#6b6b70; --div:#e3e3e6; --card:#fff; --bg:#f4f4f6; --primary:#3d8fd1; --alarm:#d32f2f; --group:#6a5acd; --warn:#f59e0b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif; color:var(--text); background:var(--bg); }
+  .page { max-width: 880px; margin: 0 auto; padding: 22px 22px 40px; }
+  h1 { font-size: 15px; margin: 0 0 4px; color: var(--t2); font-weight: 600; }
+  h2 { font-size: 20px; margin: 0 0 18px; }
+  .start { display:flex; align-items:center; gap:12px; font-weight:700; font-size:16px; margin: 6px 0 2px; }
+  .mini { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; color:#fff; font-size:18px; }
+  .mini.alarm { background: var(--alarm); } .mini.ok { background:#43a047; }
+  .plus { display:flex; align-items:center; gap:10px; height:38px; padding-left:5px; position:relative; color:var(--t2); font-size:12.5px; }
+  .plus::before { content:""; position:absolute; left:17px; top:0; bottom:0; width:2px; background: color-mix(in srgb, var(--alarm) 55%, transparent); z-index:0; }
+  .plus i { position:relative; z-index:1; width:26px; height:26px; border-radius:50%; border:1.5px dashed var(--primary); color:var(--primary); background:var(--bg); display:grid; place-items:center; font-style:normal; font-size:16px; }
+  .step { position:relative; display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; border:1px solid var(--div);
+    background: linear-gradient(to right, color-mix(in srgb, var(--alarm) 20%, #fff), #fff 70%); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .grip { color:#b6b6bb; letter-spacing:-2px; font-size:14px; }
+  .ico { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; background: color-mix(in srgb, var(--primary) 16%, #fff); color:var(--primary); font-size:17px; flex:none; }
+  .ico.red { background: color-mix(in srgb, var(--alarm) 16%, #fff); color: var(--alarm); }
+  .ico.gray { background:#eee; color:#555; }
+  .tx { flex:1; min-width:0; } .tx b { display:block; font-size:14.5px; } .tx small { color:var(--t2); font-size:12.5px; }
+  .tag { display:inline-block; margin-top:6px; padding:2px 9px; border-radius:999px; font-size:11.5px; background: color-mix(in srgb, var(--alarm) 14%, #fff); color: var(--alarm); }
+  .btns { display:flex; gap:8px; } .btns span { width:40px; height:40px; border-radius:50%; border:1px solid var(--div); display:grid; place-items:center; background:#fff; font-size:15px; color:#333; }
+  .btns span.del { color: var(--alarm); }
+  .grpA .tag, .grpB .tag { background: color-mix(in srgb, var(--group) 14%, #fff); color: var(--group); }
+  /* ---------- Variante A: Klammer, nach rechts versetzt ---------- */
+  .grpA { position:relative; margin-left: 46px; padding: 2px 0 2px 0; }
+  .grpA::before { content:""; position:absolute; left:-30px; top:22px; bottom:22px; width:18px; border:3px solid var(--group); border-right:0; border-radius:14px 0 0 14px; }
+  .grpA .plus::before { background: color-mix(in srgb, var(--group) 55%, transparent); }
+  .grpA .step { background: linear-gradient(to right, color-mix(in srgb, var(--group) 16%, #fff), #fff 70%); }
+  .ghead { display:flex; align-items:center; gap:12px; padding: 4px 0 8px; }
+  .gchip { display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:999px; background: var(--group); color:#fff; font-weight:600; font-size:13.5px; }
+  .gsum { color: var(--group); font-weight:600; font-size:13px; }
+  .gfoot { display:flex; align-items:center; gap:8px; color:var(--group); font-size:12.5px; font-weight:600; padding: 8px 0 0 6px; }
+  /* ---------- Variante B: Rahmen ---------- */
+  .grpB { border:2px solid color-mix(in srgb, var(--group) 55%, #fff); border-radius:20px; background: color-mix(in srgb, var(--group) 6%, #fff); padding: 0 14px 12px; }
+  .grpB .bar { display:flex; align-items:center; gap:12px; margin: 0 -14px 6px; padding: 10px 14px; border-radius:18px 18px 0 0; background: color-mix(in srgb, var(--group) 14%, #fff); }
+  .grpB .plus::before { background: color-mix(in srgb, var(--group) 55%, transparent); }
+  .grpB .plus i { background: #f6f4fd; }
+  .grpB .step { background:#fff; }
+  /* ---------- Editor ---------- */
+  .dlg { max-width: 560px; margin: 0 auto; background:#fff; border-radius:22px; padding:22px; box-shadow:0 10px 40px rgba(0,0,0,.18); }
+  .dlg h3 { margin:0 0 4px; font-size:19px; } .dlg p { margin:0 0 16px; color:var(--t2); font-size:13px; }
+  .lab { font-size:12.5px; color:var(--t2); margin: 14px 0 6px; }
+  .inp { border:1px solid var(--div); border-radius:12px; padding:10px 12px; font-size:14px; }
+  .seg { display:flex; background:#eeeef1; border-radius:14px; padding:4px; gap:4px; }
+  .seg span { flex:1; text-align:center; padding:9px 6px; border-radius:11px; font-size:13.5px; color:#444; }
+  .seg span.on { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.15); font-weight:600; color:var(--group); }
+  .row { display:flex; gap:10px; align-items:center; } .row .inp { width:90px; }
+  .note { margin-top:14px; padding:10px 12px; border-radius:12px; background: color-mix(in srgb, var(--warn) 14%, #fff); font-size:12.5px; color:#7a5200; }
+  .foot { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; } .btn { padding:10px 18px; border-radius:999px; border:1px solid var(--div); font-size:14px; } .btn.pri { background:var(--primary); color:#fff; border-color:var(--primary); }
+  @media (max-width: 600px) {
+    .page { padding: 14px 12px 30px; } .btns span { width:34px; height:34px; } .btns .opt { display:none; }
+    .grpA { margin-left: 30px; } .grpA::before { left:-22px; width:14px; } .step { padding:12px; gap:10px; }
+  }
+</style></head><body><div class="page" id="root"></div>
+<script>
+  const v = new URLSearchParams(location.search).get("v") || "A";
+  const step = (ico, cls, title, sub, tag = "Alarm") => `<div class="step"><span class="grip">⋮⋮</span><span class="ico ${cls}">${ico}</span><div class="tx"><b>${title}</b><small>${sub}</small><br><span class="tag">${tag}</span></div>
+    <div class="btns"><span>▶</span><span>✎</span><span class="opt">⧉</span><span class="del">🗑</span></div></div>`;
+  const plus = (text = "") => `<div class="plus"><i>+</i>${text}</div>`;
+  const inner = `${step("⏻", "", "Gerät schalten", "Einschalten · Steckdose Sirene Flur", "Gruppe")}${plus()}${step("⏱", "gray", "Warten", "30 s warten", "Gruppe")}${plus()}
+    ${step("⏻", "", "Gerät schalten", "Ausschalten · Steckdose Sirene Flur", "Gruppe")}${plus()}${step("⏱", "gray", "Warten", "10 s warten", "Gruppe")}${plus("Weitere Aktion in der Gruppe")}`;
+  const before = `<h1>Mockup · Aktions-Gruppe v1 · Variante ${v}</h1><h2>${v === "A" ? "A: Klammer, nach rechts versetzt" : "B: Rahmen mit Kopfzeile"}</h2>
+    <div class="start"><span class="mini alarm">⚠</span>Alarm beginnt (Abwesend)</div>${plus()}
+    ${step("🔔", "red", "Push-Meldung", "Kritische Meldung an die Alarm-Empfänger, mit Aktionen.")}${plus()}`;
+  const after = `${plus()}${step("🔊", "red", "Alarmton", "Jaulton · Lautsprecher Wohnzimmer · 60 %")}${plus()}<div class="start"><span class="mini ok">✓</span>Alarm endet (quittiert) (Abwesend)</div>`;
+  const groupA = `<div class="grpA">
+      <div class="ghead"><span class="gchip">↻ Gruppe „Sirene im Takt“</span><span class="gsum">3-mal wiederholen</span><span style="flex:1"></span><div class="btns"><span>▶</span><span>✎</span><span class="opt">⧉</span><span class="del">🗑</span></div></div>
+      ${inner}<div class="gfoot">↻ danach wieder von oben, bis 3 Durchläufe erreicht sind</div></div>`;
+  const groupB = `<div class="grpB"><div class="bar"><span class="grip">⋮⋮</span><span class="gchip">↻ Gruppe „Sirene im Takt“</span><span class="gsum">Wiederholen bis deaktiviert</span><span style="flex:1"></span><div class="btns"><span>▶</span><span>✎</span><span class="opt">⧉</span><span class="del">🗑</span></div></div>
+      ${plus()}${inner}</div>`;
+  const editor = `<h1>Mockup · Aktions-Gruppe v1 · Fenster der Gruppe</h1><h2>Gruppe bearbeiten</h2><div class="dlg"><h3>Aktions-Gruppe</h3><p>Die Schritte der Gruppe laufen der Reihe nach und beginnen dann wieder von vorn.</p>
+      <div class="lab">Name (freiwillig)</div><div class="inp">Sirene im Takt</div>
+      <div class="lab">Wie lange wiederholen?</div><div class="seg"><span class="on">Anzahl</span><span>Dauer</span><span>Bis deaktiviert</span></div>
+      <div class="lab">Durchläufe</div><div class="row"><div class="inp">3</div><span style="color:var(--t2)">mal (1 bis 100)</span></div>
+      <div class="lab">Bei „Dauer“: Sekunden (1 bis 3600) · bei „Bis deaktiviert“: endet mit Deaktivieren oder Quittieren</div>
+      <div class="note">ⓘ Mit „Bis deaktiviert“ laufen die Schritte nach der Gruppe sofort weiter (die Gruppe läuft nebenher, wie ein Alarmton bis zum Deaktivieren). Eine Sirene endet dann erst mit dem Deaktivieren: du bestimmst die Dauer.</div>
+      <div class="foot"><span class="btn">Abbrechen</span><span class="btn pri">Fertig</span></div></div>`;
+  document.getElementById("root").innerHTML = v === "editor" ? editor : before + (v === "A" ? groupA : groupB) + after;
+</script></body></html>

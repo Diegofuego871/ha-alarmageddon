@@ -99,7 +99,15 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     check(`${tag}: gewählter Reiter (Alarm) mit Rand in Dunkelrot`, col.on !== "monitor" && col.ring.includes(wantA.replace("rgb(", "").replace(")", "")), `${col.ring} / ${wantA}`);
     check(`${tag}: das Icon des gewählten Reiters ist voll, die anderen gedämpft`, await s.ev(`const seg = r.querySelector('[data-seg="wf-trigger"]'); const o = (b) => parseFloat(getComputedStyle(b.querySelector('svg')).opacity); const on = seg.querySelector('button.on'); return o(on) === 1 && [...seg.querySelectorAll(':scope > button:not(.on)')].every((b) => o(b) < 1 && o(b) > 0.5);`));
     check(`${tag}: andere Reiterleisten bleiben ungefärbt`, await s.ev("return ![...r.querySelectorAll('.ag-seg:not([data-seg=\"wf-trigger\"])')].some((x) => x.style.background !== '')"));
+    // 1.58.0: die Reiterzeile bleibt beim Wechsel auf "Überwachung" auf derselben Höhe (der Platz des Schalters bleibt frei)
+    // Lage im Inhalt (mit dem Rollstand): auf dem Handy rollt Playwright den Reiter vor dem Antippen selbst in die Mitte des Bildes
+    const segTop = () => s.ev("return Math.round(r.querySelector('[data-seg=\"wf-trigger\"]').getBoundingClientRect().top + (r.host._content?.scrollTop ?? 0))");
+    const topAlarm = await segTop();
     await s.tap('[data-trigger="monitor"]');
+    await s.waitFor("return !!r.querySelector('.ag-mon-rule')");
+    const topMonitor = await segTop();
+    check(`${tag}: Reiterzeile springt beim Wechsel auf "${t.mode}" nicht (gleiche Höhe, Platzhalter unsichtbar und ohne Schalter)`, Math.abs(topAlarm - topMonitor) <= 1
+      && await s.ev("const g=r.querySelector('.ag-wf-head .ag-ghost'); return !!g && getComputedStyle(g).visibility === 'hidden' && !r.querySelector('.ag-wf-head button.ag-toggle')"), `${topAlarm} / ${topMonitor}`);
     check(`${tag}: gewählt "${t.mode}": Rand in Orange`, await s.waitFor(`const rg = getComputedStyle(r.querySelector('[data-seg="wf-trigger"] .ag-pill')).boxShadow; return rg.includes(${JSON.stringify(wantM.replace("rgb(", "").replace(")", ""))})`));
     check(`${tag}: zwei Regeln als Kapitel`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 2"));
     check(`${tag}: Standard: alle Regeln zugeklappt (Kopf sichtbar, keine Abläufe)`, await s.ev("return [...r.querySelectorAll('.ag-mon-rule')].every((x) => x.classList.contains('folded') && !x.querySelector('.ag-wf-line') && x.querySelector('.ag-mon-head'))"));
@@ -360,7 +368,11 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     await s.waitFor("return r.querySelector('[data-wf=\"permode\"]').getAttribute('aria-checked') === 'false'");
     const two = await s.ev("return [...r.querySelectorAll('[data-seg=\"wf-trigger\"] > button')].map((b) => b.dataset.trigger)");
     check(`${tag}: ohne "Einstellungen pro Modus" bleiben zwei Reiter: Alarm und "${t.mode}"`, two.length === 2 && two[1] === "monitor", two.join());
+    const topOne = await segTop();
     await s.tap('[data-trigger="monitor"]');
+    await s.waitFor("return !!r.querySelector('.ag-mon-rule')");
+    const topTwo = await segTop();
+    check(`${tag}: auch ohne getrennte Modi bleibt die Reiterzeile auf derselben Höhe`, Math.abs(topOne - topTwo) <= 1, `${topOne} / ${topTwo}`);
     check(`${tag}: Reiter "${t.mode}" funktioniert auch dann`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 3"));
     check(`${tag}: keine Seitenfehler (Aktionen)`, s.errors.length === 0, JSON.stringify(s.errors));
     await s.ctx.close();

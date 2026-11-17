@@ -1247,5 +1247,30 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-mon-head { position: relative; }
 :host([narrow]) .ag-mon-head .ag-mon-fold { position: absolute; top: 2px; right: 0; }
 :host([narrow]) .ag-mon-head .ag-settx { padding-right: 34px; }
+/* 1.58.0: dezenter Hinweis "noch nicht gespeichert" (ein orange Punkt bedeutet immer: ungespeicherte Änderung). In Zeilen (Routinen) und im
+   Editor eines Schritts (hochgeladener Ton); verschwindet mit dem Speichern. */
+.ag-unsaved { display: flex !important; align-items: center; gap: 7px; color: var(--ag-warning-text) !important; }
+.ag-unsaved::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ag-warning); flex: none; }
+.ag-unsaved-note { font-size: 12.5px; margin-top: 8px; }
+:host([narrow]) .ag-unsaved-note { font-size: 14.5px; }
+.ag-rtsum .ag-btnrow { flex-wrap: wrap; justify-content: flex-end; }
+/* Aktions-Gruppe (1.59.0, Variante B des Mockups): ein Rahmen mit Kopfzeile in der Farbe der Liste, in der die Gruppe steht (--z: beim
+   Alarm rot, beim Scharfschalten hellrot, bei den Verzögerungen orange, nach dem Quittieren und beim Deaktivieren grün); darin die
+   Schritte als die Karten, die es überall gibt. Die Gruppe ist selbst ein Schritt ihrer Liste (.ag-wf-step: Ziehen, Stelle). */
+.ag-wf-line .ag-wf-step.ag-wf-group { display: block; padding: 0; border: 2px solid color-mix(in srgb, var(--z) 62%, var(--ag-card)); border-radius: 20px; background: color-mix(in srgb, var(--z) 5%, var(--ag-card)); }
+.ag-wf-ghead { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 18px 18px 0 0; background: color-mix(in srgb, var(--z) 16%, var(--ag-card)); }
+.ag-wf-gtitle { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.ag-wf-gtitle .ag-waitpill { margin-top: 0; }
+.ag-wf-gpill { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px; padding: 2px 12px; border-radius: 999px; background: color-mix(in srgb, var(--z) 78%, #000); color: #fff; font-weight: 600; font-size: 14px; }
+.ag-wf-gpill > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-wf-gpill svg { flex: none; }
+.ag-wf-gsum { font-weight: 500; font-size: 14px; color: color-mix(in srgb, var(--z) 55%, var(--ag-text)); }
+.ag-wf-line.ag-wf-glist { max-width: none; padding: 2px 12px 10px; --wf-x: 30px; }
+.ag-wf-glist .ag-wf-add:disabled { opacity: .35; cursor: default; }
+.ag-grp-intro { margin-bottom: 4px; }
+:host([narrow]) .ag-wf-ghead { flex-wrap: wrap; }
+:host([narrow]) .ag-wf-line.ag-wf-glist { padding: 2px 8px 8px; --wf-x: 26px; }
+/* 1.58.0: unsichtbarer Platzhalter, der seinen Platz behält (Reiterzeile der Aktionen springt beim Wechsel auf "Überwachung" nicht) */
+.ag-ghost { visibility: hidden; pointer-events: none; }
+.ag-ghost .ag-toggle { display: inline-block; flex: none; margin: 0; }
 `;
-

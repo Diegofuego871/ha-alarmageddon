@@ -170,12 +170,15 @@
   function panel() {
     return document.getElementById("panel-frame").contentDocument?.querySelector("alarmageddon-panel");
   }
-  // HA ersetzt sein hass-Objekt bei jeder Änderung; das Panel bekommt das neue sofort
+  // HA ersetzt sein hass-Objekt bei jeder Änderung. Im echten Home Assistant reicht niemand das neue Objekt ins iframe: das Panel holt es
+  // selbst ab (panel.html). Der Nachbau setzt es der Schnelligkeit der Suiten wegen zusätzlich direkt; mit ?realhass=1 unterbleibt das,
+  // dann gilt wie im echten Home Assistant nur der Weg über panel.html (Suite livestate-e2e, seit 1.58.0).
+  const REAL_HASS = new URLSearchParams(location.search).get("realhass") === "1";
   function publish() {
     window.hass = makeHass();
     document.querySelector("home-assistant").hass = window.hass;
     const el = panel();
-    if (el && el.hass) el.hass = window.hass;
+    if (el && el.hass && !REAL_HASS) el.hass = window.hass;
   }
   window.__setState = (id, state, attrs = {}) => {
     const old = states[id] || { attributes: {} };

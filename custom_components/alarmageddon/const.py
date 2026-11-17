@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 215  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 217  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -78,6 +78,8 @@ DATA_STATIC: Final = f"{DOMAIN}_static_registered"
 
 # Ereignisprotokoll pro Anlage (Übersicht "Letzte Ereignisse")
 EVENTS_STORE_KEY: Final = f"{DOMAIN}.events"
+# Zustand der Anlage in eigener Ablage (1.58.0): sofort geschrieben, übersteht auch Absturz und Stromausfall (controller._save_state)
+STATE_STORE_KEY: Final = f"{DOMAIN}.state"
 # Aufbewahrung (1.13.0, Wunsch des Nutzers): Ereignisse und Alarme ein Jahr; ältere werden verworfen. Die Anzahl ist nur noch eine
 # Obergrenze, damit die Ablage nicht unbegrenzt wächst (vorher 1000 Ereignisse und 30 Alarme je Anlage, ohne Blick auf das Alter).
 KEEP_DAYS: Final = 365
@@ -261,6 +263,18 @@ ENTRY_STEP_TYPES: Final = ("action", "chime", "prealarm", "wait")
 # Aktivierungston: kurz, mit Dauer, nie endlos, mit eigenen Klängen (DECHIMES).
 CONF_WORKFLOWS_DISARMED: Final = "workflows_disarmed"
 DISARMED_STEP_TYPES: Final = ("action", "dechime", "wait")
+# Aktions-Gruppe (1.59.0, Wunsch des Nutzers 2026-11-17): eine Gruppe von Schritten, die sich in ihrer Reihenfolge wiederholt: eine Anzahl
+# Durchläufe ("count"), für eine Dauer ("duration") oder bis zum Deaktivieren ("until_disarmed", nur im Ablauf des Alarms: nur dort
+# deaktiviert oder quittiert jemand). In allen Listen der Aktionen, mit den Schritten, die dort erlaubt sind; keine Gruppe in einer
+# Gruppe, kein "Quittieren" (es beendet den Alarm) und kein "Rückgängig nach einer Zeit" (je Runde käme ein Eintrag dazu) darin.
+# Jede Runde dauert mindestens GROUP_MIN_ROUND Sekunden: eine Gruppe ohne "Warten" liefe sonst als Schleife ohne Pause (Flut von
+# Schaltbefehlen und Meldungen). Die Schritte der Gruppe zählen zur Grenze MAX_STEPS je Liste.
+GROUP_MODES: Final = ("count", "duration", "until_disarmed")
+GROUP_MAX_ROUNDS: Final = 100
+GROUP_MAX_STEPS: Final = 10
+GROUP_MIN_ROUND: Final = 1
+GROUP_NAME_MAX: Final = 40
+GROUP_EXCLUDED: Final = ("group", "acknowledge")  # Schritte, die es in einer Gruppe nie gibt
 WORKFLOW_ALWAYS: Final = "always"  # Alarm durch einen "immer aktiven" Sensor bei deaktivierter Anlage
 WORKFLOW_TRIGGERS: Final = ("home", "away", "night", WORKFLOW_ALWAYS)
 WORKFLOW_STORE_KEY: Final = f"{DOMAIN}.workflow"

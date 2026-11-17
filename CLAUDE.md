@@ -66,7 +66,9 @@ Umsetzung:
   HA auf `de`/`de-*` läuft (Panel: `hass.locale.language`; Server:
   `hass.config.language`). Jede andere Sprache bekommt Englisch.
 - README: `README.md` (Englisch) und `README.de.md` (Deutsch), gleicher
-  Aufbau, gegenseitig verlinkt, immer beide im selben Commit.
+  Aufbau, gegenseitig verlinkt, immer beide im selben Commit. Die README ist seit 1.58.0 kurz (Idee, drei Schritte, Rundgang,
+  Sicherheit); alle Einzelheiten stehen im Handbuch `docs/MANUAL.md` und `docs/MANUAL.de.md` (gleicher Aufbau, ein Test prüft es).
+  Neue Einzelheiten gehören ins Handbuch, nicht in die README.
 - CHANGELOG: `CHANGELOG.md` (Englisch) und `CHANGELOG.de.md` (Deutsch),
   gleicher Aufbau nach Keep a Changelog (Added/Hinzugefügt, Changed/Geändert,
   Deprecated/Veraltet, Removed/Entfernt, Fixed/Behoben, Security/Sicherheit),
@@ -168,6 +170,27 @@ Umsetzung:
   zählt der stärkste Empfänger, der bisherige bleibt bis `BLE_KEEP_DB` dB Unterschied (kein Hin und Her); ungültige Werte (0 dBm) und veraltete Empfänger
   zählen nie. Interne Schnittstellen von HA und ZHA sind mit `try` gelesen: fehlt etwas, bleibt der Wert leer, nie ein Fehler in der Liste. Ausgefallene
   Geräte werden nicht aufgezeichnet. Thread (seit 1.42.0): stärkster Nachbar der Matter-Nachbartabelle, nicht erreichbares Gerät ohne Wert. Tests in `tests/test_reception.py`, Zeilen in `scripts/mutation_check.py`.
+- Aktions-Gruppe (seit 1.59.0, Schritt `group`; Entscheide des Nutzers, 2026-11-17): wiederholt ihre Schritte eine Anzahl Durchläufe, für eine Dauer oder
+  bis deaktiviert wird (`mode`: `count`, `duration`, `until_disarmed`). In allen Listen der Aktionen (nicht in der Überwachung), mit den Schritten, die dort
+  erlaubt sind (`schemas._valid_group` prüft die Schritte mit der Prüfung ihrer Liste); "bis deaktiviert" nur im Ablauf des Alarms; nie eine Gruppe in der
+  Gruppe, nie "Quittieren", nie `undo_after` darin; höchstens `GROUP_MAX_STEPS` Schritte, sie zählen zu `MAX_STEPS` (`schemas.step_list`). "wait" wie bei den
+  anderen Schritten (Standard: läuft nebenher); "bis deaktiviert" wartet nie (`workflow.step_waits`). Jeder Schritt der Gruppe steht unter denselben Grenzen
+  wie im Ablauf (`workflow._group`: `_watched` je abgewartetem Schritt, ein Fehler bricht nie die übrigen ab); jede Runde dauert mindestens `GROUP_MIN_ROUND`
+  Sekunden (nie eine Schleife ohne Pause). Die Dauer bestimmt der Nutzer und zählt ab dem ersten Start, auch über Neuladen und Neustart; eine Runde beginnt
+  nur, wenn sie noch ganz in die Zeit passt (nie länger als eingestellt, nie Ende mitten in der Runde). Nach einem Neustart mitten im Alarm läuft "bis
+  deaktiviert" wieder an (`run["endless"]`, `_resume_endless`), nie doppelt; eine abgewartete Gruppe mit Anzahl macht mit den restlichen Runden weiter
+  (`run["group"]`). Wer Schritte einer Liste durchsucht (Meldung vorhanden, Empfänger, Lautsprecher, Geräte zum Zurückstellen), nimmt die Schritte der
+  Gruppen mit (`workflow.flat_steps`, `notify._with_groups`, `step_entities`). Panel: Variante B, Rahmen in der Farbe der Liste (`--z`), die Liste in einer
+  Gruppe ist eine Liste wie die anderen (`data-zone="<Liste>:<Stelle>"`, `actions.js baseZone/groupIndex`); wandert eine Gruppe in einen anderen Bereich,
+  fallen ungültige Aktionen erst nach einer Rückfrage weg (`_moveAcross`). Tests in `tests/test_group.py` und `tests/test_action_hang.py`, Suite
+  `group-e2e.mjs`, Zeilen "Aktions-Gruppe" in `scripts/mutation_check.py`. Jede neue Schrittart ergänzt `GROUP_EXCLUDED` oder ist in Gruppen erlaubt (Test).
+- Neustart und Absturz (seit 1.58.0, Code-Review): Der Zustand steht in einer eigenen Ablage (`controller._save_state`, `STATE_STORE_KEY`), sofort bei jedem
+  Wechsel geschrieben; beim Start gilt der neuere von eigener Ablage und Restore-Stand von HA (`controller.newer_state`). Was beim Wiederherstellen
+  auslösen muss (abgelaufene Eingangsverzögerung), löst erst in `controller.async_finish_restore()` aus, wenn alle Zuhörer angemeldet sind
+  (`__init__.py`, nach `workflow.async_start()`): sonst gäbe es einen Alarm ohne Aktionen, Meldung und Aufzeichnung. Abgelegte Werte werden einzeln
+  geprüft, ein beschädigter Wert macht die Anlage nie "nicht verfügbar". Nie `hass.async_block_till_done()` im Code der Integration (wartet auf jede
+  Aufgabe von HA); Ziele von `async_call_later` sind immer `@callback`-Funktionen, nie ein `lambda` (läuft sonst in einem Thread). Tests in
+  `tests/test_review_1_58.py`, Zeilen "Code-Review 1.58.0" in `scripts/mutation_check.py`.
 - Jede Änderung am Zustandsautomaten oder an der Szenario-Engine braucht
   Tests für: Deaktivieren während Verzögerung, Neustart während Alarm,
   Sensor fällt im scharfen Zustand aus.
@@ -323,10 +346,11 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
 1. Version in `manifest.json` erhöhen (SemVer: Patch für Fehler, Minor für
    Funktionen oder Verhaltensänderungen).
 2. `PANEL_VERSION` in `const.py` erhöhen, sobald sich Dateien unter
-   `panel/` ändern (Cache-Buster).
+   `panel/` ändern (Cache-Buster). Eine neue Datei unter `panel/` in die Liste `MODULES` in `panel/panel.html` eintragen (seit 1.58.0
+   lädt das Panel alle Module zugleich; `tests/test_panel_preload.py` prüft die Liste).
 3. CHANGELOG-Eintrag in `CHANGELOG.md` und `CHANGELOG.de.md` inkl.
    Link-Fussnote.
-4. README EN und DE nachführen, bei jeder Lieferung (Vorgabe des Nutzers, 2026-11-11). Hat sich die Oberfläche sichtbar
+4. README und Handbuch (`docs/MANUAL*.md`) EN und DE nachführen, bei jeder Lieferung (Vorgabe des Nutzers, 2026-11-11). Hat sich die Oberfläche sichtbar
    geändert, auch die Bilder neu erzeugen: `node tests/panel/readme-shots.mjs`, danach `python scripts/optimize_images.py`.
 5. Sicherung und Wiederherstellung prüfen: Alles, was der Nutzer eingestellt
    hat (Zonen, Szenarien, Überwachung, Einstellungen pro Gerät), gehört in

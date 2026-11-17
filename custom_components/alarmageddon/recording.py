@@ -49,6 +49,7 @@ class AlarmRecorder:
         self._ack_by: str | None = None  # von wem der laufende Alarm quittiert wurde (None: nicht quittiert)
         self._unsubs: list[CALLBACK_TYPE] = []
         self._unsub_sensors: CALLBACK_TYPE | None = None
+        self._save_pending = False  # ein verzögertes Schreiben steht aus (siehe _save)
 
     @property
     def current(self) -> dict[str, Any] | None:
@@ -181,6 +182,14 @@ class AlarmRecorder:
         if record is None:
             return
         entries = record["entries"]
+        if len(entries) >= 2 * RECORDINGS_ENTRIES_KEEP and entry.get("kind") in ("step", "step_failed", "notified"):
+            # Harte Grenze (1.59.0): Schritte und Meldungen kommen sonst immer auf die Zeitachse. Eine Gruppe, die bis zum Deaktivieren
+            # jede Runde eine Meldung sendet, liesse die Aufzeichnung ohne Ende wachsen (und jedes Mal auf die Platte schreiben).
+            # Zustandswechsel und das Ende des Alarms kommen weiterhin immer.
+            if not record.get("truncated"):
+                record["truncated"] = True
+                self.rev += 1
+            return
         if len(entries) >= RECORDINGS_ENTRIES_KEEP:
             # Ein flatternder Sensor darf den Anfang (die Ursache) nicht verdrängen: neue Sensor-Einträge (auch Ausfall, Stiller
             # Alarm, nicht bestätigt) entfallen; Zustandswechsel, Schritte, Meldungen und das Ende kommen immer
@@ -208,14 +217,24 @@ class AlarmRecorder:
 
     @callback
     def _save(self) -> None:
-        # Verzögert: bei einem flatternden Sensor nicht bei jedem Eintrag schreiben
-        self._store.async_delay_save(lambda: self.recordings, 2)
+        # Verzögert: bei einem flatternden Sensor nicht bei jedem Eintrag schreiben. Aber nur einen Termin planen (wie Settings._save_soon):
+        # Store.async_delay_save verschiebt ihn bei jedem Aufruf, und in einem Alarm mit laufend neuen Einträgen (Bewegungsmelder) stünde die
+        # Aufzeichnung sonst erst am Ende auf der Platte; fiele Home Assistant mitten im Alarm aus (Strom weg), wäre sie verloren.
+        if self._save_pending:
+            return
+        self._save_pending = True
+        self._store.async_delay_save(self._data_for_save, 2)
+
+    def _data_for_save(self) -> list[dict[str, Any]]:
+        self._save_pending = False
+        return self.recordings
 
     async def async_stop(self) -> None:
         for unsub in self._unsubs:
             unsub()
         self._unsubs = []
         self._unwatch()
+        self._save_pending = False  # sofort schreiben verwirft den geplanten Termin
         await self._store.async_save(self.recordings)
 
 

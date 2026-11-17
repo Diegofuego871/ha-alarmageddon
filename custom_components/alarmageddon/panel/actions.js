@@ -53,7 +53,7 @@ const SCENE_DOMAINS = ["scene", "script"];
 // laufen standardmässig weiter, der nächste startet sofort; nur mit "wait" wartet der Ablauf. Ältere Abläufe ohne "wait" warteten,
 // ausser mit "detach". Ein Ton "bis zum Deaktivieren" (Dauer 0) endet nie von selbst: auf ihn lässt sich nicht warten.
 const endless = (step) => step?.type === "sound" && step.duration === 0;
-const waits = (step) => ["action", "sound", "chime", "dechime", "prealarm"].includes(step?.type) && !endless(step) && !step.delay && ("wait" in step ? Boolean(step.wait) : step.type === "prealarm" || (step.type !== "chime" && step.type !== "dechime" && !step.detach));
+const waits = (step) => (step?.type === "group" ? Boolean(step.wait) && step.mode !== "until_disarmed" : false) || ["action", "sound", "chime", "dechime", "prealarm"].includes(step?.type) && !endless(step) && !step.delay && ("wait" in step ? Boolean(step.wait) : step.type === "prealarm" || (step.type !== "chime" && step.type !== "dechime" && !step.detach));
 // Schritte, die nach dem Quittieren möglich sind (keine Alarmmeldung, kein Quittieren)
 const AFTER_KINDS = ["device", "sound", "chime", "wait", "scene", "custom"];
 // Schritte beim Scharfschalten (1.14.0): der Aktivierungston statt der Sirene, dazu Gerät, Warten, Szene und eigene Aktion
@@ -63,6 +63,15 @@ const DISARMED_KINDS = ["dechime", "device", "wait", "scene", "custom"];
 // Alarmton und Aktivierungston teilen sich die Felder (Lautsprecher, Ton, Lautstärke, Dauer)
 // So viele Schritte hat eine Liste höchstens (wie der Server: MAX_STEPS)
 const MAX_STEPS = 40;
+// Aktions-Gruppe (1.59.0): Grenzen wie der Server (GROUP_MAX_STEPS, GROUP_MAX_ROUNDS) und was es in einer Gruppe nie gibt (GROUP_EXCLUDED)
+const GROUP_MAX_STEPS = 10;
+const GROUP_MAX_ROUNDS = 100;
+const GROUP_NO = ["acknowledge", "group"];
+// Eine Liste ist eine der sechs Listen der Aktionen ("main", "after", "armed" ...) oder die Liste in einer Gruppe: "<Liste>:<Stelle der
+// Gruppe>". So gelten Karten, Plus, Fenster, Test und Ziehen für die Schritte einer Gruppe genau wie für die der Liste selbst.
+export const baseZone = (zone) => String(zone || "main").split(":")[0];
+export const groupIndex = (zone) => (String(zone || "").includes(":") ? Number(String(zone).split(":")[1]) : null);
+const inGroup = (zone) => groupIndex(zone) !== null;
 // Rückgängig nach einer Zeit (1.37.0): der Gegendienst, wie im Server (UNDO_SERVICES)
 const UNDO_SERVICES = { turn_on: "turn_off", turn_off: "turn_on", toggle: "toggle", open_cover: "close_cover", close_cover: "open_cover", open_valve: "close_valve", close_valve: "open_valve", lock: "unlock", unlock: "lock" };
 const UNDO_ACTION = { on: "off", off: "on", toggle: "toggle" };
@@ -103,6 +112,7 @@ export const KINDS = [
   { kind: "acknowledge", icon: "check", label: "stepAck", hint: "stepAckHint" },
   { kind: "scene", icon: "script", label: "stepScene", hint: "stepSceneHint" },
   { kind: "custom", icon: "cog", label: "stepCustom", hint: "stepCustomHint" },
+  { kind: "group", icon: "repeat", label: "stepGroup", hint: "stepGroupHint" },
 ];
 
 const OPTION_KEYS = { light: ["brightness_pct", "color_temp_kelvin"], cover: ["position"], climate: ["temperature", "hvac_mode"], fan: ["percentage"] };
@@ -117,7 +127,7 @@ export function normEnd(value) {
 
 // ----- Schritt des Servers <-> Formular -----
 
-const blank = () => ({ delay: false, kind: "custom", targets: [], ntTargets: null, restore: false, seconds: 30, wait: false, ntTitle: "", ntMessage: "", ntCritical: null, ntVolume: null, ntButtons: {}, ntClick: null, ntClickPath: "", until: false, playSeconds: 30, sound: "siren", setVolume: true, volume: 0.7, repeat: 3, action: "on", opts: {}, optsOn: {}, domain: "", service: "", data: {}, extra: {} });
+const blank = () => ({ delay: false, kind: "custom", targets: [], ntTargets: null, restore: false, seconds: 30, wait: false, ntTitle: "", ntMessage: "", ntCritical: null, ntVolume: null, ntButtons: {}, ntClick: null, ntClickPath: "", until: false, playSeconds: 30, sound: "siren", setVolume: true, volume: 0.7, repeat: 3, action: "on", opts: {}, optsOn: {}, domain: "", service: "", data: {}, extra: {}, gName: "", gMode: "count", gCount: 3, gSeconds: 60, gSteps: [] });
 
 export function fromStep(step) {
   return { ...fromStepBase(step), wait: waits(step) };
@@ -128,6 +138,7 @@ function fromStepBase(step) {
   if (step.type === "notify") return { ...f, kind: "notify", ntTitle: step.title || "", ntMessage: step.message || "", ntCritical: step.critical ?? null, ntVolume: step.volume ?? null, ntButtons: { ...(step.buttons || {}) }, ntClick: step.click ?? null, ntClickPath: step.click_path || "", ntTargets: step.targets?.length ? [...step.targets] : null };
   if (step.type === "wait") return { ...f, kind: "wait", seconds: step.seconds };
   if (step.type === "acknowledge") return { ...f, kind: "acknowledge" };
+  if (step.type === "group") return { ...f, kind: "group", gName: step.name || "", gMode: ["count", "duration", "until_disarmed"].includes(step.mode) ? step.mode : "count", gCount: step.count ?? 2, gSeconds: step.seconds ?? 60, gSteps: Array.isArray(step.steps) ? step.steps : [] };
   if (isTone(step.type)) Object.assign(f, { perVolume: Object.keys(step.volumes || {}).length > 0, volumes: { ...(step.volumes || {}) } });
   if (step.type === "chime") {
     return { ...f, delay: !!step.delay, kind: "chime", targets: [...(step.players || [])], sound: step.sound || "tone_pip", setVolume: step.volume != null, volume: step.volume ?? 0.5, until: false, playSeconds: step.duration || 3, restore: step.restore !== false };
@@ -161,8 +172,17 @@ function fromStepBase(step) {
   return { ...base, kind: "custom", data };
 }
 
-export function toStep(f, zone = "main") {
+export function toStep(f, path = "main") {
+  const zone = baseZone(path); // die Regeln der Liste gelten auch in ihren Gruppen
   const step = toStepBase(f);
+  if (step.type === "group") {
+    // "Bis deaktiviert" gibt es nur im Ablauf des Alarms (nur dort deaktiviert oder quittiert jemand) und wartet nie; die Schritte der
+    // Gruppe werden wie die der Liste geschrieben
+    if (zone !== "main" && step.mode === "until_disarmed") step.mode = "count";
+    step.wait = Boolean(f.wait) && step.mode !== "until_disarmed";
+    step.steps = (f.gSteps || []).filter((inner) => !GROUP_NO.includes(inner?.type)).map((inner) => toStep(fromStep(inner), `${zone}:0`));
+    return step;
+  }
   const volumes = isTone(f.kind) ? ownVolumes(f) : null;
   if (volumes) step.volumes = volumes;
   // Schritte, die etwas ausführen, laufen standardmässig weiter; "wait" hält den nächsten Schritt zurück, bis dieser fertig ist
@@ -179,6 +199,14 @@ export function toStep(f, zone = "main") {
     // heisst "restore" hier: der Lautsprecher wird nach dem Ton zurückgestellt (1.26.0)
     if (step.type === "action") step.restore = false;
     if (step.type === "sound" && step.duration === 0) step.duration = Math.min(3600, Math.max(1, Math.round(Number(f.playSeconds) || 30)));
+  }
+  if (inGroup(path)) {
+    // In einer Gruppe: kein "Rückgängig nach einer Zeit" (je Runde käme ein Eintrag dazu) und kein Ton, der der Verzögerung folgt
+    delete step.undo_after;
+    if (step.delay) {
+      delete step.delay;
+      step.wait = Boolean(f.wait);
+    }
   }
   return step;
 }
@@ -211,6 +239,10 @@ function toStepBase(f) {
     return out;
   }
   if (f.kind === "acknowledge") return { type: "acknowledge" };
+  if (f.kind === "group") {
+    const name = String(f.gName || "").trim().slice(0, 40);
+    return { type: "group", ...(name ? { name } : {}), mode: f.gMode, count: Math.min(GROUP_MAX_ROUNDS, Math.max(1, Math.round(Number(f.gCount) || 1))), seconds: Math.min(3600, Math.max(1, Math.round(Number(f.gSeconds) || 1))) };
+  }
   if (f.kind === "wait") return { type: "wait", seconds: Math.max(0, Math.round(Number(f.seconds) || 0)) };
   if (f.kind === "prealarm") {
     return { type: "prealarm", players: f.targets, sound: f.sound, volume: f.setVolume ? effectiveVolume(f) : null, duration: Math.min(600, Math.max(1, Math.round(Number(f.playSeconds) || 20))), restore: f.restore !== false };
@@ -386,17 +418,39 @@ export class ActionsUi {
   // Schritte des gewählten Auslösers: der Ablauf beim Alarm ("main"), die Aktionen nach dem Quittieren ("after") oder die beim
   // Scharfschalten ("armed")
   steps(zone = "main") {
-    return this.ensureDraft()?.[this._draftKey(zone)]?.[this.trigger] || [];
+    const list = this.ensureDraft()?.[this._draftKey(zone)]?.[this.trigger] || [];
+    const gi = groupIndex(zone);
+    if (gi === null) return list;
+    return list[gi]?.type === "group" && Array.isArray(list[gi].steps) ? list[gi].steps : [];
+  }
+
+  // Schritte einer Liste samt denen ihrer Gruppen: die Grenze des Servers zählt beides (MAX_STEPS)
+  _total(zone) {
+    const list = this.steps(baseZone(zone));
+    return list.length + list.reduce((sum, step) => sum + (step?.type === "group" ? (step.steps || []).length : 0), 0);
+  }
+
+  // Nimmt die Liste noch `extra` Schritte auf? Eine Gruppe höchstens GROUP_MAX_STEPS, die Liste samt Gruppen höchstens MAX_STEPS
+  _full(zone, extra = 1) {
+    return this._total(zone) + extra > MAX_STEPS || (inGroup(zone) && this.steps(zone).length + 1 > GROUP_MAX_STEPS);
   }
 
   // Schlüssel der Liste im Entwurf ("entry" ist schon die Anlage des Entwurfs, darum entrySteps)
   _draftKey(zone) {
-    return zone === "entry" ? "entrySteps" : ZONE_KEY[zone] || "wf";
+    return baseZone(zone) === "entry" ? "entrySteps" : ZONE_KEY[baseZone(zone)] || "wf";
   }
 
   _setSteps(list, zone = "main") {
     const d = this.ensureDraft();
     const key = this._draftKey(zone);
+    const gi = groupIndex(zone);
+    if (gi !== null) {
+      // Liste einer Gruppe: die Gruppe in ihrer Liste ersetzen
+      const outer = [...(d[key]?.[this.trigger] || [])];
+      if (outer[gi]?.type !== "group") return;
+      outer[gi] = { ...outer[gi], steps: list };
+      list = outer;
+    }
     d[key] = { ...(d[key] || {}), [this.trigger]: list };
   }
 
@@ -460,7 +514,15 @@ export class ActionsUi {
     const tabItems = [...(d.perMode ? triggers : mon ? [[triggers[0][0], this._t("wfAlarmTab"), "alert"]] : []), ...(mon ? [["monitor", this._t("wfMonitor"), "eye"]] : [])];
     const tabs = tabItems.length ? h._segHtml("wf-trigger", tabItems, this.trigger, "data-trigger", "small") : "";
     if (this.trigger === "monitor" && mon) {
-      h._setHtml(head, `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0">${tabs}<div class="ag-pmscope" style="margin:0">${ic("eye", 18)}${esc(this._t("monScope"))}</div></div></div>`);
+      // Der Schalter "Einstellungen pro Modus" gilt für die Überwachung nicht. Sein Platz bleibt aber frei (unsichtbarer Platzhalter mit
+      // demselben Text): so steht die Reiterzeile beim Wechsel auf "Überwachung" auf derselben Höhe und springt nicht (Wunsch des Nutzers,
+      // 2026-11-17, auch wenn dadurch Weissraum entsteht). Der Aufbau folgt dem der anderen Reiter, mit und ohne getrennte Modi.
+      const ghost = `<div class="ag-pmsw ag-ghost" aria-hidden="true"><span class="ag-toggle"></span><div class="ag-settx"><b>${esc(this._t("wfPerMode"))}</b><small>${esc(this._t(d.perMode ? "wfPerModeOn" : "wfPerModeHint"))}</small></div></div>`;
+      const monScope = `<div class="ag-pmscope" style="margin:0">${ic("eye", 18)}${esc(this._t("monScope"))}</div>`;
+      h._setHtml(head, d.perMode
+        ? `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0">${ghost}${tabs}${monScope}</div></div>`
+        : `<div class="ag-tools"><div class="ag-pmbar ag-ghost" style="flex:1;margin:0" aria-hidden="true">${ghost}</div></div>
+           <div class="ag-tools" style="margin-top:-4px">${tabs}</div><div class="ag-tools ag-monscope-row">${monScope}</div>`);
       h._setHtml(body, this.mon.bodyHtml());
       h._placePills();
       this.renderFoot();
@@ -628,18 +690,48 @@ export class ActionsUi {
   }
 
   _card(step, i, running, zone = "main") {
+    if (step?.type === "group" && !inGroup(zone)) return this._groupCard(step, i, running, zone);
     const f = fromStep(step);
     const k = KINDS.find((x) => x.kind === f.kind);
-    const restore = zone === "main" && (f.kind === "sound" || f.restore) && f.kind !== "notify" && f.kind !== "wait" && f.kind !== "acknowledge" ? `<span class="ag-tag none" title="${esc(this._t("wfRestoreMark"))}">${ic("restore", 12)}</span>` : "";
+    const restore = baseZone(zone) === "main" && (f.kind === "sound" || f.restore) && f.kind !== "notify" && f.kind !== "wait" && f.kind !== "acknowledge" ? `<span class="ag-tag none" title="${esc(this._t("wfRestoreMark"))}">${ic("restore", 12)}</span>` : "";
     const title = f.kind === "custom" ? this._serviceName(f.domain, f.service) : this._t(k.label);
     return `<div class="ag-card ag-wf-step" data-index="${i}">
       <button class="ag-handle" data-wf="grab" data-index="${i}" aria-label="${esc(this._t("stepGrab"))}" title="${esc(this._t("stepGrab"))}">${ic("grip", 20)}</button>
       <span class="ag-wf-icon k-${f.kind}">${ic(k.icon, 20)}</span>
-      <div class="ag-wf-text"><b>${esc(title)}</b> ${restore}<div class="ag-t2 ag-small">${esc(this._summary(f))}</div>${f.delay ? this._delayPill(zone) : this._waitPill(f)}<span class="ag-zone">${esc(this._t(`zone_${zone}`))}</span></div>
+      <div class="ag-wf-text"><b>${esc(title)}</b> ${restore}<div class="ag-t2 ag-small">${esc(this._summary(f))}</div>${f.delay ? this._delayPill(zone) : this._waitPill(f)}<span class="ag-zone">${esc(this._t(`zone_${baseZone(zone)}`))}</span></div>
       <div class="ag-wf-btns">${this._stepTestBtn(i, zone)}
         <button class="ag-iconbtn" data-wf="edit" data-index="${i}" aria-label="${esc(this._t("stepEdit"))}">${ic("pencil", 18)}</button>
-        <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this.steps(zone).length >= MAX_STEPS ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
+        <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this._full(zone) ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
         <button class="ag-iconbtn" data-wf="delete" data-index="${i}" aria-label="${esc(this._t("stepDelete"))}">${ic("trash", 18)}</button></div></div>`;
+  }
+
+  // Kurzfassung der Wiederholung einer Gruppe ("3 Durchläufe", "Wiederholen für 5 min", "Wiederholen bis deaktiviert")
+  _groupSummary(f) {
+    if (f.gMode === "until_disarmed") return this._t("grpSumUntil");
+    const s = Number(f.gSeconds);
+    if (f.gMode === "duration") return this._t("grpSumDuration", { time: s >= 60 && s % 60 === 0 ? this._t("durMin", { n: s / 60 }) : this._t("durS", { n: s }) });
+    return this._t(Number(f.gCount) === 1 ? "grpSumCountOne" : "grpSumCount", { n: f.gCount });
+  }
+
+  // Aktions-Gruppe (1.59.0, Variante B des Mockups): ein Rahmen in der Farbe der Liste, in der sie steht (beim Alarm rot), mit Kopfzeile;
+  // darin die Schritte als dieselben Karten wie überall, mit Plus dazwischen. Die Liste in der Gruppe ist eine Liste wie die anderen
+  // (data-zone "<Liste>:<Stelle>"): Plus, Fenster, Test und Ziehen gelten dort ohne eigene Wege.
+  _groupCard(step, i, running, zone) {
+    const f = fromStep(step);
+    const inner = `${zone}:${i}`;
+    const steps = f.gSteps;
+    const full = this._full(inner);
+    const add = this._t("grpAdd");
+    const plus = (j) => `<div class="ag-wf-plus ${j === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="add" data-at="${j}" ${full ? "disabled" : ""} aria-label="${esc(add)}" title="${esc(add)}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span>${j === steps.length ? `<small class="ag-wf-plushint ag-t2 ag-small">${esc(this._t(steps.length ? "grpMore" : "grpEmpty"))}</small>` : ""}</div>`;
+    const name = String(f.gName || "").trim();
+    return `<div class="ag-wf-step ag-wf-group" data-index="${i}">
+      <div class="ag-wf-ghead"><button class="ag-handle" data-wf="grab" data-index="${i}" aria-label="${esc(this._t("stepGrab"))}" title="${esc(this._t("stepGrab"))}">${ic("grip", 20)}</button>
+        <div class="ag-wf-gtitle"><span class="ag-wf-gpill">${ic("repeat", 16)}<span>${esc(name ? this._t("grpTitleNamed", { name }) : this._t("grpTitle"))}</span></span><span class="ag-wf-gsum">${esc(this._groupSummary(f))}</span>${this._waitPill(f)}</div>
+        <div class="ag-wf-btns">${this._stepTestBtn(i, zone)}
+          <button class="ag-iconbtn" data-wf="edit" data-index="${i}" aria-label="${esc(this._t("grpEdit"))}" title="${esc(this._t("grpEdit"))}">${ic("pencil", 18)}</button>
+          <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this._full(zone, 1 + steps.length) ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
+          <button class="ag-iconbtn" data-wf="delete" data-index="${i}" aria-label="${esc(this._t("grpDelete"))}" title="${esc(this._t("grpDelete"))}">${ic("trash", 18)}</button></div></div>
+      <div class="ag-wf-line ag-wf-glist" data-zone="${inner}">${plus(0)}${steps.map((s, j) => this._card(s, j, running, inner) + plus(j + 1)).join("")}</div></div>`;
   }
 
   // "70 %" oder, mit eigenen Werten je Medienplayer, die Spanne "30–70 %"
@@ -658,7 +750,7 @@ export class ActionsUi {
   // Pille auf dem Schritt, wenn der Ablauf auf sein Ende wartet (die Ausnahme; standardmässig läuft alles weiter). Eingestellt wird
   // das im Fenster des Schritts.
   _waitPill(f) {
-    if (!f.wait || !["device", "sound", "chime", "dechime", "prealarm", "scene", "custom"].includes(f.kind) || (f.kind === "sound" && f.until)) return "";
+    if (!f.wait || !["device", "sound", "chime", "dechime", "prealarm", "scene", "custom", "group"].includes(f.kind) || (f.kind === "sound" && f.until) || (f.kind === "group" && f.gMode === "until_disarmed")) return "";
     return `<span class="ag-waitpill">${ic("timer", 14)}<span>${esc(this._t("wfWaits"))}</span></span>`;
   }
 
@@ -828,9 +920,12 @@ export class ActionsUi {
   }
 
   // Schrittarten, die in einer Liste Sinn haben (beim Alarm alle ausser dem Aktivierungston)
-  _zoneKinds(zone) {
+  _zoneKinds(path) {
+    const zone = baseZone(path);
     const allowed = zone === "after" ? AFTER_KINDS : zone === "armed" ? ARMED_KINDS : zone === "arming" ? ARMING_KINDS : zone === "entry" ? ENTRY_KINDS : zone === "disarmed" ? DISARMED_KINDS : null;
-    return allowed || KINDS.filter((k) => k.kind !== "chime" && k.kind !== "dechime").map((k) => k.kind);
+    const kinds = allowed || KINDS.filter((k) => k.kind !== "chime" && k.kind !== "dechime" && k.kind !== "group").map((k) => k.kind);
+    // Die Gruppe gibt es in jeder Liste; in einer Gruppe gilt, was in ihrer Liste gilt, ohne Gruppe und ohne "Quittieren"
+    return inGroup(path) ? kinds.filter((k) => !GROUP_NO.includes(k)) : [...kinds, "group"];
   }
 
   openPicker(at, zone = "main") {
@@ -872,14 +967,15 @@ export class ActionsUi {
   // Nicht abwarten: der nächste Schritt startet sofort; sinnvoll für lange Töne und träge Geräte
   // "Warten, bis die Aktion beendet ist": aus ist der Standard (der nächste Schritt startet sofort)
   _waitRow(f) {
-    if (!["device", "sound", "chime", "dechime", "prealarm", "scene", "custom"].includes(f.kind)) return "";
-    const fixed = (f.kind === "sound" && f.until) || ((f.kind === "chime" || f.kind === "prealarm") && f.delay);
-    return `<div class="ag-ef ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldWait"))}</b><small>${esc(this._t(fixed ? ((f.kind === "chime" || f.kind === "prealarm") && f.delay ? "wfFlowDelay" : "wfFlowUntil") : "fldWaitHint"))}</small></div>${this._toggle(`data-wf="waitend"${fixed ? " disabled" : ""}`, f.wait && !fixed, "fldWait")}</div>`;
+    if (!["device", "sound", "chime", "dechime", "prealarm", "scene", "custom", "group"].includes(f.kind)) return "";
+    const endlessGroup = f.kind === "group" && f.gMode === "until_disarmed";
+    const fixed = (f.kind === "sound" && f.until) || ((f.kind === "chime" || f.kind === "prealarm") && f.delay) || endlessGroup;
+    return `<div class="ag-ef ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldWait"))}</b><small>${esc(this._t(fixed ? (endlessGroup ? "grpFlowUntil" : (f.kind === "chime" || f.kind === "prealarm") && f.delay ? "wfFlowDelay" : "wfFlowUntil") : "fldWaitHint"))}</small></div>${this._toggle(`data-wf="waitend"${fixed ? " disabled" : ""}`, f.wait && !fixed, "fldWait")}</div>`;
   }
 
   // "Rückgängig" gibt es nur im Ablauf beim Alarm: nach dem Quittieren folgt nichts mehr, das etwas zurückstellen könnte
   _restoreRow(f) {
-    const zone = this.edit?.zone || "main";
+    const zone = baseZone(this.edit?.zone);
     // Töne ausserhalb des Alarmablaufs (Aktivierungston, Voralarm, Alarmton nach dem Quittieren oder beim Scharfschalten) stellen den
     // Lautsprecher nach dem Ton selbst zurück; Standard an, je Schritt abschaltbar (1.26.0)
     if (isShortTone(f.kind) || (f.kind === "sound" && zone !== "main")) {
@@ -891,6 +987,7 @@ export class ActionsUi {
 
   // "Danach wieder rückgängig machen" (1.37.0): Gerät schalten, zum Beispiel eine Steckdose mit Sirene: ein, nach N Sekunden aus
   _undoRow(f) {
+    if (inGroup(this.edit?.zone)) return ""; // in einer Gruppe steht das Zurückschalten als eigener Schritt
     if (f.kind !== "device" || !UNDO_SERVICES[toStep(f, this.edit?.zone || "main").action?.split(".")[1]]) return "";
     const domains = [...new Set(f.targets.map((e) => e.split(".")[0]))];
     const back = UNDO_ACTION[f.action];
@@ -957,7 +1054,7 @@ export class ActionsUi {
           ${play
             ? `<button class="ag-iconbtn on" data-wf="pv-stop" aria-label="${esc(this._t("pvStop"))}" title="${esc(this._t("pvStop"))}">${ic("stop", 18)}</button>`
             : `<button class="ag-iconbtn" data-wf="pv-play" data-url="${esc(current?.url || "")}" aria-label="${esc(this._t("pvPlay"))}" title="${esc(this._t("pvPlay"))}">${ic("play", 18)}</button>`}</div></div>
-      <div class="ag-pv-note">${ic("info", 14)} ${esc(this._t("pvNote"))}</div>${upload}`;
+      <div class="ag-pv-note">${ic("info", 14)} ${esc(this._t("pvNote"))}</div>${this.edit?.uploaded && this.edit.uploaded === f.sound ? `<div class="ag-unsaved ag-unsaved-note">${esc(this._t("upStepUnsaved"))}</div>` : ""}${upload}`;
     const volume = `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldVolumeSet"))}</b>${f.setVolume ? "" : `<small>${esc(this._t("fldVolumeKeep"))}</small>`}</div>${this._toggle('data-wf="setvol"', f.setVolume, "fldVolumeSet")}</div>
       ${f.setVolume && !(f.perVolume && f.targets.length > 1) ? this._rangeRow('data-wf="volume"', this._t("fldVolume"), Math.round(f.volume * 100), 0, 100, 5, `${Math.round(f.volume * 100)} %`) : ""}
       ${f.setVolume && f.targets.length > 1 ? `<div class="ag-ef-row ag-pervol"><div class="ag-settx"><b>${esc(this._t("fldVolumePer"))}</b><small>${esc(this._t("fldVolumePerHint"))}</small></div>${this._toggle('data-wf="pervol"', f.perVolume, "fldVolumePer")}</div>` : ""}
@@ -984,7 +1081,7 @@ export class ActionsUi {
 
   _playForFixed(f) {
     // Nach dem Quittieren gibt es "bis zum Deaktivieren" nicht: niemand deaktiviert danach, der Ton braucht eine Dauer
-    const until = this.edit?.zone === "after" || isShortTone(f.kind) ? "" : `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldPlayUntil"))}</b><small>${esc(this._t("fldPlayUntilHint"))}</small></div>${this._toggle('data-wf="until"', f.until, "fldPlayUntil")}</div>`;
+    const until = baseZone(this.edit?.zone) !== "main" || isShortTone(f.kind) ? "" : `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldPlayUntil"))}</b><small>${esc(this._t("fldPlayUntilHint"))}</small></div>${this._toggle('data-wf="until"', f.until, "fldPlayUntil")}</div>`;
     if (f.until) return until;
     const quick = [10, 30, 60, 300].map((s) => `<button class="ag-chip ${Number(f.playSeconds) === s ? "on" : ""}" data-wf="playsecs" data-value="${s}">${esc(s >= 60 ? this._t("durMin", { n: s / 60 }) : this._t("durS", { n: s }))}</button>`).join("");
     return `<span class="ag-num"><input type="number" min="1" max="3600" data-wf="f" data-key="playSeconds" value="${esc(f.playSeconds)}" aria-label="${esc(this._t("fldPlayFor"))}"><span class="ag-t2">s</span></span>
@@ -1078,6 +1175,25 @@ export class ActionsUi {
     const title = fill(f.ntTitle || dt).trim();
     const message = fill(f.ntMessage || dm).trim();
     return `<b>${esc(title)}</b><div>${esc(message)}</div>`;
+  }
+
+  // Fenster der Aktions-Gruppe (1.59.0): Name, wie lange wiederholt wird (Reiterleiste), der Wert dazu und "Warten, bis ... beendet ist"
+  // wie bei den anderen Schritten. "Bis deaktiviert" gibt es nur im Ablauf des Alarms.
+  _groupFields(f) {
+    const alarm = baseZone(this.edit?.zone) === "main";
+    const modes = [["count", this._t("grpModeCount")], ["duration", this._t("grpModeDuration")], ...(alarm ? [["until_disarmed", this._t("grpModeUntil")]] : [])];
+    const seg = this.host._segHtml("gmode", modes, f.gMode, 'data-wf="gmode" data-value');
+    let value;
+    if (f.gMode === "count") {
+      value = `<div class="ag-ef"><div class="ag-ef-l">${esc(this._t("fldGrpCount"))}</div><span class="ag-num"><input type="number" min="1" max="${GROUP_MAX_ROUNDS}" data-wf="f" data-key="gCount" value="${esc(f.gCount)}" aria-label="${esc(this._t("fldGrpCount"))}"><span class="ag-t2">${esc(this._t("fldGrpCountUnit", { max: GROUP_MAX_ROUNDS }))}</span></span></div>`;
+    } else if (f.gMode === "duration") {
+      const quick = [30, 60, 180, 300, 600].map((sec) => `<button class="ag-chip ${Number(f.gSeconds) === sec ? "on" : ""}" data-wf="gsecs" data-value="${sec}">${esc(sec >= 60 ? this._t("durMin", { n: sec / 60 }) : this._t("durS", { n: sec }))}</button>`).join("");
+      value = `<div class="ag-ef"><div class="ag-ef-l">${esc(this._t("fldGrpSeconds"))}</div><span class="ag-num"><input type="number" min="1" max="3600" data-wf="f" data-key="gSeconds" value="${esc(f.gSeconds)}" aria-label="${esc(this._t("fldGrpSeconds"))}"><span class="ag-t2">s</span></span><div class="ag-zline" style="margin-top:10px">${quick}</div><div class="ag-ef-h">${esc(this._t("grpDurationHint"))}</div></div>`;
+    } else value = `<div class="ag-ef"><div class="ag-ef-h">${esc(this._t("grpUntilHint"))}</div></div>`;
+    return `<div class="ag-t2 ag-grp-intro">${esc(this._t("grpIntro"))}</div>
+      ${this._sec("fldGrpName", `<input class="ag-input" type="text" maxlength="40" data-wf="f" data-key="gName" value="${esc(f.gName || "")}" placeholder="${esc(this._t("fldGrpNamePh"))}" aria-label="${esc(this._t("fldGrpName"))}">`)}
+      ${this._sec("fldGrpRepeat", `<div class="ag-ef">${seg}</div>${value}`)}
+      ${this._sec("fldGrpFlow", this._waitRow(f))}`;
   }
 
   _waitFields(f) {
@@ -1181,11 +1297,13 @@ export class ActionsUi {
     else if (isTone(f.kind)) fields = this._soundFields(f);
     else if (f.kind === "wait") fields = this._waitFields(f);
     else if (f.kind === "acknowledge") fields = `<div class="ag-t2">${esc(this._t("fldAckHint"))}</div>`;
+    else if (f.kind === "group") fields = this._groupFields(f);
     else if (f.kind === "scene") fields = this._sceneFields(f);
     else fields = this._customFields(f);
     this.host._setHtml(this._dlg(), `<div class="ag-dlg-body ag-step-ed"><div class="ag-sys-top"><span class="ag-wf-icon k-${f.kind}">${ic(k.icon, 22)}</span><h3>${esc(this._t(k.label))}</h3></div>
       ${fields}<div class="ag-dlg-err" aria-live="polite">${esc(this.edit.error || "")}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-wf="close">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-wf="apply">${esc(this._t("apply"))}</button></div></div>`);
+    if (f.kind === "group") this.host._placePills?.(); // Kapsel der Reiterleiste "Wie lange wiederholen?"
   }
 
   apply() {
@@ -1210,6 +1328,7 @@ export class ActionsUi {
     }
     const zone = this.edit.zone || "main";
     const list = [...this.steps(zone)];
+    if (this.edit.index === null && this._full(zone)) return this._editError(inGroup(zone) && list.length >= GROUP_MAX_STEPS ? "grpFull" : "wfFull");
     if (this.edit.index !== null) list[this.edit.index] = step;
     else list.splice(this.edit.insert, 0, step);
     this._setSteps(list, zone);
@@ -1261,6 +1380,8 @@ export class ActionsUi {
       const sound = await uploadSound(this.host, dlg, ui, (k, v) => this._t(k, v));
       form.sound = sound.id;
       this.edit.upload = null;
+      // Der Ton selbst ist gespeichert, die Wahl im Schritt noch nicht: der Editor zeigt das, bis der Schritt gespeichert ist (_soundFields)
+      this.edit.uploaded = sound.id;
       this.host._toast(this._t("upDone", { name: sound.name }));
     } catch (err) {
       ui.busy = false;
@@ -1371,7 +1492,8 @@ export class ActionsUi {
     const root = this.host._view;
     // Nur die Karten derselben Liste (Ablauf beim Alarm oder Aktionen danach): gezogen wird innerhalb der Liste
     const line = grab.closest(".ag-wf-line") || root;
-    const cards = [...line.querySelectorAll(".ag-wf-step")];
+    // Nur die Karten dieser Liste selbst: die Schritte einer Gruppe gehören zur Liste der Gruppe
+    const cards = [...line.querySelectorAll(":scope > .ag-wf-step")];
     const from = Number(grab.dataset.index);
     if (!cards[from]) return;
     ev.preventDefault();
@@ -1381,13 +1503,21 @@ export class ActionsUi {
     // leere. Lagen werden beim Start gemessen (in Bildschirmkoordinaten dieses Moments); beim Mitscrollen wird der Zeiger darauf
     // umgerechnet. "ok" = die Liste nimmt diese Art von Schritt auf; sonst zeigt sie rot, dass es dort nicht geht.
     const zone = line.dataset?.zone || "main";
-    const kind = fromStep(this.steps(zone)[from] || {}).kind;
-    const lines = [...root.querySelectorAll(".ag-wf-line")].map((el) => ({ el, zone: el.dataset?.zone || "main" })).filter((l) => l.zone !== zone).map((l) => {
+    const dragged = this.steps(zone)[from] || {};
+    const kind = fromStep(dragged).kind;
+    const size = 1 + (dragged.type === "group" ? (dragged.steps || []).length : 0);
+    // Ziele: jede andere Liste, auch die Listen der Gruppen (ein Schritt lässt sich in eine Gruppe ziehen und wieder heraus), ausser der
+    // Liste in der gezogenen Gruppe selbst. Eine Gruppe nimmt jede Liste auf: was dort nicht geht, fällt nach einer Rückfrage weg.
+    const lines = [...root.querySelectorAll(".ag-wf-line")].map((el) => ({ el, zone: el.dataset?.zone || "main" })).filter((l) => l.zone !== zone && !cards[from].contains(l.el)).map((l) => {
       // Die Fläche der Liste samt ihren Plus: bei einer leeren Liste ragt das Plus über den Rahmen der Liste hinaus
-      const rs = [l.el, ...l.el.querySelectorAll(".ag-wf-plus")].map((e) => e.getBoundingClientRect());
-      return { ...l, ok: this._zoneKinds(l.zone).includes(kind), top: Math.min(...rs.map((r) => r.top)), bottom: Math.max(...rs.map((r) => r.bottom)), centers: [...l.el.querySelectorAll(".ag-wf-step")].map((c) => { const b = c.getBoundingClientRect(); return b.top + b.height / 2; }) };
+      const rs = [l.el, ...l.el.querySelectorAll(":scope > .ag-wf-plus")].map((e) => e.getBoundingClientRect());
+      // Innerhalb derselben Liste (in eine Gruppe hinein oder aus ihr heraus) ändert sich die Zahl der Schritte nicht
+      const room = baseZone(l.zone) === baseZone(zone) ? !(inGroup(l.zone) && this.steps(l.zone).length + 1 > GROUP_MAX_STEPS) : !this._full(l.zone, size);
+      return { ...l, nested: inGroup(l.zone), around: l.el.contains(line), ok: this._zoneKinds(l.zone).includes(kind) && room, top: Math.min(...rs.map((r) => r.top)), bottom: Math.max(...rs.map((r) => r.bottom)),
+        centers: [...l.el.querySelectorAll(":scope > .ag-wf-step")].map((c) => { const b = c.getBoundingClientRect(); return b.top + b.height / 2; }) };
     });
-    this.drag = { from, to: from, startY: ev.clientY, lastY: ev.clientY, sc0: this.host._content?.scrollTop ?? 0, cards, rects, slot, moved: false, zone, lines, target: null };
+    const own = line.getBoundingClientRect();
+    this.drag = { from, to: from, startY: ev.clientY, lastY: ev.clientY, sc0: this.host._content?.scrollTop ?? 0, cards, rects, slot, moved: false, zone, lines, target: null, own: { top: own.top, bottom: own.bottom } };
     cards[from].classList.add("dragging");
     root.classList.add("ag-dragging");
     this._dragScrollLoop();
@@ -1419,9 +1549,13 @@ export class ActionsUi {
     // Über einer anderen Liste (auch über einer ihrer Aktionen oder knapp daneben): sie leuchtet auf, die Karte landet beim Loslassen
     // dort. Nimmt sie den Schritt nicht auf, leuchtet sie rot. Liegt der Zeiger in keiner, gilt die nächste in 48 px Abstand.
     d.target = null;
-    let hit = d.lines.find((l) => py >= l.top && py <= l.bottom);
+    // Eine Gruppe liegt in ihrer Liste: von den Listen unter dem Zeiger gilt die innerste. Die Liste um die eigene Gruppe herum zählt
+    // erst, wenn der Zeiger die Gruppe verlassen hat (sonst liesse sich in der Gruppe nichts umordnen).
+    const inOwn = d.own && py >= d.own.top && py <= d.own.bottom;
+    let hit = d.lines.filter((l) => py >= l.top && py <= l.bottom && !(l.around && inOwn)).sort((x, y) => (x.bottom - x.top) - (y.bottom - y.top))[0];
     if (!hit) {
-      const near = d.lines.map((l) => [Math.min(Math.abs(py - l.top), Math.abs(py - l.bottom)), l]).filter(([gap]) => gap <= 48).sort((x, y) => x[0] - y[0])[0];
+      // Knapp daneben gilt nur für die Listen selbst, nie für eine Gruppe (in sie muss man hineinziehen)
+      const near = d.lines.filter((l) => !l.nested && !(l.around && inOwn)).map((l) => [Math.min(Math.abs(py - l.top), Math.abs(py - l.bottom)), l]).filter(([gap]) => gap <= 48).sort((x, y) => x[0] - y[0])[0];
       hit = near?.[1];
     }
     for (const l of d.lines) {
@@ -1490,23 +1624,52 @@ export class ActionsUi {
     else if (d.moved && d.to !== d.from) this._move(d.from, d.to, d.zone);
   }
 
-  // Schritt in eine andere Liste legen (1.22.0). Er wird dabei für die neue Liste umgerechnet: nach dem Quittieren kehrt nichts
-  // zurück, ein Ton in den Listen der Verzögerungen folgt standardmässig der Verzögerung (wie ein neuer Schritt dort).
-  _moveAcross(from, src, dst, at) {
+  // Schritt in eine andere Liste legen (1.22.0), auch in eine Gruppe hinein oder aus ihr heraus (1.59.0). Er wird dabei für die neue
+  // Liste umgerechnet: nach dem Quittieren kehrt nichts zurück, ein Ton in den Listen der Verzögerungen folgt standardmässig der
+  // Verzögerung (wie ein neuer Schritt dort). Gibt zurück, wo der Schritt jetzt liegt ({ zone, index }), oder null.
+  async _moveAcross(from, src, dst, at) {
     const step = this.steps(src)[from];
-    if (!step) return;
+    if (!step) return null;
     const f = fromStep(step);
-    if (!this._zoneKinds(dst).includes(f.kind)) return;
+    if (!this._zoneKinds(dst).includes(f.kind)) return null;
+    const dstBase = baseZone(dst);
+    if (f.kind === "group" && dstBase !== baseZone(src)) {
+      // Eine Gruppe wandert in einen anderen Bereich: Aktionen, die es dort nicht gibt, fallen weg. Vorher fragen (Wunsch des
+      // Nutzers, 2026-11-17); "Abbrechen" lässt die Gruppe, wo und wie sie ist.
+      const kinds = this._zoneKinds(`${dstBase}:0`);
+      const lost = f.gSteps.filter((inner) => !kinds.includes(fromStep(inner).kind));
+      const until = f.gMode === "until_disarmed" && dstBase !== "main";
+      if (lost.length || until) {
+        const names = [...new Set(lost.map((inner) => this._t(KINDS.find((k) => k.kind === fromStep(inner).kind)?.label || "stepCustom")))].join(", ");
+        const text = [lost.length ? this._t(lost.length === 1 ? "grpMoveLostOne" : "grpMoveLost", { count: lost.length, list: names, zone: this._t(`zone_${dstBase}`) }) : "", until ? this._t("grpMoveUntil", { n: f.gCount }) : ""].filter(Boolean).join(" ");
+        if (!(await this.host._confirm(this._t("grpMoveTitle"), text, this._t(lost.length ? "grpMoveOk" : "grpMoveOkPlain")))) return null;
+        if (this.steps(src)[from] !== step) return null; // inzwischen hat sich die Liste geändert
+        f.gSteps = f.gSteps.filter((inner) => kinds.includes(fromStep(inner).kind));
+        if (until) f.gMode = "count";
+      }
+    }
     if (DELAY_ZONES.includes(dst) && isShortTone(f.kind)) Object.assign(f, { delay: true, wait: false });
+    // Zielgruppe vor dem Entfernen merken: liegt der Schritt in derselben Liste davor, rückt die Gruppe um eine Stelle nach vorn
+    const group = inGroup(dst) ? this.steps(dstBase)[groupIndex(dst)] : null;
+    if (inGroup(dst) && group?.type !== "group") return null;
     this._setSteps(this.steps(src).filter((_s, k) => k !== from), src);
-    const list = [...this.steps(dst)];
-    list.splice(Math.min(at, list.length), 0, toStep(f, dst));
-    this._setSteps(list, dst);
+    const zone = group ? `${dstBase}:${this.steps(dstBase).indexOf(group)}` : dst;
+    const list = [...this.steps(zone)];
+    const index = Math.min(at, list.length);
+    list.splice(index, 0, toStep(f, zone));
+    this._setSteps(list, zone);
     this.saveState = null;
     this.render();
     // Die Karte ist hochgesprungen: dorthin scrollen, falls sie ausser Sicht ist
-    const el = this.host._view.querySelector(`${ZONE_CLASS[dst] || ".ag-wf-main"} .ag-wf-step[data-index="${Math.min(at, list.length - 1)}"]`);
-    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    this._lineEl(zone)?.querySelector(`:scope > .ag-wf-step[data-index="${index}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    return { zone, index };
+  }
+
+  // Das Element einer Liste: eine der sechs Listen oder die Liste in einer Gruppe
+  _lineEl(zone) {
+    const line = this.host._view?.querySelector(ZONE_CLASS[baseZone(zone)] || ".ag-wf-main");
+    const gi = groupIndex(zone);
+    return gi === null ? line : line?.querySelector(`:scope > .ag-wf-step[data-index="${gi}"] > .ag-wf-glist`) || null;
   }
 
   _move(from, to, zone = "main") {
@@ -1518,30 +1681,39 @@ export class ActionsUi {
     this.render();
   }
 
-  // Tastatur am Griff: Pfeiltasten verschieben den Schritt (Ersatz für das Ziehen)
+  // Tastatur am Griff: Pfeiltasten verschieben den Schritt (Ersatz für das Ziehen). Trifft er auf eine Gruppe, geht er hinein (oben
+  // oder unten), am Rand einer Gruppe wieder hinaus: so erreicht die Tastatur jede Stelle, die auch das Ziehen erreicht.
   onKeyDown(ev) {
     const grab = ev.target.closest?.('[data-wf="grab"]');
     if (!grab || !["ArrowUp", "ArrowDown"].includes(ev.key)) return false;
     const i = Number(grab.dataset.index);
-    const j = ev.key === "ArrowUp" ? i - 1 : i + 1;
+    const down = ev.key === "ArrowDown";
+    const j = down ? i + 1 : i - 1;
     ev.preventDefault();
     const zone = grab.closest("[data-zone]")?.dataset.zone || "main";
-    if (j < 0 || j >= this.steps(zone).length) {
+    const list = this.steps(zone);
+    const kind = fromStep(list[i] || {}).kind;
+    const focus = (where) => where && this._lineEl(where.zone)?.querySelector(`:scope > .ag-wf-step[data-index="${where.index}"] [data-wf="grab"]`)?.focus();
+    if (inGroup(zone)) {
+      if (j < 0 || j >= list.length) {
+        // Am Rand der Gruppe: hinaus, vor oder hinter die Gruppe
+        this._moveAcross(i, zone, baseZone(zone), groupIndex(zone) + (down ? 1 : 0)).then(focus);
+        return true;
+      }
+    } else if (list[j]?.type === "group" && kind !== "group" && this._zoneKinds(`${zone}:${j}`).includes(kind) && (list[j].steps || []).length < GROUP_MAX_STEPS) {
+      // Die Nachbarin ist eine Gruppe: hinein, von oben an ihren Anfang, von unten an ihr Ende
+      this._moveAcross(i, zone, `${zone}:${j}`, down ? 0 : (list[j].steps || []).length).then(focus);
+      return true;
+    } else if (j < 0 || j >= list.length) {
       // Über den Rand hinaus: in die nächste Liste, die den Schritt aufnimmt (der Tastatur-Ersatz fürs Ziehen dorthin)
-      const kind = fromStep(this.steps(zone)[i] || {}).kind;
-      const zones = [...this.host._view.querySelectorAll(".ag-wf-line")].map((el) => el.dataset?.zone || "main");
+      const zones = [...this.host._view.querySelectorAll(".ag-wf-line:not(.ag-wf-glist)")].map((el) => el.dataset?.zone || "main");
       const at = zones.indexOf(zone);
       const next = (j < 0 ? zones.slice(0, at).reverse() : zones.slice(at + 1)).find((z) => this._zoneKinds(z).includes(kind));
-      if (next) {
-        const target = this.steps(next).length;
-        this._moveAcross(i, zone, next, j < 0 ? target : 0);
-        const to = j < 0 ? this.steps(next).length - 1 : 0;
-        this.host._view.querySelector(`${ZONE_CLASS[next] || ".ag-wf-main"} [data-wf="grab"][data-index="${to}"]`)?.focus();
-      }
+      if (next) this._moveAcross(i, zone, next, j < 0 ? this.steps(next).length : 0).then(focus);
       return true;
     }
     this._move(i, j, zone);
-    this.host._view.querySelector(`${ZONE_CLASS[zone] || ".ag-wf-main"} [data-wf="grab"][data-index="${j}"]`)?.focus();
+    focus({ zone, index: j });
     return true;
   }
 
@@ -1630,8 +1802,8 @@ export class ActionsUi {
       this.renderEditor();
       this._dlg().showModal();
     } else if (act === "duplicate") {
-      // Kopie direkt unter dem Schritt, in derselben Liste (der Server begrenzt die Zahl der Schritte je Liste)
-      if (list[i] && list.length < MAX_STEPS) {
+      // Kopie direkt unter dem Schritt, in derselben Liste (der Server begrenzt die Zahl der Schritte je Liste, die einer Gruppe zählen mit)
+      if (list[i] && !this._full(zone, 1 + (list[i].type === "group" ? (list[i].steps || []).length : 0))) {
         this._setSteps([...list.slice(0, i + 1), JSON.parse(JSON.stringify(list[i])), ...list.slice(i + 1)], zone);
         this.saveState = null;
         this.render();
@@ -1734,7 +1906,14 @@ export class ActionsUi {
       if (form.perVolume) form.volumes = Object.fromEntries(form.targets.map((id) => [id, form.volumes?.[id] ?? form.volume]));
       this.renderEditor();
     } else if (act === "waitend") {
-      if (!(form.kind === "sound" && form.until)) form.wait = !form.wait;
+      if (!(form.kind === "sound" && form.until) && !(form.kind === "group" && form.gMode === "until_disarmed")) form.wait = !form.wait;
+      this.renderEditor();
+    } else if (act === "gmode") {
+      form.gMode = el.dataset.value;
+      if (form.gMode === "until_disarmed") form.wait = false; // endet nie von selbst: auf sie lässt sich nicht warten
+      this.renderEditor();
+    } else if (act === "gsecs") {
+      form.gSeconds = Number(el.dataset.value);
       this.renderEditor();
     } else if (act === "restore") {
       form.restore = !form.restore;

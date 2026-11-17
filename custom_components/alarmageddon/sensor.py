@@ -38,18 +38,33 @@ class StatusSensor(AlarmageddonEntity, SensorEntity):
         super().__init__(entry, "status")
         self._ctl = controller
         self._last: tuple[Any, ...] | None = None
+        self._watch: tuple[set[str], dict[str, str]] = (set(), {})
+        self._watch_for: Any = None
 
     def _threshold(self) -> float:
         settings = self._ctl.settings
         return float(((settings.notify if settings is not None else None) or DEFAULT_NOTIFY)["battery_threshold"])
 
+    def _watched(self) -> tuple[set[str], dict[str, str]]:
+        """
+        Sensoren der Anlage und ihre Batteriesensoren, je Stand der Optionen einmal ermittelt (Home Assistant ersetzt das Objekt der Optionen bei
+        jeder Änderung, und die Anlage lädt dann neu). Bis 1.57.0 lief die Suche über die ganze Entitäts-Registry bei jedem Zustandswechsel
+        eines Sensors, bis zu dreimal je Wechsel.
+        """
+        options = self._ctl.options
+        if self._watch_for is not options:
+            sensors = self._ctl.all_sensors()
+            self._watch = (sensors, battery_of(self.hass, sensors))
+            self._watch_for = options
+        return self._watch
+
     def _problems(self) -> tuple[bool, list[str], list[dict[str, Any]]]:
         """(Alarm läuft, nicht erreichbare Sensoren, schwache Batterien) dieser Anlage."""
-        sensors = self._ctl.all_sensors()
+        sensors, batteries = self._watched()
         offline = sorted(s for s in sensors if (state := self.hass.states.get(s)) is not None and state.state in GONE)
         low: list[dict[str, Any]] = []
         threshold = self._threshold()
-        for sensor, battery in sorted(battery_of(self.hass, sensors).items()):
+        for sensor, battery in sorted(batteries.items()):
             state = self.hass.states.get(battery)
             try:
                 value = float(state.state) if state is not None and state.state not in GONE else None
@@ -72,8 +87,8 @@ class StatusSensor(AlarmageddonEntity, SensorEntity):
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self.async_on_remove(self._ctl.add_listener(self._refresh))
-        sensors = self._ctl.all_sensors()
-        watched = sorted(sensors | set(battery_of(self.hass, sensors).values()))
+        sensors, batteries = self._watched()
+        watched = sorted(sensors | set(batteries.values()))
         if watched:
             self.async_on_remove(async_track_state_change_event(self.hass, watched, self._on_change))
 

@@ -40,7 +40,7 @@ for (const lang of ["de", "en"]) {
     // ----- Aktivierungston während der Ausgangsverzögerung -----
     await s.ev("r.querySelector('.ag-wf-arming [data-wf=\"add\"]').click(); return 1");
     await s.waitFor("return r.getElementById('ag-step').open");
-    check(`${tag}: Auswahl bei "${t.arming}": Aktivierungston, Gerät, Warten, Szene, eigene Aktion; keine Sirene, keine Meldung, kein Voralarm`, JSON.stringify(await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => b.dataset.kind)")) === JSON.stringify(["chime", "device", "wait", "scene", "custom"]), JSON.stringify(await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => b.dataset.kind)")));
+    check(`${tag}: Auswahl bei "${t.arming}": Aktivierungston, Gerät, Warten, Szene, eigene Aktion; keine Sirene, keine Meldung, kein Voralarm`, JSON.stringify(await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => b.dataset.kind)")) === JSON.stringify(["chime", "device", "wait", "scene", "custom", "group"]), JSON.stringify(await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => b.dataset.kind)")));
     await s.tap('#ag-step [data-wf="kind"][data-kind="chime"]');
     await s.waitFor("return !!r.querySelector('#ag-step .ag-tone')");
     const ed = await dlg("const sw=d.querySelector('[data-wf=\"delay\"]'); return { on: sw?.getAttribute('aria-checked') === 'true', hint: sw?.closest('.ag-ef-row')?.innerText || '', fixed: d.querySelector('.ag-delayfixed input')?.disabled === true, secs: d.querySelector('.ag-delayfixed input')?.value, chips: d.querySelectorAll('[data-wf=\"playsecs\"]').length, waitOff: d.querySelector('[data-wf=\"waitend\"]')?.disabled === true }");
@@ -57,7 +57,7 @@ for (const lang of ["de", "en"]) {
     // ----- Voralarm während der Eingangsverzögerung, mit fester Dauer (Schalter aus) -----
     await s.ev("r.querySelector('.ag-wf-entry [data-wf=\"add\"]').click(); return 1");
     await s.waitFor("return r.getElementById('ag-step').open");
-    check(`${tag}: Auswahl bei "${t.entry}": zusätzlich der Voralarm`, JSON.stringify(await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => b.dataset.kind)")) === JSON.stringify(["chime", "prealarm", "device", "wait", "scene", "custom"]));
+    check(`${tag}: Auswahl bei "${t.entry}": zusätzlich der Voralarm`, JSON.stringify(await dlg("return [...d.querySelectorAll('[data-wf=\"kind\"]')].map((b) => b.dataset.kind)")) === JSON.stringify(["chime", "prealarm", "device", "wait", "scene", "custom", "group"]));
     await s.tap('#ag-step [data-wf="kind"][data-kind="prealarm"]');
     await s.waitFor("return !!r.querySelector('#ag-step .ag-tone')");
     await s.tap('#ag-step [data-wf="delay"]');

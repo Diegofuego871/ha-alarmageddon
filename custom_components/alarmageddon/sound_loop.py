@@ -13,6 +13,7 @@ melden sich nicht an. Angenommen werden nur bekannte Töne und eine begrenzte L�
 
 from __future__ import annotations
 
+import asyncio
 from array import array
 from functools import lru_cache
 import io
@@ -34,6 +35,7 @@ FADE_IN_MS = 30
 FADE_OUT_MS = 60
 DATA_LOOP_VIEW = f"{DOMAIN}_loop_view"
 DATA_LOOP_CACHE = f"{DOMAIN}_loop_cache"
+DATA_LOOP_LOCK = f"{DOMAIN}_loop_lock"
 CACHE_ENTRIES = 4
 SOUND_DIR = Path(__file__).parent / "sounds"
 
@@ -104,10 +106,17 @@ class SoundLoopView(HomeAssistantView):
         cache: dict[tuple[str, int], bytes] = hass.data.setdefault(DATA_LOOP_CACHE, {})
         data = cache.get(key)
         if data is None:
-            data = await hass.async_add_executor_job(render, name, int(milliseconds), custom)
-            cache[key] = data
-            while len(cache) > CACHE_ENTRIES:
-                cache.pop(next(iter(cache)))
+            # Immer nur eine Datei zugleich bauen (1.58.0): mehrere Lautsprecher holen dieselbe Datei im selben Augenblick, sie entstand
+            # dann je Lautsprecher neu. Und die Adresse braucht keine Anmeldung: viele gleichzeitige Abfragen verschiedener Längen
+            # (je bis 8 MB) dürfen den Arbeitsspeicher von Home Assistant nicht füllen.
+            lock: asyncio.Lock = hass.data.setdefault(DATA_LOOP_LOCK, asyncio.Lock())
+            async with lock:
+                data = cache.get(key)
+                if data is None:
+                    data = await hass.async_add_executor_job(render, name, int(milliseconds), custom)
+                    cache[key] = data
+                    while len(cache) > CACHE_ENTRIES:
+                        cache.pop(next(iter(cache)))
         return web.Response(body=data, content_type="audio/wav", headers={"Cache-Control": "no-store"})
 
 

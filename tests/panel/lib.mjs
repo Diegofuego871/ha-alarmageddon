@@ -24,9 +24,11 @@ export function check(name, ok, detail = "") {
 export const done = () => process.exit(failures ? 1 : 0);
 
 // Seite im Nachbau öffnen; tab: gespeicherter Reiter; query: zusätzliche Parameter
-export async function open(browser, { mobile = false, lang = "de", theme = "light", tab = "overview", query = "", size = null, prefs = {} } = {}) {
-  const ctx = await browser.newContext(size ? { viewport: size } : mobile ? MOBILE : DESKTOP);
+// context: weitere Angaben für den Browser (zum Beispiel timezoneId); fixedTime: feste Uhrzeit des Browsers (Date), die Zeitgeber laufen weiter
+export async function open(browser, { mobile = false, lang = "de", theme = "light", tab = "overview", query = "", size = null, prefs = {}, context = {}, fixedTime = null } = {}) {
+  const ctx = await browser.newContext({ ...(size ? { viewport: size } : mobile ? MOBILE : DESKTOP), ...context });
   const page = await ctx.newPage();
+  if (fixedTime) await page.clock.setFixedTime(fixedTime);
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));

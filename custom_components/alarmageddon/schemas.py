@@ -57,6 +57,11 @@ from .const import (
     CONF_WORKFLOWS_ARMING,
     CONF_WORKFLOWS_ENTRY,
     ENTRY_STEP_TYPES,
+    GROUP_EXCLUDED,
+    GROUP_MAX_ROUNDS,
+    GROUP_MAX_STEPS,
+    GROUP_MODES,
+    GROUP_NAME_MAX,
     CONF_WORKFLOW_END,
     CONF_WORKFLOWS_AFTER,
     CONF_WORKFLOWS,
@@ -174,7 +179,59 @@ STEP_SCHEMAS = {
         vol.Optional("delay"): bool,
         vol.Optional("wait"): bool,
     }),
+    # Aktions-Gruppe (1.59.0): wiederholt ihre Schritte in der Reihenfolge. Die Schritte selbst prüft die Liste, in der die Gruppe steht
+    # (_valid_group: dort gelten dieselben Regeln wie für die Schritte der Liste). "wait" wie bei den anderen Schritten: ohne die Angabe
+    # läuft die Gruppe nebenher, der nächste Schritt startet sofort; eine Gruppe "bis deaktiviert" wartet nie (sie endet nie von selbst).
+    "group": vol.Schema({
+        vol.Required("type"): "group",
+        vol.Optional("name"): vol.All(str, vol.Length(max=GROUP_NAME_MAX)),
+        vol.Required("mode"): vol.In(GROUP_MODES),
+        vol.Optional("count", default=2): vol.All(vol.Coerce(int), vol.Range(min=1, max=GROUP_MAX_ROUNDS)),
+        vol.Optional("seconds", default=60): vol.All(vol.Coerce(int), vol.Range(min=1, max=MAX_DELAY)),
+        vol.Optional("steps", default=list): vol.All([dict], vol.Length(max=GROUP_MAX_STEPS)),
+        vol.Optional("wait"): bool,
+    }),
 }
+
+
+def _valid_group(value: Any, inner: Any, until: bool) -> dict[str, Any]:
+    """
+    Eine Aktions-Gruppe. `inner` prüft jeden Schritt darin (die Prüfung der Liste, in der die Gruppe steht); `until`: "bis deaktiviert"
+    ist in dieser Liste möglich (nur im Ablauf des Alarms: in den anderen Listen deaktiviert danach niemand, die Gruppe liefe endlos).
+    """
+    group = STEP_SCHEMAS["group"](value)
+    if group["mode"] == "until_disarmed":
+        if not until:
+            raise vol.Invalid("a group outside the alarm actions needs a number of rounds or a duration")
+        group["wait"] = False  # endet nie von selbst: auf sie lässt sich nicht warten
+    steps = []
+    for raw in group["steps"]:
+        if raw.get("type") in GROUP_EXCLUDED:
+            raise vol.Invalid("this step is not possible in a group")
+        step = inner(raw)
+        if step.get("undo_after") is not None:
+            # Je Runde käme ein vorgemerkter Gegendienst dazu; in einer Gruppe steht das Zurückschalten als eigener Schritt
+            raise vol.Invalid("undo after a time is not possible in a group")
+        step.pop("delay", None)  # "so lange wie die Verzögerung" gilt nur für einen Schritt der Liste selbst
+        steps.append(step)
+    group["steps"] = steps
+    return group
+
+
+def _is_group(value: Any) -> bool:
+    return isinstance(value, dict) and value.get("type") == "group"
+
+
+def _total_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Grenze je Liste: die Schritte einer Gruppe zählen mit (die Gruppe selbst auch)."""
+    if len(steps) + sum(len(step.get("steps") or []) for step in steps if step.get("type") == "group") > MAX_STEPS:
+        raise vol.Invalid(f"at most {MAX_STEPS} steps per list, the steps of groups included")
+    return steps
+
+
+def step_list(validator: Any) -> Any:
+    """Eine Liste von Schritten mit der Prüfung `validator` je Schritt und der Grenze MAX_STEPS (Schritte in Gruppen mitgezählt)."""
+    return vol.All([validator], _total_steps)
 
 
 # Element "Alarm endet" (0.27.0): was Deaktivieren/Quittieren mit den Geräten macht und eine optionale eigene Meldung dazu
@@ -202,6 +259,8 @@ def valid_step(value: Any, delay: bool = False) -> dict[str, Any]:
     """Ein Schritt. `delay`: Liste einer Verzögerung; nur dort bleibt die Angabe "so lange wie die Verzögerung" erhalten."""
     if not isinstance(value, dict) or value.get("type") not in STEP_SCHEMAS:
         raise vol.Invalid("unknown step type")
+    if value["type"] == "group":
+        return _valid_group(value, valid_step, until=True)
     step = STEP_SCHEMAS[value["type"]](value)
     if step.get("undo_after") is not None:
         # Nur wo es einen Gegendienst gibt: ein Dienst ohne ihn (Szene, eigener Dienst) bliebe ohne Wirkung, ohne dass es jemand merkt
@@ -223,6 +282,8 @@ def valid_after_step(value: Any) -> dict[str, Any]:
     Schritt der Aktionen nach dem Quittieren: nur Gerät, Ton und Warten. Ein Ton braucht dort eine Dauer (nach dem Alarm
     deaktiviert niemand mehr, ein Ton "bis zum Deaktivieren" liefe endlos), und "Rückgängig" gibt es nicht (danach folgt nichts).
     """
+    if _is_group(value):
+        return _valid_group(value, valid_after_step, until=False)
     step = valid_step(value)
     if step["type"] not in AFTER_STEP_TYPES:
         raise vol.Invalid("this step is not possible after the alarm")
@@ -235,6 +296,8 @@ def valid_after_step(value: Any) -> dict[str, Any]:
 
 def valid_armed_step(value: Any) -> dict[str, Any]:
     """Schritt der Aktionen beim Scharfschalten: Gerät, Aktivierungston und Warten; "Rückgängig" gibt es dort nicht."""
+    if _is_group(value):
+        return _valid_group(value, valid_armed_step, until=False)
     step = valid_step(value)
     if step["type"] not in ARMED_STEP_TYPES:
         raise vol.Invalid("this step is not possible when arming")
@@ -244,6 +307,8 @@ def valid_armed_step(value: Any) -> dict[str, Any]:
 
 
 def _valid_delay_step(value: Any, types: tuple[str, ...]) -> dict[str, Any]:
+    if _is_group(value):
+        return _valid_group(value, lambda inner: _valid_delay_step(inner, types), until=False)
     step = valid_step(value, delay=True)
     if step["type"] not in types:
         raise vol.Invalid("this step is not possible during a delay")
@@ -254,6 +319,8 @@ def _valid_delay_step(value: Any, types: tuple[str, ...]) -> dict[str, Any]:
 
 def valid_disarmed_step(value: Any) -> dict[str, Any]:
     """Schritt beim Deaktivieren: Gerät, Deaktivierungston und Warten; "Rückgängig" gibt es bei Geräten dort nicht."""
+    if _is_group(value):
+        return _valid_group(value, valid_disarmed_step, until=False)
     step = valid_step(value)
     if step["type"] not in DISARMED_STEP_TYPES:
         raise vol.Invalid("this step is not possible when disarming")
@@ -427,13 +494,13 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_PER_MODE_SENSORS): bool,
         vol.Optional(CONF_PER_MODE_SETTINGS): bool,
         vol.Optional(CONF_SENSOR_MODES): {vol.In([*MODES, SCOPE_ALWAYS]): {cv.entity_id: SENSOR_VALUES}},
-        vol.Optional(CONF_WORKFLOWS): {vol.In(WORKFLOW_TRIGGERS): vol.All([valid_step], vol.Length(max=MAX_STEPS))},
+        vol.Optional(CONF_WORKFLOWS): {vol.In(WORKFLOW_TRIGGERS): step_list(valid_step)},
         vol.Optional(CONF_WORKFLOW_END): {vol.In(WORKFLOW_TRIGGERS): valid_end},
-        vol.Optional(CONF_WORKFLOWS_AFTER): {vol.In(WORKFLOW_TRIGGERS): vol.All([valid_after_step], vol.Length(max=MAX_STEPS))},
-        vol.Optional(CONF_WORKFLOWS_ARMED): {vol.In(MODES): vol.All([valid_armed_step], vol.Length(max=MAX_STEPS))},
-        vol.Optional(CONF_WORKFLOWS_DISARMED): {vol.In(MODES): vol.All([valid_disarmed_step], vol.Length(max=MAX_STEPS))},
-        vol.Optional(CONF_WORKFLOWS_ARMING): {vol.In(MODES): vol.All([valid_arming_step], vol.Length(max=MAX_STEPS))},
-        vol.Optional(CONF_WORKFLOWS_ENTRY): {vol.In(MODES): vol.All([valid_entry_step], vol.Length(max=MAX_STEPS))},
+        vol.Optional(CONF_WORKFLOWS_AFTER): {vol.In(WORKFLOW_TRIGGERS): step_list(valid_after_step)},
+        vol.Optional(CONF_WORKFLOWS_ARMED): {vol.In(MODES): step_list(valid_armed_step)},
+        vol.Optional(CONF_WORKFLOWS_DISARMED): {vol.In(MODES): step_list(valid_disarmed_step)},
+        vol.Optional(CONF_WORKFLOWS_ARMING): {vol.In(MODES): step_list(valid_arming_step)},
+        vol.Optional(CONF_WORKFLOWS_ENTRY): {vol.In(MODES): step_list(valid_entry_step)},
     },
     extra=vol.REMOVE_EXTRA,
 )

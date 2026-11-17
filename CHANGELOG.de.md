@@ -7,6 +7,57 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.59.0] - 2026-11-17
+
+Enthält die Änderungen aus 1.58.0.
+
+### Hinzugefügt
+
+- **Aktions-Gruppe.** Ein neues Element unter Konfiguration › Aktionen: Eine Gruppe wiederholt ihre Aktionen in der Reihenfolge, zum Beispiel "Licht ein, 2 Sekunden warten, Licht aus, 2 Sekunden warten" als Blinklicht oder eine Sirene im Takt. Du wählst, wie lange: eine **Anzahl** Durchläufe (1 bis 100), eine **Dauer** (1 bis 3600 Sekunden) oder **bis deaktiviert** (nur im Ablauf des Alarms; endet mit Deaktivieren, Quittieren oder "Alarmton stumm"). Die Gruppe ist ein Rahmen mit Kopfzeile in der Farbe ihres Bereichs (beim Alarm rot, beim Scharfschalten hellrot, bei den Verzögerungen orange, nach dem Quittieren und beim Deaktivieren grün); darin liegen die Aktionen als dieselben Karten wie überall. Aktionen kommen über das Plus in die Gruppe oder durch Ziehen, und ebenso wieder heraus; mit der Tastatur geht eine Aktion mit den Pfeiltasten in eine Gruppe hinein, hindurch und hinaus. Die Gruppe gibt es in allen Listen der Aktionen (nicht in den Regeln der Überwachung), jeweils mit den Aktionen, die dort möglich sind; eine Gruppe hat höchstens 10 Aktionen, die zur Grenze von 40 je Liste zählen.
+- **"Warten, bis die Aktion beendet ist" auch für die Gruppe.** Wie bei den anderen Aktionen: aus (Standard) läuft die Gruppe nebenher und die folgenden Aktionen starten sofort, ein wartet der Ablauf auf ihr Ende. Auf eine Gruppe "bis deaktiviert" lässt sich nicht warten.
+- **Rückfrage, wenn eine Gruppe in einen anderen Bereich wandert.** Ziehst du eine Gruppe zum Beispiel vom Alarm zum Scharfschalten, nennt ein Fenster die Aktionen, die es dort nicht gibt (etwa Push-Meldung oder Alarmton), und entfernt sie erst nach deiner Bestätigung; "bis deaktiviert" wird dort zu einer Anzahl Durchläufe. "Abbrechen" lässt die Gruppe, wo und wie sie ist.
+- **Sicher wie die anderen Alarmaktionen.** Jede Aktion in der Gruppe steht unter denselben Grenzen (ein Gerät, das nicht antwortet, wird nach 10 Sekunden übergangen, ein Fehler bricht nie die übrigen ab). Jede Runde dauert mindestens 1 Sekunde, damit eine Gruppe ohne "Warten" keine Flut von Schaltbefehlen und Meldungen auslöst. Bei "Dauer" beginnt eine Runde nur, wenn sie noch ganz in die Zeit passt: Die Gruppe läuft nie länger als eingestellt und endet nie mitten in einer Runde (das Licht bleibt nicht an). Nach einem Neustart von Home Assistant mitten im Alarm läuft eine Gruppe "bis deaktiviert" wieder an; eine abgewartete Gruppe macht mit den restlichen Runden oder der restlichen Zeit weiter. Ein Gerät mit "Rückgängig" kehrt beim Deaktivieren in seinen vorherigen Zustand zurück, auch wenn mitten in einer Runde deaktiviert wird.
+
+### Geändert
+
+- **Die Aufzeichnung eines Alarms hat eine harte Grenze.** Aktionen und Meldungen kamen bisher immer auf die Zeitachse. Ab 600 Einträgen kommen nur noch Zustandswechsel und das Ende dazu: Eine Gruppe, die bis zum Deaktivieren jede Runde eine Meldung sendet, lässt die Aufzeichnung so nicht ohne Ende wachsen. Die Aktionen einer Gruppe stehen nur für die erste Runde auf der Zeitachse.
+
+## [1.58.0] - 2026-11-17
+
+Nicht veröffentlicht; enthalten in 1.59.0.
+
+Ergebnis eines vollständigen Code-Reviews (Logik, Stabilität, Geschwindigkeit) und Wünsche zur Oberfläche.
+
+### Hinzugefügt
+
+- **"Ton hochladen" direkt auf der Seite Anlage.** Das Kapitel "Eigene Töne" hat neben "Töne anzeigen" den Knopf "Ton hochladen" (ein normaler Knopf, nicht blau); er öffnet das Fenster gleich mit dem Formular. Lädst du einen Ton im Editor eines Schritts hoch, steht unter der Auswahl ein dezenter oranger Hinweis: "Hochgeladen und für diesen Schritt gewählt. Der Schritt ist noch nicht gespeichert." Der Ton selbst ist sofort abgelegt; offen ist nur noch der Schritt.
+- **"Routine hinzufügen" direkt auf der Seite Anlage.** Das Kapitel "Routinen" hat neben "Routinen anzeigen" den Knopf "Routine hinzufügen" (nicht blau); er öffnet gleich den Editor. Eine neue oder geänderte Routine trägt in der Liste die orange Marke "Noch nicht gespeichert", die Zusammenfassung der Seite "Änderungen noch nicht gespeichert", bis du die Seite speicherst.
+- **Eigene Ablage für den Zustand der Anlage.** Jeder Wechsel (scharf, Verzögerung, Alarm, deaktiviert) wird sofort geschrieben. Home Assistant selbst legt Zustände nur alle 15 Minuten und beim sauberen Beenden ab: Nach einem Absturz oder Stromausfall kam die Anlage sonst mit einem bis zu 15 Minuten alten Stand zurück (zum Beispiel deaktiviert, obwohl sie scharf war). Beim Start gilt der neuere der beiden Stände; die Ablage wird mit der Anlage gelöscht.
+
+### Geändert
+
+- **Die Übersicht lädt schneller.** Die 15 Dateien des Panels wurden nacheinander geholt, jede erst nach der vorherigen; jetzt lädt der Browser alle zugleich (in der Messung bei 120 ms Verzögerung je Anfrage 1,0 s statt 2,7 s bis zur fertigen Übersicht, im lokalen Netz 0,27 s statt 0,4 s). Die Antwort mit den Daten enthält die Messwert-Sensoren des Hauses nur noch, wenn eine Anlage die Überwachung eingeschaltet hat, und die erste Antwort nach einem Neustart wartet höchstens 1,5 Sekunden auf den Verlauf für "Letzte Änderung" (der Rest wird nachgereicht).
+- **Zustände erscheinen im Panel sofort.** Das Panel übernahm den Stand von Home Assistant nur alle 5 Sekunden: Ein Alarm oder ein offener Sensor stand bis zu 5 Sekunden zu spät da, und nach dem Scharfschalten drehte die Ladeanzeige bis zu 4 Sekunden. Jetzt prüft es alle 250 ms, ob es einen neuen Stand gibt.
+- **Neues Symbol für "Sicherungen anzeigen":** eine Liste, wie bei "Routinen anzeigen". Das bisherige Symbol (Pfeil mit Auge) las sich als "Sicherung anlegen" oder "wiederherstellen".
+- **Die Reiterzeile unter Konfiguration › Aktionen bleibt beim Wechsel auf "Überwachung" auf gleicher Höhe.** Der Platz des Schalters "Einstellungen pro Modus" bleibt dort frei, statt dass die Zeile nach oben springt.
+- **Neustart mitten im Alarm ohne gespeicherten Ablauf:** Die Alarmaktionen beginnen von vorn, statt auszubleiben (im Zweifel alarmieren). Ein Alarm, den "Alarmton stumm" still gestellt hat, bleibt nach einem Neustart still. Ein Test oder Aktionen nach dem Quittieren werden nach einem Neustart nicht mehr als Alarmablauf fortgesetzt.
+- **Weniger Arbeit je Sensorereignis.** Die Prüfung "Immer aktiv" und die Status-Entität haben bei jedem Ereignis eines Sensors alle Sensoren und die Registry durchsucht; ein Alarmton wurde für jeden Lautsprecher einzeln aufgebaut. Beides geschieht jetzt einmal.
+
+### Behoben
+
+- **Alarm ohne Sirene nach einem Neustart.** Lief die Eingangsverzögerung während eines Neustarts von Home Assistant ab, wechselte die Anlage zwar auf "Alarm", aber Alarmaktionen, Push-Meldung, Protokoll und Aufzeichnung blieben aus: Sie hörten zu diesem Zeitpunkt noch nicht zu. Der Alarm beginnt jetzt, sobald alle Teile bereit sind.
+- **Beschädigte abgelegte Daten machten die Anlage "nicht verfügbar".** Ein unlesbarer Zeitpunkt oder ein falscher Typ im abgelegten Stand brach das Laden ab. Jeder Wert wird jetzt einzeln geprüft; was unlesbar ist, wird übergangen, der Zustand bleibt erhalten.
+- **Der Modus, in dem die Anlage scharf ist, liess sich abschalten.** Im Dialog "Konfigurieren" der Integration und beim Wiederherstellen einer Sicherung: Die Anlage war danach ohne Meldung deaktiviert. Beides wird jetzt abgelehnt, mit dem Hinweis, zuerst zu deaktivieren.
+- **Sensoransicht über 7 und 30 Tage blieb nach der Zeitumstellung im Herbst hängen.** Am Tag mit 25 Stunden lief die Berechnung der Tageszeilen endlos ("Invalid string length"), solange dieser Tag im Zeitraum lag, also bis zu 30 Tage lang.
+- **Anlage anlegen oder löschen blieb im Panel stehen,** wenn in Home Assistant gerade eine lange Aufgabe lief (zum Beispiel eine Automation mit Wartezeit): Der Befehl wartete auf alle Aufgaben von Home Assistant statt nur auf die eigene.
+- **Die Meldung "Eingangsverzögerung" nannte die Zeit des Modus,** auch wenn der auslösende Sensor eine eigene Verzögerung hat. Sie nennt jetzt die Zeit, die wirklich läuft.
+- **Überwachung: der Schritt "Warten" beendete seine Wartezeit aus einem fremden Thread.** Das ist in Home Assistant nicht zulässig und konnte die folgenden Schritte verzögern oder verlieren.
+- **Aufzeichnung eines Alarms: das Schreiben wurde bei vielen Ereignissen immer weiter verschoben.** Es wird jetzt spätestens 2 Sekunden nach dem ersten Ereignis geschrieben.
+
+### Sicherheit
+
+- **Die Sperre nach fünf falschen Codes liess sich mit gleichzeitigen Versuchen umgehen.** Die Prüfung eines Codes dauert einen Moment; Versuche, die in dieser Zeit eintrafen, wurden alle geprüft, bevor der Zähler stieg. Codes werden jetzt einzeln nacheinander geprüft.
+
 ## [1.57.0] - 2026-11-17
 
 ### Hinzugefügt
@@ -1738,6 +1789,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.59.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.59.0
 [1.57.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.57.0
 [1.55.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.55.0
 [1.54.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.54.0

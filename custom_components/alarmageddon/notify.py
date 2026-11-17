@@ -351,6 +351,19 @@ async def _async_call(hass: HomeAssistant, domain: str, service: str, payload: d
         _LOGGER.exception("Notification via %s.%s failed", domain, service)
 
 
+def _with_groups(steps: Any) -> list[dict[str, Any]]:
+    """Schritte einer Liste samt den Schritten ihrer Aktions-Gruppen (1.59.0): eine Meldung in einer Gruppe ist eine Meldung des Ablaufs."""
+    out: list[dict[str, Any]] = []
+    for step in steps if isinstance(steps, list) else []:
+        if not isinstance(step, dict):
+            continue
+        if step.get("type") == "group":
+            out.extend(item for item in step.get("steps") or [] if isinstance(item, dict) and item.get("type") != "group")
+        else:
+            out.append(step)
+    return out
+
+
 class Notifier:
     """Hört auf die Zustände und Ereignisse einer Anlage und meldet nach den globalen Einstellungen."""
 
@@ -430,8 +443,11 @@ class Notifier:
             if self._on("triggered") and not any(self.workflow_has_notify(flow) for flow in plan):
                 self.send_alarm()
         elif state == AlarmControlPanelState.PENDING and self._on("pending", self._ctl.mode):
+            # Die Zeit, die wirklich läuft: ein Sensor kann eine eigene Eingangsverzögerung haben (bis 1.57.0 stand hier immer die des Modus)
+            left = self._ctl.delay_left()
+            seconds = self._ctl.entry_delay if left is None else max(0, round(left))
             self._send("pending", self._t("pending_title", name=name),
-                       self._t("pending", sensor=self._name(self._ctl.triggered_by), seconds=self._ctl.entry_delay))
+                       self._t("pending", sensor=self._name(self._ctl.triggered_by), seconds=seconds))
         elif state in (AlarmControlPanelState.ARMED_HOME, AlarmControlPanelState.ARMED_AWAY, AlarmControlPanelState.ARMED_NIGHT):
             if previous == AlarmControlPanelState.TRIGGERED:
                 # Alarm quittiert (die Anlage bleibt scharf): wie beim Deaktivieren ersetzt "Alarm beendet" die Alarmmeldung
@@ -478,7 +494,7 @@ class Notifier:
         options = self.entry.options
         flows = (options.get("workflows") or {}).values()
         ends = (options.get("workflow_end") or {}).values()
-        for step in (s for flow in flows if isinstance(flow, list) for s in flow if isinstance(s, dict) and s.get("type") == "notify"):
+        for step in (s for flow in flows if isinstance(flow, list) for s in _with_groups(flow) if s.get("type") == "notify"):
             out += [t for t in step.get("targets") or [] if isinstance(t, str)]
         for end in ends:
             own = end.get("notify") if isinstance(end, dict) else None
@@ -555,7 +571,7 @@ class Notifier:
     def _alarm_steps(self) -> list[dict[str, Any]]:
         """Push-Schritte des Ablaufs für den laufenden Alarm (leer: es geht die Standardmeldung raus)."""
         flows = self.entry.options.get("workflows") or {}
-        return [s for flow in self._ctl.alarm_plan() for s in flows.get(flow, []) if s.get("type") == "notify"]
+        return [s for flow in self._ctl.alarm_plan() for s in _with_groups(flows.get(flow, [])) if s.get("type") == "notify"]
 
     def _buttons(self, step: dict[str, Any] | None) -> dict[str, bool]:
         """Welche Knöpfe eine Alarmmeldung hat: Wert aus dem Push-Schritt, sonst der frühere globale Wert."""

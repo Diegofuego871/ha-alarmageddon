@@ -90,13 +90,32 @@
   // Update nie eine alte JS-Datei zur neuen Seite geladen wird. Erst nach
   // dem Import ist das Element definiert - hass vorher zu setzen, würde
   // den Setter der Klasse umgehen.
+  //
+  // Alle Module des Panels gleichzeitig anfordern (1.58.0). Sie importieren einander der Reihe nach; ohne diese Hinweise
+  // holte der Browser 15 Dateien nacheinander, jede erst nach der vorigen (über eine langsame Verbindung mehrere Sekunden
+  // bis zur Übersicht). Neue Datei unter panel/: hier eintragen (tests/test_panel_preload.py prüft die Liste).
+  const MODULES = ["alarmageddon-panel", "strings", "styles", "common", "loader", "list", "sensors", "system", "customsounds",
+    "routines", "actions", "monitor", "notify", "log", "sensorview"];
+  for (const name of MODULES) {
+    const link = document.createElement("link");
+    link.rel = "modulepreload";
+    link.href = `./${name}.js${location.search}`;
+    document.head.appendChild(link);
+  }
   await import(`./alarmageddon-panel.js${location.search}`);
 
   const el = document.querySelector("alarmageddon-panel");
 
+  // Home Assistant ersetzt sein hass-Objekt bei jeder Zustandsänderung. Nur ein neues Objekt geht ans Panel (ein Vergleich der
+  // Verweise kostet nichts), dafür viermal in der Sekunde: bis 1.57.0 kam ein neuer Zustand (Alarm, Eingangsverzögerung, scharf)
+  // erst nach bis zu 5 Sekunden im Panel an, und nach dem Scharfschalten blieb die Ladeanzeige bis zu 4 Sekunden stehen.
+  let lastHass = null;
   function applyHass() {
     const hass = parentHass();
-    if (hass) el.hass = hass;
+    if (hass && hass !== lastHass) {
+      lastHass = hass;
+      el.hass = hass;
+    }
     return hass !== null;
   }
 
@@ -124,10 +143,8 @@
   // hält Sprache und Verbindung aktuell. Ein Designwechsel in HA ändert
   // Attribute am <html> des Elternfensters - der Observer übernimmt ihn
   // sofort, das Intervall fängt alles andere ab.
-  setInterval(() => {
-    applyHass();
-    syncTheme();
-  }, 5000);
+  setInterval(applyHass, 250);
+  setInterval(syncTheme, 5000);
 
   try {
     const themeObserver = new MutationObserver(syncTheme);

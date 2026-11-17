@@ -31,5 +31,6 @@ async def async_create_system(hass: HomeAssistant, name: str) -> ConfigEntry | N
         result = await flow.async_configure(result["flow_id"], {CONF_NAME: name})
     if result["type"] is not FlowResultType.CREATE_ENTRY:
         return None
-    await hass.async_block_till_done()
+    # Kein hass.async_block_till_done() (bis 1.57.0): es wartet auf jede laufende Aufgabe von Home Assistant, also auch auf eine Automation
+    # mit langer Wartezeit, und das Anlegen käme nie zurück. Die Einrichtung der Anlage ist hier schon abgewartet (async_configure).
     return result["result"]

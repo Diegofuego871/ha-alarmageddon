@@ -13,6 +13,7 @@ from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import section
@@ -142,7 +143,12 @@ class AlarmageddonOptionsFlow(OptionsFlow):
             active = [m for m in MODES if bool(options.get(MODE_ENABLED_KEY[m], MODE_ENABLED_DEFAULT[m]))]
             in_zones = {e for m in active for e in options[f"{CONF_ZONE_PREFIX}{m}"]}
             new_code = (code_input.get(FIELD_CODE) or "").strip()
-            if set(options[CONF_ENTRY_SENSORS]) - in_zones:
+            # Wie im Panel (save_system): nie den Modus abschalten, in dem die Anlage gerade scharf ist oder wird. Nach dem Neuladen fände
+            # der Zustand keinen Modus mehr und die Anlage wäre still deaktiviert.
+            controller = getattr(getattr(self.config_entry, "runtime_data", None), "controller", None)
+            if controller is not None and controller.mode and controller.mode not in active and controller.state != AlarmControlPanelState.DISARMED:
+                errors["base"] = "mode_active"
+            elif set(options[CONF_ENTRY_SENSORS]) - in_zones:
                 errors["base"] = "entry_not_in_zone"
             elif new_code and not _valid_code(new_code):
                 errors["base"] = "invalid_code_format"
