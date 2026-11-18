@@ -12,6 +12,45 @@ const DEFAULTS = { exit_delay: 0, entry_delay: 30, confirm_window: 60 };
 const WINDOW = [5, 600];
 const ALL_MODES = ["home", "away", "night"];
 const MODE_HINT = { home: "sysModeHomeHint", away: "sysModeAwayHint", night: "sysModeNightHint" };
+// Vorlesetext der Zahlenfelder: der Titel ihrer Zeile (1.63.0, Code-Review; vorher der Schlüssel wie "exit_delay")
+const NUM_LABEL = { exit_delay: "sysExitDelay", entry_delay: "sysEntryDelay", confirm_window: "sysConfirm" };
+// Höchstzahl der Codes pro Person (wie MAX_CODES im Server, const.py)
+const MAX_CODES = 20;
+
+// Linien auf dem Tastenfeld (1 2 3 / 4 5 6 / 7 8 9 / 0 unter der 8): Zeilen, Spalten, Diagonalen, je in beide Richtungen
+const KEYPAD_LINES = ["123", "456", "789", "147", "258", "369", "159", "357", "2580", "580"].flatMap((l) => [l, [...l].reverse().join("")]);
+
+// Was einen Code leicht erraten lässt (1.63.0, Wunsch des Nutzers): nur für die Warnung im Fenster, Speichern bleibt möglich. "short": weniger
+// als 4 Ziffern (der Server nimmt 4 bis 8 Ziffern). Ein Code aus lauter gleichen Ziffern nennt nur das. Keine Ziffernfolge: keine Warnung (das
+// Format prüft "Speichern").
+export function codeWeakness(code) {
+  if (!/^\d+$/.test(code)) return [];
+  if (code.length < 4) return ["short"];
+  if (/^(\d)\1+$/.test(code)) return ["same"];
+  const n = code.length;
+  const digits = [...code].map(Number);
+  const steps = digits.slice(1).map((d, i) => d - digits[i]);
+  const out = [];
+  // Aufsteigend oder absteigend, auch mit der 0 nach der 9 (wie auf der Tastatur) und in Zweierschritten (2468, 9753)
+  if ("01234567890".includes(code) || "09876543210".includes(code) || steps.every((x) => x === 2) || steps.every((x) => x === -2)) out.push("sequence");
+  // Ein Block wiederholt (1212, 123123) oder lauter Paare (1122, 112233)
+  const block = Array.from({ length: Math.floor(n / 2) - 1 }, (_, i) => i + 2).some((len) => n % len === 0 && code === code.slice(0, len).repeat(n / len));
+  if (block || /^(?:(\d)\1)+$/.test(code)) out.push("pattern");
+  if (/(\d)\1\1/.test(code)) out.push("run");
+  if (code === [...code].reverse().join("")) out.push("mirror");
+  // Ganz aus Linien des Tastenfelds (2580, 147258, 159357); eine Zahlenfolge sagt das schon
+  const lines = (from) => from === n || KEYPAD_LINES.some((l) => code.startsWith(l, from) && lines(from + l.length));
+  if (!out.includes("sequence") && lines(0)) out.push("keypad");
+  const day = (dd) => dd >= 1 && dd <= 31;
+  const month = (mm) => mm >= 1 && mm <= 12;
+  const year = (yyyy) => yyyy >= 1900 && yyyy <= 2099;
+  const num = (from, len) => Number(code.slice(from, from + len));
+  if (n === 4 && year(num(0, 4))) out.push("year");
+  // Datum wie TTMMJJ, TTMMJJJJ oder JJJJMMTT (Geburtstage)
+  if ((n === 6 && day(num(0, 2)) && month(num(2, 2)))
+    || (n === 8 && ((day(num(0, 2)) && month(num(2, 2)) && year(num(4, 4))) || (year(num(0, 4)) && month(num(4, 2)) && day(num(6, 2)))))) out.push("date");
+  return out;
+}
 
 export class SystemUi {
   constructor(host) {
@@ -33,6 +72,21 @@ export class SystemUi {
 
   get system() {
     return this.host._system();
+  }
+
+  // Ein Knopf, der etwas an den Server schickt, nimmt bis zur Antwort keinen weiteren Druck an (1.63.0, Code-Review): ein Doppelklick schickte
+  // es zweimal (derselbe Code zweimal, zwei gleiche Sicherungen, ein zweiter Import). `key` benennt die Arbeit; der Knopf ist solange gesperrt.
+  async _sendOnce(key, button, work) {
+    this._sending ||= new Set();
+    if (this._sending.has(key)) return undefined;
+    this._sending.add(key);
+    if (button) button.disabled = true;
+    try {
+      return await work();
+    } finally {
+      this._sending.delete(key);
+      if (button?.isConnected) button.disabled = false;
+    }
   }
 
   // Automatische Sicherung (gilt für alle Anlagen): Teil des Entwurfs der Seite, gespeichert mit "Speichern" (seit 1.55.0)
@@ -132,7 +186,7 @@ export class SystemUi {
     const scope = this.scope;
     const v = d.per[scope];
     const bad = new Set(this.invalid());
-    const num = (field, value, min = 0, max = MAX, unit = "seconds") => `<span class="ag-num ${bad.has(`${scope}.${field}`) ? "bad" : ""}"><input type="number" min="${min}" max="${max}" step="1" inputmode="numeric" data-sys="num" data-field="${field}" value="${esc(value)}" aria-label="${esc(field)}"><span class="ag-t2">${esc(this._t(unit))}</span></span>`;
+    const num = (field, value, min = 0, max = MAX, unit = "seconds") => `<span class="ag-num ${bad.has(`${scope}.${field}`) ? "bad" : ""}"><input type="number" min="${min}" max="${max}" step="1" inputmode="numeric" data-sys="num" data-field="${field}" value="${esc(value)}" aria-label="${esc(this._t(NUM_LABEL[field]))}"><span class="ag-t2">${esc(this._t(unit))}</span></span>`;
     // Reiter der Modi nur mit eingeschaltetem Schalter
     const scopeSeg = d.perMode ? h._segHtml("sys-scope", modes.map((m) => [m, this._t(MODE_KEY[m]), MODE_ICON[m]]), scope, "data-scope", "small") : "";
     const switchRow = `<div class="ag-pmbar"><div class="ag-pmsw"><button class="ag-toggle ${d.perMode ? "on" : ""}" data-sys="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("sysPerMode"))}"></button>
@@ -161,23 +215,95 @@ export class SystemUi {
     this.renderFoot();
     this.rt.refreshList(); // ein offenes Popup der Routinen folgt dem Entwurf
     this.refreshCsList(); // ebenso das Fenster der eigenen Töne
+    this.refreshCodeList(); // und das Fenster der Codes
   }
 
   // ----- Codes pro Person (sofort gespeichert, nicht Teil des Entwurfs: ein Code soll nie im Panel liegen bleiben) -----
 
+  // Seit 1.63.0 (Wunsch des Nutzers) steht auf der Seite nur die Zusammenfassung mit dem Knopf zum Fenster, dazu Hauptcode und "Quittieren
+  // verlangt den Code". Die Liste, "Code hinzufügen", Bearbeiten und Entfernen stehen im Fenster (wie Routinen und eigene Töne).
   _codesHtml(d) {
     const s = this.system;
-    const users = this.host._data?.users || [];
-    const userName = (id) => users.find((u) => u.id === id)?.name;
-    const rows = (s.codes || []).map((c) => `<div class="ag-coderow"><span class="ag-oav">${ic("hand", 20)}</span><span class="ag-grow"><b>${esc(c.name)}</b><small class="ag-t2">${esc(userName(c.user_id) || this._t("codeNoUser"))}</small></span>
-        <button class="ag-iconbtn" data-sys="code-del" data-id="${esc(c.id)}" aria-label="${esc(`${this._t("remove")}: ${c.name}`)}">${ic("trash", 18)}</button></div>`).join("");
+    const n = (s.codes || []).length;
+    const summary = n ? this._t(n === 1 ? "codesSummaryOne" : "codesSummary", { count: n }) : this._t("codesNone");
     return chapter(this._t("sysCodes"), `<div class="ag-card ag-setlist ag-codes">
-      <div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("sysCodesHint"))}</small></div>
-        <button class="ag-btn" data-sys="code-add">${ic("plus", 18)}${esc(this._t("codeAdd"))}</button></div>
-      ${rows}
+      <div class="ag-setrow ag-rtsum ag-codesum"><span class="ag-oav ${n ? "on" : ""}">${ic("hand", 20)}</span><div class="ag-settx"><b>${esc(summary)}</b></div>
+        <div class="ag-btnrow"><button class="ag-btn" data-sys="code-open">${ic("groups", 18)}${esc(this._t("codesShow"))}</button></div></div>
       <div class="ag-coderow"><span class="ag-oav">${ic("lockClosed", 20)}</span><span class="ag-grow"><b>${esc(this._t("sysCodeMain"))}</b><small class="ag-t2">${esc(this._t(s.main_code ? "sysCodeMainSet" : "sysCodeMainNone"))}</small></span>
         <button class="ag-btn" data-sys="code">${ic("cog", 18)}${esc(this._t("sysCodeOpen"))}</button></div>
-      ${this._ackRow(d, Boolean(s.has_code))}</div>`);
+      ${this._ackRow(d, Boolean(s.has_code))}</div>`, this._t("sysCodesHint"));
+  }
+
+  _codeListDlg() {
+    return this.host._root.getElementById("ag-codelist");
+  }
+
+  // Name des verknüpften Benutzers; ist er in Home Assistant nicht mehr aktiv oder gelöscht, steht "nicht verfügbar" da (nicht "kein Benutzer")
+  _codeUser(c) {
+    if (!c.user_id) return "";
+    return (this.host._data?.users || []).find((u) => u.id === c.user_id)?.name || this._t("codeUserGone");
+  }
+
+  // Fenster "Codes pro Person" (Handy: ganzer Bildschirm): Titel und Suchfeld im klebenden Kopf, darunter die Tabelle; leer: Karte mit Knopf
+  // in der Mitte, sonst "Code hinzufügen" in der Fusszeile
+  codeListHtml() {
+    const t = (k, v) => this._t(k, v);
+    const codes = this.system?.codes || [];
+    const add = (cls) => `<button class="ag-btn ${cls}" data-sys="code-add" ${codes.length >= MAX_CODES ? "disabled" : ""}>${ic("plus", 18)}${esc(t("codeAdd"))}</button>`;
+    const tools = codes.length ? `<div class="ag-tools ag-pop-tools">${searchField("data-sys", "code-search", this.codeQ || "", t("codeFilter"), t("clearSearch"))}</div>` : "";
+    const body = codes.length ? `<div class="ag-codebody">${this._codeTable()}</div>` : `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(t("codesEmpty"))}</span>${add("primary")}</div>`;
+    return `<div class="ag-dlg-body ag-code-pop"><div class="ag-pop-head"><h3>${esc(t("sysCodes"))}</h3>${tools}</div>${body}
+      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="code-list-close">${esc(t("close"))}</button>${codes.length ? add("primary") : ""}</div></div>`;
+  }
+
+  // Tabelle der Codes: Name, Benutzer, Code (fester Platzhalter: gespeichert ist nur ein Hash, der Code selbst ist nirgends mehr bekannt),
+  // Bearbeiten, Entfernen. Sortierbar nach Name und Benutzer (ohne Benutzer immer unten), Suche nach Name und Benutzer.
+  _codeTable() {
+    const t = (k, v) => this._t(k, v);
+    const codes = this.system?.codes || [];
+    const sort = this.codeSort || (this.codeSort = { key: "name", dir: "asc" });
+    const shown = codes.filter((c) => matchQuery(this.codeQ || "", c.name, this._codeUser(c) || t("codeNoUser")));
+    if (!shown.length) return `<div class="ag-card ag-popempty"><span class="ag-t2">${esc(t("codeNoMatch"))}</span></div>`;
+    const cmp = (a, b) => String(a).localeCompare(String(b), this.host._lang || "en", { sensitivity: "base", numeric: true });
+    const key = (c) => (sort.key === "user" ? this._codeUser(c) : c.name);
+    const list = [...shown].sort((a, b) => {
+      if (sort.key === "user" && !this._codeUser(a) !== !this._codeUser(b)) return this._codeUser(a) ? -1 : 1;
+      return cmp(key(a), key(b)) * (sort.dir === "desc" ? -1 : 1) || cmp(a.name, b.name);
+    });
+    const btn = (act, icon, label, id) => `<button class="ag-iconbtn" data-sys="${act}" data-id="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}">${ic(icon, 18)}</button>`;
+    const rows = list.map((c) => `<tr data-code="${esc(c.id)}"><td class="ag-codename"><b>${esc(c.name)}</b></td><td class="ag-t2 ag-codeuser">${esc(this._codeUser(c) || "–")}</td>
+        <td class="ag-codecol"><span class="ag-codedots" role="img" aria-label="${esc(t("codeHidden"))}">••••••</span></td>
+        <td class="ag-acts"><div class="ag-actrow">${btn("code-edit", "pencil", `${t("codeEdit")}: ${c.name}`, c.id)}${btn("code-del", "trash", `${t("remove")}: ${c.name}`, c.id)}</div></td></tr>`).join("");
+    const th = (k, label) => {
+      const on = sort.key === k;
+      return `<th aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sortbtn ${on ? "on" : ""}" data-sys="code-sort" data-key="${k}" title="${esc(t("sortBy", { column: label }))}">${esc(label)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;
+    };
+    return `<div class="ag-card ag-codewrap"><table class="ag-table ag-codetable"><tr>${th("name", t("codeColName"))}${th("user", t("codeColUser"))}<th class="ag-codecol"><span class="ag-codeth">${esc(t("codeColCode"))}</span></th><th></th></tr>${rows}</table></div>`;
+  }
+
+  openCodeList() {
+    const dlg = this._codeListDlg();
+    if (!dlg.open) this.codeQ = "";
+    this.refreshCodeList(true);
+    if (!dlg.open) dlg.showModal();
+  }
+
+  // Nach jeder Änderung folgt das offene Fenster. Steht die Tabelle schon da, wird nur sie neu gezeichnet: das Suchfeld behält Text und Fokus.
+  refreshCodeList(force = false) {
+    const dlg = this._codeListDlg();
+    if (!dlg || (!dlg.open && !force)) return;
+    const codes = this.system?.codes || [];
+    const table = dlg.querySelector(".ag-codebody");
+    if (!force && table && codes.length) {
+      table.innerHTML = this._codeTable();
+      const add = dlg.querySelector('[data-sys="code-add"]');
+      if (add) add.disabled = codes.length >= MAX_CODES;
+      return;
+    }
+    const top = dlg.querySelector(".ag-dlg-body")?.scrollTop || 0;
+    dlg.innerHTML = this.codeListHtml();
+    const again = dlg.querySelector(".ag-dlg-body");
+    if (again && top) again.scrollTop = top;
   }
 
   // Quittieren verlangt den Code (1.34.0): gilt für den Dienst, den die Dashboard-Karten nutzen; das Panel selbst ist nur für
@@ -218,9 +344,10 @@ export class SystemUi {
     // gezeichnet werden (das Suchfeld behält den Fokus, ein offenes Formular zum Hochladen seine gewählte Datei)
     const tools = list.length ? `<div class="ag-tools ag-pop-tools">${searchField("data-sys", "cs-search", this.cs.q || "", t("csFilter"), t("clearSearch"))}</div>` : "";
     const body = list.length || up
-      ? `${tools}<div class="ag-card ag-setlist ag-codes" data-cs="manage"><div class="ag-csrows">${rows}</div>${up}</div>`
+      ? `<div class="ag-card ag-setlist ag-codes" data-cs="manage"><div class="ag-csrows">${rows}</div>${up}</div>`
       : `<div class="ag-card ag-rtempty" data-cs="manage"><span class="ag-t2">${esc(t("csEmpty"))}</span>${add("primary")}</div>`;
-    return `<div class="ag-dlg-body ag-cs-pop"><h3>${esc(t("csTitle"))}</h3>${body}
+    // Titel und Suchfeld im klebenden Kopf (1.63.0, wie bei den Routinen)
+    return `<div class="ag-dlg-body ag-cs-pop"><div class="ag-pop-head"><h3>${esc(t("csTitle"))}</h3>${tools}</div>${body}
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="cs-close">${esc(t("close"))}</button>${list.length && !up ? add("primary") : ""}</div></div>`;
   }
 
@@ -241,7 +368,7 @@ export class SystemUi {
       }
       const playing = this.cs.playing === s.url;
       return `<div class="ag-setrow ag-csrow" data-sound="${esc(s.id)}">${soundBadge(s.id, playing)}<div class="ag-settx"><b>${esc(s.name)}</b><small>${esc(soundInfo(s))} · ${esc(used)}</small></div>
-        <div class="ag-btnrow"><button class="ag-iconbtn ${playing ? "on" : ""}" data-sys="${playing ? "cs-stop" : "cs-play"}" data-url="${esc(s.url)}" aria-label="${esc(t(playing ? "pvStop" : "pvPlay"))}" title="${esc(t(playing ? "pvStop" : "pvPlay"))}">${ic(playing ? "stop" : "play", 18)}</button>
+        <div class="ag-btnrow"><button class="ag-iconbtn ${playing ? "ag-running" : ""}" data-sys="${playing ? "cs-stop" : "cs-play"}" data-url="${esc(s.url)}" aria-label="${esc(t(playing ? "pvStop" : "pvPlay"))}" title="${esc(t(playing ? "pvStop" : "pvPlay"))}">${ic(playing ? "stop" : "play", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-rename" data-id="${esc(s.id)}" aria-label="${esc(t("csRename"))}" title="${esc(t("csRename"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-delete" data-id="${esc(s.id)}" aria-label="${esc(t("csDelete"))}" title="${esc(t("csDelete"))}">${ic("trash", 18)}</button></div></div>`;
     }).join("");
@@ -296,7 +423,11 @@ export class SystemUi {
     this.render();
   }
 
-  async _csRenameOk() {
+  _csRenameOk() {
+    return this._sendOnce("cs-rename", this._csDlg()?.querySelector('[data-sys="cs-rename-ok"]'), () => this._csRename());
+  }
+
+  async _csRename() {
     const h = this.host;
     try {
       const res = await h._hass.callWS({ type: "alarmageddon/rename_sound", sound_id: this.cs.rename, name: this.cs.text });
@@ -364,9 +495,10 @@ export class SystemUi {
     // Suchfeld und Filter "Automatisch" (1.60.0, Wunsch des Nutzers) stehen über der Liste und ausserhalb davon: die Liste wird beim Tippen
     // und beim Laden für sich neu gezeichnet. Ohne Sicherungen bleiben sie verborgen.
     if (!dlg.open) Object.assign(this, { bkQ: "", bkAutoOnly: false });
-    dlg.innerHTML = `<div class="ag-dlg-body ag-bk-pop"><h3>${esc(this._t("bkListTitle"))}</h3>
+    // Titel, Suchfeld und Filter im klebenden Kopf (1.63.0, wie bei den Routinen)
+    dlg.innerHTML = `<div class="ag-dlg-body ag-bk-pop"><div class="ag-pop-head"><h3>${esc(this._t("bkListTitle"))}</h3>
       <div class="ag-tools ag-pop-tools ag-bktools" ${this.backups?.length ? "" : "hidden"}>${searchField("data-sys", "bk-search", this.bkQ || "", this._t("bkFilter"), this._t("clearSearch"))}
-        <button type="button" class="ag-chip ${this.bkAutoOnly ? "on" : ""}" data-sys="bk-auto-only" aria-pressed="${Boolean(this.bkAutoOnly)}">${ic("restore", 16)}${esc(this._t("bkFilterAuto"))}</button></div>
+        <button type="button" class="ag-chip ${this.bkAutoOnly ? "on" : ""}" data-sys="bk-auto-only" aria-pressed="${Boolean(this.bkAutoOnly)}">${ic("restore", 16)}${esc(this._t("bkFilterAuto"))}</button></div></div>
       <div class="ag-bkbody">${this._bkBody()}</div>
       <div class="ag-dlg-btns ag-bkfoot"><button class="ag-btn" data-sys="export">${ic("arrowDown", 18)}${esc(this._t("bkExport"))}</button>
         <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden>
@@ -445,7 +577,11 @@ export class SystemUi {
     dlg.querySelector("input").focus();
   }
 
-  async createBackup(name = "") {
+  createBackup(name = "") {
+    return this._sendOnce("bk-create", this._codeDlg()?.querySelector('[data-form="backup"] button[type="submit"]'), () => this._createBackup(name));
+  }
+
+  async _createBackup(name) {
     try {
       const res = await this.host._hass.callWS({ type: "alarmageddon/backup_create", name: String(name || "").trim() });
       this._codeDlg().close();
@@ -602,7 +738,7 @@ export class SystemUi {
       hint.classList.toggle("ag-err", !!c.error);
     });
     const pendingName = this._choices.some((c) => c.target === "new" && c.nameChecking);
-    go.disabled = !active || this._choices.some((c) => c.error) || pendingName || this._choices.some((c) => c.target === "new" && !c.name.trim());
+    go.disabled = !active || this._choices.some((c) => c.error) || pendingName || this._choices.some((c) => c.target === "new" && !c.name.trim()) || Boolean(this._sending?.has("import"));
   }
 
   // Der Name einer neuen Anlage: der Server sagt, ob er frei ist (überholte Antworten verwerfen)
@@ -627,7 +763,11 @@ export class SystemUi {
     }, 200);
   }
 
-  async importGo() {
+  importGo() {
+    return this._sendOnce("import", this._codeDlg()?.querySelector('[data-sys="import-go"]'), () => this._importGo()).finally(() => this._checkRestore());
+  }
+
+  async _importGo() {
     const mapping = this._choices.map((c) => ({ index: c.index, target: c.target, ...(c.target === "new" ? { name: c.name } : {}) }));
     try {
       await this.host._hass.callWS({ type: "alarmageddon/import", data: this._pendingBackup, mapping, restore_settings: !!this._restoreSettings });
@@ -646,21 +786,50 @@ export class SystemUi {
     return this.host._root.getElementById("ag-codes");
   }
 
-  openAddCode() {
+  // Code hinzufügen oder bearbeiten (Bearbeiten seit 1.63.0): dasselbe Fenster. Beim Bearbeiten stehen Name und Benutzer drin, die Codefelder
+  // sind leer (der Code ist nirgends bekannt); leer gelassen bleibt der bisherige Code. Das Auge blendet nur den gerade getippten Code ein.
+  openCodeForm(id = "") {
+    const codes = this.system?.codes || [];
+    const c = id ? codes.find((x) => x.id === id) : null;
+    if (id && !c) return;
     const users = this.host._data?.users || [];
-    const taken = new Set((this.system.codes || []).map((c) => c.user_id).filter(Boolean));
+    const taken = new Set(codes.filter((x) => x !== c).map((x) => x.user_id).filter(Boolean));
+    const own = c?.user_id || "";
+    // Ein verknüpfter Benutzer, den Home Assistant nicht mehr als aktiv listet, bleibt wählbar (sonst löste ihn jedes Speichern still)
+    const gone = own && !users.some((u) => u.id === own) ? `<option value="${esc(own)}" selected>${esc(this._t("codeUserGone"))}</option>` : "";
+    const options = users.filter((u) => !taken.has(u.id)).map((u) => `<option value="${esc(u.id)}" ${u.id === own ? "selected" : ""}>${esc(u.name)}</option>`).join("");
+    const secret = (key, label, hint = "") => `<div class="ag-fld"><label class="ag-label" for="ag-cf-${key}">${esc(label)}</label>
+        <span class="ag-pwfld"><input class="ag-input" id="ag-cf-${key}" type="password" inputmode="numeric" autocomplete="new-password" data-sys="cf" data-key="${key}" data-secret maxlength="8">
+          <button type="button" class="ag-iconbtn ag-pweye" data-sys="code-eye" aria-pressed="false" aria-label="${esc(this._t("codeShow"))}" title="${esc(this._t("codeShow"))}">${ic("eye", 18)}</button></span>
+        ${hint ? `<small class="ag-t2">${esc(hint)}</small>` : ""}</div>`;
     const dlg = this._codeDlg();
-    dlg.innerHTML = `<div class="ag-dlg-body"><h3>${esc(this._t("codeAdd"))}</h3>
-      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeUser"))}</span><select class="ag-input" data-sys="cf" data-key="user_id" aria-label="${esc(this._t("codeUser"))}">
-        <option value="">${esc(this._t("codeUserNone"))}</option>${users.filter((u) => !taken.has(u.id)).map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join("")}</select>
+    dlg.innerHTML = `<div class="ag-dlg-body"><h3>${esc(this._t(c ? "codeEdit" : "codeAdd"))}</h3>
+      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeUser"))}</span><select class="ag-input" data-sys="cf" data-key="user_id" data-init="${esc(own)}" aria-label="${esc(this._t("codeUser"))}">
+        <option value="">${esc(this._t("codeUserNone"))}</option>${gone}${options}</select>
         <small class="ag-t2">${esc(this._t("codeUserHint"))}</small></label>
-      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeName"))}</span><input class="ag-input" data-sys="cf" data-key="name" maxlength="40" autocomplete="off" aria-label="${esc(this._t("codeName"))}"></label>
-      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeValue"))}</span><input class="ag-input" type="password" inputmode="numeric" autocomplete="new-password" data-sys="cf" data-key="code" maxlength="8" aria-label="${esc(this._t("codeValue"))}"></label>
-      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeRepeat"))}</span><input class="ag-input" type="password" inputmode="numeric" autocomplete="new-password" data-sys="cf" data-key="code2" maxlength="8" aria-label="${esc(this._t("codeRepeat"))}"></label>
+      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeName"))}</span><input class="ag-input" data-sys="cf" data-key="name" maxlength="40" autocomplete="off" value="${esc(c?.name || "")}" data-init="${esc(c?.name || "")}" aria-label="${esc(this._t("codeName"))}"></label>
+      ${secret("code", this._t("codeValue"), c ? this._t("codeKeepHint") : "")}
+      ${secret("code2", this._t("codeRepeat"))}
+      <div class="ag-codewarn" hidden aria-live="polite">${ic("alert", 18)}<span></span></div>
       <div class="ag-dlg-err" aria-live="polite"></div>
-      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="code-close">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-sys="code-save">${ic("check", 18)}${esc(this._t("save"))}</button></div></div>`;
+      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="code-close">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-sys="code-save" data-id="${esc(c?.id || "")}">${ic("check", 18)}${esc(this._t("save"))}</button></div></div>`;
     dlg.showModal();
     dlg.querySelector('[data-key="name"]').focus();
+  }
+
+  // Warnung bei einem leicht zu erratenden Code (1.63.0, Wunsch des Nutzers): rot, fett, mit Achtung-Zeichen unter den Codefeldern; Speichern
+  // bleibt möglich. "Zu kurz" erst, wenn das Feld verlassen ist (sonst stünde es bei jeder Eingabe kurz da). Der Code verlässt das Fenster dafür nie.
+  codeWarn() {
+    const dlg = this._codeDlg();
+    const box = dlg?.querySelector(".ag-codewarn");
+    const input = dlg?.querySelector('[data-key="code"]');
+    if (!box || !input) return;
+    const found = codeWeakness(input.value.trim());
+    const short = found[0] === "short";
+    const show = short ? this.host._root.activeElement !== input : found.length > 0;
+    box.hidden = !show;
+    box.querySelector("span").textContent = !show ? "" : short ? this._t("codeWeakShort")
+      : this._t("codeWeak", { reasons: found.map((k) => this._t(`codeWeak_${k}`)).join(", ") });
   }
 
   openRemoveCode(id) {
@@ -678,17 +847,40 @@ export class SystemUi {
     if (box) box.textContent = text;
   }
 
-  async saveCode() {
+  saveCode() {
+    return this._sendOnce("code-save", this._codeDlg()?.querySelector('[data-sys="code-save"]'), () => this._saveCode());
+  }
+
+  async _saveCode() {
     const dlg = this._codeDlg();
+    const id = dlg.querySelector('[data-sys="code-save"]')?.dataset.id || "";
     const val = (k) => dlg.querySelector(`[data-key="${k}"]`).value;
     const name = val("name").trim();
     if (!name) return this._codeError(this._t("codeNameMissing"));
-    if (!/^\d{4,8}$/.test(val("code"))) return this._codeError(this._t("errInvalidCodeFormat"));
-    if (val("code") !== val("code2")) return this._codeError(this._t("codeMismatch"));
+    const code = val("code");
+    // Beim Bearbeiten heisst ein leeres Codefeld "bisherigen Code behalten"; sonst gelten dieselben Prüfungen wie beim Hinzufügen
+    if (!id || code || val("code2")) {
+      if (!/^\d{4,8}$/.test(code)) return this._codeError(this._t("errInvalidCodeFormat"));
+      if (code !== val("code2")) return this._codeError(this._t("codeMismatch"));
+    }
+    const userId = val("user_id") || null;
+    const entryId = this.system.entry_id;
     try {
-      await this.host._hass.callWS({ type: "alarmageddon/add_code", entry_id: this.system.entry_id, name, code: val("code"), user_id: val("user_id") || null });
+      let added = null;
+      if (id) await this.host._hass.callWS({ type: "alarmageddon/update_code", entry_id: entryId, code_id: id, name, user_id: userId, ...(code ? { code } : {}) });
+      else added = await this.host._hass.callWS({ type: "alarmageddon/add_code", entry_id: entryId, name, code, user_id: userId });
+      // Das offene Fenster mit der Liste folgt sofort; die Abfrage danach bestätigt den Stand des Servers
+      const sys = this.host._system(entryId);
+      if (sys) {
+        sys.codes = sys.codes || [];
+        const mine = id ? sys.codes.find((c) => c.id === id) : null;
+        if (mine) Object.assign(mine, { name, user_id: userId });
+        else if (added?.id) sys.codes.push({ id: added.id, name, user_id: userId });
+        if (added?.id) sys.has_code = true;
+      }
       dlg.close();
       this.host._toast(this._t("saved"));
+      this.render();
       this.host._fetch();
     } catch (err) {
       this._codeError(this._codeErrText(err));
@@ -726,7 +918,7 @@ export class SystemUi {
     else if (bad) {
       const first = badKeys[0];
       const text = first === "modes" ? this._t("sysModesNone")
-        : first === "auto.keep" ? this._t("invalidNumber", { min: 1, max: 50 })
+        : first === "auto.keep" ? this._t("invalidCount", { min: 1, max: 50 })
         : first.endsWith(".confirm_window") ? this._t("invalidNumber", { min: 5, max: 600 }) : this._t("invalidNumber", { min: 0, max: MAX });
       status = `<span class="ag-err">${esc(text)}</span>`;
     }
@@ -759,7 +951,7 @@ export class SystemUi {
       this.draft = null;
       this.saveState = "saved";
       this.host._markSaved(this); // Punkte "ungespeichert" verschwinden sofort
-// Nur warten, wenn die Anlage wirklich neu lädt (sonst drehte die Ladeanzeige 25 Sekunden)
+      // Nur warten, wenn die Anlage wirklich neu lädt (sonst drehte die Ladeanzeige 25 Sekunden)
       if (saved?.reload !== false) h._reloadWait();
       else h._fetch();
     } catch (err) {
@@ -798,14 +990,28 @@ export class SystemUi {
       this.openCsList();
       return true;
     }
-    if (act === "cs-search-clear" || act === "bk-search-clear") {
+    if (act === "code-open") {
+      this.openCodeList();
+      return true;
+    }
+    if (act === "code-list-close") {
+      this._codeListDlg().close();
+      return true;
+    }
+    if (act === "code-sort") {
+      const cur = this.codeSort || { key: "name", dir: "asc" };
+      this.codeSort = { key: el.dataset.key, dir: cur.key === el.dataset.key && cur.dir === "asc" ? "desc" : "asc" };
+      this.refreshCodeList();
+      return true;
+    }
+    if (act === "cs-search-clear" || act === "bk-search-clear" || act === "code-search-clear") {
       const input = el.closest(".list-search").querySelector("input");
       input.value = "";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.focus();
       return true;
     }
-    if (act === "cs-search" || act === "bk-search") return true; // ein Klick ins Suchfeld löst nichts aus
+    if (act === "cs-search" || act === "bk-search" || act === "code-search") return true; // ein Klick ins Suchfeld löst nichts aus
     if (act === "bk-auto-only") {
       this.bkAutoOnly = !this.bkAutoOnly;
       el.classList.toggle("on", this.bkAutoOnly);
@@ -929,7 +1135,19 @@ export class SystemUi {
     } else if (act === "import-file") {
       return false;
     } else if (act === "code-add") {
-      this.openAddCode();
+      this.openCodeForm();
+    } else if (act === "code-edit") {
+      this.openCodeForm(el.dataset.id);
+    } else if (act === "code-eye") {
+      // Nur der gerade getippte Code (Feld im Fenster): ein gespeicherter Code ist nirgends bekannt und wird nie angezeigt
+      const input = el.parentElement.querySelector("input");
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      const label = this._t(show ? "codeHide" : "codeShow");
+      el.setAttribute("aria-pressed", String(show));
+      el.setAttribute("aria-label", label);
+      el.title = label;
+      el.innerHTML = ic(show ? "eyeOff" : "eye", 18);
     } else if (act === "code-del") {
       this.openRemoveCode(el.dataset.id);
     } else if (act === "code-close") {
@@ -976,6 +1194,14 @@ export class SystemUi {
       dlg.querySelector(".ag-csrows").innerHTML = this._csRows();
       return true;
     }
+    if (el.dataset.sys === "code-search") {
+      // Nur die Tabelle neu zeichnen: das Suchfeld behält den Fokus
+      this.codeQ = el.value;
+      const dlg = this._codeListDlg();
+      dlg.querySelector('[data-sys="code-search-clear"]').hidden = !this.codeQ;
+      dlg.querySelector(".ag-codebody").innerHTML = this._codeTable();
+      return true;
+    }
     if (el.dataset.sys === "bk-search") {
       this.bkQ = el.value;
       this._bkDlg().querySelector('[data-sys="bk-search-clear"]').hidden = !this.bkQ;
@@ -1013,6 +1239,7 @@ export class SystemUi {
         if (!name.value) name.value = (this.host._data?.users || []).find((u) => u.id === el.value)?.name || "";
       }
       this._codeError("");
+      this.codeWarn();
       return true;
     }
     if (el.dataset.sys?.startsWith("rt-")) return this.rt.onInput(el);

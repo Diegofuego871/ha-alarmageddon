@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 221  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 224  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -236,7 +236,9 @@ DATA_ARM_FAILED: Final = f"{DOMAIN}_arm_failed"
 # Aktionen als Ablauf (0.4.0): pro Anlage und Auslöser eine Liste von Schritten (CONF_WORKFLOWS[auslöser])
 CONF_WORKFLOWS: Final = "workflows"
 # Element "Alarm endet" (0.27.0): optionale eigene Meldung beim Deaktivieren/Quittieren, je Auslöser: CONF_WORKFLOW_END[auslöser] = {"notify": {...}}
-# Ob Geräte zurückgesetzt werden, entscheidet allein die Einstellung "Rückgängig" im jeweiligen Schritt.
+# Ob Geräte zurückgesetzt werden, entscheidet allein die Einstellung "Rückgängig" im jeweiligen Schritt. Seit 1.63.0 lässt sich die Abschlussmeldung
+# ausschalten wie die anderen festen Meldungen: {"send": False}; fehlt "send", geht sie wie bisher hinaus ("notify.enabled" heisst weiterhin nur "eigene
+# Werte statt Standard", ältere Werte werden nie umgedeutet).
 CONF_WORKFLOW_END: Final = "workflow_end"
 # Aktionen nach dem Quittieren (1.10.0): Schritte, die laufen, sobald der Alarm endet (quittiert oder deaktiviert), je Auslöser wie
 # CONF_WORKFLOWS. Nur Schritte, die danach noch Sinn haben: Gerät, Ton, Warten (keine Alarmmeldung, kein Quittieren).

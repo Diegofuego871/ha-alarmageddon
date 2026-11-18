@@ -159,3 +159,32 @@ async def test_without_a_mapping_systems_are_still_matched_by_name(hass: HomeAss
     assert (await _ws(client, type=f"{DOMAIN}/import", data=data))["success"]
     await hass.async_block_till_done()
     assert haus.options["entry_delay"] == 45 and _titles(hass) == ["Haus"]
+
+
+async def test_restoring_into_a_new_system_whose_setup_failed_goes_on(hass: HomeAssistant, hass_ws_client, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Code-Review 1.63.0: Scheitert die Einrichtung einer neuen Anlage (Eintrag angelegt, aber nicht geladen), brach das Wiederherstellen bis 1.62.0 mit
+    einem Fehler ab (der Automat der Anlage fehlte), nachdem schon Einstellungen geändert waren. Jetzt bekommt auch sie ihre Einstellungen; "Code zum
+    Scharfschalten" fällt weg, weil sie keinen Code hat (aus den Optionen gelesen, nicht vom Automaten).
+    """
+    from custom_components.alarmageddon import backup
+    from custom_components.alarmageddon.code import hash_code
+
+    code_hash, salt = hash_code("1234")
+    await setup_alarm(hass, code_hash=code_hash, code_salt=salt, code_arm_required=True)
+    client = await hass_ws_client(hass)
+    data = await _backup(hass, client)
+    assert data["systems"][0]["options"]["code_arm_required"] is True
+
+    async def created_but_not_loaded(hass_: HomeAssistant, name: str) -> MockConfigEntry:
+        entry = MockConfigEntry(domain=DOMAIN, title=name, data={"name": name}, options={})
+        entry.add_to_hass(hass_)
+        return entry
+
+    monkeypatch.setattr(backup, "async_create_system", created_but_not_loaded)
+    result = await _ws(client, type=f"{DOMAIN}/import", data=data, mapping=[{"index": 0, "target": "new", "name": "Neu"}])
+    assert result["success"], result
+    assert result["result"]["created"] == ["Neu"]
+    new = next(e for e in hass.config_entries.async_entries(DOMAIN) if e.title == "Neu")
+    assert new.options["zone_away"] == data["systems"][0]["options"]["zone_away"]
+    assert new.options["code_arm_required"] is False

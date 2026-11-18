@@ -84,6 +84,7 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "backup_get": {"backup_id": "x"},
     "backup_delete": {"backup_id": "x"},
     "add_code": {"entry_id": "ENTRY", "name": "Anna", "code": "2468"},
+    "update_code": {"entry_id": "ENTRY", "code_id": "x", "name": "Anna", "code": "2468"},
     "remove_code": {"entry_id": "ENTRY", "code_id": "x"},
     "rename_sound": {"sound_id": "custom_000000000000", "name": "Neuer Name"},
     "delete_sound": {"sound_id": "custom_000000000000"},
@@ -202,11 +203,17 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
     in den Ablagen der Integration (Ereignisse, Aufzeichnung, Sicherungen, Einstellungen) oder in ihren Logzeilen.
     """
     caplog.set_level(logging.DEBUG)
-    main, personal, wrong = "84615297", "73920518", "55550000"
+    main, personal, wrong, renewed = "84615297", "73920518", "55550000", "39071846"
     code_hash, salt = hash_code(main)
     entry = await setup_alarm(hass, code_hash=code_hash, code_salt=salt, code_arm_required=True, exit_delay_away=0)
     client = await hass_ws_client(hass)
     assert (await ws(client, type=f"{DOMAIN}/add_code", entry_id=entry.entry_id, name="Anna", code=personal))["success"]
+    await hass.async_block_till_done()
+    # Bearbeiten mit neuem Code (1.63.0): die Antwort nennt weder den Code noch Hash oder Salz
+    assert (bert := await ws(client, type=f"{DOMAIN}/add_code", entry_id=entry.entry_id, name="Bert", code="61839402"))["success"]
+    await hass.async_block_till_done()
+    updated = await ws(client, type=f"{DOMAIN}/update_code", entry_id=entry.entry_id, code_id=bert["result"]["id"], name="Bert", code=renewed)
+    assert updated["success"]
     await hass.async_block_till_done()
     assert (await ws(client, type=f"{DOMAIN}/arm", entry_id=entry.entry_id, mode="away", code=wrong))["error"]["code"] == "invalid_code"
     assert (await ws(client, type=f"{DOMAIN}/arm", entry_id=entry.entry_id, mode="away", code=personal))["success"]
@@ -215,9 +222,9 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
     assert (await ws(client, type=f"{DOMAIN}/arm", entry_id=entry.entry_id, mode="off", code=main))["success"]
     await settle(hass)
 
-    personal_entry = entry.options["codes"][0]
-    secrets = [main, personal, wrong, code_hash, salt, personal_entry["hash"], personal_entry["salt"]]
-    answers = {}
+    personal_entry, bert_entry = entry.options["codes"]
+    secrets = [main, personal, wrong, renewed, "61839402", code_hash, salt, personal_entry["hash"], personal_entry["salt"], bert_entry["hash"], bert_entry["salt"]]
+    answers = {"update_code": updated}
     for command in ("data", "log", "export", "backups", "monitor_entities", "sensor_candidates"):
         answers[command] = (await ws(client, type=f"{DOMAIN}/{command}"))["result"]
     created = (await ws(client, type=f"{DOMAIN}/backup_create", name="vor dem Umbau"))["result"]
@@ -234,7 +241,7 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
         for secret in secrets:
             assert secret not in text, f"Geheimnis in {name}"
     # Der Klartext steht auch nicht in den Optionen (nur Hash und Salz)
-    assert main not in json.dumps(dict(entry.options), default=str) and personal not in json.dumps(dict(entry.options), default=str)
+    assert all(c not in json.dumps(dict(entry.options), default=str) for c in (main, personal, renewed))
     own_log = "\n".join(r.getMessage() for r in caplog.records if r.name.startswith("custom_components.alarmageddon"))
     for secret in secrets:
         assert secret not in own_log
@@ -565,7 +572,8 @@ async def test_import_cannot_add_remove_or_replace_codes(hass: HomeAssistant, ha
         ({"zones": {"home": [WINDOW]}, "entry_sensors": [], "sensors": ["light.flur"]}, "invalid_entity"),
         ({"zones": {"home": [WINDOW]}, "entry_sensors": [], "sensor_options": {"switch.steckdose": {"always": True}}}, "invalid_entity"),
         ({"zones": {"home": [WINDOW]}, "entry_sensors": [], "sensor_modes": {"away": {"switch.steckdose": {"always": True}}}}, "invalid_entity"),
-        ({"zones": {"home": [WINDOW]}, "entry_sensors": [MOTION]}, "entry_not_in_zone"),
+        # Alle Modi ausdrücklich: ein fehlender Modus behält seit 1.63.0 seine Zone (dort stünde MOTION)
+        ({"zones": {"home": [WINDOW], "away": [WINDOW], "night": []}, "entry_sensors": [MOTION]}, "entry_not_in_zone"),
         ({"zones": {"gibt_es_nicht": [WINDOW]}, "entry_sensors": []}, "invalid_format"),
         ({"zones": {"home": [WINDOW]}, "entry_sensors": [], "sensor_options": {WINDOW: {"gibt_es_nicht": True}}}, "invalid_format"),
     ],

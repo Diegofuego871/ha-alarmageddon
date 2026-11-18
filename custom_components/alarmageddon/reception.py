@@ -289,12 +289,14 @@ class ReceptionLog:
     # -- Speicher --
 
     async def async_start(self) -> None:
+        # Auch eine beschädigte Ablage (Code-Review 1.63.0: ein Wert, der keine Zahl ist, eine Liste statt eines Wörterbuchs) heisst nur "kein
+        # Verlauf": bis 1.62.0 brach der Start dann vor der Aufzeichnung ab, und bis zum Neustart von Home Assistant wurde nichts aufgezeichnet
         try:
             stored = await self._store.async_load() or {}
+            self.load(stored if isinstance(stored, dict) else {}, time.time())
         except Exception as err:  # noqa: BLE001
             _LOGGER.warning("The reception history could not be loaded: %s", err)
-            stored = {}
-        self.load(stored, time.time())
+            self.load({}, time.time())
         self._unsub_tick = async_track_time_interval(self.hass, self._async_tick, SAMPLE_INTERVAL)
         self._unsub_stop = self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self._async_stop)
 

@@ -151,8 +151,8 @@ def check_routines(hass: HomeAssistant, routines: list[dict[str, Any]], known: l
         for leaf in device_leaves:
             domain = leaf["entity_id"].split(".")[0]
             if leaf["kind"] == "event":
-                known = hass.states.get(leaf["entity_id"])
-                types = known.attributes.get("event_types") if known is not None else None
+                event_state = hass.states.get(leaf["entity_id"])
+                types = event_state.attributes.get("event_types") if event_state is not None else None
                 if domain != "event" or (isinstance(types, list) and leaf["event_type"] not in types):
                     raise vol.Invalid("this button or event is not supported")
             elif domain not in LEAF_STATES or leaf["state"] not in LEAF_STATES[domain]:
@@ -285,7 +285,7 @@ class RoutineEngine:
                         self._unsubs.append(async_track_time_change(self.hass, partial(self._on_time, rule, item), hour=hour, minute=minute, second=0))
                 elif trigger.get("type") == "device":
                     self._start_device(rule, trigger)
-            except (KeyError, ValueError, TypeError):
+            except Exception:  # noqa: BLE001 - eine beschädigte Routine (1.63.0: jeder Fehler, nicht nur KeyError) hält die Anlage nie vom Laden ab
                 _LOGGER.warning("%s: routine '%s' is damaged and does not run", self.entry.title, rule.get("name"))
 
     def _start_device(self, rule: dict[str, Any], trigger: dict[str, Any]) -> None:

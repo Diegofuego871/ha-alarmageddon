@@ -5,7 +5,8 @@
 // (monitor.check_monitors, schemas.MONITORS).
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur, MODE_KEY, MODE_ICON, chapter, errText } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, MODE_KEY, MODE_ICON, chapter, errText, onceBtn, paintOnce, runOnce } = await import(`./common.js${V}`);
+const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
 const CLOCK_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -293,8 +294,10 @@ export class MonitorUi {
   _testBtn(kind, ruleIndex, zone, k) {
     const attrs = `data-wf="mon-step-test" data-rule="${ruleIndex}" data-zone="${zone}" data-index="${k}"`;
     if (kind === "wait") return `<button class="ag-iconbtn" ${attrs} disabled aria-label="${esc(this._t("monStepTestWait"))}" title="${esc(this._t("monStepTestWait"))}">${ic("play", 18)}</button>`;
-    const mine = this._testing === `${zone}:${ruleIndex}:${k}`;
-    return `<button class="ag-iconbtn ${mine ? "on" : ""}" ${attrs} ${this._testing ? "disabled" : ""} aria-label="${esc(this._t("stepTest"))}" title="${esc(this._t("stepTest"))}">${ic("play", 18)}</button>`;
+    // Wie jeder Play-Knopf: beim Drücken rot und Stopp (common.js onceBtn). Ein Schritt läuft einmal und ist dann fertig; solange einer läuft,
+    // lassen sich die anderen nicht starten
+    const key = `${zone}:${ruleIndex}:${k}`;
+    return onceBtn(key, attrs, { running: this.onceKey === key, label: this._t("stepTest"), stopLabel: this._t("playStop"), disabled: !!this.onceKey });
   }
 
   async testStep(zone, i, k) {
@@ -302,18 +305,28 @@ export class MonitorUi {
     const s = this.system;
     const rule = this.draft?.monitors[i];
     const step = rule?.[`steps_${zone}`]?.[k];
-    if (!s || !step || step.type === "wait" || this._testing) return;
-    this._testing = `${zone}:${i}:${k}`;
-    this.ui.render();
-    try {
-      await h._hass.callWS({ type: "alarmageddon/test_monitor_step", entry_id: s.entry_id, kind: zone, step: clone(step), rule_id: rule.id, rule_name: rule.name });
-      h._toast(this._t("monStepTested"));
-    } catch (err) {
-      h._toast(this._t("monStepTestFail", { message: errText(err) }));
-    } finally {
-      this._testing = null;
-      this.ui.render();
+    const key = `${zone}:${i}:${k}`;
+    // Nur die Knöpfe ummalen, nie die Seite neu zeichnen: der Test endet frühestens nach ONCE_MS, vielleicht während die Anlage nach dem
+    // Speichern neu lädt; ein Neuzeichnen dann störte das Warten auf die neue Anlage. Solange einer läuft, sind die anderen gesperrt.
+    const paint = () => {
+      const view = h._view;
+      paintOnce([view], this.onceKey);
+      for (const b of view?.querySelectorAll('[data-wf="mon-step-test"][data-once]') || []) if (b.dataset.once !== this.onceKey) b.disabled = !!this.onceKey;
+    };
+    // Stopp beendet nur die Anzeige: der Schritt ist beim Server schon unterwegs und endet von selbst (höchstens SERVICE_TIMEOUT)
+    if (this.onceKey === key) {
+      this.onceKey = null;
+      return paint();
     }
+    if (!s || !step || step.type === "wait" || this.onceKey) return;
+    await runOnce(this, key, async () => {
+      try {
+        await h._hass.callWS({ type: "alarmageddon/test_monitor_step", entry_id: s.entry_id, kind: zone, step: clone(step), rule_id: rule.id, rule_name: rule.name });
+        h._toast(this._t("monStepTested"));
+      } catch (err) {
+        h._toast(this._t("monStepTestFail", { message: errText(err) }));
+      }
+    }, paint);
   }
 
   _card(st, ruleIndex, zone, k) {
@@ -595,7 +608,7 @@ export class MonitorUi {
     const bad = new Set(this.problems());
     const message = bad.has("name") ? this._t("monErrName") : bad.has("nameTaken") ? this._t("monErrNameTaken") : bad.has("noDevice") ? this._t("monErrNoDevice") : bad.has("emptyGroup") ? this._t("monEmptyGroup")
       : bad.has("window") ? this._t("monErrWindow") : bad.has("tooMany") ? this._t("monErrTooMany") : bad.has("hold") ? this._t("monErrHold") : bad.has("margin") ? this._t("monErrMargin")
-      : bad.has("remind") ? this._t("invalidNumber", { min: 0, max: REMIND_MAX }) : "";
+      : bad.has("remind") ? this._t("invalidHours", { min: 0, max: REMIND_MAX }) : "";
     const nameField = `<input class="ag-input ag-rtname ${bad.has("name") || bad.has("nameTaken") ? "bad" : ""}" data-wf="mon-name" maxlength="${NAME_MAX}" value="${esc(f.name)}" placeholder="${esc(this._t("monNamePh"))}" aria-label="${esc(this._t("monName"))}">`;
     const unitSel = `<select class="ag-input ag-unit" data-wf="mon-holdunit" aria-label="${esc(this._t("monHoldUnit"))}">${[["s", "monUnitSeconds"], ["m", "monUnitMinutes"], ["h", "monUnitHours"]].map(([k, l]) => `<option value="${k}" ${f.holdUnit === k ? "selected" : ""}>${esc(this._t(l))}</option>`).join("")}</select>`;
     const rows = `<div class="ag-card ag-setlist">
@@ -628,7 +641,11 @@ export class MonitorUi {
   }
 
   pickList() {
-    if (!this.ents) return `<div class="ag-t2 ag-rtnone">${esc(this._t("rtLoading"))}</div>`;
+    // Die Geräte sind unterwegs: dieselbe Ladeanzeige wie überall (drei Punkte, kein Text; 1.63.0, Code-Review, vorher "Geräte werden geladen ...")
+    if (!this.ents) {
+      loaderStart(this.host._root, this.host);
+      return `<div class="ag-pick-wait" style="position:relative;min-height:120px">${loaderHtml(esc(this._t("loading")))}</div>`;
+    }
     const p = this.pick;
     const group = VALUE_FILTERS.find((x) => x[0] === p.filter)?.[2];
     const q = p.q.trim().toLowerCase();
@@ -697,7 +714,9 @@ export class MonitorUi {
   _stepProblem(form) {
     if (form.type === "wait") {
       const s = Math.round(num(form.n) * UNITS[form.unit]);
-      return !(s >= 0 && s <= WAIT_MAX) ? this._t("invalidNumber", { min: 0, max: WAIT_MAX / 60 }) : "";
+      // Die Grenze in der gewählten Einheit (1.63.0): bis 1.62.0 hiess es immer "Sekunden von 0 bis 60", erlaubt sind 3600 s
+      if (s >= 0 && s <= WAIT_MAX) return "";
+      return form.unit === "m" ? this._t("invalidMinutes", { min: 0, max: WAIT_MAX / 60 }) : this._t("invalidNumber", { min: 0, max: WAIT_MAX });
     }
     if (form.type === "action") return form.raw || (form.entity && form.service) ? "" : this._t("monErrAction");
     return "";

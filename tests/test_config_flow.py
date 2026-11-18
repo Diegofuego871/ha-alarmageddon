@@ -34,11 +34,23 @@ async def test_create_alarm_system(hass: HomeAssistant) -> None:
 
 
 async def test_several_entries_but_unique_names(hass: HomeAssistant) -> None:
+    """
+    Mehrere Anlagen, aber nie zwei mit demselben Namen. Wie im Panel (1.63.0): ohne Gross-/Kleinschreibung und ohne doppelte Leerzeichen;
+    der Dialog zeigt den Fehler beim Namen (bis 1.62.0 brach er bei genau gleichem Namen ab, "haus" neben "Haus" ging durch).
+    """
     assert (await _create(hass, name="Haus"))["type"] is FlowResultType.CREATE_ENTRY
     assert (await _create(hass, name="Garage"))["type"] is FlowResultType.CREATE_ENTRY
-    result = await _create(hass, name="Haus")
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
+    for taken in ("Haus", "haus", "  HAUS "):
+        result = await _create(hass, name=taken)
+        assert result["type"] is FlowResultType.FORM and result["errors"] == {"name": "name_taken"}, (taken, result)
+    result = await _create(hass, name="  Haus   Ost ")
+    assert result["type"] is FlowResultType.CREATE_ENTRY and result["title"] == "Haus Ost"
+    assert [e.title for e in hass.config_entries.async_entries(DOMAIN)] == ["Haus", "Garage", "Haus Ost"]
+
+
+async def test_empty_name_is_refused(hass: HomeAssistant) -> None:
+    result = await _create(hass, name="   ")
+    assert result["type"] is FlowResultType.FORM and result["errors"] == {"name": "name_required"}
 
 
 async def test_invalid_code(hass: HomeAssistant) -> None:
@@ -114,3 +126,23 @@ async def test_options_arm_code_needs_code(hass: HomeAssistant) -> None:
         result["flow_id"], _sections(behaviour={"code_arm_required": True})
     )
     assert result["errors"] == {"base": "code_missing"}
+
+
+async def test_options_main_code_never_equals_a_personal_code(hass: HomeAssistant, hass_ws_client) -> None:
+    """
+    Ein neuer Hauptcode darf keinem persönlichen Code gleichen (1.63.0, wie add_code und update_code umgekehrt): sonst wäre "geändert von"
+    leer, obwohl die Person ihren Code getippt hat. Der Dialog zeigt den Fehler, der bisherige Hauptcode bleibt.
+    """
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "alarmageddon/add_code", "entry_id": entry.entry_id, "name": "Anna", "code": "5678"})
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], _sections(code_section={"code": "5678"}))
+    assert result["type"] is FlowResultType.FORM and result["errors"] == {"base": "code_taken"}
+    assert "code_hash" not in entry.options
+    # Ein anderer Code geht
+    result = await hass.config_entries.options.async_configure(result["flow_id"], _sections(code_section={"code": "9753"}))
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert verify_code("9753", entry.options["code_hash"], entry.options["code_salt"])

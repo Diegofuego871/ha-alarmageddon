@@ -16,6 +16,7 @@ Zielanlage bleiben unverändert.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import hashlib
 from datetime import timedelta
@@ -32,7 +33,7 @@ from homeassistant.helpers.event import async_call_later, async_track_time_chang
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS, MODE_ENABLED_DEFAULT, MODE_ENABLED_KEY
+from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_CODE_HASH, CONF_CODES, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS, MODE_ENABLED_DEFAULT, MODE_ENABLED_KEY
 from .custom_sounds import valid_backup_sounds
 from .monitor import check_monitors
 from .routines import check_routines, migrate_options
@@ -208,11 +209,12 @@ async def async_restore(hass: HomeAssistant, backup: dict[str, Any], mapping: li
         else:
             entry = target
         options = {**entry.options, **item["options"]}
-        # Code zum Scharfschalten nur, wenn die Zielanlage überhaupt einen Code hat
-        ctl = entry.runtime_data.controller
-        if options.get(CONF_CODE_ARM_REQUIRED) and not ctl.has_code:
+        # Code zum Scharfschalten nur, wenn die Zielanlage überhaupt einen Code hat. Aus den Optionen gelesen (1.63.0), nicht vom Automaten:
+        # ist die Einrichtung einer neuen Anlage gescheitert (Eintrag angelegt, nicht geladen), gibt es keinen, und das Wiederherstellen brach
+        # mitten in den Anlagen ab
+        if options.get(CONF_CODE_ARM_REQUIRED) and not _has_code(entry):
             options[CONF_CODE_ARM_REQUIRED] = False
-        if options.get(CONF_CODE_ACK_REQUIRED) and not ctl.has_code:
+        if options.get(CONF_CODE_ACK_REQUIRED) and not _has_code(entry):
             options[CONF_CODE_ACK_REQUIRED] = False
         if hass.config_entries.async_update_entry(entry, options=options):
             reloading.add(entry.entry_id)
@@ -221,7 +223,21 @@ async def async_restore(hass: HomeAssistant, backup: dict[str, Any], mapping: li
     return {**result, "created": created}
 
 
+def _has_code(entry: ConfigEntry) -> bool:
+    """Hat die Anlage einen Code? Wie AlarmController.has_code, aber aus den Optionen (auch für eine Anlage, die nicht geladen ist)."""
+    codes = entry.options.get(CONF_CODES) or []
+    return bool(entry.options.get(CONF_CODE_HASH)) or any(isinstance(c, dict) and c.get("hash") and c.get("salt") for c in codes)
+
+
 # ----- Sicherungen in der Integration (0.38.0): bis zu MAX_BACKUPS, neueste zuerst -----
+
+
+def _lock(hass: HomeAssistant) -> asyncio.Lock:
+    """
+    Eine Änderung der Ablage nach der anderen (1.63.0): Erstellen und Löschen lesen, ändern und schreiben die ganze Ablage. Liefen die automatische
+    Sicherung und "Backup erstellen" oder "Löschen" im Panel gleichzeitig, ging eine der beiden Änderungen verloren.
+    """
+    return hass.data.setdefault(f"{DOMAIN}_backup_lock", asyncio.Lock())
 
 
 def _store(hass: HomeAssistant) -> Store:
@@ -260,6 +276,11 @@ async def async_list_backups(hass: HomeAssistant) -> list[dict[str, Any]]:
 
 
 async def async_create_backup(hass: HomeAssistant, integration_version: str | None, name: str = "", auto: bool = False) -> dict[str, Any] | None:
+    async with _lock(hass):
+        return await _create_backup(hass, integration_version, name, auto)
+
+
+async def _create_backup(hass: HomeAssistant, integration_version: str | None, name: str, auto: bool) -> dict[str, Any] | None:
     data = await async_export(hass, integration_version)
     items, blobs = await _load_store(hass)
     name = " ".join(name.split())[:60]
@@ -344,9 +365,10 @@ async def async_get_backup(hass: HomeAssistant, backup_id: str) -> dict[str, Any
 
 
 async def async_delete_backup(hass: HomeAssistant, backup_id: str) -> bool:
-    items, blobs = await _load_store(hass)
-    rest = [b for b in items if b["id"] != backup_id]
-    if len(rest) == len(items):
-        return False
-    await _save_store(hass, rest, blobs)
-    return True
+    async with _lock(hass):
+        items, blobs = await _load_store(hass)
+        rest = [b for b in items if b["id"] != backup_id]
+        if len(rest) == len(items):
+            return False
+        await _save_store(hass, rest, blobs)
+        return True

@@ -10,10 +10,23 @@ const { ic, esc, MODE_ICON, MODE_KEY, ARMED, GONE } = await import(`./common.js$
 
 const FEATURE = { home: 1, away: 2, night: 4 }; // AlarmControlPanelEntityFeature
 const ARM_SERVICE = { home: "alarm_arm_home", away: "alarm_arm_away", night: "alarm_arm_night" };
+// Entitäten derselben Anlage (dasselbe Gerät) über die Registrierung, die Home Assistant dem Frontend gibt. Gemerkt je Stand der Registrierung
+// (Code-Review 1.63.0): Home Assistant gibt der Karte bei jeder Zustandsänderung im ganzen Haus ein neues hass, die Registrierung bleibt dabei
+// dasselbe Objekt und wird bei einer Änderung ersetzt. Bis 1.62.0 lief die Suche über alle Entitäten des Hauses bei jedem Aufruf, zweimal je Update.
+const memo = new WeakMap();
+const deviceEntities = (hass, alarmId) => {
+  const entities = hass.entities;
+  if (!entities) return [];
+  let byAlarm = memo.get(entities);
+  if (!byAlarm) memo.set(entities, (byAlarm = new Map()));
+  if (!byAlarm.has(alarmId)) {
+    const device = entities[alarmId]?.device_id;
+    byAlarm.set(alarmId, device ? Object.values(entities).filter((e) => e.device_id === device && e.platform === "alarmageddon") : []);
+  }
+  return byAlarm.get(alarmId);
+};
 const ready = (hass, alarmId) => {
-  // Entitäten derselben Anlage (dasselbe Gerät) über die Registrierung, die Home Assistant dem Frontend gibt
-  const device = hass.entities?.[alarmId]?.device_id;
-  const all = device ? Object.values(hass.entities).filter((e) => e.device_id === device && e.platform === "alarmageddon") : [];
+  const all = deviceEntities(hass, alarmId);
   const byKey = (key) => all.find((e) => e.translation_key === key)?.entity_id;
   return { ready: ["home", "away", "night"].map((m) => [m, byKey(`ready_${m}`)]).filter(([, id]) => id && hass.states[id]), status: byKey("status") };
 };

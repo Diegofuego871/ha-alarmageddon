@@ -294,3 +294,16 @@ def test_missing_matter_internals_leave_the_value_empty(hass: HomeAssistant, mon
     device = _matter_device(hass)
     monkeypatch.setitem(sys.modules, "homeassistant.components.matter", None)  # nicht importierbar
     assert reception.live_signal(hass, device) is None
+
+
+@pytest.mark.parametrize("damaged", [{"open": {"dev_a": [0, ["kein Wert"]]}}, {"blocks": ["eine Liste"]}, ["kein Wörterbuch"]], ids=["Text", "Liste", "Ablage"])
+async def test_a_damaged_reception_history_never_stops_the_recording(hass: HomeAssistant, hass_storage, damaged) -> None:
+    """
+    Code-Review 1.63.0: Eine beschädigte Ablage der Aufzeichnung heisst nur "kein Verlauf". Bis 1.62.0 brach der Start dann vor der Aufzeichnung ab
+    (ValueError oder AttributeError beim Lesen), und bis zum Neustart von Home Assistant wurde für keine Anlage mehr etwas aufgezeichnet.
+    """
+    hass_storage[reception.STORE_KEY] = {"version": 1, "minor_version": 1, "key": reception.STORE_KEY, "data": damaged}
+    await setup_alarm(hass)
+    log = hass.data[DATA_RECEPTION]
+    assert log._unsub_tick is not None and log._unsub_stop is not None
+    assert log.record("dev_b", reception.KIND_DBM, -60.0, time.time())

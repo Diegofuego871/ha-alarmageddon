@@ -597,7 +597,7 @@ export class SensorsUi {
       this.draft = null;
       this.saveState = "saved";
       this.host._markSaved(this); // Punkte "ungespeichert" verschwinden sofort
-// Nur warten, wenn die Anlage wirklich neu lädt (sonst drehte die Ladeanzeige 25 Sekunden)
+      // Nur warten, wenn die Anlage wirklich neu lädt (sonst drehte die Ladeanzeige 25 Sekunden)
       if (saved?.reload !== false) h._reloadWait(s.entry_id);
       else h._fetch();
     } catch (err) {
@@ -783,11 +783,12 @@ export class SensorsUi {
 
   onClick(el, ev) {
     if (ev.target.closest("[data-box]") && !el?.dataset.sen) {
-      // Tastatur (Enter, Leertaste) löst nur click aus; Maus und Finger laufen über pointerdown
-      if (this.skipClick) {
-        this.skipClick = false;
-        return true;
-      }
+      // Tastatur (Enter, Leertaste) löst nur click aus; Maus und Finger laufen über pointerdown, ihr click wird darum verworfen. Ein click der
+      // Tastatur (ev.detail 0) gilt immer (1.63.0, Code-Review): nach dem Ziehen über mehrere Kästchen ging der click an ein umgebendes
+      // Element, skipClick blieb stehen und verschluckte den nächsten Tastendruck.
+      const skip = this.skipClick && ev.detail !== 0;
+      this.skipClick = false;
+      if (skip) return true;
       const box = ev.target.closest("[data-box]");
       this.setZone(box.dataset.ent, box.dataset.mode, !box.classList.contains("on"));
       this.render();

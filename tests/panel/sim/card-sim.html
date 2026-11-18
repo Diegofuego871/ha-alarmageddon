@@ -50,10 +50,12 @@
     "binary_sensor.wohnung_ready_to_arm_night": { entity_id: "binary_sensor.wohnung_ready_to_arm_night", device_id: "dev_wohnung", platform: "alarmageddon", translation_key: "ready_night" },
     "sensor.wohnung_status": { entity_id: "sensor.wohnung_status", device_id: "dev_wohnung", platform: "alarmageddon", translation_key: "status" },
   };
+  // Wie in Home Assistant: dasselbe Objekt, bis sich die Registrierung ändert (ein Test kann es ersetzen und Zugriffe zählen)
+  window.__entities = entities;
   window.__calls = [];
   const STATE = { alarm_arm_home: "armed_home", alarm_arm_away: "armed_away", alarm_arm_night: "armed_night", alarm_disarm: "disarmed" };
   const hass = () => ({
-    states: { ...states }, entities, language: lang, locale: { language: lang }, themes: { darkMode: params.get("theme") === "dark" }, user: { name: "Marco", is_admin: params.get("admin") !== "0" },
+    states: { ...states }, entities: window.__entities, language: lang, locale: { language: lang }, themes: { darkMode: params.get("theme") === "dark" }, user: { name: "Marco", is_admin: params.get("admin") !== "0" },
     callService: async (domain, service, data) => {
       window.__calls.push({ domain, service, data: JSON.parse(JSON.stringify(data)) });
       if (window.__fail) { const f = window.__fail; window.__fail = null; throw f; }

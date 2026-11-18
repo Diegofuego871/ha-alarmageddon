@@ -83,7 +83,7 @@ An alarm system has to work when something else does not. This is built in and c
 - **Codes:** stored only as a salted hash, never shown, never in a backup. Five wrong codes lock the alarm system for one minute.
 - **Administrators only** reach the panel and its commands. Buttons in push notifications only work from the phone of a recipient.
 - **Failures:** a sensor that stops answering while armed is reported, or counts as an alarm if you like.
-- **Tested:** more than 1,400 automated tests against a real Home Assistant (in two versions), about 6,100 checks of the interface, and a mutation check that removes each of 319 safeguards and requires a test to fail.
+- **Tested:** more than 1,400 automated tests against a real Home Assistant (in two versions), about 6,800 checks of the interface, and a mutation check that removes each of 347 safeguards and requires a test to fail.
 
 ### Limits
 

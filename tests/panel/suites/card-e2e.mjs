@@ -122,6 +122,27 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
       await s.ctx.close();
     }
+    // ----- Code-Review 1.63.0: die Karte durchsucht die Registrierung nur, wenn sie sich ändert, nicht bei jeder Zustandsänderung im Haus -----
+    {
+      const s = await open();
+      const scans = await s.page.evaluate(async () => {
+        const count = { n: 0 };
+        const watch = (obj) => new Proxy(obj, { ownKeys(target) { count.n += 1; return Reflect.ownKeys(target); } });
+        window.__entities = watch({ ...window.__entities });
+        window.__push();
+        const first = count.n;
+        for (let i = 0; i < 25; i += 1) window.__setState("binary_sensor.haustuer", i % 2 ? "on" : "off");
+        const afterStates = count.n;
+        // Neue Registrierung (eine Entität dazu): sie wird wieder durchsucht, die Karte zeigt weiter "Bereit für"
+        window.__entities = watch({ ...window.__entities, "light.flur": { entity_id: "light.flur", device_id: "dev_flur", platform: "hue" } });
+        window.__push();
+        return { first, afterStates, afterNew: count.n };
+      });
+      check(`${tag}: 25 Zustandsänderungen ohne neue Durchsuchung der Registrierung, eine neue Registrierung wird durchsucht`, scans.first >= 1 && scans.afterStates === scans.first && scans.afterNew > scans.afterStates, JSON.stringify(scans));
+      check(`${tag}: nach der neuen Registrierung zeigt das Bedienteil weiter "Bereit für" und die Statuskarte ihren Status`, await s.waitFor("const r=root(0); return r.querySelectorAll('.ag-rchip').length >= 2") && await s.ev("return !!root(1).querySelector('.ag-status')"));
+      check(`${tag}: keine Fehler im Browser (Registrierung)`, s.errors.length === 0, s.errors.join(" | "));
+      await s.ctx.close();
+    }
   }
 }
 await browser.close();

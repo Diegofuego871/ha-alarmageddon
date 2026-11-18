@@ -132,16 +132,26 @@ for (const lang of ["en", "de"]) {
     await toElement(frame, ".ag-wf-line.ag-wf-main", 0, 0); // ab "Alarm beginnt": die Schritte des Alarms
   } });
   // Das Kapitel "Beim Deaktivieren" liegt ganz unten: eigenes Bild, bis ans Ende der Seite gerollt
-  await shot(lang, "actions-disarm", { tab: "config", height: 800, prepare: async ({ page, frame }) => {
+  // Seit 1.62.0 ist das Kapitel länger (feste Meldung "Deaktiviert"): höher, damit Überschrift und Liste ganz unter die festen Leisten passen
+  await shot(lang, "actions-disarm", { tab: "config", height: 1000, prepare: async ({ page, frame }) => {
     await click('[data-sub="actions"]')({ frame });
     await page.waitForTimeout(800);
     // Die Überschrift des letzten Kapitels knapp unter die feste Leiste rollen (sonst verdeckt sie die Leiste)
     await frame.evaluate(() => {
       const r = document.querySelector("alarmageddon-panel").shadowRoot;
       const chap = [...r.querySelectorAll(".ag-wf-chap")].pop();
-      const bar = r.querySelector(".ag-cfg");
-      r.host._content.scrollTop += chap.getBoundingClientRect().top - (bar.getBoundingClientRect().bottom + 12);
+      // Beide festen Leisten zählen: die der Konfiguration und die mit "Einstellungen pro Modus" (sonst liegt die Überschrift darunter)
+      const bottom = Math.max(...[".ag-cfg", ".ag-wf-head"].map((b) => r.querySelector(b)?.getBoundingClientRect().bottom ?? 0));
+      r.host._content.scrollTop += chap.getBoundingClientRect().top - (bottom + 12);
     });
+    await page.waitForTimeout(300);
+    const where = await frame.evaluate(() => {
+      const r = document.querySelector("alarmageddon-panel").shadowRoot;
+      const chap = [...r.querySelectorAll(".ag-wf-chap")].pop().getBoundingClientRect().top;
+      const bottom = Math.max(...[".ag-cfg", ".ag-wf-head"].map((b) => r.querySelector(b)?.getBoundingClientRect().bottom ?? 0));
+      return { chap: Math.round(chap), bottom: Math.round(bottom) };
+    });
+    if (where.chap < where.bottom) throw new Error(`actions-disarm: die Überschrift liegt unter der festen Leiste ${JSON.stringify(where)}`);
   } });
   // Eigene Töne (1.39.0): das Kapitel in Konfiguration › Anlage, mit einem hochgeladenen Ton
   await shot(lang, "sounds", { tab: "config", height: 800, query: "&sounds=1", prepare: async ({ page, frame }) => {

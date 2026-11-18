@@ -63,6 +63,19 @@ def _split(start: datetime, end: datetime) -> list[tuple[datetime, int]]:
     return out
 
 
+def _row(value: Any) -> list[int] | None:
+    """
+    Eine gespeicherte Stunde [Anzahl, Sekunden]; None, wenn sie beschädigt ist. Code-Review 1.63.0: bis 1.62.0 liess ein einziger Wert, der keine Zahl
+    ist, das ganze Laden scheitern: keine Anlage zählte mehr Auslösungen, und die Sensoransicht meldete bei jedem Sensor einen Fehler.
+    """
+    if not isinstance(value, list) or len(value) != 2:
+        return None
+    try:
+        return [int(value[0]), int(value[1])]
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 class SensorStats:
     """Stundenwerte je Sensor: {entity_id: {Stunde (ISO, UTC): [Anzahl Auslösungen, Sekunden offen]}}, für alle Anlagen gemeinsam."""
 
@@ -85,7 +98,7 @@ class SensorStats:
             for entity_id, hours in stored.items():
                 if entity_id == BACKFILLED or not isinstance(hours, dict):
                     continue
-                self.data[entity_id] = {h: [int(v[0]), int(v[1])] for h, v in hours.items() if isinstance(v, list) and len(v) == 2}
+                self.data[entity_id] = {h: row for h, v in hours.items() if (row := _row(v)) is not None}
         self.purge()
 
     def _bucket(self, entity_id: str, hour: datetime) -> list[int]:

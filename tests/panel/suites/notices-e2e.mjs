@@ -7,10 +7,10 @@ import { check, done, launch, open, outDir } from "../lib.mjs";
 
 const T = {
   de: { armed: "Meldung: Scharf geschaltet", disarmed: "Meldung: Deaktiviert", pending: "Meldung: Eingangsverzögerung", report: "Meldung: Stiller Alarm", off: "Aus", standard: "Standard-Empfänger",
-    critical: "kritisch, 80 %", own: "eigener Text", chapReport: "Bei einem stillen Alarm", point: "Stiller Alarm", recipients: "Standard-Empfänger", moved: "Konfiguration › Aktionen",
+    critical: "kritisch, 80 %", own: "eigener Text", chapReport: "Bei einem stillen Alarm", point: "Stiller Alarm", recipients: "Standard-Empfänger", faults: "Störungsmeldungen", maint: "Wartungsmeldungen", end: "Meldung: Abschlussmeldung", moved: "Konfiguration › Aktionen",
     close: "Schliessen", edit: "Bearbeiten", preview: "Vorschau", offTag: "Ausgeschaltet" },
   en: { armed: "Message: armed", disarmed: "Message: disarmed", pending: "Message: entry delay", report: "Message: silent alarm", off: "Off", standard: "Standard recipients",
-    critical: "critical, 80 %", own: "own text", chapReport: "On a silent alarm", point: "Silent alarm", recipients: "Standard recipients", moved: "Configuration › Actions",
+    critical: "critical, 80 %", own: "own text", chapReport: "On a silent alarm", point: "Silent alarm", recipients: "Standard recipients", faults: "Fault messages", maint: "Maintenance messages", end: "Message: closing message", moved: "Configuration › Actions",
     close: "Close", edit: "Edit", preview: "Preview", offTag: "Switched off" },
 };
 const WAIT = { type: "wait", seconds: 2 };
@@ -122,6 +122,41 @@ for (const lang of ["de", "en"]) {
     await s.page.waitForTimeout(600);
     check(`${tag}: nach dem Speichern stehen Meldung und Aktion weiter da, nichts ist offen`, (await card("armed")).on && (await card("armed")).sub.includes(t.own) && await s.ev("return r.querySelectorAll('.ag-wf-report .ag-wf-step').length === 1 && r.querySelector('.ag-foot [data-wf=\"save\"]').disabled"));
 
+    // ----- Abschlussmeldung (1.63.0): gleich aufgebaut, Schalter aussen = senden ja/nein -----
+    // Nach dem Speichern lädt die Anlage neu und das Panel zeichnet die Seite neu: erst danach klicken
+    await s.page.waitForTimeout(300);
+    await s.waitFor("return !r.host._wait && !r.querySelector('.ag-ldwrap') && !!r.querySelector('[data-end-notice]') && r.querySelector('.ag-foot [data-wf=\"save\"]').disabled", 12000);
+    await s.page.waitForTimeout(300);
+    const endCard = () => s.ev(`const c=r.querySelector('[data-end-notice]'); const t=c.querySelector('.ag-toggle'); const x=c.querySelector('.ag-wf-text');
+      return { title: x.querySelector('b').textContent.trim(), sub: x.querySelector('small').textContent.trim(), on: t.getAttribute('aria-checked') === 'true', left: t.getBoundingClientRect().right <= x.getBoundingClientRect().left,
+        off: c.classList.contains('off'), btns: [...c.querySelectorAll('.ag-wf-btns > button')].map((b) => b.dataset.wf), play: c.querySelector('[data-wf="end-play"]').disabled, icon: [...c.querySelector('.ag-wf-icon').classList].join(' ') }`);
+    const e0 = await endCard();
+    check(`${tag}: Abschlussmeldung: "${t.end}", Schalter links und an, darunter "${t.standard}", Play und Stift, dasselbe Symbol wie die anderen`, e0.title === t.end && e0.on && e0.left && e0.sub === t.standard && JSON.stringify(e0.btns) === '["end-play","end-edit"]' && !e0.play && /k-notify/.test(e0.icon), JSON.stringify(e0));
+    await s.ev("r.querySelector('[data-end-notice] [data-wf=\"end-on\"]').click(); return 1");
+    const e1 = await endCard();
+    check(`${tag}: Abschlussmeldung aus: "${t.off}", blass, Play gesperrt, eine Änderung`, !e1.on && e1.off && e1.sub === t.off && e1.play && await s.ev("return r.querySelector('[data-sub=\"actions\"]').classList.contains('has-edit')"), JSON.stringify(e1));
+    await s.ev("r.querySelector('[data-end-notice] [data-wf=\"end-edit\"]').click(); return 1");
+    await s.waitFor("return r.getElementById('ag-step').open");
+    check(`${tag}: Fenster der Abschlussmeldung wie die anderen: "Meldung senden" aus, keine Felder`, await s.ev("const d=r.getElementById('ag-step'); return d.querySelector('[data-wf=\"end-notify\"]').getAttribute('aria-checked') === 'false' && !d.querySelector('[data-key=\"ntTitle\"]') && !d.querySelector('[data-wf=\"end-test\"]')"));
+    await s.ev("r.querySelector('#ag-step [data-wf=\"close\"]').click(); return 1");
+    await s.waitFor("return !r.getElementById('ag-step').open");
+    await s.tap('.ag-foot [data-wf="save"]');
+    await s.waitFor("return !r.querySelector('[data-sub=\"actions\"]').classList.contains('has-edit')", 8000);
+    const endSent = await saved();
+    check(`${tag}: nach dem Speichern bleibt die Abschlussmeldung aus, keine offene Änderung`, await s.waitFor("return r.querySelector('[data-end-notice] .ag-toggle').getAttribute('aria-checked') === 'false' && r.host.actions.dirtyCount() === 0"));
+    check(`${tag}: gespeichert: "send: false" für den offenen Reiter, die anderen senden wie bisher`, endSent && endSent.workflow_end[cur]?.send === false && Object.entries(endSent.workflow_end).every(([k, v]) => k === cur || v.send !== false), JSON.stringify(endSent?.workflow_end));
+    // Nach dem Speichern wartet das Panel auf die neu geladene Anlage (r.host._wait) und übernimmt danach ihren Stand: erst dann klicken
+    await s.page.waitForTimeout(300);
+    await s.waitFor("return !r.host._wait && !r.querySelector('.ag-ldwrap') && !!r.querySelector('[data-end-notice]')", 12000);
+    await s.page.waitForTimeout(300);
+    await s.ev("r.querySelector('[data-end-notice] [data-wf=\"end-on\"]').click(); return 1");
+    await s.waitFor("return !r.querySelector('.ag-foot [data-wf=\"save\"]').disabled");
+    await s.tap('.ag-foot [data-wf="save"]');
+    await s.waitFor("return !r.querySelector('[data-sub=\"actions\"]').classList.contains('has-edit')", 8000);
+    const endBack = await saved();
+    check(`${tag}: wieder an: nichts mehr von "send" gespeichert`, endBack && !("send" in (endBack.workflow_end[cur] || {})) && (await endCard()).on, JSON.stringify(endBack?.workflow_end?.[cur]));
+    await s.page.waitForTimeout(500);
+
     // ----- Eine andere Änderung speichern: die Meldungen gehen nicht mit (der Server behält, was er hat) -----
     await s.tap('[data-notice="sensor_report"] [data-wf="notice-on"]');
     await s.tap('[data-notice="sensor_report"] [data-wf="notice-on"]');
@@ -204,8 +239,12 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !!r.querySelector('.ag-nt [data-nt=\"target-add\"]')");
     check(`${tag}: Benachrichtigungen: das Kapitel der Empfänger heisst "${t.recipients}"`, await s.ev(`return [...r.querySelectorAll('.ag-nt h3, .ag-nt .ag-chap-t, .ag-nt .ag-chapter h3')].some((h) => h.textContent.trim() === ${JSON.stringify(t.recipients)})`),
       await s.ev("return [...r.querySelectorAll('.ag-nt h3')].map((h) => h.textContent.trim()).join(' | ')"));
+    const chaps = await s.ev("return [...r.querySelectorAll('.ag-nt .ag-chap > h3, .ag-nt h3')].map((h) => h.textContent.trim()).filter((x, i, a) => a.indexOf(x) === i)");
+    check(`${tag}: Benachrichtigungen: drei Kapitel "${t.recipients}", "${t.faults}", "${t.maint}" (1.62.1: "Meldungen" heisst "${t.faults}")`, JSON.stringify(chaps) === JSON.stringify([t.recipients, t.faults, t.maint]), JSON.stringify(chaps));
     check(`${tag}: Benachrichtigungen: die vier Meldungen des Ablaufs stehen nicht mehr hier; ein Hinweis nennt "${t.moved}"`, await s.ev(`return ['sensor_report','pending','armed','disarmed'].every((k) => !r.querySelector('.ag-nt [data-kind="' + k + '"]'))
       && r.querySelector('.ag-nt .ag-nt-moved').textContent.includes(${JSON.stringify(t.moved)})`));
+    const gaps = await s.ev("const h=r.querySelector('.ag-nt .ag-nt-moved'); const card=h.previousElementSibling.getBoundingClientRect(); const hb=h.getBoundingClientRect(); const next=h.closest('.ag-chap').nextElementSibling.querySelector('.ag-chap-t').getBoundingClientRect(); return { above: Math.round(hb.top - card.bottom), below: Math.round(next.top - hb.bottom) }");
+    check(`${tag}: Benachrichtigungen: der Hinweis hat Luft zur Karte (mindestens 14 px) und zum nächsten Kapitel (mindestens 28 px)`, gaps.above >= 14 && gaps.below >= 28, JSON.stringify(gaps));
     check(`${tag}: Benachrichtigungen: die übrigen Arten bleiben (Ausfall, Scharfschalten nicht möglich, Batterie, nicht erreichbar)`, await s.ev("return ['sensor_offline','arm_failed','battery_low','sensor_unavailable'].every((k) => !!r.querySelector('.ag-nt [data-nt=\"enabled\"][data-kind=\"' + k + '\"]'))"));
     check(`${tag}: kein Überlauf (Benachrichtigungen)`, await noOverflow());
     await shot("notify");

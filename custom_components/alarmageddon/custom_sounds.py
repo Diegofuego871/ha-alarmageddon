@@ -12,6 +12,7 @@ in einem eigenen Prozess: eine kaputte Datei darf höchstens diesen Prozess abst
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import importlib.util
 import io
@@ -277,15 +278,19 @@ class CustomSounds:
         self._store = Store(hass, 1, CUSTOM_SOUNDS_STORE_KEY)
         self.dir = Path(hass.config.path("alarmageddon_sounds"))
         self.items: dict[str, dict[str, Any]] = {}
+        # Ein Hochladen nach dem anderen (1.63.0): die Prüfungen (Anzahl, Name, Platz) stehen vor dem Umwandeln, das dauern kann. Zwei
+        # gleichzeitige Uploads hätten sonst beide dieselbe Lage gesehen (doppelter Name, eine Grenze überschritten)
+        self._add_lock = asyncio.Lock()
 
     async def async_load(self) -> None:
         data = await self._store.async_load()
         raw = data.get("sounds") if isinstance(data, dict) else None
-        found: dict[str, dict[str, Any]] = {}
-        for key, item in (raw or {}).items():
-            if isinstance(key, str) and ID_RE.match(key) and isinstance(item, dict) and isinstance(item.get("name"), str) and (self.dir / f"{key}.wav").exists():
-                found[key] = {"name": item["name"], "seconds": float(item.get("seconds") or 0), "size": int(item.get("size") or 0), "created": item.get("created")}
-        self.items = found
+        valid = {key: item for key, item in (raw or {}).items()
+                 if isinstance(key, str) and ID_RE.match(key) and isinstance(item, dict) and isinstance(item.get("name"), str)}
+        # Ob die Dateien da sind, im Executor (1.63.0): bis dahin prüfte der Start das Dateisystem im Event-Loop
+        present = await self.hass.async_add_executor_job(lambda: {key for key in valid if (self.dir / f"{key}.wav").exists()})
+        self.items = {key: {"name": item["name"], "seconds": float(item.get("seconds") or 0), "size": int(item.get("size") or 0), "created": item.get("created")}
+                      for key, item in valid.items() if key in present}
 
     async def _save(self) -> None:
         await self._store.async_save({"sounds": self.items})
@@ -314,6 +319,10 @@ class CustomSounds:
 
     async def async_add(self, name: Any, raw: bytes, ffmpeg: str | None = None, sound_id: str | None = None) -> dict[str, Any]:
         """Hochgeladene Datei annehmen: prüfen, umwandeln, ablegen. Wirft SoundError mit dem Fehlerschlüssel."""
+        async with self._add_lock:
+            return await self._add(name, raw, ffmpeg, sound_id)
+
+    async def _add(self, name: Any, raw: bytes, ffmpeg: str | None, sound_id: str | None) -> dict[str, Any]:
         title = clean_name(name)
         if not raw or len(raw) > MAX_UPLOAD_BYTES:
             raise SoundError("too_big")

@@ -83,7 +83,7 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Das ist ei
 - **Codes:** nur als Hash mit Salz gespeichert, nie angezeigt, nie in einer Sicherung. Fünf falsche Codes sperren die Anlage für eine Minute.
 - **Nur Administratoren** erreichen das Panel und seine Befehle. Knöpfe in Push-Meldungen wirken nur vom Handy eines Empfängers.
 - **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet, wird gemeldet oder zählt auf Wunsch als Alarm.
-- **Getestet:** über 1400 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 6100 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 319 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
+- **Getestet:** über 1400 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 6800 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 347 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
 
 ### Grenzen
 

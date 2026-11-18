@@ -156,6 +156,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_backup_get)
     websocket_api.async_register_command(hass, ws_backup_delete)
     websocket_api.async_register_command(hass, ws_add_code)
+    websocket_api.async_register_command(hass, ws_update_code)
     websocket_api.async_register_command(hass, ws_remove_code)
     websocket_api.async_register_command(hass, ws_rename_sound)
     websocket_api.async_register_command(hass, ws_delete_sound)
@@ -167,6 +168,20 @@ def _entry(hass: HomeAssistant, connection, msg: dict[str, Any]) -> ConfigEntry 
         connection.send_error(msg["id"], "not_found", "Unknown alarm system")
         return None
     return entry
+
+
+def _codes_lock(hass: HomeAssistant, entry_id: str) -> asyncio.Lock:
+    """Sperre je Anlage für Hinzufügen, Bearbeiten und Entfernen persönlicher Codes (1.63.0, Code-Review)."""
+    locks: dict[str, asyncio.Lock] = hass.data.setdefault(f"{DOMAIN}_code_locks", {})
+    return locks.setdefault(entry_id, asyncio.Lock())
+
+
+def _stored_codes(entry: ConfigEntry) -> list[dict[str, Any]]:
+    """
+    Persönliche Codes aus den gespeicherten Optionen, nur vollständige Einträge, wie AlarmController.codes. Ohne den Umweg über den
+    Automaten: nach dem Warten auf die Sperre lädt die Anlage vielleicht gerade neu.
+    """
+    return [c for c in entry.options.get(CONF_CODES) or [] if isinstance(c, dict) and c.get("hash") and c.get("salt")]
 
 
 def _alarm_entity(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
@@ -437,7 +452,9 @@ async def ws_save_zones(hass: HomeAssistant, connection, msg: dict[str, Any]) ->
     if (entry := _entry(hass, connection, msg)) is None:
         return
     ctl = entry.runtime_data.controller
-    zones = {mode: list(dict.fromkeys(msg["zones"].get(mode, []))) for mode in MODES}
+    # Ein Modus, der in der Anfrage fehlt, behält seine Zone (1.63.0, wie die Abläufe in save_workflows); bis 1.62.0 wurde sie geleert.
+    # Das Panel sendet immer alle Modi.
+    zones = {mode: list(dict.fromkeys(msg["zones"][mode] if mode in msg["zones"] else entry.options.get(f"{CONF_ZONE_PREFIX}{mode}") or [])) for mode in MODES}
     every = {e for members in zones.values() for e in members} | set(msg["entry_sensors"])
     if any(not e.startswith("binary_sensor.") for e in every):
         connection.send_error(msg["id"], "invalid_entity", "Only binary sensors can be in a zone")
@@ -832,10 +849,15 @@ async def ws_test_notify(hass: HomeAssistant, connection, msg: dict[str, Any]) -
 
 
 def _clean_end(value: dict[str, Any]) -> dict[str, Any]:
-    """Nur speichern, was eingeschaltet ist: die eigene Meldung beim Alarmende."""
+    """
+    Nur speichern, was vom Standard abweicht: die eigene Meldung beim Alarmende und (seit 1.63.0) "ausgeschaltet". Die eigenen Werte
+    bleiben auch ausgeschaltet stehen: wer wieder einschaltet, findet seinen Text.
+    """
     out: dict[str, Any] = {}
     if (value.get("notify") or {}).get("enabled"):
         out["notify"] = value["notify"]
+    if value.get("send") is False:
+        out["send"] = False
     return out
 
 
@@ -1052,34 +1074,95 @@ async def ws_add_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -> N
     """
     if (entry := _entry(hass, connection, msg)) is None:
         return
-    ctl = entry.runtime_data.controller
     code = msg["code"].strip()
     if not re.fullmatch(CODE_PATTERN, code):
         connection.send_error(msg["id"], "invalid_code_format", "4 to 8 digits")
         return
-    if len(ctl.codes) >= MAX_CODES:
-        connection.send_error(msg["id"], "too_many", "Too many codes")
-        return
-    if any(str(c.get("name", "")).casefold() == msg["name"].casefold() for c in ctl.codes):
-        connection.send_error(msg["id"], "name_taken", "Name already used")
-        return
-    user_id = msg.get("user_id") or None
-    if user_id and (await hass.auth.async_get_user(user_id) is None or any(c.get("user_id") == user_id for c in ctl.codes)):
-        connection.send_error(msg["id"], "user_taken", "User unknown or already linked")
-        return
-    existing = [(c["hash"], c["salt"]) for c in ctl.codes]
-    if entry.options.get(CONF_CODE_HASH) and entry.options.get(CONF_CODE_SALT):
-        existing.append((entry.options[CONF_CODE_HASH], entry.options[CONF_CODE_SALT]))
-    if await hass.async_add_executor_job(match_code, code, existing) is not None:
-        connection.send_error(msg["id"], "code_taken", "Code already used")
-        return
-    code_hash, salt = await hass.async_add_executor_job(hash_code, code)
-    new = {"id": secrets.token_hex(6), "name": msg["name"], "user_id": user_id, "hash": code_hash, "salt": salt}
-    options = dict(entry.options)
-    options[CONF_CODES] = [*(entry.options.get(CONF_CODES) or []), new]
-    hass.config_entries.async_update_entry(entry, options=options)
+    # Prüfen und Schreiben unter der Sperre der Anlage (1.63.0, Code-Review): zwischen Prüfen und Schreiben liegen match_code und hash_code
+    # im Executor. Ein Doppelklick auf "Speichern" legte so denselben Code zweimal an, beide Aufrufe hatten die Liste ohne ihn geprüft.
+    async with _codes_lock(hass, entry.entry_id):
+        codes = _stored_codes(entry)
+        if len(codes) >= MAX_CODES:
+            connection.send_error(msg["id"], "too_many", "Too many codes")
+            return
+        if any(str(c.get("name", "")).casefold() == msg["name"].casefold() for c in codes):
+            connection.send_error(msg["id"], "name_taken", "Name already used")
+            return
+        user_id = msg.get("user_id") or None
+        if user_id and (await hass.auth.async_get_user(user_id) is None or any(c.get("user_id") == user_id for c in codes)):
+            connection.send_error(msg["id"], "user_taken", "User unknown or already linked")
+            return
+        existing = [(c["hash"], c["salt"]) for c in codes]
+        if entry.options.get(CONF_CODE_HASH) and entry.options.get(CONF_CODE_SALT):
+            existing.append((entry.options[CONF_CODE_HASH], entry.options[CONF_CODE_SALT]))
+        if await hass.async_add_executor_job(match_code, code, existing) is not None:
+            connection.send_error(msg["id"], "code_taken", "Code already used")
+            return
+        code_hash, salt = await hass.async_add_executor_job(hash_code, code)
+        new = {"id": secrets.token_hex(6), "name": msg["name"], "user_id": user_id, "hash": code_hash, "salt": salt}
+        options = dict(entry.options)
+        options[CONF_CODES] = [*(entry.options.get(CONF_CODES) or []), new]
+        hass.config_entries.async_update_entry(entry, options=options)
     connection.send_result(msg["id"], {"id": new["id"]})
 
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/update_code",
+        vol.Required("entry_id"): str,
+        vol.Required("code_id"): str,
+        vol.Required("name"): vol.All(str, vol.Strip, vol.Length(min=1, max=40)),
+        vol.Optional("code"): vol.Any(None, str),
+        vol.Optional("user_id"): vol.Any(None, str),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_update_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Persönlichen Code bearbeiten (1.63.0): Name, verknüpfter Benutzer und, wenn angegeben, ein neuer Code. Ohne Code bleibt der
+    bisherige; gespeichert ist nur sein Hash, das Panel kennt ihn nie. Ein neuer Code kommt nur hier herein und wird sofort als Hash
+    gespeichert; nie geloggt, nie zurückgegeben. Es gelten dieselben Regeln wie beim Anlegen, der bearbeitete Eintrag zählt dabei nicht mit.
+    """
+    if (entry := _entry(hass, connection, msg)) is None:
+        return
+    # Unter der Sperre der Anlage (1.63.0, Code-Review): die Liste wird vor dem Hashen gelesen und danach geschrieben; ein gleichzeitiges
+    # Hinzufügen oder Entfernen ginge sonst verloren
+    async with _codes_lock(hass, entry.entry_id):
+        codes = list(entry.options.get(CONF_CODES) or [])
+        index = next((i for i, c in enumerate(codes) if isinstance(c, dict) and c.get("id") == msg["code_id"]), None)
+        if index is None:
+            connection.send_error(msg["id"], "not_found", "Unknown code")
+            return
+        current = codes[index]
+        others = [c for i, c in enumerate(codes) if i != index and isinstance(c, dict)]
+        code = (msg.get("code") or "").strip()
+        if code and not re.fullmatch(CODE_PATTERN, code):
+            connection.send_error(msg["id"], "invalid_code_format", "4 to 8 digits")
+            return
+        if any(str(c.get("name", "")).casefold() == msg["name"].casefold() for c in others):
+            connection.send_error(msg["id"], "name_taken", "Name already used")
+            return
+        user_id = msg.get("user_id") or None
+        # Der bisher verknüpfte Benutzer darf bleiben, auch wenn es ihn in Home Assistant nicht mehr gibt; ein anderer muss existieren
+        if user_id and (any(c.get("user_id") == user_id for c in others)
+                        or (user_id != current.get("user_id") and await hass.auth.async_get_user(user_id) is None)):
+            connection.send_error(msg["id"], "user_taken", "User unknown or already linked")
+            return
+        updated = {**current, "name": msg["name"], "user_id": user_id}
+        if code:
+            existing = [(c.get("hash"), c.get("salt")) for c in others if c.get("hash") and c.get("salt")]
+            if entry.options.get(CONF_CODE_HASH) and entry.options.get(CONF_CODE_SALT):
+                existing.append((entry.options[CONF_CODE_HASH], entry.options[CONF_CODE_SALT]))
+            if await hass.async_add_executor_job(match_code, code, existing) is not None:
+                connection.send_error(msg["id"], "code_taken", "Code already used")
+                return
+            updated["hash"], updated["salt"] = await hass.async_add_executor_job(hash_code, code)
+        codes[index] = updated
+        changed = hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_CODES: codes})
+    # Wie beim Entfernen: "reload" sagt dem Panel, ob Home Assistant die Anlage neu lädt (unverändert: kein Neuladen)
+    connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
 
 def _custom_listing(hass: HomeAssistant) -> list[dict[str, Any]]:
     registry = hass.data.get(DATA_CUSTOM_SOUNDS)
@@ -1132,18 +1215,20 @@ async def ws_remove_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -
     """Persönlichen Code entfernen. Ist danach kein Code mehr da, entfällt auch "Code zum Scharfschalten"."""
     if (entry := _entry(hass, connection, msg)) is None:
         return
-    codes = entry.options.get(CONF_CODES) or []
-    rest = [c for c in codes if c.get("id") != msg["code_id"]]
-    if len(rest) == len(codes):
-        connection.send_error(msg["id"], "not_found", "Unknown code")
-        return
-    options = dict(entry.options)
-    options[CONF_CODES] = rest
-    if not rest and not options.get(CONF_CODE_HASH):
-        # Ohne Code kann "Code zum Scharfschalten" nicht gelten
-        options[CONF_CODE_ARM_REQUIRED] = False
-        options[CONF_CODE_ACK_REQUIRED] = False
-    changed = hass.config_entries.async_update_entry(entry, options=options)
+    # Wartet auf ein laufendes Hinzufügen oder Bearbeiten (1.63.0): sonst schriebe dieses die Liste mit dem entfernten Code zurück
+    async with _codes_lock(hass, entry.entry_id):
+        codes = entry.options.get(CONF_CODES) or []
+        rest = [c for c in codes if c.get("id") != msg["code_id"]]
+        if len(rest) == len(codes):
+            connection.send_error(msg["id"], "not_found", "Unknown code")
+            return
+        options = dict(entry.options)
+        options[CONF_CODES] = rest
+        if not rest and not options.get(CONF_CODE_HASH):
+            # Ohne Code kann "Code zum Scharfschalten" nicht gelten
+            options[CONF_CODE_ARM_REQUIRED] = False
+            options[CONF_CODE_ACK_REQUIRED] = False
+        changed = hass.config_entries.async_update_entry(entry, options=options)
     # "reload": lädt die Anlage neu? Home Assistant lädt nur neu, wenn sich die Optionen wirklich geändert haben. Ohne diese Angabe
     # wartete das Panel mit der Ladeanzeige 25 Sekunden auf eine neue Kennung, die nie kam.
     connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})

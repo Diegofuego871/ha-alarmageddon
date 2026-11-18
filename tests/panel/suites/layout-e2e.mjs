@@ -144,8 +144,8 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: Marken im Ablauf sind undurchsichtig (Linie scheint nicht durch das Symbol)`, await s.ev("return [...r.querySelectorAll('.ag-wf-start .ag-mini')].every((m) => { const c=getComputedStyle(m); return c.backgroundColor !== 'rgba(0, 0, 0, 0)' && !c.backgroundColor.endsWith(', 0)'); })"));
       check(`${tag}: Linie läuft nicht durch die Karten`, await s.ev("const l=r.querySelector('.ag-wf-main').getBoundingClientRect(); const e=r.querySelector('.ag-wf-end').getBoundingClientRect(); return e.top >= l.bottom - 1"));
       await s.tap('[data-wf="end-edit"]');
-      check(`${tag}: Fenster "Alarm endet" mit Schalter für die Meldung`, await s.waitFor("const d=r.getElementById('ag-step'); return d.open && !!d.querySelector('[data-wf=\"end-notify\"]') && !d.querySelector('select[data-wf=\"end-undo\"]') && !d.querySelector('[data-key=\"ntTitle\"]')"));
-      await s.tap('[data-wf="end-notify"]');
+      // Seit 1.63.0 wie die anderen festen Meldungen: der Schalter heisst "Meldung senden" und ist an, die Felder stehen gleich da
+      check(`${tag}: Fenster "Alarm endet" mit Schalter "Meldung senden" (an) und den Feldern`, await s.waitFor("const d=r.getElementById('ag-step'); return d.open && d.querySelector('[data-wf=\"end-notify\"]')?.getAttribute('aria-checked') === 'true' && !d.querySelector('select[data-wf=\"end-undo\"]') && !!d.querySelector('[data-key=\"ntTitle\"]')"));
       check(`${tag}: Meldung mit allen Optionen (Text, Platzhalter, Vorschau, Kritisch, Klickziel), ohne Knöpfe, Kritisch standardmässig aus`, await s.waitFor("const d=r.getElementById('ag-step'); return !!d.querySelector('[data-key=\"ntTitle\"]') && d.querySelectorAll('[data-wf=\"ins\"]').length === 7 && !!d.querySelector('#ag-ntprev') && !!d.querySelector('[data-wf=\"nt-crit\"]') && !!d.querySelector('[data-wf=\"nt-click\"]') && !d.querySelector('[data-wf=\"nt-btn\"]') && d.querySelector('[data-wf=\"nt-crit\"]').getAttribute('aria-checked') === 'false'"));
       await s.tap('[data-wf="nt-crit"]');
       check(`${tag}: Lautstärkeregler höchstens halb so breit wie das Fenster`, await s.waitFor("const d=r.getElementById('ag-step'); const rg=d.querySelector('.ag-ef-range'); return !!rg && rg.getBoundingClientRect().width <= d.getBoundingClientRect().width * (r.host.hasAttribute('narrow') ? 1.01 : 0.55)"));
@@ -153,7 +153,7 @@ for (const lang of ["de", "en"]) {
       await s.tap('#ag-step [data-wf="nt-tgt-own"]');
       await (await s.el('#ag-step [data-wf="nt-tgt-add"]')).selectOption("notify.mobile_app_partnerin");
       await s.tap('#ag-step [data-wf="apply"]');
-      check(`${tag}: Wahl ist ein Entwurf (Punkt am Reiter, Karte ohne den Standardhinweis)`, await s.waitFor("return !r.getElementById('ag-step').open && r.querySelector('[data-sub=\"actions\"]').classList.contains('has-edit') && r.host.actions.draft?.end && Object.keys(r.host.actions.draft.end).length > 0 && !r.querySelector('.ag-wf-end .ag-wf-endcard small')"));
+      check(`${tag}: Wahl ist ein Entwurf (Punkt am Reiter, Karte nennt die eigenen Empfänger und den eigenen Text)`, await s.waitFor("const sm=r.querySelector('.ag-wf-end .ag-wf-endcard small')?.textContent || ''; return !r.getElementById('ag-step').open && r.querySelector('[data-sub=\"actions\"]').classList.contains('has-edit') && r.host.actions.draft?.end && Object.keys(r.host.actions.draft.end).length > 0 && /partnerin/.test(sm) && /(eigener Text|own text)/.test(sm)"));
       await s.tap('[data-wf="save"]');
       await s.waitFor("return r.querySelector('.ag-foot').innerText.includes('Gespeichert') || r.querySelector('.ag-foot').innerText.includes('Saved')");
       const wfSent = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_workflows').at(-1)");

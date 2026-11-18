@@ -7,6 +7,50 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.63.0] - 2026-11-17
+
+### Hinzugefügt
+
+- **Play-Knopf auf jeder festen Meldung.** Die Karten "Scharf geschaltet", "Stiller Alarm", "Eingangsverzögerung", "Deaktiviert" und die Abschlussmeldung haben vor dem Stift einen Play-Knopf: Er sendet eine Testmeldung mit den Werten der Karte, auch ungespeichert. Ist die Meldung ausgeschaltet, ist er gesperrt.
+- **Die Abschlussmeldung lässt sich ausschalten.** Ihr Schalter steht jetzt aussen auf der Karte wie bei den anderen festen Meldungen; im Fenster heisst er "Meldung senden". Aus: Wenn der Alarm endet, geht keine Meldung hinaus, die Alarmmeldung bleibt dann auf dem Handy stehen. Bisher ging "Alarm beendet" immer hinaus.
+- **Codes pro Person: Code bearbeiten.** Der Stift öffnet dasselbe Fenster wie "Code hinzufügen", Name und Benutzer stehen drin. Leer gelassen behalten die Codefelder den bisherigen Code; ein neuer Code ersetzt ihn. Es gelten dieselben Regeln wie beim Hinzufügen (kein Code, Name oder Benutzer einer anderen Person).
+- **Codes pro Person: ein Auge in den Codefeldern** blendet den gerade getippten Code ein und wieder aus. Gespeicherte Codes lassen sich nicht anzeigen: gespeichert ist nur ein Hash.
+- **Codes pro Person: Warnung bei leicht zu erratenden Codes.** Rot und fett mit Achtung-Zeichen unter den Codefeldern: Zahlenfolgen (1234, 2468), nur eine Ziffer (0000), wiederholte Muster (1212, 1122), drei gleiche Ziffern hintereinander, Spiegelzahlen (1221), Linien auf dem Tastenfeld (2580), Jahreszahlen (1987) und Daten (24121990); während des Tippens weniger als 4 Ziffern "Zu kurz". Speichern bleibt möglich; Codes mit weniger als 4 oder mehr als 8 Ziffern werden wie bisher abgelehnt.
+
+### Geändert
+
+- **Jeder Play-Knopf verhält sich gleich.** Beim Drücken wird er rot und zum Stopp-Knopf, überall im Panel: Schritt testen, "Testen" unten, feste Meldungen, Test im Fenster einer Meldung, Probehören eines Tons, eigene Töne, Schritt der Überwachung, Testmeldung im Reiter Benachrichtigungen. Bisher wurde das Probehören blau, der Test der Überwachung blieb ein Play-Knopf, und die Testmeldungen zeigten gar nichts. Eine Testmeldung ist nach dem Senden schon unterwegs: Ihr Knopf bleibt rot, bis der Server geantwortet hat, mindestens 1,5 Sekunden; Stopp beendet dort nur die Anzeige.
+- **Die Abschlussmeldung ist aufgebaut wie die anderen festen Meldungen.** "Meldung: Abschlussmeldung", darunter die Empfänger, kritisch und "eigener Text", dasselbe Glockensymbol. Im Fenster gibt es keinen zweiten Schalter "eigene Meldung" mehr: Titel und Text stehen gleich da, leer gilt der Standardtext. Bestehende Einstellungen bleiben, wie sie sind.
+- **"Meldungen" heisst "Störungsmeldungen".** Das Kapitel im Reiter Benachrichtigungen enthält seit 1.62.0 nur noch "Scharfschalten nicht möglich" und "Sensor im scharfen Zustand nicht erreichbar"; darunter folgt "Wartungsmeldungen".
+- **Eigene Töne: ein eigener Knopf "Hochladen" für die Datei.** Statt des Felds des Browsers ("Choose File", auf dem iPhone mit einem leeren Viereck vor dem Namen) steht ein Knopf im Stil des Panels mit Upload-Symbol, daneben der Name der Datei. Der Knopf unten heisst "Speichern".
+- **Fenster "Routinen", "Eigene Töne", "Sicherungen" und "Codes pro Person": Titel und Suchfeld bleiben beim Scrollen oben stehen.** Die Liste läuft darunter durch, der Abstand vom Suchfeld zur Liste bleibt immer gleich. Bisher scrollte das Suchfeld mit und wurde auf dem Handy am oberen Rand halb abgeschnitten.
+- **Codes pro Person im Fenster.** Die Seite behält die Zusammenfassung mit "Codes anzeigen", den Hauptcode und "Quittieren verlangt den Code". Das Fenster (auf dem Handy als Vollbild) zeigt eine Tabelle mit Name, Benutzer und Code, sortierbar nach Name und Benutzer, mit einem Suchfeld, das oben stehen bleibt; der Code steht nur als "••••••" da. "Code hinzufügen" steht in der Fusszeile, Stift und Papierkorb in jeder Zeile. Unter 360 Pixel Breite fällt die Spalte Code weg.
+- **Reiter "Überwachung": der Schalter "Einstellungen pro Modus" steht auch hier.** Bisher hielt ein leerer Platz seine Stelle frei. Die Reiterzeile steht in allen Reitern an derselben Stelle; wer im Reiter "Überwachung" umschaltet, bleibt dort.
+- **Aktions-Gruppe: "Wiederholen bis deaktiviert" fällt mehr auf.** Wie die Gruppe wiederholt, steht in der Kopfzeile etwas grösser und fett.
+- **Anlage in Home Assistant hinzufügen: ein vergebener Name wird wie im Panel abgelehnt.** Gross- und Kleinschreibung und doppelte Leerzeichen machen keinen anderen Namen mehr ("haus" neben "Haus" war möglich); der Dialog zeigt den Fehler beim Namen, statt abzubrechen.
+- **Der Hauptcode kann nicht mehr derselbe sein wie der Code einer Person.** In den Optionen der Integration wird ein neuer Hauptcode, der einer Person gehört, abgelehnt; "geändert von" bliebe sonst leer. Beim Hinzufügen eines persönlichen Codes wurde der Hauptcode schon abgelehnt.
+- **Speichern der Zonen behält die Zone eines Modus, der in der Anfrage fehlt.** Das Panel sendet immer alle Modi; betroffen waren nur andere Aufrufer.
+- **Dashboard-Karte: weniger Arbeit bei jeder Zustandsänderung im Haus.** Die Karte sucht die Entitäten ihrer Anlage nur, wenn sich die Registrierung der Entitäten ändert.
+- **Ein Knopf, der etwas sendet, nimmt bis zur Antwort keinen zweiten Druck an.** "Speichern" beim Hinzufügen und Bearbeiten eines Codes, "Sichern" einer Sicherung, "Wiederherstellen" und das Umbenennen eines eigenen Tons. Ein Doppelklick schickte bisher alles zweimal (zwei gleiche Sicherungen, ein zweiter Import).
+- **Weniger Abfragen nach einem Verbindungsabbruch.** Das Panel versucht es alle 5 Sekunden wieder, mit einer Abfrage. Bisher plante jede gescheiterte Abfrage eine eigene Wiederholung: nach einer Stunde ohne Verbindung liefen rund 120 nebeneinander, und alle kamen bei der Rückkehr der Verbindung zugleich bei Home Assistant an.
+- **Fehlertexte der Zahlenfelder nennen die richtige Einheit.** Erinnerung einer Regel der Überwachung in Stunden, der Schritt "Warten" der Überwachung in Minuten oder Sekunden (bis 60 Minuten oder 3600 Sekunden), die Anzahl automatischer Sicherungen als Zahl. Bisher hiess es überall "Sekunden", beim Schritt "Warten" "von 0 bis 60".
+- **Die Geräteauswahl von Routinen und Überwachung lädt mit den drei Punkten** wie überall im Panel, statt mit dem Text "Geräte werden geladen ...".
+- **Screenreader nennen die Zahlenfelder im Reiter Anlage beim Titel** ("Ausgangsverzögerung") statt beim internen Schlüssel ("exit_delay").
+
+### Behoben
+
+- **Handy: Zeilen "Routinen" und "Eigene Töne" im Reiter Anlage.** Die Knöpfe drückten die Zusammenfassung auf die Breite null, der Text lief Wort für Wort unter die Knöpfe ("3 Ro…", auch mit "Änderungen noch nicht gespeichert"). Auf dem Handy stehen die Knöpfe jetzt unter dem Text.
+- **Handy: Play und Stift der festen Meldungen** stehen unter dem Text wie bei den Schritten; daneben war für "Meldung: Abschlussmeldung" zu wenig Platz.
+- **Reiter Benachrichtigungen: der Hinweis auf den neuen Ort der Meldungen klebte** an der Karte darüber und am nächsten Kapitel. Er hat jetzt Abstand.
+- **Eine beschädigte Routine hält die Anlage nicht mehr vom Laden ab.** Bisher wurden nur einige Fehler abgefangen; ein Auslöser, der sich nicht lesen liess, liess die ganze Anlage ungeladen. Die übrigen Routinen laufen.
+- **Ein beschädigter Verlauf des Empfangs oder der Sensorstatistik hält die Aufzeichnung nicht mehr an.** Bisher wurde bis zum Neustart von Home Assistant nichts aufgezeichnet, und die Sensoransicht zeigte bei jedem Sensor einen Fehler.
+- **Wiederherstellen einer Sicherung in eine neue Anlage, deren Einrichtung scheiterte,** bricht nicht mehr mitten drin mit einem Fehler ab.
+- **Gleichzeitig erstellte oder gelöschte Sicherungen verlieren keine Änderung mehr** (automatische Sicherung und Panel).
+- **Zwei gleichzeitig hochgeladene Töne** können nicht mehr denselben Namen bekommen oder die Grenze überschreiten.
+- **Doppelklick auf "Speichern" beim Hinzufügen eines Codes legte den Code zweimal an** (dieselbe Person mit demselben Code zweimal). Hinzufügen, Bearbeiten und Entfernen von Codes laufen je Anlage jetzt nacheinander; gleichzeitiges Bearbeiten und Entfernen holt einen entfernten Code nicht mehr zurück.
+- **Sensoransicht, Reiter "Gerät": "Immer aktiv" nur dort, wo es gilt.** Es stand bei jeder Anlage, deren Sensorart "Immer aktiv" voreingestellt hat, auch wenn der Sensor gar nicht zu dieser Anlage gehörte oder "Immer aktiv" dort ausgeschaltet war. Die Ansicht rechnet jetzt wie die Liste der Übersicht.
+- **Tastatur nach dem Ziehen über die Kästchen im Reiter Sensoren:** die erste Leertaste oder Eingabetaste auf einem Kästchen bewirkte nichts.
+
 ## [1.62.0] - 2026-11-17
 
 ### Hinzugefügt
@@ -1838,6 +1882,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.63.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.63.0
 [1.62.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.62.0
 [1.61.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.61.0
 [1.60.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.60.0

@@ -1286,20 +1286,28 @@ class WorkflowRunner:
             return default, ALL_SOUNDS[default]
         return None
 
+    def _base_url(self, what: str) -> str | None:
+        """
+        Adresse, unter der die Lautsprecher die Tondatei holen: die interne von Home Assistant, sonst jede bekannte. Ohne Adresse None (steht im
+        Log, der Ton entfällt). Für Alarmton und Aktivierungston gleich (bis 1.62.0 stand der Rückfall zweimal da).
+        """
+        try:
+            return get_url(self.hass, allow_external=False, prefer_external=False)
+        except NoURLAvailableError:
+            try:
+                return get_url(self.hass)
+            except NoURLAvailableError:
+                _LOGGER.error("%s: no Home Assistant URL for the %s; set it under Settings › System › Network", self.entry.title, what)
+                return None
+
     async def _play(self, step: dict[str, Any], resumable: bool = False) -> None:
         players = list(step.get("players", []))
         found = self._sound(step.get("sound", "siren"), {"prealarm": "pre_beep", "chime": "tone_pip", "dechime": "off_fall"}.get(str(step.get("type")), "siren"))
         if not players or found is None:
             return
         sound, length = found
-        try:
-            base = get_url(self.hass, allow_external=False, prefer_external=False)
-        except NoURLAvailableError:
-            try:
-                base = get_url(self.hass)
-            except NoURLAvailableError:
-                _LOGGER.error("%s: no Home Assistant URL for the alarm sound; set it under Settings › System › Network", self.entry.title)
-                return
+        if (base := self._base_url("alarm sound")) is None:
+            return
         remembered = await self._remember(step, players)
         await self._set_volumes(step, players)
         duration = step.get("duration")
@@ -1384,14 +1392,8 @@ class WorkflowRunner:
         if not players or found is None:
             return
         sound, length = found
-        try:
-            base = get_url(self.hass, allow_external=False, prefer_external=False)
-        except NoURLAvailableError:
-            try:
-                base = get_url(self.hass)
-            except NoURLAvailableError:
-                _LOGGER.error("%s: no Home Assistant URL for the arming tone; set it under Settings › System › Network", self.entry.title)
-                return
+        if (base := self._base_url("arming tone")) is None:
+            return
         remembered = await self._remember(step, players)
         await self._set_volumes(step, players)
         # Ganze Wiederholungen in einer einzigen Datei (1.17.0): der Lautsprecher wird einmal gestartet

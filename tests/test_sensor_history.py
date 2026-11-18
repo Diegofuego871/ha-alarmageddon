@@ -166,3 +166,20 @@ async def test_arming_still_works_with_statistics(hass: HomeAssistant) -> None:
     await call(hass, "alarm_arm_home")
     await open_sensor(hass, WINDOW)
     assert state(hass) == AlarmControlPanelState.TRIGGERED
+
+
+async def test_a_damaged_hour_in_the_stored_statistics_is_skipped(hass: HomeAssistant, hass_storage) -> None:
+    """
+    Code-Review 1.63.0: Ein beschädigter Wert in der Ablage der Stundenwerte fällt weg, die übrigen bleiben. Bis 1.62.0 liess er das ganze Laden
+    scheitern: keine Anlage zählte mehr Auslösungen, und die Sensoransicht meldete bei jedem Sensor einen Fehler.
+    """
+    from custom_components.alarmageddon import sensor_history
+
+    hour = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+    good, bad, worse = hour.isoformat(), (hour - timedelta(hours=1)).isoformat(), (hour - timedelta(hours=2)).isoformat()
+    hass_storage[sensor_history.STATS_STORE_KEY] = {"version": 1, "minor_version": 1, "key": sensor_history.STATS_STORE_KEY,
+                                                    "data": {WINDOW: {good: [2, 30], bad: ["zwei", 30], worse: [None, 5]}}}
+    entry = await setup_alarm(hass)
+    stats = entry.runtime_data.controller.stats
+    assert stats is not None and hass.data[sensor_history.DATA_STATS] is stats
+    assert stats.data[WINDOW] == {good: [2, 30]}

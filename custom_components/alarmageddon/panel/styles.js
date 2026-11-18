@@ -458,10 +458,11 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-btns .ag-iconbtn[data-wf="delete"] { color: var(--ag-error); }
 .ag-wf-btns .ag-iconbtn:disabled { opacity: .3; cursor: default; }
 /* Läuft ein Test, ist der Stopp-Knopf rot und pulsiert: auf einen Blick zu sehen, wo man es wieder anhält */
-.ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"], .ag-btn[data-wf="test-stop"], .ag-iconbtn[data-sys="cs-stop"] { background: var(--ag-error); border-color: var(--ag-error); color: #fff; animation: ag-running 1.4s ease-out infinite; }
-.ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"]:hover, .ag-btn[data-wf="test-stop"]:hover, .ag-iconbtn[data-sys="cs-stop"]:hover { background: color-mix(in srgb, var(--ag-error) 88%, #000); }
+/* Laufender Play-Knopf, überall gleich (Vorgabe des Nutzers, 2026-11-17): rot, weisses Stopp-Symbol, pulsiert (common.js onceBtn, paintOnce) */
+.ag-iconbtn.ag-running, .ag-btn.ag-running { background: var(--ag-error); border-color: var(--ag-error); color: #fff; animation: ag-running 1.4s ease-out infinite; }
+.ag-iconbtn.ag-running:hover, .ag-btn.ag-running:hover { background: color-mix(in srgb, var(--ag-error) 88%, #000); color: #fff; }
 @keyframes ag-running { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ag-error) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 10px transparent; } }
-@media (prefers-reduced-motion: reduce) { .ag-wf-btns .ag-iconbtn[data-wf="test-step-stop"], .ag-btn[data-wf="test-stop"], .ag-iconbtn[data-sys="cs-stop"] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ag-iconbtn.ag-running, .ag-btn.ag-running { animation: none; } }
 /* Ende des Ablaufs: die Linie des Ablaufs endet an der Marke "Alarm endet" und läuft nie durch die Karten */
 .ag-wf-end { position: relative; max-width: 820px; }
 .ag-wf-end::before { content: ""; display: block; width: 1.5px; height: 12px; margin-left: calc(var(--wf-x) - 0.75px); background: var(--ag-primary); }
@@ -484,7 +485,8 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-line > .ag-wf-notice { max-width: 820px; background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
 .ag-wf-notice > .ag-toggle { flex: none; margin: 0; }
 .ag-wf-notice.off > .ag-wf-icon, .ag-wf-notice.off > .ag-wf-text { opacity: .55; }
-.ag-nt-moved { display: flex; gap: 6px; align-items: flex-start; margin: 10px 4px 0; }
+/* Hinweis unter den Störungsmeldungen: Luft zur Karte darüber und zum nächsten Kapitel (1.63.0, "Text zu nah", Bildschirmfoto des Nutzers) */
+.ag-chap-h.ag-nt-moved { display: flex; gap: 8px; align-items: flex-start; margin: 16px 4px 32px; }
 .ag-nt-moved .ag-ic { flex: none; margin-top: 2px; }
 .ag-wf-line .ag-wf-step { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
 .ag-wf-end .ag-wf-endcard { background: linear-gradient(100deg, color-mix(in srgb, var(--z) 22%, var(--ag-card)) 0%, var(--ag-card) 70%); }
@@ -545,7 +547,6 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-tone select { flex: 1; min-width: 0; }
 .ag-pv { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; border: 1px dashed var(--ag-warning-text); flex: none; }
 .ag-pv .ag-iconbtn { width: 36px; height: 36px; }
-.ag-pv .ag-iconbtn.on { color: var(--ag-primary); background: var(--ag-primary-soft); }
 .ag-pv .ag-iconbtn:disabled { opacity: .3; cursor: default; }
 .ag-pv-note { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; color: var(--ag-warning-text); line-height: 1.35; }
 .ag-pv-note .ag-ic { flex: none; margin-top: 1px; }
@@ -648,6 +649,9 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 :host([narrow]) .ag-wf-step { flex-wrap: wrap; }
 :host([narrow]) .ag-wf-btns { width: 100%; justify-content: flex-end; gap: 14px; margin-top: 4px; }
 :host([narrow]) .ag-wf-endcard .ag-wf-btns { width: auto; }
+/* Feste Meldungen auf dem Handy (1.63.0): Play und Stift stehen wie bei den Schritten unter dem Text; daneben bliebe für "Meldung: Abschlussmeldung" zu wenig Platz */
+:host([narrow]) .ag-wf-endcard.ag-wf-notice { flex-wrap: wrap; }
+:host([narrow]) .ag-wf-endcard.ag-wf-notice .ag-wf-btns { width: 100%; }
 :host([narrow]) .ag-wf-line, :host([narrow]) .ag-wf-end { --wf-x: 30px; }
 
 /* 0.5.0: Codes pro Person, Sicherung, Prognose */
@@ -659,22 +663,18 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 .ag-coderow .ag-oav { background: var(--ag-subtle); color: var(--ag-text2); }
 .ag-coderow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--ag-divider); }
 .ag-coderow small { display: block; font-size: 12.5px; }
+.ag-codesum + .ag-coderow { border-top: 0; } /* die Zeile darüber trägt den Strich schon (sonst doppelt) */
 .ag-schrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--ag-divider); }
-.ag-schrow.dim > :not(.ag-toggle):not(.ag-iconbtn) { opacity: .55; }
 .ag-schrow .ag-time { width: 140px; }
-.ag-schrow .ag-toggle { margin: 0 4px 0 0; }
-.ag-schrow select.ag-input { min-width: 150px; }
 .ag-days { display: flex; gap: 4px; flex-wrap: wrap; }
 .ag-day { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--ag-divider); background: var(--ag-card); color: var(--ag-text2); font: inherit; font-size: 13px; cursor: pointer; padding: 0; }
 .ag-day.on { background: var(--ag-primary); border-color: var(--ag-primary); color: #fff; font-weight: 500; }
 .ag-day:focus-visible { outline: 2px solid var(--ag-primary); outline-offset: 2px; }
-.ag-schwarn { flex-basis: 100%; }
-:host([narrow]) .ag-schrow .ag-time, :host([narrow]) .ag-schrow select.ag-input { flex: 1 1 120px; min-width: 0; }
+:host([narrow]) .ag-schrow .ag-time { flex: 1 1 120px; min-width: 0; }
 :host([narrow]) .ag-schrow .ag-days { flex-basis: 100%; order: 3; }
-/* Handy: Schalter, Uhrzeit und Papierkorb in der ersten Zeile, darunter die Aktion in voller Breite, dann die Wochentage */
+/* Handy (Zeiten einer Routine): Uhrzeit und Papierkorb in der ersten Zeile, darunter die Wochentage. Die Regeln für Schalter, Aktion und
+   Hinweis des früheren Zeitplans (bis 1.43) sind seit 1.63.0 entfernt: keine Zeile hatte sie mehr. */
 :host([narrow]) .ag-schrow > .ag-iconbtn { order: 1; }
-:host([narrow]) .ag-schrow select.ag-input { order: 2; flex-basis: 100%; }
-:host([narrow]) .ag-schrow > .ag-schwarn { order: 4; }
 /* Routinen: Vorschau des Ablaufs (reine Anzeige): drei Schritte an einer Linie, die Prüfung zeigt die gewählten Zustände */
 .ag-fl { display: flex; flex-direction: column; padding: 4px 0 0; }
 .ag-fl-step { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; }
@@ -756,6 +756,14 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 
 #ag-codes .ag-dlg-body { gap: 14px; }
 #ag-codes .ag-fld small { font-size: 12.5px; }
+/* Codefeld mit Auge (1.63.0): blendet nur den gerade getippten Code ein und aus */
+.ag-pwfld { position: relative; display: flex; align-items: center; }
+.ag-pwfld > .ag-input { flex: 1; min-width: 0; padding-right: 48px; }
+.ag-pwfld > .ag-pweye { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; }
+/* Warnung bei einem leicht zu erratenden Code: rot, fett, Achtung-Zeichen; Speichern bleibt möglich */
+.ag-codewarn { display: flex; align-items: flex-start; gap: 8px; color: var(--ag-error); font-weight: 700; font-size: 14px; line-height: 1.35; }
+.ag-codewarn[hidden] { display: none; }
+.ag-codewarn > .ag-ic { flex: none; margin-top: 0; }
 
 button.ag-link, a.ag-link { display: inline-flex; align-items: center; gap: 5px; padding: 0 6px; border: 0; background: none; color: var(--ag-primary); font: inherit; font-size: 13px; cursor: pointer; text-decoration: none; white-space: nowrap; }
 .ag-seg > button.has-dot { position: relative; }
@@ -1084,7 +1092,12 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-up { display: grid; gap: 12px; }
 .ag-up-row > .ag-up { flex: 1 1 0; min-width: 0; } .ag-up > * { min-width: 0; } /* das Formular bleibt in der Karte (schmales Fenster) */
 .ag-up-box { margin-top: 12px; }
-.ag-up-file { height: auto; min-height: 44px; padding: 8px 12px; }
+/* Dateiwahl der eigenen Töne (1.63.0): Knopf "Hochladen" mit dem echten Dateifeld unsichtbar darüber, daneben der Name der Datei */
+.ag-up-pick { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; min-width: 0; }
+.ag-up-choose { position: relative; overflow: hidden; cursor: pointer; }
+.ag-up-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; font-size: 0; }
+.ag-up-choose:focus-within { outline: 2px solid var(--ag-primary); outline-offset: 2px; }
+.ag-up-name { min-width: 0; overflow-wrap: anywhere; }
 .ag-up-err { color: var(--ag-error); font-size: 13px; }
 .ag-up-err:empty { display: none; }
 .ag-csrow { align-items: center; flex-wrap: nowrap; }
@@ -1225,6 +1238,13 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-rtempty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 34px 18px; text-align: center; } .ag-rtfoot { margin: 0 4px; }
 /* Suchfeld (und Filter) über den Listen der Fenster Routinen, Eigene Töne, Sicherungen (1.60.0) */
 .ag-pop-tools { margin: 0; flex-wrap: nowrap; }
+/* Kopf der Fenster mit Liste (Routinen, Eigene Töne, Sicherungen; 1.63.0, Wunsch des Nutzers): Titel und Suchfeld kleben beim Scrollen oben, die Liste
+   läuft darunter durch. Der Kopf reicht bis an die Ränder des Fensters (gleicher Hintergrund), das X liegt darüber. Der Abstand vom Suchfeld zur
+   Liste ist immer der untere Rand des Kopfs (14 px), gescrollt wie ungescrollt: der Abstand des Fensters zum nächsten Element wird aufgehoben. */
+.ag-dlg-body > .ag-pop-head { position: sticky; top: -22px; z-index: 3; display: flex; flex-direction: column; gap: 14px; margin: -22px -22px 0; padding: 22px 22px 14px; background: var(--ag-card); }
+.ag-dlg-body > .ag-pop-head + * { margin-top: -14px; }
+.ag-pop-head > h3 { margin: 0; padding-right: 54px; min-height: 42px; display: flex; align-items: center; }
+.ag-dlg .ag-pop-head > h3 { font-size: 21px; font-weight: 400; }
 .ag-rtrows > .ag-codes, .ag-pop-tools + .ag-codes { margin-top: 0; }
 .ag-pop-tools[hidden] { display: none; }
 .ag-dlg-body .ag-pop-tools .list-search { flex: 1 1 0; min-width: 0; }
@@ -1237,7 +1257,14 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 /* Die Zeilen der Töne stehen in einem eigenen Behälter (nur sie werden beim Suchen neu gezeichnet): der Strich zur Zeile danach bleibt */
 .ag-csrows { display: contents; }
 .ag-csrows:not(:last-child) > .ag-setrow:last-child { border-bottom: 1px solid var(--ag-divider); }
-.ag-rtsum { align-items: center; flex-wrap: nowrap; } .ag-rtsum .ag-settx { flex: 1 1 0; min-width: 0; } /* Zusammenfassung links, Knopf rechts, auch auf dem Handy in einer Zeile */
+/* Zusammenfassung links, Knöpfe rechts (Routinen, Eigene Töne). Reicht der Platz nicht, rutschen die Knöpfe in eine eigene Zeile darunter; der Text
+   behält immer Platz für ein paar Wörter. Bis 1.62.0 stand alles in einer Zeile, auf dem Handy schrumpfte der Text auf die Breite 0 und lief Wort für
+   Wort unter die Knöpfe (Bildschirmfotos des Nutzers, 2026-11-17). Auf dem Handy stehen die Knöpfe immer unter dem Text und teilen sich die Breite. */
+.ag-rtsum { align-items: center; flex-wrap: wrap; row-gap: 12px; }
+.ag-rtsum .ag-settx { flex: 1 1 12em; min-width: 0; }
+.ag-rtsum .ag-btnrow { margin-left: auto; }
+:host([narrow]) .ag-rtsum .ag-btnrow { flex: 1 1 100%; margin-left: 0; }
+:host([narrow]) .ag-rtsum .ag-btnrow > .ag-btn { flex: 1 1 auto; justify-content: center; }
 /* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */
 :host([narrow]) .ag-cs-pop .ag-csrow { flex-wrap: wrap; }
 :host([narrow]) .ag-cs-pop .ag-csrow .ag-settx { flex: 1 1 0; min-width: 0; }
@@ -1270,6 +1297,27 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-bksys-m { display: none; }
 :host([narrow]) .ag-bktable .ag-bksys { display: none; }
 :host([narrow]) .ag-bktable .ag-bksys-m { display: block; font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+/* Fenster "Codes pro Person" (1.63.0): Tabelle wie die Sicherungen; der Code steht nur als fester Platzhalter da (gespeichert ist ein Hash) */
+.ag-codewrap { overflow: hidden; } /* der Tabellenkopf folgt den runden Ecken der Karte */
+.ag-codetable th { padding: 0; height: 46px; background: var(--ag-card); box-shadow: 0 1px 0 var(--ag-divider); }
+.ag-codetable td { height: 52px; }
+.ag-codetable .ag-sortbtn { padding: 14px; }
+.ag-codetable .ag-codename b { font-weight: 500; overflow-wrap: anywhere; }
+.ag-codetable .ag-codeuser { overflow-wrap: anywhere; }
+.ag-codetable .ag-codecol { width: 1%; white-space: nowrap; }
+.ag-codeth { display: inline-block; padding: 14px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; font-size: 12px; color: var(--ag-text2); }
+.ag-codedots { letter-spacing: .12em; color: var(--ag-text2); }
+:host([narrow]) .ag-codetable td { padding-left: 6px; padding-right: 6px; }
+:host([narrow]) .ag-codetable td:first-child { padding-left: 12px; }
+:host([narrow]) .ag-codetable th { padding: 0; }
+:host([narrow]) .ag-codetable .ag-sortbtn { padding: 14px 6px; font-size: 10.5px; letter-spacing: 0; }
+:host([narrow]) .ag-codetable th:first-child .ag-sortbtn { padding-left: 12px; }
+:host([narrow]) .ag-codetable .ag-iconbtn { width: 34px; height: 34px; }
+:host([narrow]) .ag-codetable .ag-actrow { gap: 2px; }
+/* Sehr schmale Handys (unter 360 px): die Spalte Code (nur ein Platzhalter) fällt weg, damit Name und Benutzer Platz haben */
+@media (max-width: 359px) { :host([narrow]) .ag-codetable .ag-codecol { display: none; } }
+:host([narrow]) .ag-codeth { padding: 14px 6px; font-size: 10.5px; letter-spacing: 0; }
+:host([narrow]) .ag-codedots { letter-spacing: .04em; font-size: 12px; }
 :host([narrow]) .ag-mon-head { position: relative; }
 :host([narrow]) .ag-mon-head .ag-mon-fold { position: absolute; top: 2px; right: 0; }
 :host([narrow]) .ag-mon-head .ag-settx { padding-right: 34px; }
@@ -1290,7 +1338,8 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-wf-gpill { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px; padding: 2px 12px; border-radius: 999px; background: color-mix(in srgb, var(--z) 78%, #000); color: #fff; font-weight: 600; font-size: 14px; }
 .ag-wf-gpill > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ag-wf-gpill svg { flex: none; }
-.ag-wf-gsum { font-weight: 500; font-size: 14px; color: color-mix(in srgb, var(--z) 55%, var(--ag-text)); }
+/* Wie die Gruppe wiederholt ("Wiederholen bis deaktiviert", "4 Durchläufe"): etwas grösser und fett, damit es auffällt (Wunsch des Nutzers, 1.62.1) */
+.ag-wf-gsum { font-weight: 700; font-size: 16px; color: color-mix(in srgb, var(--z) 55%, var(--ag-text)); }
 .ag-wf-line.ag-wf-glist { max-width: none; padding: 2px 12px 10px; --wf-x: 30px; }
 .ag-wf-glist .ag-wf-add:disabled { opacity: .35; cursor: default; }
 .ag-grp-intro { margin-bottom: 4px; }
@@ -1305,6 +1354,4 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-wf-line.ag-wf-glist.loop { padding-left: 24px; }
 :host([narrow]) .ag-wf-loop { left: 6px; }
 /* 1.58.0: unsichtbarer Platzhalter, der seinen Platz behält (Reiterzeile der Aktionen springt beim Wechsel auf "Überwachung" nicht) */
-.ag-ghost { visibility: hidden; pointer-events: none; }
-.ag-ghost .ag-toggle { display: inline-block; flex: none; margin: 0; }
 `;

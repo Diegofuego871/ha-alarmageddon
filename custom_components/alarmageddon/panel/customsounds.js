@@ -41,11 +41,31 @@ export function uploadHtml(t, host, ui, attr) {
   const accept = lim.ffmpeg ? ".wav,.mp3,.flac" : ".wav";
   return `<div class="ag-up" data-cs="upload">
     <div class="ag-ef"><div class="ag-ef-l">${esc(t("upName"))}</div><input class="ag-input" type="text" maxlength="40" value="${esc(ui.name || "")}" ${attr("cs-name")} data-cs="name" placeholder="${esc(t("upNamePh"))}" aria-label="${esc(t("upName"))}"></div>
-    <div class="ag-ef"><div class="ag-ef-l">${esc(t("upFile"))}</div><input class="ag-input ag-up-file" type="file" accept="${accept}" data-cs="file" aria-label="${esc(t("upFile"))}">${ui.file ? `<small class="ag-t2 ag-up-kept">${esc(t("upFileKept", { name: ui.file.name }))}</small>` : ""}</div>
+    <div class="ag-ef"><div class="ag-ef-l">${esc(t("upFile"))}</div>${pickHtml(t, accept, ui.file)}</div>
     <div class="ag-pv-note">${ic("info", 14)} ${esc(t("upHint", { formats, seconds: lim.seconds, mb: Math.round(lim.bytes / 1048576) }))}${lim.ffmpeg ? "" : ` ${esc(t("upNoFfmpeg"))}`}</div>
     <div class="ag-dlg-err ag-up-err" aria-live="polite">${esc(ui.error || "")}</div>
-    <div class="ag-btnrow"><button type="button" class="ag-btn primary" ${attr("cs-go")} ${ui.busy ? "disabled" : ""}>${ic("plus", 18)}${esc(t(ui.busy ? "upBusy" : "upGo"))}</button>
+    <div class="ag-btnrow"><button type="button" class="ag-btn primary" ${attr("cs-go")} ${ui.busy ? "disabled" : ""}>${ic("check", 18)}${esc(t(ui.busy ? "upBusy" : "upGo"))}</button>
       <button type="button" class="ag-btn" ${attr("cs-cancel")} ${ui.busy ? "disabled" : ""}>${esc(t("cancel"))}</button></div></div>`;
+}
+
+// Dateiwahl (1.63.0, Wunsch des Nutzers): ein Knopf im Stil des Panels mit Upload-Symbol statt des Felds des Browsers. Dieses zeigte auf
+// Deutsch "Choose File" (der Browser übersetzt es nicht) und auf dem iPhone nach der Wahl ein leeres Viereck vor dem Namen. Das echte Feld liegt
+// unsichtbar über dem Knopf (nicht "hidden": so öffnet ein Tippen die Auswahl in jedem Browser, auch auf dem iPhone); daneben steht der Name.
+function pickHtml(t, accept, file) {
+  return `<div class="ag-up-pick"><label class="ag-btn ag-up-choose">${ic("upload", 18)}<span>${esc(t("upChoose"))}</span><input class="ag-up-input" type="file" accept="${accept}" data-cs="file" aria-label="${esc(t("upChoose"))}"></label>
+    <span class="ag-up-name ${file ? "" : "ag-t2"}" data-cs="file-name" data-empty="${esc(t("upNoFile"))}">${esc(file ? file.name : t("upNoFile"))}</span></div>`;
+}
+
+// Die Wahl im Dateifeld hat sich geändert: den Namen neben dem Knopf zeigen und die Datei im Stand merken (das Formular kann neu gezeichnet
+// werden, ein Dateifeld lässt sich nicht wieder füllen). Leert der Browser das Feld (Auswahl abgebrochen), ist auch keine Datei mehr gewählt.
+export function filePicked(el, ui) {
+  const file = el.files?.[0] || null;
+  if (ui) ui.file = file;
+  const name = el.closest(".ag-up-pick")?.querySelector('[data-cs="file-name"]');
+  if (name) {
+    name.textContent = file ? file.name : name.dataset.empty;
+    name.classList.toggle("ag-t2", !file);
+  }
 }
 
 export function uploadError(t, code, status) {

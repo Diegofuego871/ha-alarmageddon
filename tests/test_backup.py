@@ -170,3 +170,30 @@ async def test_sensor_entry_delay_survives_backup_and_import(hass: HomeAssistant
     assert entry.options["sensor_options"] == own and entry.options["sensor_modes"] == per_mode
     exported["systems"][0]["options"]["sensor_options"] = {MOTION: {"entry_delay": 99999}}
     assert not (await _ws(client, type="alarmageddon/import", data=exported))["success"]
+
+
+async def test_creating_and_deleting_backups_at_the_same_time_loses_nothing(hass: HomeAssistant, monkeypatch) -> None:
+    """
+    Code-Review 1.63.0: Erstellen und Löschen lesen, ändern und schreiben die ganze Ablage. Liefen die automatische Sicherung und "Backup erstellen"
+    oder "Löschen" im Panel gleichzeitig, ging bis 1.62.0 eine Änderung verloren. Jetzt kommt eine nach der anderen. Das Lesen der Ablage dauert
+    hier einen Augenblick wie auf einer echten Platte (im Testspeicher käme es sofort zurück, und der Wettlauf zeigte sich nie).
+    """
+    import asyncio
+
+    from custom_components.alarmageddon import backup
+
+    real = backup._load_store
+
+    async def slow_load(hass_):
+        found = await real(hass_)
+        await asyncio.sleep(0.05)
+        return found
+
+    monkeypatch.setattr(backup, "_load_store", slow_load)
+    await setup_alarm(hass)
+    first = await backup.async_create_backup(hass, None, "eins")
+    await asyncio.gather(backup.async_create_backup(hass, None, "zwei"), backup.async_delete_backup(hass, first["id"]),
+                         backup.async_create_backup(hass, None, "drei"), backup.async_create_backup(hass, None, "", auto=True))
+    listed = await backup.async_list_backups(hass)
+    assert sorted(b["name"] for b in listed if not b["auto"]) == ["drei", "zwei"]
+    assert sum(1 for b in listed if b["auto"]) == 1

@@ -4,6 +4,7 @@
 // --- Symbole (Material Design Icons) ---------------------------------------
 export const P = {
   eye: "M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M12,4.5C17,4.5 21.27,7.61 23,12C21.27,16.39 17,19.5 12,19.5C7,19.5 2.73,16.39 1,12C2.73,7.61 7,4.5 12,4.5M3.18,12C4.83,15.36 8.24,17.5 12,17.5C15.76,17.5 19.17,15.36 20.82,12C19.17,8.64 15.76,6.5 12,6.5C8.24,6.5 4.83,8.64 3.18,12Z",
+  eyeOff: "M2,5.27L3.28,4L20,20.72L18.73,22L15.65,18.92C14.5,19.3 13.28,19.5 12,19.5C7,19.5 2.73,16.39 1,12C1.69,10.24 2.79,8.69 4.19,7.46L2,5.27M12,9A3,3 0 0,1 15,12C15,12.35 14.94,12.69 14.83,13L11,9.17C11.31,9.06 11.65,9 12,9M12,4.5C17,4.5 21.27,7.61 23,12C22.18,14.08 20.79,15.88 19,17.19L17.58,15.76C18.94,14.82 20.06,13.54 20.82,12C19.17,8.64 15.76,6.5 12,6.5C10.91,6.5 9.84,6.68 8.84,7L7.3,5.47C8.74,4.85 10.33,4.5 12,4.5M3.18,12C4.83,15.36 8.24,17.5 12,17.5C12.69,17.5 13.37,17.43 14,17.29L11.72,15C10.29,14.85 9.15,13.71 9,12.28L5.6,8.87C4.61,9.72 3.78,10.78 3.18,12Z",
   thermo: "M15,13V5A3,3 0 0,0 9,5V13A5,5 0 1,0 15,13M12,4A1,1 0 0,1 13,5V8H11V5A1,1 0 0,1 12,4Z",
   gauge: "M16,11.78L20.24,4.45L21.97,5.45L16.74,14.5L10.23,10.75L5.46,19H22V21H2V3H4V17.54L9.5,8L16,11.78Z", // Verlauf: Messwerte
   shieldHome: "M12,1L3,5V11C3,16.5 6.8,21.7 12,23C17.2,21.7 21,16.5 21,11V5L12,1M12,7L17,11V17H14V13H10V17H7V11L12,7Z",
@@ -22,13 +23,10 @@ export const P = {
   sensor: "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7Z",
   battery: "M16,20H8V6H16M16.67,4H15V2H9V4H7.33A1.33,1.33 0 0,0 6,5.33V20.67C6,21.4 6.6,22 7.33,22H16.67A1.33,1.33 0 0,0 18,20.67V5.33C18,4.6 17.4,4 16.67,4Z",
   offline: "M2.28,3L1,4.27L2.47,5.74C2.04,6 1.61,6.29 1.2,6.6L3,9C3.53,8.6 4.08,8.25 4.66,7.93L6.89,10.16C6.15,10.5 5.44,10.91 4.8,11.4L6.6,13.8C7.38,13.22 8.26,12.77 9.2,12.47L11.75,15C10.5,15.07 9.34,15.5 8.4,16.2L12,21L14.46,17.73L17.74,21L19,19.72M12,3C9.85,3 7.8,3.38 5.9,4.07L8.29,6.47C9.5,6.16 10.72,6 12,6C15.38,6 18.5,7.11 21,9L22.8,6.6C19.79,4.34 16.06,3 12,3M12,9C11.62,9 11.25,9 10.88,9.05L14.07,12.25C15.29,12.53 16.43,13.07 17.4,13.8L19.2,11.4C17.2,9.89 14.7,9 12,9Z",
-  verOk: "M12 2C6.5 2 2 6.5 2 12S6.5 22 12 22 22 17.5 22 12 17.5 2 12 2M10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z",
   refresh: "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z",
   download: "M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z",
-  flask: "M5,19A1,1 0 0,0 6,20H18A1,1 0 0,0 19,19C19,18.79 18.93,18.59 18.82,18.43L13,8.35V4H11V8.35L5.18,18.43C5.07,18.59 5,18.79 5,19M6,22A3,3 0 0,1 3,19C3,18.4 3.18,17.84 3.5,17.37L9,7.81V6A1,1 0 0,1 8,5V4A2,2 0 0,1 10,2H14A2,2 0 0,1 16,4V5A1,1 0 0,1 15,6V7.81L20.5,17.37C20.82,17.84 21,18.4 21,19A3,3 0 0,1 18,22H6M13,16L14.34,14.66L16.27,18H7.73L10.39,13.39L13,16M12.5,12A0.5,0.5 0 0,1 13,12.5A0.5,0.5 0 0,1 12.5,13A0.5,0.5 0 0,1 12,12.5A0.5,0.5 0 0,1 12.5,12Z",
   reset: "M18.93,8.00A8,8 0 1 1 12,4L12,6A6,6 0 1 0 17.20,9.00ZM12,1.5L16.5,5L12,8.5Z",
   info: "M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z",
-  refreshAuto: "M12.68 6H11.32L7 16H9L9.73 14H14.27L15 16H17L12.68 6M10.3 12.5L12 8L13.7 12.5H10.3M17.4 20.4L19 22H14V17L16 19C18.39 17.61 20 14.95 20 12C20 7.59 16.41 4 12 4S4 7.59 4 12C4 14.95 5.61 17.53 8 18.92V21.16C4.47 19.61 2 16.1 2 12C2 6.5 6.5 2 12 2S22 6.5 22 12C22 15.53 20.17 18.62 17.4 20.4Z",
   open: "M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z",
   pause: "M14,19H18V5H14M6,19H10V5H6V19Z",
   chevRight: "M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z",
@@ -49,7 +47,6 @@ export const P = {
   doorOpen: "M12,3C10.89,3 10,3.89 10,5H3V19H2V21H22V19H21V5C21,3.89 20.11,3 19,3H12M12,5H19V19H12V5M5,11H7V13H5V11Z",
   undo: "M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z",
   cog: "M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z",
-  fork: "M6,4V7H8V4H6M16,4V7H18V4H16M7,9L12,14L17,9H15L12,12L9,9H7M11,13V20H13V13H11Z",
   grid: "M3,11H11V3H3M3,21H11V13H3M13,21H21V13H13M13,3V11H21V3",
   repeat: "M17,17H7V14L3,18L7,22V19H19V13H17M7,7H17V10L21,6L17,2V5H5V11H7V7Z", // Aktions-Gruppe (1.59.0): wiederholen
   copy: "M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z",
@@ -62,10 +59,10 @@ export const P = {
   powerOff: "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12C20,13.85 19.37,15.55 18.31,16.9L7.1,5.69C8.45,4.63 10.15,4 12,4M4,12C4,10.15 4.63,8.45 5.69,7.1L16.9,18.31C15.55,19.37 13.85,20 12,20A8,8 0 0,1 4,12Z",
   speaker: "M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z",
   blinds: "M3,4H21V8H19V20H17V8H7V20H5V8H3V4M8,9H16V11H8V9M8,12H16V14H8V12Z",
-  blindsOpen: "M3,4H21V8H19V20H17V8H7V20H5V8H3V4M8,9H16V11H8V9Z",
   script: "M17.8,20C17.4,21.2 16.3,22 15,22H5C3.3,22 2,20.7 2,19V18H5L14.2,18C14.6,19.2 15.7,20 17,20H17.8M19,2C20.7,2 22,3.3 22,5V6H20V5C20,4.4 19.6,4 19,4C18.4,4 18,4.4 18,5V18H17C16.4,18 16,17.6 16,17V16H5V5C5,3.3 6.3,2 8,2H19M8,6V8H15V6H8M8,10V12H14V10H8Z",
   play: "M8,5.14V19.14L19,12.14L8,5.14Z",
   stop: "M18,18H6V6H18V18Z",
+  upload: "M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z",
   arrowUp: "M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z",
   arrowDown: "M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z",
   external: "M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z",
@@ -103,6 +100,52 @@ export const fmtDur = (seconds) => {
 
 export const ic = (name, size = 18) =>
   `<svg class="ag-ic" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">${RAW[name] || `<path fill="currentColor" d="${P[name]}"/>`}</svg>`;
+
+// Play-Knöpfe (Vorgabe des Nutzers, 2026-11-17): Jeder Play-Knopf im Panel wird beim Drücken rot und zum Stopp-Knopf, überall gleich
+// (Klasse "ag-running" in styles.js). Läuft etwas, das sich anhalten lässt (Test der Aktionen, Ton), stoppt der Knopf es. Einmalige Tests
+// (Testmeldung, ein Schritt der Überwachung) sind nach dem Senden schon fertig: der Knopf bleibt rot, bis der Server geantwortet hat, mindestens
+// ONCE_MS (sonst wäre der Wechsel nicht zu sehen); Stopp beendet dort nur die Anzeige, eine gesendete Meldung lässt sich nicht zurückholen.
+export const ONCE_MS = 1500;
+
+// Knopf eines einmaligen Tests. `key` sagt, welcher Test es ist: läuft er (owner.onceKey === key), ist der Knopf rot mit Stopp-Symbol. Der Knopf
+// wird beim Wechsel nur umgemalt (paintOnce), nie neu gezeichnet: ein offenes Fenster behält Eingaben und Fokus.
+export function onceBtn(key, attrs, { running = false, label, stopLabel, text = "", size = 18, cls = "ag-iconbtn", disabled = false, title = "" }) {
+  const tip = running ? stopLabel : title || label;
+  return `<button type="button" class="${cls} ${running ? "ag-running" : ""}" ${attrs} data-once="${esc(key)}" data-label="${esc(label)}" data-stop="${esc(stopLabel)}" data-tip="${esc(title || label)}"
+    ${disabled && !running ? "disabled" : ""} aria-label="${esc(running ? stopLabel : label)}" title="${esc(tip)}">${ic(running ? "stop" : "play", size)}${esc(text)}</button>`;
+}
+
+// Alle Knöpfe einmaliger Tests in den Bereichen `roots` dem laufenden Test `key` anpassen (rot und Stopp oder wieder Play)
+export function paintOnce(roots, key) {
+  for (const root of roots) {
+    for (const b of root?.querySelectorAll?.("[data-once]") || []) {
+      const run = b.dataset.once === key;
+      b.classList.toggle("ag-running", run);
+      const svg = b.querySelector("svg");
+      if (svg) svg.outerHTML = ic(run ? "stop" : "play", Number(svg.getAttribute("width")) || 18);
+      b.setAttribute("aria-label", run ? b.dataset.stop : b.dataset.label);
+      b.title = run ? b.dataset.stop : b.dataset.tip;
+      if (run) b.disabled = false;
+    }
+  }
+}
+
+// Einen einmaligen Test ausführen: Knopf rot, Arbeit, mindestens ONCE_MS, dann wieder Play (wenn nicht inzwischen gestoppt oder ersetzt)
+export async function runOnce(owner, key, work, paint) {
+  owner.onceKey = key;
+  paint();
+  const started = Date.now();
+  try {
+    await work();
+  } finally {
+    const rest = ONCE_MS - (Date.now() - started);
+    if (rest > 0) await new Promise((resolve) => setTimeout(resolve, rest));
+    if (owner.onceKey === key) {
+      owner.onceKey = null;
+      paint();
+    }
+  }
+}
 
 // Maskieren auch von Anführungszeichen: Namen landen in Attributen (LEARNINGS)
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);

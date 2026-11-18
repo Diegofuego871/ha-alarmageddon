@@ -61,35 +61,39 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="save"]');
     await s.waitFor(`return r.querySelector('${ack}').getAttribute('aria-checked') === 'false' && r.querySelector('[data-sys="save"]').disabled`);
 
-    // ----- Codes pro Person -----
-    check(`${tag}: Anna mit Benutzer`, await s.ev("const row=[...r.querySelectorAll('.ag-coderow')].find((x) => x.innerText.includes('Anna')); return !!row && row.querySelectorAll('small')[0].textContent === 'Anna'"));
-    check(`${tag}: kein Code sichtbar`, await s.ev("return !r.querySelector('.ag-codes').innerText.includes('2468') && !r.querySelector('.ag-codes').innerText.includes('1234')"));
-    await s.tap('[data-sys="code-add"]');
+    // ----- Codes pro Person (seit 1.63.0 im Fenster "Codes pro Person") -----
+    await s.tap('[data-sys="code-open"]');
+    check(`${tag}: Fenster der Codes offen`, await s.waitFor("return r.getElementById('ag-codelist').open"));
+    check(`${tag}: Anna mit Benutzer`, await s.ev("const row=[...r.querySelectorAll('#ag-codelist tr[data-code]')].find((x) => x.innerText.includes('Anna')); return !!row && row.querySelector('.ag-codeuser').textContent === 'Anna'"));
+    check(`${tag}: kein Code sichtbar`, await s.ev("return !r.getElementById('ag-codelist').innerText.includes('2468') && !r.getElementById('ag-codelist').innerText.includes('1234') && !r.querySelector('.ag-codes').innerText.includes('2468')"));
+    await s.tap('#ag-codelist [data-sys="code-add"]');
     check(`${tag}: Dialog Code`, await s.waitFor("return r.getElementById('ag-codes').open"));
     check(`${tag}: verknüpfter Benutzer nicht wählbar`, await s.ev("return ![...r.querySelectorAll('#ag-codes option')].some((o) => o.value === 'u_anna')"));
     await (await s.el('#ag-codes [data-key="user_id"]')).selectOption("u_gast");
     check(`${tag}: Name vorgeschlagen`, await s.waitFor("return r.querySelector('#ag-codes [data-key=\"name\"]').value === 'Gast'"));
-    await (await s.el('#ag-codes [data-key="code"]')).fill("1357");
-    await (await s.el('#ag-codes [data-key="code2"]')).fill("1358");
+    await (await s.el('#ag-codes [data-key="code"]')).fill("8395");
+    await (await s.el('#ag-codes [data-key="code2"]')).fill("8396");
     await s.tap('#ag-codes [data-sys="code-save"]');
     check(`${tag}: Codes ungleich`, await s.waitFor(`return r.querySelector('#ag-codes .ag-dlg-err').textContent.includes('${t.mismatch}')`));
-    await (await s.el('#ag-codes [data-key="code"]')).fill("1234");
-    await (await s.el('#ag-codes [data-key="code2"]')).fill("1234");
+    await (await s.el('#ag-codes [data-key="code"]')).fill("2468");
+    await (await s.el('#ag-codes [data-key="code2"]')).fill("2468");
     await s.tap('#ag-codes [data-sys="code-save"]');
     check(`${tag}: gleicher Code abgelehnt`, await s.waitFor(`return r.querySelector('#ag-codes .ag-dlg-err').textContent.includes('${t.taken}')`));
-    await (await s.el('#ag-codes [data-key="code"]')).fill("1357");
-    await (await s.el('#ag-codes [data-key="code2"]')).fill("1357");
+    await (await s.el('#ag-codes [data-key="code"]')).fill("8395");
+    await (await s.el('#ag-codes [data-key="code2"]')).fill("8395");
     await s.tap('#ag-codes [data-sys="code-save"]');
-    check(`${tag}: Code hinzugefügt`, await s.waitFor("return !r.getElementById('ag-codes').open && [...r.querySelectorAll('.ag-coderow')].some((x) => x.innerText.includes('Gast'))"));
+    check(`${tag}: Code hinzugefügt`, await s.waitFor("return !r.getElementById('ag-codes').open && [...r.querySelectorAll('#ag-codelist tr[data-code]')].some((x) => x.innerText.includes('Gast'))"));
     const added = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/add_code').at(-1)");
-    check(`${tag}: add_code gesendet`, added?.name === "Gast" && added?.user_id === "u_gast" && added?.code === "1357", JSON.stringify(added));
+    check(`${tag}: add_code gesendet`, added?.name === "Gast" && added?.user_id === "u_gast" && added?.code === "8395", JSON.stringify(added));
     check(`${tag}: der Code bleibt nach dem Schliessen nicht im Fenster stehen`, await s.waitFor("return [...r.querySelectorAll('#ag-codes input[type=\"password\"]')].length === 2 && [...r.querySelectorAll('#ag-codes input[type=\"password\"]')].every((i) => i.value === '')"));
-    await s.page.screenshot({ path: `${outDir}system-${lang}-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });
-    // Entfernen mit Rückfrage
-    await s.tap('[data-sys="code-del"][data-id="c_anna"]');
+    // Entfernen mit Rückfrage (im Fenster)
+    await s.tap('#ag-codelist [data-sys="code-del"][data-id="c_anna"]');
     check(`${tag}: Rückfrage Entfernen`, await s.waitFor("return r.getElementById('ag-codes').open && !!r.querySelector('#ag-codes [data-sys=\"code-remove\"]')"));
     await s.tap('#ag-codes [data-sys="code-remove"]');
-    check(`${tag}: Code entfernt`, await s.waitFor("return !r.getElementById('ag-codes').open && ![...r.querySelectorAll('.ag-coderow')].some((x) => x.innerText.includes('Anna'))"));
+    check(`${tag}: Code entfernt`, await s.waitFor("return !r.getElementById('ag-codes').open && ![...r.querySelectorAll('#ag-codelist tr[data-code]')].some((x) => x.innerText.includes('Anna'))"));
+    await s.tap('#ag-codelist [data-sys="code-list-close"]');
+    await s.waitFor("return !r.getElementById('ag-codelist').open");
+    await s.page.screenshot({ path: `${outDir}system-${lang}-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });
 
     // ----- Sicherung -----
     // Export und Import stehen seit 1.55.1 in der Fusszeile des Fensters "Sicherungen anzeigen"

@@ -196,7 +196,11 @@ Umsetzung:
   (`actions.js save`); der Server ersetzt je Auslöser und Art und behält den Rest. "Deaktiviert" nimmt die Werte des Modus, der scharf war
   (`Notifier._mode_seen`); nach einem Alarm geht nur die Abschlussmeldung hinaus. Tests in `tests/test_event_notify.py`, Suite `notices-e2e.mjs`,
   Zeilen "Feste Meldung" in `scripts/mutation_check.py`. Eine neue feste Meldung ergänzt `EVENT_NOTIFY_KINDS`, `NOTICE_KINDS` und `NOTICE_TOKENS`
-  (`tests/test_alarm_kinds.py` vergleicht Panel und Server).
+  (`tests/test_alarm_kinds.py` vergleicht Panel und Server). Seit 1.63.0 (Entscheid des Nutzers vom 2026-11-17) gehört die Abschlussmeldung unter "Alarm
+  endet" dazu, gleich aufgebaut (Schalter, Play, Stift): `workflow_end[auslöser].send: false` schaltet sie aus (dann geht nach einem Alarm nichts
+  hinaus, die Alarmmeldung bleibt auf dem Handy); fehlt `send`, geht sie wie bisher hinaus. `notify.enabled` heisst dort weiterhin nur "eigene Werte
+  statt Standard" und wird nie als "aus" gelesen (ältere Werte, Schema-Standard `False`). Tests `test_event_notify.py -k closing`, Zeilen
+  "Abschlussmeldung" in `scripts/mutation_check.py`.
 - Aktionen bei einem stillen Alarm (seit 1.62.0, Liste `workflows_report` je Auslöser, Kapitel "Bei einem stillen Alarm" vor dem Alarm): Der Automat
   meldet `sensor_report` mit `scope` (der Modus oder "always", `controller._report`); Meldung und Aktionen nehmen die Werte dieses Auslösers. Die
   Aktionen sind ein Lauf neben dem Alarm (`phase: "report"`, in `SIDE_PHASES`) mit den Schritten des Scharfschaltens (`valid_report_step`): **nie ein
@@ -235,7 +239,15 @@ Umsetzung:
   (`common.js searchField`, `matchQuery`: jedes Wort muss vorkommen), die Sicherungen dazu den Filter "Nur automatische". Gesucht wird in allem, was die
   Zeile zeigt, bei Routinen auch in den Entitäts-IDs. Beim Tippen wird nur der Behälter der Zeilen neu gezeichnet (`.ag-rtrows`, `.ag-csrows`,
   `.ag-bkbody`): das Feld behält den Fokus, ein offenes Formular seinen Inhalt. Gefilterte Zeilen behalten ihre Stelle im Entwurf (`data-index`).
-  Suite `popsearch-e2e.mjs`. Ein neues Fenster mit einer Liste bekommt dasselbe Suchfeld.
+  Suite `popsearch-e2e.mjs`. Ein neues Fenster mit einer Liste bekommt dasselbe Suchfeld. Seit 1.63.0 (Wunsch des Nutzers) stehen Titel und Suchfeld in
+  einem klebenden Kopf (`.ag-pop-head`, gleicher Hintergrund wie das Fenster, Abstand zur Liste immer der untere Rand des Kopfs); Suite `popsticky-e2e.mjs`.
+- Codes pro Person (seit 1.63.0, Wunsch des Nutzers): Liste im Fenster `#ag-codelist` (Tabelle Name, Benutzer, Code als fester Platzhalter "••••••",
+  Stift, Papierkorb; Suche; "Code hinzufügen" in der Fusszeile). Ein gespeicherter Code wird nie angezeigt (es gibt ihn nur als Hash); das Auge in den
+  Codefeldern zeigt nur den gerade getippten Code. Bearbeiten über `update_code`: leeres Codefeld = bisheriger Hash bleibt. Warnung bei einfachen Codes
+  (`system.js codeWeakness`) nur als Hinweis, Speichern bleibt möglich; die Regel 4 bis 8 Ziffern prüft der Server. Suite `codes-e2e.mjs`.
+  Hinzufügen, Bearbeiten und Entfernen laufen je Anlage unter `websocket_api._codes_lock` (zwischen Prüfen und Schreiben liegt das Hashen im
+  Executor; ohne Sperre legte ein Doppelklick denselben Code zweimal an, `tests/test_codes.py -k "double_click or same_time"`). Knöpfe, die
+  etwas an den Server schicken, nehmen bis zur Antwort keinen zweiten Druck an (`system.js _sendOnce`, Suite `codereview-e2e.mjs`).
 - Sensoransicht (seit 1.60.0): ein Messwert hat Werteverlauf, Batterie und Empfang, ein Binärsensor Verlauf, Batterie und Empfang
   (`ws_sensor_history`; bis 1.59.0 waren Batterie und Empfang für Messwerte abgelehnt). Test `test_measure_history.py -k battery_and_signal`.
 - Neustart und Absturz (seit 1.58.0, Code-Review): Der Zustand steht in einer eigenen Ablage (`controller._save_state`, `STATE_STORE_KEY`), sofort bei jedem
@@ -340,6 +352,11 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   dem Handy. Der Name hat immer Platz für drei Zeilen (danach "…", voll im Tooltip), die übrigen Zeilen haben feste Höhen, fehlende
   Angaben stehen als "–" da. Eine neue Zeile oder Angabe auf der Karte bekommt eine feste Höhe; `tests/panel/suites/cardheight-e2e.mjs`
   prüft das mit langen Namen, auf Desktop und Handy.
+- **Play-Knöpfe (Vorgabe des Nutzers, 2026-11-17):** Jeder Play-Knopf im Panel verhält sich gleich: beim Drücken rot mit weissem Stopp-Symbol
+  (Klasse `ag-running`, pulsiert), Stopp macht ihn wieder zum Play-Knopf. Was läuft, hält Stopp an; einmalige Tests (Testmeldung, Schritt der
+  Überwachung) über `common.js onceBtn`, `paintOnce`, `runOnce`: rot bis zur Antwort, mindestens `ONCE_MS`, Stopp beendet nur die Anzeige. Beim Wechsel
+  nur die Knöpfe ummalen (`paintOnce`), nie die Seite neu zeichnen (ein Neuzeichnen während des Neuladens nach dem Speichern liess die Ladeanzeige
+  stehen). Ein neuer Play-Knopf kommt in `tests/panel/suites/play-e2e.mjs`.
 - **Kapitel:** Einstellungen stehen in Kapiteln; jedes hat einen Titel mit
   einem Strich davor (`chapter()` in `panel/common.js`), darunter die Karte. Das Fenster "Ansicht" folgt dem seit 1.34.4 (Vorgabe
   des Nutzers 2026-11-14): Abschnitte als Kapitel statt kleiner grauer Grossbuchstaben (`.ag-label`). Andere Fenster mit `.ag-label`

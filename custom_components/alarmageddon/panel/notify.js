@@ -3,7 +3,7 @@
 // Meldung. Entwurf mit "Speichern"; Testmeldungen gehen mit dem gespeicherten Stand hinaus.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, errText, chapter, MODE_KEY, MODE_ICON } = await import(`./common.js${V}`);
+const { ic, esc, errText, chapter, MODE_KEY, MODE_ICON, onceBtn, paintOnce, runOnce } = await import(`./common.js${V}`);
 
 // Arten je Gruppe in der Reihenfolge der Anzeige, mit Symbol
 const GROUPS = {
@@ -214,7 +214,7 @@ export class NotifyUi {
         ${kind === "arm_failed" ? ["retry", "force"].map((key) => `<div class="ag-mt-opt sw">${toggle(`data-nt="armbtn" data-key="${key}"`, this._armButton(key), `${name}: ${this._t(`ntArm_${key}`)}`)}<span>${esc(this._t(`ntArm_${key}`))}<small class="ag-t2 ag-block">${esc(this._t(`ntArmHint_${key}`))}</small></span></div>`).join("") : ""}
         ${num ? `<div class="ag-mt-opt"><span>${esc(this._t(num[1]))}</span><span class="ag-num ${bad.has(num[0]) ? "bad" : ""}"><input type="number" min="${RANGES[num[0]][0]}" max="${RANGES[num[0]][1]}" step="1" inputmode="numeric" data-nt="num" data-key="${num[0]}" value="${esc(d[num[0]])}" aria-label="${esc(this._t(num[1]))}"><span class="ag-t2">${esc(num[2] === "minutes" ? this._t("minutes") : num[2])}</span></span></div>` : ""}
         <div class="ag-mt-opt"><span class="ag-t2 ag-small">${esc(this._t("ntTestHint"))}</span>
-          <button class="ag-btn" data-nt="test" data-kind="${kind}"${md} ${dirty ? "disabled" : ""} title="${esc(dirty ? this._t("wfSaveFirst") : this._t("ntTestType"))}">${ic("play", 16)}${esc(this._t("ntTestType"))}</button></div></div>`;
+          ${onceBtn(`nt:${kind}:${mode || ""}`, `data-nt="test" data-kind="${kind}"${md}`, { running: this.onceKey === `nt:${kind}:${mode || ""}`, label: this._t("ntTestType"), stopLabel: this._t("playStop"), text: this._t("ntTestType"), size: 16, cls: "ag-btn", disabled: dirty, title: dirty ? this._t("wfSaveFirst") : this._t("ntTestType") })}</div></div>`;
     }
     return `<div class="ag-mt ${sub ? "sub" : ""} ${s.enabled ? "" : "off"}"><div class="ag-mt-head">${toggle(`data-nt="enabled" data-kind="${kind}"${md}`, s.enabled, name)}<span class="ag-mini">${ic(icon, 16)}</span>
         <div class="ag-settx"><b>${esc(name)}</b><small>${esc(hint)}</small>${origin}</div></div>${body}</div>`;
@@ -300,15 +300,24 @@ export class NotifyUi {
     }
   }
 
+  // Testmeldung einer Art: der Knopf wird rot und zum Stopp-Knopf wie jeder Play-Knopf (common.js runOnce); Stopp beendet nur die Anzeige
   async test(kind, mode) {
     const h = this.host;
-    try {
-      const result = await h._hass.callWS({ type: "alarmageddon/test_notify", kind, ...(mode ? { mode } : {}) });
-      const n = result?.targets?.length || 0;
-      h._toast(n ? this._t("ntTestSent", { count: n }) : this._t("ntTestNone"));
-    } catch (err) {
-      h._toast(this._t("errGeneric", { message: errText(err) }));
+    const key = `nt:${kind}:${mode || ""}`;
+    const paint = () => paintOnce([h._view], this.onceKey);
+    if (this.onceKey === key) {
+      this.onceKey = null;
+      return paint();
     }
+    await runOnce(this, key, async () => {
+      try {
+        const result = await h._hass.callWS({ type: "alarmageddon/test_notify", kind, ...(mode ? { mode } : {}) });
+        const n = result?.targets?.length || 0;
+        h._toast(n ? this._t("ntTestSent", { count: n }) : this._t("ntTestNone"));
+      } catch (err) {
+        h._toast(this._t("errGeneric", { message: errText(err) }));
+      }
+    }, paint);
   }
 
   onClick(el) {

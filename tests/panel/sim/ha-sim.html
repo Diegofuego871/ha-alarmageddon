@@ -204,6 +204,8 @@
     window.__calls.push(JSON.parse(JSON.stringify(msg)));
     if (window.__wsDelay) await new Promise((r) => setTimeout(r, window.__wsDelay));
     if (window.__wsFail) { const f = window.__wsFail; window.__wsFail = null; throw f; }
+    // Verbindung dauerhaft weg (1.63.0, Code-Review): jeder Aufruf scheitert sofort wie bei home-assistant-js-websocket ohne Verbindung (Fehler 3)
+    if (window.__wsDown) throw 3;
     if (msg.type === "alarmageddon/rename_sound") {
       const list = window.__customSounds;
       if (!list.some((s) => s.id === msg.sound_id)) throw err("not_found");
@@ -227,6 +229,7 @@
       const legacy = { ...(n.types?.[kind] || {}), ...(n.per_mode && trigger !== "always" && ["sensor_report", "pending", "armed"].includes(kind) ? n.modes?.[trigger]?.[kind] || {} : {}) };
       return [kind, { enabled: !!legacy.enabled, title: "", message: "", critical: !!legacy.critical, volume: legacy.volume ?? 0.8, persistent: !!legacy.persistent, click: "overview", click_path: "", targets: [...(legacy.targets || [])] }];
     }))]));
+    if (msg.type === "alarmageddon/test_end_notify") return { ok: true }; // wie der Server: sendet an die Empfänger, ohne sie zu nennen
     if (msg.type === "alarmageddon/test_event_notify") {
       const targets = msg.notice?.targets?.length ? msg.notice.targets : window.__notify.alarm_targets;
       if (!targets.length) throw { code: "no_targets", message: "No recipients configured" };
@@ -580,6 +583,21 @@
       sys.pcodes[id] = msg.code;
       sys.has_code = true;
       return { id };
+    }
+    if (msg.type === "alarmageddon/update_code") {
+      // Wie der Server (1.63.0): ohne Code bleibt der bisherige; Name, Benutzer und Code dürfen keiner anderen Person gehören
+      const mine = sys.codes.find((c) => c.id === msg.code_id);
+      if (!mine) throw err("not_found");
+      const others = sys.codes.filter((c) => c !== mine);
+      const code = (msg.code || "").trim();
+      if (code && !/^\d{4,8}$/.test(code)) throw err("invalid_code_format");
+      if (others.some((c) => c.name.toLowerCase() === msg.name.toLowerCase())) throw err("name_taken");
+      if (msg.user_id && others.some((c) => c.user_id === msg.user_id)) throw err("user_taken");
+      if (code && (code === sys.code || others.some((c) => sys.pcodes[c.id] === code))) throw err("code_taken");
+      const changed = mine.name !== msg.name || (mine.user_id || null) !== (msg.user_id || null) || (code && code !== sys.pcodes[mine.id]);
+      Object.assign(mine, { name: msg.name, user_id: msg.user_id || null });
+      if (code) sys.pcodes[mine.id] = code;
+      return { ok: true, reload: Boolean(changed) };
     }
     if (msg.type === "alarmageddon/remove_code") {
       if (!sys.codes.some((c) => c.id === msg.code_id)) throw err("not_found");

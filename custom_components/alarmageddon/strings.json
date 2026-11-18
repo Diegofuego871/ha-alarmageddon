@@ -18,10 +18,8 @@
     },
     "error": {
       "name_required": "Enter a name.",
-      "invalid_code_format": "The code must have 4 to 8 digits."
-    },
-    "abort": {
-      "already_configured": "An alarm system with this name already exists."
+      "invalid_code_format": "The code must have 4 to 8 digits.",
+      "name_taken": "An alarm system with this name already exists."
     }
   },
   "options": {
@@ -96,7 +94,8 @@
       "invalid_code_format": "The code must have 4 to 8 digits.",
       "code_and_remove": "Enter a new code or remove the code, not both.",
       "code_missing": "\"Code required to arm\" needs a code.",
-      "mode_active": "Disarm the alarm system first: the mode it is armed in cannot be switched off."
+      "mode_active": "Disarm the alarm system first: the mode it is armed in cannot be switched off.",
+      "code_taken": "This code already belongs to a person. Every code must be unique."
     }
   },
   "entity": {

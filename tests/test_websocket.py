@@ -290,3 +290,21 @@ async def test_several_systems_load_together_at_startup(hass: HomeAssistant) -> 
     await hass.async_block_till_done()
     assert [e.state for e in entries] == [ConfigEntryState.LOADED] * 3
     assert _panel_registered(hass)
+
+
+async def test_save_zones_keeps_the_zone_of_a_mode_missing_in_the_request(hass: HomeAssistant, hass_ws_client) -> None:
+    """
+    Code-Review 1.63.0: Ein Modus, der in der Anfrage fehlt, behält seine Zone (wie fehlende Auslöser in save_workflows). Bis 1.62.0 wurde sie
+    geleert; das Panel sendet immer alle Modi, ein anderer Aufrufer hätte die Zone "Nacht" still gelöscht.
+    """
+    entry = await setup_alarm(hass, night_enabled=True, zone_night=[FRONT_DOOR, WINDOW])
+    result = await _ws(hass, hass_ws_client, type="alarmageddon/save_zones", entry_id=entry.entry_id, zones={"home": [WINDOW], "away": [WINDOW, MOTION]}, entry_sensors=[])
+    assert result["success"], result
+    await hass.async_block_till_done()
+    assert entry.options["zone_night"] == [FRONT_DOOR, WINDOW]
+    assert (entry.options["zone_home"], entry.options["zone_away"]) == ([WINDOW], [WINDOW, MOTION])
+    # Ausdrücklich leer gesendet: dann leer
+    result = await _ws(hass, hass_ws_client, type="alarmageddon/save_zones", entry_id=entry.entry_id, zones={"home": [WINDOW], "away": [WINDOW], "night": []}, entry_sensors=[])
+    assert result["success"], result
+    await hass.async_block_till_done()
+    assert entry.options["zone_night"] == []

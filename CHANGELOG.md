@@ -7,6 +7,50 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.63.0] - 2026-11-17
+
+### Added
+
+- **Play button on every fixed message.** The cards "Armed", "Silent alarm", "Entry delay", "Disarmed" and the closing message have a play button before the pencil: it sends a test message with the values of the card, unsaved ones too. When the message is switched off, it is disabled.
+- **The closing message can be switched off.** Its switch now sits on the card like with the other fixed messages; in the window it is called "Send the message". Off: when the alarm ends, no message goes out, and the alarm message stays on the phone. Until now "Alarm ended" always went out.
+- **Codes per person: edit a code.** The pencil opens the same window as "Add code", with name and user filled in. Left empty, the code fields keep the current code; a new code replaces it. The same rules apply as when adding (no code, name or user of another person).
+- **Codes per person: an eye in the code fields** shows the code you are typing and hides it again. Saved codes cannot be shown: only a hash is stored.
+- **Codes per person: a warning for codes that are easy to guess.** Red and bold with a warning sign below the code fields: sequences (1234, 2468), only one digit (0000), repeated patterns (1212, 1122), three equal digits in a row, mirrored numbers (1221), lines on the keypad (2580), years (1987) and dates (24121990); while typing fewer than 4 digits "Too short". Saving stays possible; codes with fewer than 4 or more than 8 digits are refused as before.
+
+### Changed
+
+- **Every play button behaves the same.** When pressed it turns red and becomes a stop button, everywhere in the panel: test a step, "Test" at the bottom, fixed messages, test in the window of a message, sound preview, your own sounds, monitoring step, test message in the Notifications tab. Until now the sound preview turned blue, the monitoring test stayed a play button, and the test messages showed nothing at all. A test message is already on its way once sent: its button stays red until the server has answered, at least 1.5 seconds; there, stop only ends the display.
+- **The closing message is built like the other fixed messages.** "Message: closing message", below it the recipients, critical and "own text", the same bell icon. The window no longer has a second switch "own message": title and text are shown right away, left empty the standard text applies. Existing settings stay as they are.
+- **"Messages" is now called "Fault messages".** Since 1.62.0 the chapter in the Notifications tab only holds "Arming not possible" and "Sensor unreachable while armed"; "Maintenance messages" follows below.
+- **Your own sounds: a button "Upload" for the file.** Instead of the browser's field ("Choose File", on the iPhone with an empty square before the name) there is a button in the panel's style with an upload icon, the file name next to it. The button at the bottom is called "Save".
+- **Windows "Routines", "Your own sounds", "Backups" and "Codes per person": title and search field stay at the top while scrolling.** The list runs underneath, the distance from the search field to the list always stays the same. Until now the search field scrolled away and was cut in half at the top edge on the phone.
+- **Codes per person in a window.** The page keeps the summary with "Show codes", the main code and "Acknowledging asks for the code". The window (full screen on the phone) shows a table with name, user and code, sortable by name and user, with a search field that stays at the top; the code appears only as "••••••". "Add code" sits in the footer, pencil and bin in every row. Below 360 pixels width the code column is left out.
+- **"Monitoring" tab: the switch "Settings per mode" is shown here too.** Until now an empty space kept its place. The tab row sits at the same place in every tab; switching it in the "Monitoring" tab keeps you there.
+- **Action group: "Repeat until disarmed" stands out more.** How the group repeats is shown in its header slightly larger and bold.
+- **Adding an alarm system in Home Assistant: a name that is taken is refused like in the panel.** Upper and lower case and double spaces no longer make a different name ("haus" next to "Haus" was possible); the dialog shows the error at the name instead of ending.
+- **The main code can no longer be the same as a person's code.** In the options of the integration a new main code that belongs to a person is refused; "changed by" would otherwise stay empty. Adding a person's code already refused the main code.
+- **Saving the zones keeps the zone of a mode that is missing in the request.** The panel always sends all modes; only other callers were affected.
+- **Dashboard card: less work on every state change in the house.** The card looks up the entities of its alarm system only when the entity registry changes.
+- **A button that sends something takes no second press until the answer has arrived.** "Save" when adding or editing a code, "Save" for a backup, "Restore" and renaming your own sound. A double click sent everything twice until now (two identical backups, a second import).
+- **Fewer requests after a lost connection.** The panel tries again every 5 seconds, with one request. Until now every failed request planned its own retry: after an hour without connection around 120 ran side by side, and they all reached Home Assistant at the same moment when the connection returned.
+- **Error messages of number fields name the right unit.** Reminder of a monitoring rule in hours, the "Wait" step of monitoring in minutes or seconds (up to 60 minutes or 3600 seconds), the number of automatic backups as a number. Until now every message said "seconds", for the wait step "from 0 to 60".
+- **The device selection of routines and monitoring loads with the three dots** like everywhere else in the panel, instead of the text "Loading devices ...".
+- **Screen readers name the number fields in the Alarm system tab by their title** ("Exit delay") instead of the internal key ("exit_delay").
+
+### Fixed
+
+- **Phone: rows "Routines" and "Your own sounds" in the Alarm system tab.** The buttons squeezed the summary to zero width, the text ran word by word under the buttons ("3 Ro…", also with "Changes not saved yet"). On the phone the buttons now sit below the text.
+- **Phone: play and pencil of the fixed messages** sit below the text like with the steps; next to it there was too little room for "Message: closing message".
+- **Notifications tab: the note about the new place of the messages stuck** to the card above and to the next chapter. It now has room.
+- **A damaged routine no longer stops the alarm system from loading.** Until now only some errors were caught; a trigger that was not readable left the whole alarm system unloaded. The other routines run.
+- **A damaged history of the reception or of the sensor statistics no longer stops the recording.** Until now nothing was recorded until Home Assistant restarted, and the sensor view showed an error for every sensor.
+- **Restoring a backup into a new alarm system whose setup failed** no longer stops with an error halfway.
+- **Backups created or deleted at the same time no longer lose a change** (automatic backup and the panel).
+- **Two sounds uploaded at the same time** can no longer get the same name or exceed the limit.
+- **Double click on "Save" when adding a code created the code twice** (the same person with the same code twice). Adding, editing and removing codes now run one after another for each alarm system; editing and removing at the same time no longer bring back a removed code.
+- **Sensor view, "Device" tab: "Always active" only where it applies.** It was shown for every alarm system whose sensor type has "Always active" as preset, also when the sensor did not belong to that alarm system or "Always active" was switched off there. The view now counts like the list of the overview.
+- **Keyboard after dragging over the boxes in the Sensors tab:** the first Space or Enter on a box did nothing.
+
 ## [1.62.0] - 2026-11-17
 
 ### Added
@@ -1838,6 +1882,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.63.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.63.0
 [1.62.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.62.0
 [1.61.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.61.0
 [1.60.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.60.0

@@ -561,3 +561,30 @@ def test_forgetting_a_sound_clears_the_built_files(hass: HomeAssistant) -> None:
     hass.data[sound_loop.DATA_LOOP_CACHE] = {("custom_aaaaaaaaaaaa", 1000): b"x", ("siren", 1000): b"y"}
     sound_loop.forget(hass, "custom_aaaaaaaaaaaa")
     assert list(hass.data[sound_loop.DATA_LOOP_CACHE]) == [("siren", 1000)]
+
+
+async def test_two_uploads_at_the_same_time_never_share_a_name_or_exceed_the_limit(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Code-Review 1.63.0: Anzahl, Name und Platz werden vor dem Umwandeln geprüft, das dauern kann. Zwei gleichzeitige Uploads sahen bis 1.62.0 beide
+    dieselbe Lage: zwei Töne mit demselben Namen, oder einer über der Höchstzahl. Jetzt kommt ein Upload nach dem anderen.
+    """
+    import asyncio
+    import time
+
+    await setup_alarm(hass)
+    reg = hass.data[DATA_CUSTOM_SOUNDS]
+    real = cs.convert
+
+    def slow(raw, ffmpeg):
+        time.sleep(0.2)  # im Executor: beide Umwandlungen liefen sonst nebeneinander
+        return real(raw, ffmpeg)
+
+    monkeypatch.setattr(cs, "convert", slow)
+    results = await asyncio.gather(reg.async_add("Sirene", make_wav(), None), reg.async_add("sirene", make_wav(), None), return_exceptions=True)
+    assert [type(r).__name__ for r in results].count("dict") == 1, results
+    assert [r.code for r in results if isinstance(r, cs.SoundError)] == ["name_taken"]
+    assert [item["name"] for item in reg.items.values()] in (["Sirene"], ["sirene"])
+    monkeypatch.setattr(cs, "MAX_CUSTOM_SOUNDS", 2)
+    results = await asyncio.gather(reg.async_add("Gong", make_wav(), None), reg.async_add("Glocke", make_wav(), None), return_exceptions=True)
+    assert len(reg.items) == 2
+    assert [r.code for r in results if isinstance(r, cs.SoundError)] == ["too_many"]

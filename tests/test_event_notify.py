@@ -572,3 +572,67 @@ async def test_the_actions_of_a_mode_only_run_while_that_mode_is_armed(hass: Hom
     assert targets(on) == ["switch.home", "switch.immer"]
     await call(hass, "alarm_disarm")
     await settle(hass)
+
+
+# ----- Abschlussmeldung ausschaltbar wie die anderen festen Meldungen (1.63.0, Entscheid des Nutzers vom 2026-11-17) -----
+
+
+@pytest.mark.parametrize("how", ["deaktivieren", "quittieren"])
+async def test_a_switched_off_closing_message_sends_nothing(hass: HomeAssistant, how: str) -> None:
+    """Aus: weder "Alarm beendet" noch stattdessen "Deaktiviert"; die Alarmmeldung bleibt auf dem Handy. Der Modus ohne "aus" meldet wie bisher."""
+    entry, pushes = await _setup(hass, event_notify={"home": {"disarmed": notice(True)}, "away": {"disarmed": notice(True)}},
+                                 workflow_end={"home": {"send": False, "notify": {"enabled": True, "title": "Eigener Text"}}})
+    for mode, expected in (("alarm_arm_home", []), ("alarm_arm_away", ["✅ Alarm ended: Haus"])):
+        await call(hass, mode)
+        await open_sensor(hass, WINDOW)
+        await settle(hass)
+        assert state(hass) == AlarmControlPanelState.TRIGGERED
+        pushes.clear()
+        if how == "deaktivieren":
+            await call(hass, "alarm_disarm")
+        else:
+            assert entry.runtime_data.controller.acknowledge("Anna") is True
+        await settle(hass)
+        assert [p.data["title"] for p in pushes] == expected, mode
+        await open_sensor(hass, WINDOW, "off")
+        await call(hass, "alarm_disarm")
+        await settle(hass)
+
+
+async def test_without_the_new_value_the_closing_message_goes_out_as_before(hass: HomeAssistant) -> None:
+    """Das Update ändert nichts: ein gespeicherter Wert ohne "send" (auch "notify.enabled: false" aus früheren Versionen) heisst "senden"."""
+    _entry, pushes = await _setup(hass, workflow_end={"home": {"notify": {"enabled": False, "title": "alt"}}})
+    await call(hass, "alarm_arm_home")
+    await open_sensor(hass, WINDOW)
+    await settle(hass)
+    pushes.clear()
+    await call(hass, "alarm_disarm")
+    await settle(hass)
+    assert [p.data["title"] for p in pushes] == ["✅ Alarm ended: Haus"]
+
+
+async def test_switching_the_closing_message_off_keeps_its_own_text(hass: HomeAssistant, hass_ws_client) -> None:
+    """Speichern: "aus" bleibt stehen, die eigenen Werte auch (wer wieder einschaltet, findet seinen Text); "an" wird nicht gespeichert."""
+    entry, _pushes = await _setup(hass)
+    client = await hass_ws_client(hass)
+    own = {"enabled": True, "title": "Ruhe", "message": "", "critical": None, "volume": None, "click": "log", "click_path": ""}
+    result = await _ws(client, type=f"{DOMAIN}/save_workflows", entry_id=entry.entry_id, workflows={}, workflow_end={"home": {"notify": own, "send": False}, "away": {"send": True}})
+    assert result["success"], result
+    await hass.async_block_till_done()
+    assert entry.options["workflow_end"]["home"]["send"] is False and entry.options["workflow_end"]["home"]["notify"]["title"] == "Ruhe"
+    assert "away" not in entry.options["workflow_end"]
+    client2 = await hass_ws_client(hass)
+    shown = (await _ws(client2, type=f"{DOMAIN}/data"))["result"]["systems"][0]["workflow_end"]
+    assert shown["home"]["send"] is False
+    for bad in ({"home": {"send": "nein"}}, {"home": {"send": 0}}):
+        with pytest.raises(vol.Invalid):
+            SYSTEM_OPTIONS_SCHEMA({"workflow_end": bad})
+        assert not (await _ws(client2, type=f"{DOMAIN}/save_workflows", entry_id=entry.entry_id, workflows={}, workflow_end=bad))["success"]
+    # Sicherung: "aus" geht mit und kommt zurück
+    exported = (await _ws(client2, type=f"{DOMAIN}/export"))["result"]
+    assert exported["systems"][0]["options"]["workflow_end"]["home"]["send"] is False
+    hass.config_entries.async_update_entry(entry, options={k: v for k, v in entry.options.items() if k != "workflow_end"})
+    await hass.async_block_till_done()
+    assert (await _ws(client2, type=f"{DOMAIN}/import", data=exported, dry_run=False))["success"]
+    await hass.async_block_till_done()
+    assert entry.options["workflow_end"]["home"]["send"] is False

@@ -19,7 +19,8 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 
-from .code import hash_code
+from .code import hash_code, match_code
+from .systems import new_system_name
 from .const import (
     CODE_PATTERN,
     CONF_CODE_ACK_REQUIRED,
@@ -79,11 +80,12 @@ class AlarmageddonConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
-            name = user_input[CONF_NAME].strip()
+            # Wie im Panel (1.63.0): doppelte Leerzeichen fallen weg, ein vergebener Name zählt ohne Gross-/Kleinschreibung ("haus" neben
+            # "Haus" gab es sonst, das Panel lehnte es ab)
+            name, name_error = new_system_name(self.hass, user_input[CONF_NAME])
             code = (user_input.get(FIELD_CODE) or "").strip()
-            self._async_abort_entries_match({CONF_NAME: name})
-            if not name:
-                errors[CONF_NAME] = "name_required"
+            if name_error:
+                errors[CONF_NAME] = name_error
             elif code and not _valid_code(code):
                 errors[FIELD_CODE] = "invalid_code_format"
             else:
@@ -159,10 +161,18 @@ class AlarmageddonOptionsFlow(OptionsFlow):
                     options.pop(CONF_CODE_HASH, None)
                     options.pop(CONF_CODE_SALT, None)
                 elif new_code:
-                    options[CONF_CODE_HASH], options[CONF_CODE_SALT] = await self.hass.async_add_executor_job(
-                        hash_code, new_code
-                    )
-                if (options[CONF_CODE_ARM_REQUIRED] or options[CONF_CODE_ACK_REQUIRED]) and not options.get(CONF_CODE_HASH) and not options.get(CONF_CODES):
+                    # Nie derselbe Code wie ein persönlicher (1.63.0, wie add_code und update_code umgekehrt): sonst wäre "geändert von" leer,
+                    # obwohl die Person ihren Code getippt hat
+                    personal = [(c["hash"], c["salt"]) for c in options.get(CONF_CODES) or [] if isinstance(c, dict) and c.get("hash") and c.get("salt")]
+                    if personal and await self.hass.async_add_executor_job(match_code, new_code, personal) is not None:
+                        errors["base"] = "code_taken"
+                    else:
+                        options[CONF_CODE_HASH], options[CONF_CODE_SALT] = await self.hass.async_add_executor_job(
+                            hash_code, new_code
+                        )
+                if errors:
+                    pass
+                elif (options[CONF_CODE_ARM_REQUIRED] or options[CONF_CODE_ACK_REQUIRED]) and not options.get(CONF_CODE_HASH) and not options.get(CONF_CODES):
                     errors["base"] = "code_missing"
                 else:
                     return self.async_create_entry(data=options)

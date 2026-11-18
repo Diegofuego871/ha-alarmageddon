@@ -6,6 +6,7 @@
 
 const V = new URL(import.meta.url).search;
 const { ic, esc, fmtDur, MODE_KEY, MODE_ICON, chapter, matchQuery, searchField } = await import(`./common.js${V}`);
+const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
 const CLOCK_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -201,11 +202,12 @@ export class RoutinesUi {
     const full = d.routines.length >= MAX_ROUTINES;
     const add = (cls) => `<button class="ag-btn ${cls}" data-sys="rt-add" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("rtAdd"))}</button>`;
     // Suchfeld über der Liste (1.60.0, Wunsch des Nutzers); beim Tippen wird nur die Liste darunter neu gezeichnet, das Feld behält den Fokus
+    // Titel und Suchfeld stehen in einem Kopf, der beim Scrollen oben kleben bleibt (1.63.0, Wunsch des Nutzers; .ag-pop-head)
+    const tools = rows ? `<div class="ag-tools ag-pop-tools">${searchField("data-sys", "rt-search", this.q, this._t("rtFilter"), this._t("clearSearch"))}</div>` : "";
     const body = rows
-      ? `<div class="ag-tools ag-pop-tools">${searchField("data-sys", "rt-search", this.q, this._t("rtFilter"), this._t("clearSearch"))}</div>
-        <div class="ag-rtrows">${this._rowsHtml()}</div><p class="ag-chap-h ag-rtfoot">${esc(this._t("rtFootHint"))}</p>`
+      ? `<div class="ag-rtrows">${this._rowsHtml()}</div><p class="ag-chap-h ag-rtfoot">${esc(this._t("rtFootHint"))}</p>`
       : `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(this._t("rtEmpty"))}</span>${add("primary")}</div>`;
-    return `<div class="ag-dlg-body ag-rt-pop"><h3>${esc(this._t("rtTitle"))}</h3>${body}
+    return `<div class="ag-dlg-body ag-rt-pop"><div class="ag-pop-head"><h3>${esc(this._t("rtTitle"))}</h3>${tools}</div>${body}
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-close">${esc(this._t("close"))}</button>${rows ? add("primary") : ""}</div></div>`;
   }
 
@@ -617,7 +619,11 @@ export class RoutinesUi {
 
   // Die Liste einzeln neu zeichnen, damit der Cursor im Suchfeld bleibt. Gesucht wird in Name, Bereich und Entitäts-ID; angezeigt wird die ID nie.
   pickList() {
-    if (!this.ents) return `<div class="ag-t2 ag-rtnone">${esc(this._t("rtLoading"))}</div>`;
+    // Die Geräte sind unterwegs: dieselbe Ladeanzeige wie überall (drei Punkte, kein Text; 1.63.0, Code-Review, vorher "Geräte werden geladen ...")
+    if (!this.ents) {
+      loaderStart(this.host._root, this.host);
+      return `<div class="ag-pick-wait" style="position:relative;min-height:120px">${loaderHtml(esc(this._t("loading")))}</div>`;
+    }
     const p = this.pick;
     const group = FILTERS.find((f) => f[0] === p.filter)?.[2];
     const q = p.q.trim().toLowerCase();

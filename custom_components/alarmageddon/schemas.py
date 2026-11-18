@@ -246,7 +246,7 @@ END_NOTIFY_SCHEMA = vol.Schema({
     vol.Optional("click_path"): vol.Any("", vol.All(str, vol.Length(max=200), vol.Match(r"^/[^\s]*$"))),
     vol.Optional("targets"): NOTIFY_TARGETS,
 })
-END_SCHEMA = vol.Schema({vol.Optional("notify"): END_NOTIFY_SCHEMA}, extra=vol.REMOVE_EXTRA)
+END_SCHEMA = vol.Schema({vol.Optional("notify"): END_NOTIFY_SCHEMA, vol.Optional("send"): bool}, extra=vol.REMOVE_EXTRA)
 
 
 def valid_end(value: Any) -> dict[str, Any]:

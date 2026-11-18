@@ -303,9 +303,10 @@ for (const lang of ["de", "en"]) {
     // Auslöser wechseln: "Nacht" leer, gemerkt
     await s.tap('.ag-wf-head [data-trigger="night"]');
     check(`${tag}: leerer Ablauf: nur das Plus, kein Hinweisfeld (1.26.1)`, await s.waitFor("return !r.querySelector('.ag-wf-empty, .ag-wf-main .ag-empty') && !!r.querySelector('.ag-wf-main [data-wf=\"add\"][data-at=\"0\"]') && r.querySelector('[data-wf=\"test\"]').disabled"));
-    // 1.26.0: das Feld unter "Alarm endet" heisst nur "Abschlussmeldung" (Standardhinweis kurz, mit eigener Meldung ganz ohne Beschreibung)
-    const closing = lang === "de" ? "Abschlussmeldung" : "Closing message";
-    check(`${tag}: Feld unter "Alarm endet": nur "${closing}" und der kurze Standardhinweis`, await s.ev(`const c=r.querySelector('.ag-wf-end .ag-wf-endcard'); return c.querySelector('b').textContent.trim() === ${JSON.stringify(closing)} && c.querySelector('small').textContent.length < 40`));
+    // 1.63.0: die Karte unter "Alarm endet" ist aufgebaut wie die anderen festen Meldungen: "Meldung: Abschlussmeldung", darunter die Empfänger
+    const closing = lang === "de" ? "Meldung: Abschlussmeldung" : "Message: closing message";
+    const standard = lang === "de" ? "Standard-Empfänger" : "Standard recipients";
+    check(`${tag}: Karte unter "Alarm endet": "${closing}", darunter "${standard}", Schalter an`, await s.ev(`const c=r.querySelector('.ag-wf-end .ag-wf-endcard'); return c.querySelector('b').textContent.trim() === ${JSON.stringify(closing)} && c.querySelector('small').textContent.trim() === ${JSON.stringify(standard)} && c.querySelector('[data-wf="end-on"]').getAttribute('aria-checked') === 'true'`));
     check(`${tag}: Auslöser gemerkt`, await s.ev("return localStorage.getItem('alarmageddon.trigger') === 'night'"));
     // Mit Änderung wegklicken verliert nichts: der Ablauf bleibt als Entwurf, ein Punkt am Reiter zeigt es
     await s.tap('.ag-wf-main [data-wf="add"][data-at="0"]');

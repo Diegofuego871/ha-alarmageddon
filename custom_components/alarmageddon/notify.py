@@ -489,14 +489,16 @@ class Notifier:
         elif state in (AlarmControlPanelState.ARMED_HOME, AlarmControlPanelState.ARMED_AWAY, AlarmControlPanelState.ARMED_NIGHT):
             if previous == AlarmControlPanelState.TRIGGERED:
                 # Alarm quittiert (die Anlage bleibt scharf): wie beim Deaktivieren ersetzt "Alarm beendet" die Alarmmeldung
-                if self._on("triggered"):
+                if self._on("triggered") and self._end_sends():
                     self.send_alarm_end(self._ctl.changed_by, acknowledged=True)
             elif self.notice("armed", self._ctl.mode)["enabled"]:
                 self.send_event("armed", self._ctl.mode, person=self._ctl.changed_by)
         elif state == AlarmControlPanelState.DISARMED:
             by = self._ctl.changed_by
             if previous == AlarmControlPanelState.TRIGGERED and self._on("triggered"):
-                self.send_alarm_end(by)
+                # Nach einem Alarm nur die Abschlussmeldung; ist sie ausgeschaltet (1.63.0), geht nichts hinaus, auch nicht "Deaktiviert"
+                if self._end_sends():
+                    self.send_alarm_end(by)
             elif self.notice("disarmed", was_mode)["enabled"]:
                 # Die Meldung des Modus, der scharf war (oder gerade scharf wurde)
                 self.send_event("disarmed", was_mode, person=by)
@@ -710,11 +712,19 @@ class Notifier:
                                "authenticationRequired": True, "destructive": True})
         self._send("triggered", title, message, tag=self._tag(), actions=actions, critical=step.get("critical"), volume=step.get("volume"), url=target, targets=step.get("targets"))
 
-    def _end_notify(self) -> dict[str, Any] | None:
-        """Eigene Meldung aus dem Element "Alarm endet" (Konfiguration › Aktionen), wenn eingeschaltet."""
+    def _end_value(self) -> dict[str, Any]:
+        """Element "Alarm endet" des Auslösers, der den Alarm ausgelöst hat (Konfiguration › Aktionen)."""
         value = (self.entry.options.get("workflow_end") or {}).get(self._alarm_trigger or self._ctl.mode or "always")
-        own = value.get("notify") if isinstance(value, dict) else None
-        return own if own and own.get("enabled") else None
+        return value if isinstance(value, dict) else {}
+
+    def _end_notify(self) -> dict[str, Any] | None:
+        """Eigene Meldung aus dem Element "Alarm endet", wenn eingeschaltet."""
+        own = self._end_value().get("notify")
+        return own if isinstance(own, dict) and own.get("enabled") else None
+
+    def _end_sends(self) -> bool:
+        """Geht die Abschlussmeldung hinaus? Nur ein ausdrückliches "aus" (1.63.0) hält sie zurück; fehlt die Angabe, wie bis 1.62.x: ja."""
+        return self._end_value().get("send") is not False
 
     @callback
     def send_alarm_end(self, by: str | None, test: bool = False, own: dict[str, Any] | None = None, acknowledged: bool = False) -> None:

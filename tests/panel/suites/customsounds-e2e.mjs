@@ -3,8 +3,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { many: "in 3 Aktionen genutzt", errText: "Textdatei", errImage: "ein Bild", errServer: "Code 500", errNet: "nicht gesendet", group: "Eigene Töne", up: "+ Eigenen Ton hochladen …", missing: "Eigener Ton gelöscht (Standardton spielt)", used: "in 1 Aktion genutzt", unused: "nicht genutzt", errName: "Gib einen Namen", errFile: "Wähle eine Datei", errInvalid: "kein Ton", errTaken: "schon einen Ton mit diesem Namen", wavOnly: "Formate: WAV." },
-  en: { many: "used in 3 actions", errText: "text file", errImage: "a picture", errServer: "code 500", errNet: "could not be sent", group: "Your own sounds", up: "+ Upload your own sound …", missing: "Own sound deleted (standard sound plays)", used: "used in 1 action", unused: "not used", errName: "Enter a name", errFile: "Choose a file", errInvalid: "not a sound", errTaken: "already a sound with this name", wavOnly: "Formats: WAV." },
+  de: { choose: "Hochladen", noFile: "Keine Datei gewählt", save: "Speichern", many: "in 3 Aktionen genutzt", errText: "Textdatei", errImage: "ein Bild", errServer: "Code 500", errNet: "nicht gesendet", group: "Eigene Töne", up: "+ Eigenen Ton hochladen …", missing: "Eigener Ton gelöscht (Standardton spielt)", used: "in 1 Aktion genutzt", unused: "nicht genutzt", errName: "Gib einen Namen", errFile: "Wähle eine Datei", errInvalid: "kein Ton", errTaken: "schon einen Ton mit diesem Namen", wavOnly: "Formate: WAV." },
+  en: { choose: "Upload", noFile: "No file chosen", save: "Save", many: "used in 3 actions", errText: "text file", errImage: "a picture", errServer: "code 500", errNet: "could not be sent", group: "Your own sounds", up: "+ Upload your own sound …", missing: "Own sound deleted (standard sound plays)", used: "used in 1 action", unused: "not used", errName: "Enter a name", errFile: "Choose a file", errInvalid: "not a sound", errTaken: "already a sound with this name", wavOnly: "Formats: WAV." },
 };
 const STEP = (kind, sound) => ({ type: kind, players: ["media_player.sonos_wohnzimmer"], sound, duration: 5, restore: true });
 const WAV = Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WAVE"), Buffer.alloc(40)]);
@@ -37,6 +37,16 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !!r.getElementById('ag-step').querySelector('[data-cs=upload]')");
     check(`${tag}: Formular unter dem Feld mit Name, Datei und Hinweis zu Formaten und Grenzen, der Ton bleibt gewählt`, await dlg("const u=d.querySelector('[data-cs=upload]'); return !!u.querySelector('[data-cs=name]') && !!u.querySelector('[data-cs=file]') && /30/.test(u.innerText) && d.querySelector('[data-key=\"sound\"]').value === 'custom_0123456789ab'"));
     check(`${tag}: die Dateiauswahl nennt nur Endungen, nie "audio/*", Bilder oder Videos (iPhone bietet sonst Fotomediathek und Videoaufnahme an)`, await dlg("const a=d.querySelector('[data-cs=file]').accept.split(','); return a.length >= 1 && a.every((x) => /^\\.[a-z0-9]+$/.test(x)) && !a.some((x) => /\\.(m4a|aac|mp4|mov|ogg|oga|ogv|jpe?g|png|heic|gif)$/.test(x)) && a.includes('.wav') && a.includes('.mp3')"));
+    // 1.63.0 (Wunsch des Nutzers): Dateiwahl als Knopf im Stil des Panels statt des Browser-Felds ("Choose File", leeres Viereck auf dem iPhone)
+    const pick = () => dlg(`const u=d.querySelector('[data-cs=upload]'); const b=u.querySelector('.ag-up-choose'); const i=u.querySelector('[data-cs=file]'); const bb=b.getBoundingClientRect(), ib=i.getBoundingClientRect();
+      return { text: b.innerText.trim(), icon: b.querySelector('svg path')?.getAttribute('d') || '', isBtn: b.classList.contains('ag-btn'), hidden: getComputedStyle(i).opacity === '0', covers: Math.abs(ib.left - bb.left) <= 1.5 && Math.abs(ib.width - bb.width) <= 3 && Math.abs(ib.height - bb.height) <= 3,
+        name: u.querySelector('[data-cs=\"file-name\"]').textContent.trim(), go: u.querySelector('[data-wf=\"cs-go\"]').innerText.trim(), inside: b.getBoundingClientRect().right <= u.getBoundingClientRect().right + 1 }`);
+    const p0 = await pick();
+    check(`${tag}: Dateiwahl: Knopf "${t.choose}" mit Upload-Symbol, das Feld des Browsers unsichtbar darüber, daneben "${t.noFile}"; unten "${t.save}"`, p0.text === t.choose && p0.icon === "M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" && p0.isBtn && p0.hidden && p0.covers && p0.name === t.noFile && p0.go === t.save && p0.inside, JSON.stringify(p0));
+    await (await s.el('#ag-step [data-cs=file]')).setInputFiles({ name: "probe.wav", mimeType: "audio/wav", buffer: Buffer.from("RIFF0000WAVE") });
+    check(`${tag}: Dateiwahl: nach der Wahl steht der Name neben dem Knopf`, (await pick()).name === "probe.wav", JSON.stringify(await pick()));
+    await (await s.el('#ag-step [data-cs=file]')).setInputFiles([]);
+    check(`${tag}: Dateiwahl: abgebrochen (Feld leer): wieder "${t.noFile}"`, (await pick()).name === t.noFile, JSON.stringify(await pick()));
     await s.tap('#ag-step [data-wf="cs-go"]');
     check(`${tag}: ohne Name: Hinweis`, await s.waitFor(`return r.getElementById('ag-step').querySelector('.ag-up-err').textContent.includes(${JSON.stringify(t.errName)})`));
     await s.ev("const i=r.getElementById('ag-step').querySelector('[data-cs=name]'); i.value='Garage'; i.dispatchEvent(new Event('input', { bubbles: true })); return 1");
@@ -59,7 +69,7 @@ for (const lang of ["de", "en"]) {
     await (await s.el('#ag-step [data-cs=file]')).setInputFiles({ name: "garage.wav", mimeType: "audio/wav", buffer: WAV });
     await s.tap('#ag-step [data-wf="cs-go"]');
     check(`${tag}: ein schon vergebener Name wird abgelehnt (${t.errTaken})`, await s.waitFor(`return r.getElementById('ag-step').querySelector('.ag-up-err').textContent.includes(${JSON.stringify(t.errTaken)})`));
-    check(`${tag}: der Name wird vor dem Hochladen geprüft (nichts gesendet) und die Datei bleibt gewählt, nur der Name ist zu ändern`, await s.ev("const e=r.getElementById('ag-step'); return !!e.querySelector('.ag-up-kept') && e.querySelector('.ag-up-kept').textContent.includes('garage.wav')") && await s.sim("return window.__uploads.every((u) => u.name !== 'haustür-sirene')"));
+    check(`${tag}: der Name wird vor dem Hochladen geprüft (nichts gesendet) und die Datei bleibt gewählt, nur der Name ist zu ändern`, await s.ev("const e=r.getElementById('ag-step'); return e.querySelector('[data-cs=\"file-name\"]')?.textContent.trim() === 'garage.wav'") && await s.sim("return window.__uploads.every((u) => u.name !== 'haustür-sirene')"));
     await s.ev("const i=r.getElementById('ag-step').querySelector('[data-cs=name]'); i.value='  Garage   Tor  '; i.dispatchEvent(new Event('input', { bubbles: true })); return 1");
 
     await s.tap('#ag-step [data-wf="cs-go"]');

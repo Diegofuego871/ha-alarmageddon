@@ -4,7 +4,7 @@
 // (workflow.py); Entwurf mit "Speichern". Schritte lassen sich am Griff ziehen und einzeln testen.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur, MODE_ICON, MODE_KEY, errText } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, MODE_ICON, MODE_KEY, errText, onceBtn, paintOnce, runOnce } = await import(`./common.js${V}`);
 const { MonitorUi } = await import(`./monitor.js${V}`);
 const { isCustom, customList, customName, uploadHtml, uploadError, uploadSound } = await import(`./customsounds.js${V}`);
 
@@ -119,11 +119,13 @@ export const KINDS = [
 
 const OPTION_KEYS = { light: ["brightness_pct", "color_temp_kelvin"], cover: ["position"], climate: ["temperature", "hvac_mode"], fan: ["percentage"] };
 
-// "Alarm endet": nur die optionale eigene Meldung; ob Geräte zurückkehren, entscheidet allein der Schritt ("Rückgängig")
+// "Alarm endet": die Abschlussmeldung. "notify" sind eigene Werte statt des Standards (nur, wenn eingeschaltet), "send: false" (seit 1.63.0)
+// schaltet sie aus wie die anderen festen Meldungen. Ob Geräte zurückkehren, entscheidet allein der Schritt ("Rückgängig").
 export function normEnd(value) {
   const v = value && typeof value === "object" ? value : {};
   const out = {};
   if (v.notify?.enabled) out.notify = { enabled: true, title: v.notify.title || "", message: v.notify.message || "", critical: v.notify.critical ?? null, volume: v.notify.volume ?? null, click: v.notify.click || "log", click_path: v.notify.click_path || "", ...(v.notify.targets?.length ? { targets: [...v.notify.targets] } : {}) };
+  if (v.send === false) out.send = false;
   return out;
 }
 
@@ -556,15 +558,15 @@ export class ActionsUi {
     const mon = s.monitor_enabled === true;
     const tabItems = [...(d.perMode ? triggers : mon ? [[triggers[0][0], this._t("wfAlarmTab"), "alert"]] : []), ...(mon ? [["monitor", this._t("wfMonitor"), "eye"]] : [])];
     const tabs = tabItems.length ? h._segHtml("wf-trigger", tabItems, this.trigger, "data-trigger", "small") : "";
+    // Schalter "Einstellungen pro Modus": in jedem Reiter derselbe, an derselben Stelle (seit 1.63.0 auch bei "Überwachung", Wunsch des Nutzers;
+    // vorher stand dort ein unsichtbarer Platzhalter). So steht die Reiterzeile in allen Reitern auf derselben Höhe und springt nie.
+    const sw = `<div class="ag-pmsw"><button class="ag-toggle ${d.perMode ? "on" : ""}" data-wf="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("wfPerMode"))}"></button>
+        <div class="ag-settx"><b>${esc(this._t("wfPerMode"))}</b><small>${esc(this._t(d.perMode ? "wfPerModeOn" : "wfPerModeHint"))}</small></div></div>`;
     if (this.trigger === "monitor" && mon) {
-      // Der Schalter "Einstellungen pro Modus" gilt für die Überwachung nicht. Sein Platz bleibt aber frei (unsichtbarer Platzhalter mit
-      // demselben Text): so steht die Reiterzeile beim Wechsel auf "Überwachung" auf derselben Höhe und springt nicht (Wunsch des Nutzers,
-      // 2026-11-17, auch wenn dadurch Weissraum entsteht). Der Aufbau folgt dem der anderen Reiter, mit und ohne getrennte Modi.
-      const ghost = `<div class="ag-pmsw ag-ghost" aria-hidden="true"><span class="ag-toggle"></span><div class="ag-settx"><b>${esc(this._t("wfPerMode"))}</b><small>${esc(this._t(d.perMode ? "wfPerModeOn" : "wfPerModeHint"))}</small></div></div>`;
       const monScope = `<div class="ag-pmscope" style="margin:0">${ic("eye", 18)}${esc(this._t("monScope"))}</div>`;
       h._setHtml(head, d.perMode
-        ? `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0">${ghost}${tabs}${monScope}</div></div>`
-        : `<div class="ag-tools"><div class="ag-pmbar ag-ghost" style="flex:1;margin:0" aria-hidden="true">${ghost}</div></div>
+        ? `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0">${sw}${tabs}${monScope}</div>${status}</div>`
+        : `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0">${sw}</div>${status}</div>
            <div class="ag-tools" style="margin-top:-4px">${tabs}</div><div class="ag-tools ag-monscope-row">${monScope}</div>`);
       h._setHtml(body, this.mon.bodyHtml());
       h._placePills();
@@ -572,8 +574,7 @@ export class ActionsUi {
       return;
     }
     const scope = d.perMode ? `<div class="ag-pmscope" style="margin:0">${ic(this.trigger === "always" ? "flash" : MODE_ICON[this.trigger], 18)}${esc(this._t(this.trigger === "always" ? "pmScopeAlways" : "pmScope", { mode: this._t(MODE_KEY[this.trigger] || "wfAlways") }))}</div>` : "";
-    h._setHtml(head, `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0"><div class="ag-pmsw"><button class="ag-toggle ${d.perMode ? "on" : ""}" data-wf="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("wfPerMode"))}"></button>
-        <div class="ag-settx"><b>${esc(this._t("wfPerMode"))}</b><small>${esc(this._t(d.perMode ? "wfPerModeOn" : "wfPerModeHint"))}</small></div></div>${d.perMode ? tabs : ""}${d.perMode ? scope : ""}</div>${status}</div>
+    h._setHtml(head, `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0">${sw}${d.perMode ? tabs : ""}${d.perMode ? scope : ""}</div>${status}</div>
       ${!d.perMode && tabs ? `<div class="ag-tools" style="margin-top:-4px">${tabs}</div>` : ""}
       ${this.trigger === "always" && d.perMode ? `<div class="ag-t2 ag-small" style="margin:-6px 4px 0">${esc(this._t("wfAlwaysHint"))}</div>` : ""}`);
     const steps = this.steps();
@@ -605,29 +606,49 @@ export class ActionsUi {
     return `${text} (${this._t(MODE_KEY[this.trigger] || "wfAlways")})`;
   }
 
-  // Festes Ende des Ablaufs: "Alarm endet" (Deaktivieren/Quittieren); alle Einstellungen im Fenster wie bei den Schritten
+  // Festes Ende des Ablaufs: "Alarm endet" (Deaktivieren/Quittieren) mit der Abschlussmeldung. Seit 1.63.0 (Wunsch des Nutzers) genau wie die
+  // anderen festen Meldungen: Schalter (senden ja/nein), "Meldung: Abschlussmeldung", Kurzfassung, Play (Testmeldung) und Stift.
   _endHtml() {
     const e = normEnd(this.draft?.end?.[this.trigger]);
+    const n = e.notify || {};
+    const on = e.send !== false;
+    const label = this._t("ntc_end");
+    const parts = on
+      ? [this._recipientsText(n.targets || []), n.critical ? this._t("ntcCritical", { volume: Math.round((n.volume ?? this._ntGlobal().volume) * 100) }) : "", n.title || n.message ? this._t("ntcOwnText") : ""].filter(Boolean)
+      : [this._t("ntcOff")];
+    const none = on && !(n.targets || []).length && !(this.host._data?.notify?.alarm_targets || []).length;
     return `<div class="ag-wf-end"><div class="ag-wf-start"><span class="ag-mini ok ag-end-ic">${ic("check", 20)}</span>${esc(this._fixedTitle("wfEnd"))}</div>
-      <div class="ag-card ag-wf-endcard"><span class="ag-wf-icon k-end">${ic("bell", 20)}</span><div class="ag-wf-text"><b>${esc(this._t(e.notify ? "wfEndOwn" : "wfEndDefault"))}</b>${e.notify ? "" : `<small class="ag-t2 ag-small">${esc(this._t("wfEndDefaultHint"))}</small>`}</div>
-        <div class="ag-wf-btns"><button class="ag-iconbtn" data-wf="end-edit" aria-label="${esc(this._t("wfEndEdit"))}" title="${esc(this._t("wfEndEdit"))}">${ic("pencil", 18)}</button></div></div></div>`;
+      <div class="ag-card ag-wf-endcard ag-wf-notice ${on ? "" : "off"}" data-end-notice>
+        <button class="ag-toggle ${on ? "on" : ""}" data-wf="end-on" role="switch" aria-checked="${on}" aria-label="${esc(label)}"></button>
+        <span class="ag-wf-icon k-notify">${ic("bell", 20)}</span><div class="ag-wf-text"><b>${esc(label)}</b><small class="ag-t2 ag-small ${none ? "ag-warntext" : ""}">${esc(parts.join(" · "))}</small></div>
+        <div class="ag-wf-btns">${this._onceCardBtn("end", 'data-wf="end-play"', on)}<button class="ag-iconbtn" data-wf="end-edit" aria-label="${esc(this._t("ntcEdit", { name: label }))}" title="${esc(this._t("wfEndEdit"))}">${ic("pencil", 18)}</button></div></div></div>`;
+  }
+
+  // An wen eine feste Meldung geht: eigene Empfänger (kurz), sonst die Standard-Empfänger
+  _recipientsText(targets) {
+    const short = (x) => x.replace(/^notify\.(mobile_app_)?/, "");
+    const standard = this.host._data?.notify?.alarm_targets || [];
+    return targets.length ? targets.map(short).join(", ") : standard.length ? this._t("ntcToStandard") : this._t("ntcToNone");
+  }
+
+  // Play-Knopf einer festen Meldung (1.63.0): Testmeldung mit den Werten der Karte, auch ungespeichert; ausgeschaltet gesperrt
+  _onceCardBtn(key, attrs, on) {
+    return onceBtn(key, attrs, { running: this.onceKey === key, label: this._t("ntcTest"), stopLabel: this._t("playStop"), disabled: !on, title: on ? this._t("ntcTest") : this._t("ntcTestOff") });
   }
 
   // Feste Meldung eines Punkts (1.62.0): immer da, mit Schalter (an/aus) und Stift (alle Einstellungen im Fenster). Die Zeile darunter
   // sagt, an wen sie geht und wie; ausgeschaltet ist die Karte blass.
   _noticeHtml(kind) {
     const n = normNotice(kind, this.draft?.notices?.[this.trigger]?.[kind]);
-    const short = (x) => x.replace(/^notify\.(mobile_app_)?/, "");
     const standard = this.host._data?.notify?.alarm_targets || [];
-    const to = n.targets.length ? n.targets.map(short).join(", ") : standard.length ? this._t("ntcToStandard") : this._t("ntcToNone");
     const parts = n.enabled
-      ? [to, n.critical ? this._t("ntcCritical", { volume: Math.round(n.volume * 100) }) : "", n.persistent ? this._t("ntcPersistent") : "", n.title || n.message ? this._t("ntcOwnText") : ""].filter(Boolean)
+      ? [this._recipientsText(n.targets), n.critical ? this._t("ntcCritical", { volume: Math.round(n.volume * 100) }) : "", n.persistent ? this._t("ntcPersistent") : "", n.title || n.message ? this._t("ntcOwnText") : ""].filter(Boolean)
       : [this._t("ntcOff")];
     const label = this._t(`ntc_${kind}`);
     return `<div class="ag-card ag-wf-endcard ag-wf-notice ${n.enabled ? "" : "off"}" data-notice="${kind}">
       <button class="ag-toggle ${n.enabled ? "on" : ""}" data-wf="notice-on" data-kind="${kind}" role="switch" aria-checked="${n.enabled}" aria-label="${esc(label)}"></button>
       <span class="ag-wf-icon k-notify">${ic("bell", 20)}</span><div class="ag-wf-text"><b>${esc(label)}</b><small class="ag-t2 ag-small ${n.enabled && !n.targets.length && !standard.length ? "ag-warntext" : ""}">${esc(parts.join(" · "))}</small></div>
-      <div class="ag-wf-btns"><button class="ag-iconbtn" data-wf="notice-edit" data-kind="${kind}" aria-label="${esc(this._t("ntcEdit", { name: label }))}" title="${esc(this._t("wfEndEdit"))}">${ic("pencil", 18)}</button></div></div>`;
+      <div class="ag-wf-btns">${this._onceCardBtn(`notice:${kind}`, `data-wf="notice-play" data-kind="${kind}"`, n.enabled)}<button class="ag-iconbtn" data-wf="notice-edit" data-kind="${kind}" aria-label="${esc(this._t("ntcEdit", { name: label }))}" title="${esc(this._t("wfEndEdit"))}">${ic("pencil", 18)}</button></div></div>`;
   }
 
   // Aktionen bei einem stillen Alarm (1.62.0): eigenes Kapitel vor dem Alarm, mit der festen Meldung und einer eigenen Liste. Je Auslöser,
@@ -694,23 +715,33 @@ export class ActionsUi {
   openEndEditor() {
     const e = normEnd(this.ensureDraft().end?.[this.trigger]);
     const n = e.notify || {};
-    const form = { ...blank(), kind: "end", endNotify: !!e.notify, ntTitle: n.title || "", ntMessage: n.message || "", ntCritical: n.critical ?? null, ntVolume: n.volume ?? null,
+    const form = { ...blank(), kind: "end", endSend: e.send !== false, ntTitle: n.title || "", ntMessage: n.message || "", ntCritical: n.critical ?? null, ntVolume: n.volume ?? null,
       ntClick: n.click && n.click !== "log" ? n.click : null, ntClickPath: n.click_path || "", ntTargets: n.targets?.length ? [...n.targets] : null };
     this.edit = { index: null, insert: null, end: true, form, q: "", error: "", open: false };
     this.renderEditor();
     this._dlg().showModal();
   }
 
+  // Fenster der Abschlussmeldung, aufgebaut wie das der anderen festen Meldungen (1.63.0): "Meldung senden" (ja/nein), dann die Felder;
+  // leerer Titel oder Text gilt als Standardtext
   _endFields(f) {
-    const send = this._sec("wfEndSend", `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("wfEndSend"))}</b><small>${esc(this._t("wfEndSendHint"))}</small></div>${this._toggle('data-wf="end-notify"', f.endNotify, "wfEndSend")}</div>`);
-    return send + (f.endNotify ? `${this._notifyFields(f)}<div><button type="button" class="ag-btn" data-wf="end-test">${ic("play", 16)}${esc(this._t("wfEndTest"))}</button></div>` : "");
+    const send = this._sec("ntcSend", `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("ntcSend"))}</b><small>${esc(this._t("ntcHint_end"))}</small></div>${this._toggle('data-wf="end-notify"', f.endSend, "ntcSend")}</div>`);
+    return send + (f.endSend ? `${this._notifyFields(f)}<div>${this._onceEditorBtn("end", 'data-wf="end-test"')}</div>` : "");
+  }
+
+  // Test-Knopf im Fenster einer festen Meldung: derselbe Test wie Play auf der Karte (gleicher Schlüssel, gleiches Verhalten)
+  _onceEditorBtn(key, attrs) {
+    return onceBtn(key, attrs, { running: this.onceKey === key, label: this._t("wfEndTest"), stopLabel: this._t("playStop"), text: this._t("wfEndTest"), size: 16, cls: "ag-btn" });
   }
 
   _endApply() {
     const f = this.edit.form;
-    if (f.endNotify && f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
+    if (f.endSend && f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
     const d = this.ensureDraft();
-    d.end = { ...(d.end || {}), [this.trigger]: normEnd({ notify: f.endNotify ? { enabled: true, title: String(f.ntTitle || "").trim(), message: String(f.ntMessage || "").trim(), critical: f.ntCritical, volume: f.ntVolume, click: f.ntClick || "log", click_path: f.ntClick === "custom" ? String(f.ntClickPath || "").trim() : "", targets: f.ntTargets?.length ? f.ntTargets : undefined } : null }) };
+    // Eigene Werte nur, wenn etwas vom Standard abweicht; ausgeschaltet bleiben sie stehen (wer wieder einschaltet, findet seinen Text)
+    const own = this._endOf(f);
+    const plain = !own.title && !own.message && own.critical === null && own.volume === null && own.click === "log" && !own.targets;
+    d.end = { ...(d.end || {}), [this.trigger]: normEnd({ notify: plain ? null : own, send: f.endSend ? undefined : false }) };
     this.saveState = null;
     this.edit = null;
     this._dlg().close();
@@ -718,21 +749,50 @@ export class ActionsUi {
     this.host._renderDots();
   }
 
-  // Meldung aus dem Fenster (auch ungespeichert) als Test an die Alarm-Empfänger
-  async _endTest() {
-    const f = this.edit.form;
-    const n = { enabled: true, title: String(f.ntTitle || "").trim(), message: String(f.ntMessage || "").trim() };
-    if (f.ntCritical !== null) n.critical = !!f.ntCritical;
-    if (f.ntVolume !== null) n.volume = Math.min(1, Math.max(0, Number(f.ntVolume)));
-    n.click = f.ntClick || "log";
-    if (f.ntTargets?.length) n.targets = [...f.ntTargets];
-    if (n.click === "custom") n.click_path = String(f.ntClickPath || "").trim();
-    try {
-      await this.host._hass.callWS({ type: "alarmageddon/test_end_notify", entry_id: this.system.entry_id, notify: n });
-      this.host._toast(this._t("wfEndTested"));
-    } catch (err) {
-      this._editError(null, this._t("saveFailed", { message: errText(err) }));
+  // Die eigene Abschlussmeldung, wie das Fenster sie zeigt
+  _endOf(f) {
+    return { enabled: true, title: String(f.ntTitle || "").trim(), message: String(f.ntMessage || "").trim(), critical: f.ntCritical, volume: f.ntVolume, click: f.ntClick || "log",
+      click_path: f.ntClick === "custom" ? String(f.ntClickPath || "").trim() : "", targets: f.ntTargets?.length ? [...f.ntTargets] : undefined };
+  }
+
+  // Testmeldung "Alarm beendet" an die Empfänger: aus dem Fenster (auch ungespeichert) oder von der Karte (Werte des Entwurfs)
+  async _endTest(fromCard = false) {
+    const f = this.edit?.form;
+    let n;
+    if (fromCard || !f) {
+      n = { ...(normEnd(this.draft?.end?.[this.trigger]).notify || {}), enabled: true };
+    } else {
+      if (f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
+      n = this._endOf(f);
     }
+    const out = { enabled: true, title: n.title || "", message: n.message || "", click: n.click || "log" };
+    if (n.critical !== null && n.critical !== undefined) out.critical = !!n.critical;
+    if (n.volume !== null && n.volume !== undefined) out.volume = Math.min(1, Math.max(0, Number(n.volume)));
+    if (n.targets?.length) out.targets = [...n.targets];
+    if (out.click === "custom") out.click_path = String(n.click_path || "").trim();
+    await this._once("end", async () => {
+      await this.host._hass.callWS({ type: "alarmageddon/test_end_notify", entry_id: this.system.entry_id, notify: out });
+      this.host._toast(this._t("wfEndTested"));
+    });
+  }
+
+  // Einmaliger Test einer festen Meldung (Karte oder Fenster): Knopf rot und Stopp wie jeder Play-Knopf (common.js runOnce). Ein zweiter Druck
+  // beendet nur die Anzeige. Fehler stehen im Fenster, sonst als Hinweis unten.
+  async _once(key, work) {
+    const paint = () => paintOnce([this.host._view, this._dlg()], this.onceKey);
+    if (this.onceKey === key) {
+      this.onceKey = null;
+      return paint();
+    }
+    await runOnce(this, key, async () => {
+      try {
+        await work();
+      } catch (err) {
+        const text = err?.code === "no_targets" ? this._t("ntNoneChosen") : this._t("saveFailed", { message: errText(err) });
+        if (this.edit && this._dlg()?.open) this._editError(null, text);
+        else this.host._toast(text);
+      }
+    }, paint);
   }
 
   // Fenster einer festen Meldung (1.62.0): ein/aus, eigener Text mit Platzhaltern, Empfänger (Standard-Empfänger vorgewählt), Kritisch
@@ -748,7 +808,7 @@ export class ActionsUi {
 
   _noticeFields(f) {
     const send = this._sec("ntcSend", `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("ntcSend"))}</b><small>${esc(this._t(`ntcHint_${f.nKind}`))}</small></div>${this._toggle('data-wf="notice-enabled"', f.nEnabled, "ntcSend")}</div>`);
-    return send + (f.nEnabled ? `${this._notifyFields(f)}<div><button type="button" class="ag-btn" data-wf="notice-test">${ic("play", 16)}${esc(this._t("wfEndTest"))}</button></div>` : "");
+    return send + (f.nEnabled ? `${this._notifyFields(f)}<div>${this._onceEditorBtn(`notice:${f.nKind}`, `data-wf="notice-test" data-kind="${f.nKind}"`)}</div>` : "");
   }
 
   // Die Meldung, wie sie gespeichert und getestet wird
@@ -769,16 +829,21 @@ export class ActionsUi {
     this.host._renderDots();
   }
 
-  // Meldung aus dem Fenster (auch ungespeichert) als Test an ihre Empfänger
-  async _noticeTest() {
-    const f = this.edit.form;
-    if (f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
-    try {
-      await this.host._hass.callWS({ type: "alarmageddon/test_event_notify", entry_id: this.system.entry_id, kind: f.nKind, trigger: this.trigger, notice: { ...this._noticeOf(f), enabled: true } });
-      this.host._toast(this._t("wfEndTested"));
-    } catch (err) {
-      this._editError(null, err?.code === "no_targets" ? this._t("ntNoneChosen") : this._t("saveFailed", { message: errText(err) }));
+  // Testmeldung einer festen Meldung an ihre Empfänger: aus dem Fenster (auch ungespeichert) oder von der Karte (Werte des Entwurfs)
+  async _noticeTest(kind = null) {
+    const f = this.edit?.form;
+    let notice;
+    if (kind) {
+      notice = normNotice(kind, this.draft?.notices?.[this.trigger]?.[kind]);
+    } else {
+      if (f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
+      kind = f.nKind;
+      notice = this._noticeOf(f);
     }
+    await this._once(`notice:${kind}`, async () => {
+      await this.host._hass.callWS({ type: "alarmageddon/test_event_notify", entry_id: this.system.entry_id, kind, trigger: this.trigger, notice: { ...notice, enabled: true } });
+      this.host._toast(this._t("wfEndTested"));
+    });
   }
 
   // Kurzfassung eines Schritts für die Karte
@@ -886,7 +951,7 @@ export class ActionsUi {
   }
 
   _stepTestBtn(i, zone) {
-    if (this._isStepTest(i, zone)) return `<button class="ag-iconbtn on" data-wf="test-step-stop" data-index="${i}" aria-label="${esc(this._t("stepTestStop"))}" title="${esc(this._t("stepTestStop"))}">${ic("stop", 18)}</button>`;
+    if (this._isStepTest(i, zone)) return `<button class="ag-iconbtn ag-running" data-wf="test-step-stop" data-index="${i}" aria-label="${esc(this._t("stepTestStop"))}" title="${esc(this._t("stepTestStop"))}">${ic("stop", 18)}</button>`;
     const busy = this._alarmBlocks();
     return `<button class="ag-iconbtn" data-wf="test-step" data-index="${i}" ${busy ? "disabled" : ""} aria-label="${esc(this._t("stepTest"))}" title="${esc(busy ? this._t("stepTestBusy") : this._t("stepTest"))}">${ic("play", 18)}</button>`;
   }
@@ -899,7 +964,7 @@ export class ActionsUi {
     const text = this.host.hasAttribute("narrow") ? "" : esc(label);
     // Läuft der Test eines einzelnen Schritts, hat dieser Schritt den Stopp-Knopf; "Test" unten startet den ganzen Ablauf und ersetzt ihn
     if (running && s.workflow_test && this.testSource?.kind === "step") return `<button class="ag-btn" data-wf="test" aria-label="${esc(this._t("wfTest"))}" ${dirty || !this.steps().length ? "disabled" : ""} title="${esc(dirty ? this._t("wfSaveFirst") : this._t("wfTestHint"))}">${ic("play", 18)}${this.host.hasAttribute("narrow") ? "" : esc(this._t("wfTest"))}</button>`;
-    if (running && s.workflow_test) return `<button class="ag-btn" data-wf="test-stop" aria-label="${esc(label)}">${ic("stop", 18)}${text}</button>`;
+    if (running && s.workflow_test) return `<button class="ag-btn ag-running" data-wf="test-stop" aria-label="${esc(label)}">${ic("stop", 18)}${text}</button>`;
     return `<button class="ag-btn" data-wf="test" aria-label="${esc(label)}" ${dirty || running || !this.steps().length ? "disabled" : ""} title="${esc(dirty ? this._t("wfSaveFirst") : this._t("wfTestHint"))}">${ic("play", 18)}${text}</button>`;
   }
 
@@ -1171,7 +1236,7 @@ export class ActionsUi {
     const tone = `<div class="ag-tone"><select class="ag-input" data-wf="f" data-key="sound" aria-label="${esc(this._t("fldTone"))}">${sounds.map((s) => `<option value="${s.id}" ${s.id === f.sound ? "selected" : ""}>${esc(this._t(SOUND_KEY[s.id] || s.id))}</option>`).join("")}${customGroup}</select>
         <div class="ag-pv" role="group" aria-label="${esc(this._t("pvNote"))}">
           ${play
-            ? `<button class="ag-iconbtn on" data-wf="pv-stop" aria-label="${esc(this._t("pvStop"))}" title="${esc(this._t("pvStop"))}">${ic("stop", 18)}</button>`
+            ? `<button class="ag-iconbtn ag-running" data-wf="pv-stop" aria-label="${esc(this._t("pvStop"))}" title="${esc(this._t("pvStop"))}">${ic("stop", 18)}</button>`
             : `<button class="ag-iconbtn" data-wf="pv-play" data-url="${esc(current?.url || "")}" aria-label="${esc(this._t("pvPlay"))}" title="${esc(this._t("pvPlay"))}">${ic("play", 18)}</button>`}</div></div>
       <div class="ag-pv-note">${ic("info", 14)} ${esc(this._t("pvNote"))}</div>${this.edit?.uploaded && this.edit.uploaded === f.sound ? `<div class="ag-unsaved ag-unsaved-note">${esc(this._t("upStepUnsaved"))}</div>` : ""}${upload}`;
     const volume = `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("fldVolumeSet"))}</b>${f.setVolume ? "" : `<small>${esc(this._t("fldVolumeKeep"))}</small>`}</div>${this._toggle('data-wf="setvol"', f.setVolume, "fldVolumeSet")}</div>
@@ -1212,7 +1277,7 @@ export class ActionsUi {
     const [dt, dm] = this._ntDefaults(f);
     const notice = f.kind === "notice";
     const chips = (notice ? NOTICE_TOKENS[f.nKind] : NOTIFY_TOKENS).map((tok) => `<button type="button" class="ag-chip" data-wf="ins" data-token="${esc(tok)}">${esc(tok)}<small>${esc(this._t(`ntTok_${tok.slice(1, -1)}`))}</small></button>`).join("");
-    return `${notice ? "" : `<div class="ag-t2">${esc(this._t(f.kind === "end" ? "wfEndNotifyHint" : "stepNotifyHint"))}</div>`}
+    return `${notice || f.kind === "end" ? "" : `<div class="ag-t2">${esc(this._t("stepNotifyHint"))}</div>`}
       ${this._sec("chapNtContent", `${this._ef("fldNtTitle", `<input class="ag-input" data-wf="f" data-key="ntTitle" maxlength="100" value="${esc(f.ntTitle || dt)}" aria-label="${esc(this._t("fldNtTitle"))}">`, f.kind === "end" || notice ? "" : "fldNtTitleHint")}
       ${this._ef("fldNtMessage", `<textarea class="ag-input" rows="3" data-wf="f" data-key="ntMessage" maxlength="300" aria-label="${esc(this._t("fldNtMessage"))}">${esc(f.ntMessage || dm)}</textarea>`)}
       ${this._ef("fldNtTokens", `<div class="ag-zline">${chips}</div>`, notice ? "ntcTokensHint" : "fldNtTokensHint")}
@@ -1564,7 +1629,8 @@ export class ActionsUi {
       s.event_notify = Object.fromEntries(Object.entries({ ...(s.event_notify || {}), ...notices }).map(([t, kinds]) => [t, { ...(s.event_notify?.[t] || {}), ...JSON.parse(JSON.stringify(notices[t] || kinds)) }]));
       s.workflows_armed = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(armed).filter(([, v]) => v.length))));
       s.workflows_after = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(after).filter(([, v]) => v.length))));
-      s.workflow_end = Object.fromEntries(Object.entries(end).filter(([, v]) => v.notify));
+      // Wie der Server speichert: eigene Werte und (seit 1.63.0) "aus"; ohne "aus" sprang die Karte nach dem Speichern auf "an" zurück
+      s.workflow_end = Object.fromEntries(Object.entries(end).filter(([, v]) => v.notify || v.send === false));
       s.workflows = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(wf).filter(([, v]) => v.length))));
       this.draft = null;
       this.saveState = "saved";
@@ -1910,15 +1976,11 @@ export class ActionsUi {
     if (act === "permode") {
       const dr = this.ensureDraft();
       const first = this.triggers()[0];
-      if (dr.perMode) {
-        // Aus: der Ablauf des ersten Modus gilt für alle (bis zu "Speichern" lässt sich das mit "Abbrechen" zurücknehmen)
-        const eff = this._effective(dr);
-        dr.wf = eff.wf;
-        dr.end = eff.end;
-        this.trigger = first;
-      } else {
-        this.trigger = first;
-      }
+      // Aus: der Ablauf des ersten Modus gilt für alle. Der Entwurf behält die Abläufe der übrigen Modi; was gilt, rechnet _effective beim
+      // Zählen und Speichern (bis zu "Speichern" lässt sich das mit "Abbrechen" oder erneutem Einschalten zurücknehmen). Bis 1.62.0 stand hier
+      // eine Zuweisung aus _effective, die bei eingeschaltetem Schalter die eigenen Listen zurückgab und darum nichts bewirkte.
+      // Im Reiter "Überwachung" bleibt man dort (der Schalter ändert nur die Reiter der Modi), sonst geht es zum ersten Modus
+      if (this.trigger !== "monitor") this.trigger = first;
       dr.perMode = !dr.perMode;
       dr.touched = true; // der Schalter allein ändert keinen Inhalt: der Entwurf darf trotzdem nicht verworfen werden (pinned)
       this.render();
@@ -2016,10 +2078,22 @@ export class ActionsUi {
       this.renderEditor();
     } else if (act === "notice-test") {
       this._noticeTest();
+    } else if (act === "notice-play") {
+      this._noticeTest(el.dataset.kind);
+    } else if (act === "end-play") {
+      this._endTest(true);
+    } else if (act === "end-on") {
+      // Schalter auf der Karte der Abschlussmeldung: nur senden ja/nein, die eigenen Werte bleiben
+      const dr = this.ensureDraft();
+      const now = normEnd(dr.end?.[this.trigger]);
+      dr.end = { ...(dr.end || {}), [this.trigger]: normEnd({ ...now, send: now.send === false ? undefined : false }) };
+      this.saveState = null;
+      this.render();
+      this.host._renderDots();
     } else if (act === "end-edit") {
       this.openEndEditor();
     } else if (act === "end-notify") {
-      form.endNotify = !form.endNotify;
+      form.endSend = !form.endSend;
       this.renderEditor();
     } else if (act === "end-test") {
       this._endTest();

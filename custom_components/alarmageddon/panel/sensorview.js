@@ -704,16 +704,19 @@ export class SensorView {
     const row = (label, value) => (value ? `<div class="ag-sv-drow"><span class="ag-t2">${esc(label)}</span><b>${esc(value)}</b><button type="button" class="ag-iconbtn ag-sv-copy" data-sv="copy" data-value="${esc(value)}" aria-label="${esc(this._t("svCopy", { name: label }))}" title="${esc(this._t("svCopy", { name: label }))}">${ic("copy", 16)}</button></div>` : "");
     const facts = [row(this._t("svDevMaker"), info.manufacturer), row(this._t("svDevModel"), info.model), row(this._t("svDevFirmware"), info.sw_version),
       row(this._t("svDevIntegration"), info.integration || info.platform), row(this._t("svDevArea"), info.area), row(this._t("svDevEntity"), this.id)].join("");
-    const systems = (this.host._data?.systems || []).map((sys) => {
-      const zones = MODES.filter((m) => (sys.zones?.[m] || []).includes(this.id));
-      const always = this.host._optionOf ? this.host._optionOf(sys, this.id, "always", null) : false;
-      const watched = sys.monitor_enabled === true && (sys.monitor_sensors || []).includes(this.id);
+    // Dieselbe Rechnung wie die Liste der Übersicht (list.members, 1.63.0, Code-Review): bis 1.62.0 stand hier "Immer aktiv" schon, wenn die
+    // Voreinstellung der Sensorart es vorsah, auch bei einer Anlage, zu der der Sensor gar nicht gehört, und bei ausgeschaltetem "Immer aktiv"
+    const systems = (this.host.list?.members().get(this.id) || []).map((m) => {
+      const sys = this.host._system(m.entry) || {};
+      const zones = MODES.filter((mode) => m.modes.includes(mode));
+      const always = m.always;
+      const watched = m.monitor;
       if (!zones.length && !always && !watched) return "";
-      const chips = [...zones.map((m) => `<span class="ag-sv-tag arm">${ic(MODE_ICON[m], 12)}${esc(this._t(MODE_KEY[m]))}</span>`),
+      const chips = [...zones.map((mode) => `<span class="ag-sv-tag arm">${ic(MODE_ICON[mode], 12)}${esc(this._t(MODE_KEY[mode]))}</span>`),
         ...(always ? [`<span class="ag-sv-tag arm">${ic("flash", 12)}${esc(this._t("optAlways"))}</span>`] : []),
         ...(watched ? [`<span class="ag-sv-tag arm">${ic("eye", 12)}${esc(this._t("wfMonitor"))}</span>`] : []),
         ...((sys.entry_sensors || []).includes(this.id) ? [`<span class="ag-sv-tag">${ic("timer", 12)}${esc(this._t("optEntryShort"))}</span>`] : [])].join("");
-      return `<div class="ag-sv-drow"><span class="ag-t2">${esc(sys.title)}</span><span class="ag-sv-chips">${chips}</span></div>`;
+      return `<div class="ag-sv-drow"><span class="ag-t2">${esc(m.title)}</span><span class="ag-sv-chips">${chips}</span></div>`;
     }).join("");
     return { fix: "", list: `<div class="ag-sv-device"><div class="ag-label">${esc(this._t("svDevDevice"))}</div><div class="ag-card ag-sv-dcard">${facts || `<div class="ag-sv-msg ag-t2">${esc(this._t("svDeviceNone"))}</div>`}</div>
       <div class="ag-label">${esc(this._t("svDevWatched"))}</div><div class="ag-card ag-sv-dcard">${systems || `<div class="ag-sv-msg ag-t2">${esc(this._t("svDevNowhere"))}</div>`}</div>

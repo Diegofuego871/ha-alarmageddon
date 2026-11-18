@@ -176,17 +176,21 @@ export class ListUi {
       const known = new Set(alwaysOn ? [...ids, ...(s.sensors || []), ...Object.keys(s.sensor_options || {})] : []);
       if (alwaysOn && s.per_mode_sensors) for (const per of Object.values(s.sensor_modes || {})) for (const id of Object.keys(per || {})) known.add(id);
       const presets = this.host._data?.presets || {};
+      const always = new Set(); // Sensoren, für die "Immer aktiv" in dieser Anlage wirkt (die Sensoransicht nennt es, 1.63.0)
       for (const id of known) {
         const own = (s.per_mode_sensors ? s.sensor_modes?.always?.[id]?.always : undefined) ?? s.sensor_options?.[id]?.always;
         const on = own !== undefined ? own : (presets[this.host._sensor(id).type || "other"] || []).includes("always");
-        if (on) ids.add(id);
+        if (on) {
+          ids.add(id);
+          always.add(id);
+        }
       }
       // Messwert-Sensoren der Überwachung (Temperatur, Luftfeuchtigkeit, CO2): nur bei eingeschalteter Überwachung, nie in den Zonen
       const watched = new Set(s.monitor_enabled === true ? s.monitor_sensors || [] : []);
       for (const id of watched) ids.add(id);
       for (const id of ids) {
         if (!out.has(id)) out.set(id, []);
-        out.get(id).push({ entry: s.entry_id, title: s.title, modes: s.modes.filter((m) => (s.zones?.[m] || []).includes(id)), monitor: watched.has(id) });
+        out.get(id).push({ entry: s.entry_id, title: s.title, modes: s.modes.filter((m) => (s.zones?.[m] || []).includes(id)), monitor: watched.has(id), always: always.has(id) });
       }
     }
     return out;

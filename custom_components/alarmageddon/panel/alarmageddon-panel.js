@@ -10,8 +10,8 @@ const V = new URL(import.meta.url).search;
 const [
   { pickLang, translate }, { CSS },
   { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, SOFT_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY },
-  { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart },
-] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader"].map((name) => import(`./${name}.js${V}`)));
+  { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart }, { filePicked },
+] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader", "customsounds"].map((name) => import(`./${name}.js${V}`)));
 /** Nach so langer Abwesenheit startet das Panel wieder auf der Übersicht (Merkzettel für Reiter und Unterreiter) */
 const AWAY_MS = 30 * 60 * 1000;
 const SUBS = ["sensors", "actions", "notify", "system"];
@@ -93,7 +93,7 @@ class AlarmageddonPanel extends HTMLElement {
   _init() {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
       <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
-      <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
+      <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-wide" id="ag-codelist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
     if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => this._stickySync()).observe(this._content);
@@ -179,6 +179,7 @@ class AlarmageddonPanel extends HTMLElement {
     clearInterval(this._poll);
     clearInterval(this._tick);
     clearTimeout(this._toastTimer);
+    clearTimeout(this._retryTimer);
     window.cancelAnimationFrame(this._stickyRaf);
     this._stickyRO?.disconnect();
     this._segRO?.disconnect();
@@ -292,6 +293,9 @@ class AlarmageddonPanel extends HTMLElement {
       }
       this._emptyTries = 0;
       this._deleted = false;
+      // Wieder verbunden: eine noch geplante Wiederholung ist überflüssig
+      clearTimeout(this._retryTimer);
+      this._retryTimer = 0;
       if (!this._wait) this._busy(false);
       this._data = data;
       this._connError = false;
@@ -313,7 +317,14 @@ class AlarmageddonPanel extends HTMLElement {
       if (isConnectionError(err) || String(err?.message) === "timeout") {
         if (!this._connError) this._toast(this._t("errConnection"));
         this._connError = true;
-        setTimeout(() => this._fetch(), 5000);
+        // Immer nur eine geplante Wiederholung (1.63.0, Code-Review). Bis 1.62.0 plante jede gescheiterte Abfrage eine eigene: ohne Verbindung
+        // scheitert callWS sofort, und jede Abfrage des Takts (alle 30 s) und jeder Wechsel der Sichtbarkeit begann eine weitere Kette. Nach einer
+        // Stunde Ausfall liefen so rund 120 Ketten, und bei der Rückkehr der Verbindung kamen alle Abfragen zugleich beim Server an.
+        clearTimeout(this._retryTimer);
+        this._retryTimer = setTimeout(() => {
+          this._retryTimer = 0;
+          this._fetch();
+        }, 5000);
       } else {
         this._toast(this._t("errGeneric", { message: errText(err) }));
       }
@@ -1364,7 +1375,11 @@ class AlarmageddonPanel extends HTMLElement {
       dlg.addEventListener("close", () => {
         // Ein getippter Code bleibt nie in einem geschlossenen Fenster stehen, egal wie es schloss (Sicherheitsregel: Alarmcode nirgends
         // liegen lassen). Beim nächsten Öffnen wird der Inhalt ohnehin neu aufgebaut.
-        for (const input of dlg.querySelectorAll('input[type="password"]')) input.value = "";
+        // Ein mit dem Auge eingeblendeter Code (1.63.0) steht danach wieder verdeckt da und ist ebenso geleert.
+        for (const input of dlg.querySelectorAll('input[type="password"], input[data-secret]')) {
+          input.value = "";
+          if (input.hasAttribute("data-secret")) input.type = "password";
+        }
         const c = this._content;
         const top = this._dlgScroll;
         if (!c || top === undefined || dlg.id === "ag-confirm") return;
@@ -1392,7 +1407,8 @@ class AlarmageddonPanel extends HTMLElement {
     if (dlg.id === "ag-monstep") return Boolean(this.actions.mon.step) && JSON.stringify(this.actions.mon.step.form) !== this.actions.mon.step.snap;
     if (dlg.id === "ag-pick") return Boolean(this.sensors.pick?.sel?.size);
     if (dlg.id === "ag-presets") return JSON.stringify(this.sensors.presetDraft) !== JSON.stringify(this.sensors.presets) || Boolean(this.sensors.presetOverride);
-    if (dlg.id === "ag-codes") return [...dlg.querySelectorAll("input[data-key]")].some((i) => i.value) && Boolean(dlg.querySelector('[data-sys="code-save"]'));
+    // Code hinzufügen oder bearbeiten: geändert ist, was vom Stand beim Öffnen abweicht (Bearbeiten: Name und Benutzer stehen schon drin)
+    if (dlg.id === "ag-codes") return [...dlg.querySelectorAll("[data-key]")].some((i) => i.value !== (i.dataset.init ?? "")) && Boolean(dlg.querySelector('[data-sys="code-save"]'));
     return false;
   }
 
@@ -1665,6 +1681,10 @@ class AlarmageddonPanel extends HTMLElement {
 
   _onChange(ev) {
     const el = ev.target;
+    // Eigene Töne: Datei gewählt (im Fenster eines Tonschritts oder im Fenster "Eigene Töne"); der Name steht sofort neben dem Knopf
+    if (el.dataset?.cs === "file") return filePicked(el, el.closest("#ag-step") ? this.actions.edit?.upload : this.systemUi.cs?.upload);
+    // Codefeld verlassen: erst jetzt warnt "zu kurz" (1.63.0)
+    if (el.dataset?.sys === "cf") return this.systemUi.codeWarn();
     if (this.list.onChange(el)) return;
     if (this._tab === "log" && this.log.onChange(el)) return;
     if (this._tab === "config" && this._sub === "sensors" && this.sensors.onChange(el)) return;

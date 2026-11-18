@@ -106,8 +106,23 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     await s.tap('[data-trigger="monitor"]');
     await s.waitFor("return !!r.querySelector('.ag-mon-rule')");
     const topMonitor = await segTop();
-    check(`${tag}: Reiterzeile springt beim Wechsel auf "${t.mode}" nicht (gleiche Höhe, Platzhalter unsichtbar und ohne Schalter)`, Math.abs(topAlarm - topMonitor) <= 1
-      && await s.ev("const g=r.querySelector('.ag-wf-head .ag-ghost'); return !!g && getComputedStyle(g).visibility === 'hidden' && !r.querySelector('.ag-wf-head button.ag-toggle')"), `${topAlarm} / ${topMonitor}`);
+    // 1.63.0 (Wunsch des Nutzers): der Schalter "Einstellungen pro Modus" steht auch hier, sichtbar und an derselben Stelle (vorher ein Platzhalter)
+    const swVisible = () => s.ev("const b=r.querySelector('.ag-wf-head [data-wf=\"permode\"]'); if (!b) return false; const c=getComputedStyle(b); const x=b.getBoundingClientRect(); return c.visibility === 'visible' && x.width > 20 && x.height > 10 && !b.closest('[aria-hidden=\"true\"]')");
+    check(`${tag}: Reiterzeile springt beim Wechsel auf "${t.mode}" nicht (gleiche Höhe), der Schalter "Einstellungen pro Modus" ist auch hier sichtbar`, Math.abs(topAlarm - topMonitor) <= 1 && await swVisible(), `${topAlarm} / ${topMonitor}`);
+    // Umschalten im Reiter "Überwachung": man bleibt dort, die Reiterzeile steht weiter auf derselben Höhe; zurückschalten stellt alles her
+    const per0 = await s.ev("return r.host.actions.draft.perMode");
+    await s.tap('.ag-wf-head [data-wf="permode"]');
+    check(`${tag}: Schalter im Reiter "${t.mode}" umgeschaltet: der Reiter bleibt gewählt`, await s.waitFor(`return r.host.actions.draft.perMode === ${!per0} && r.host.actions.trigger === 'monitor' && !!r.querySelector('.ag-mon-rule') && r.querySelector('[data-seg="wf-trigger"] button.on')?.dataset.trigger === 'monitor'`));
+    // Auch in der anderen Stellung des Schalters steht die Reiterzeile in allen Reitern auf derselben Höhe
+    const topMon2 = await segTop();
+    await s.tap('[data-seg="wf-trigger"] > button:first-child');
+    await s.waitFor("return r.host.actions.trigger !== 'monitor' && !!r.querySelector('.ag-wf-main')");
+    const topAlarm2 = await segTop();
+    check(`${tag}: andere Stellung des Schalters: Reiterzeile bei "${t.mode}" und beim ersten Reiter auf derselben Höhe`, Math.abs(topAlarm2 - topMon2) <= 1 && await swVisible(), `${topAlarm2} / ${topMon2}`);
+    await s.tap('[data-trigger="monitor"]');
+    await s.waitFor("return r.host.actions.trigger === 'monitor'");
+    await s.tap('.ag-wf-head [data-wf="permode"]');
+    await s.waitFor(`return r.host.actions.draft.perMode === ${per0} && r.host.actions.trigger === 'monitor'`);
     check(`${tag}: gewählt "${t.mode}": Rand in Orange`, await s.waitFor(`const rg = getComputedStyle(r.querySelector('[data-seg="wf-trigger"] .ag-pill')).boxShadow; return rg.includes(${JSON.stringify(wantM.replace("rgb(", "").replace(")", ""))})`));
     check(`${tag}: zwei Regeln als Kapitel`, await s.waitFor("return r.querySelectorAll('.ag-mon-rule').length === 2"));
     check(`${tag}: Standard: alle Regeln zugeklappt (Kopf sichtbar, keine Abläufe)`, await s.ev("return [...r.querySelectorAll('.ag-mon-rule')].every((x) => x.classList.contains('folded') && !x.querySelector('.ag-wf-line') && x.querySelector('.ag-mon-head'))"));
@@ -219,10 +234,11 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     check(`${tag}: jede Schrittkarte hat den Test-Knopf an erster Stelle, bei "Warten" gesperrt`, await s.ev("const cards=[...r.querySelectorAll('.ag-mon-rule')[0].querySelectorAll('.ag-wf-step')]; return cards.length >= 4 && cards.every((c) => c.querySelector('.ag-wf-btns').firstElementChild.dataset.wf === 'mon-step-test' && c.querySelectorAll('.ag-wf-btns .ag-iconbtn').length === 4 && c.querySelector('.ag-wf-btns').firstElementChild.disabled === /Warten|Wait/.test(c.querySelector('.ag-wf-text b').textContent))"));
     await s.sim("window.__delay = { 'alarmageddon/test_monitor_step': 500 }; window.__calls.length = 0; return 1");
     await s.tap('[data-wf="mon-step-test"][data-rule="0"][data-zone="out"][data-index="0"]');
-    check(`${tag}: während des Tests sind alle Test-Knöpfe gesperrt, der laufende ist markiert`, await s.waitFor("const b=[...r.querySelectorAll('[data-wf=\"mon-step-test\"]')]; return b.every((x) => x.disabled) && b.filter((x) => x.classList.contains('on')).length === 1"));
+    // Wie jeder Play-Knopf (1.63.0): der laufende ist rot und zeigt Stopp, die anderen sind gesperrt
+    check(`${tag}: während des Tests ist der laufende Knopf rot mit Stopp, die anderen Test-Knöpfe sind gesperrt`, await s.waitFor("const b=[...r.querySelectorAll('[data-wf=\"mon-step-test\"]')]; const run=b.filter((x) => x.classList.contains('ag-running')); return run.length === 1 && !run[0].disabled && /^(Stop|Stoppen)$/.test(run[0].getAttribute('aria-label')) && b.filter((x) => x !== run[0]).every((x) => x.disabled)"));
     await s.page.waitForFunction(() => window.__calls.some((c) => c.type === "alarmageddon/test_monitor_step"), null, { timeout: 5000 });
     check(`${tag}: der Server bekommt Art, Schritt, Regel und Namen (auch ungespeichert)`, await s.sim("const c=window.__calls.find((x) => x.type === 'alarmageddon/test_monitor_step'); return c.kind === 'out' && c.step.type === 'notify' && c.step.critical === true && !!c.rule_id && !!c.rule_name"));
-    check(`${tag}: danach Meldung "${t.stepTested}", Knöpfe wieder frei, Entwurf unverändert`, await s.waitFor(`return /${t.stepTested}/.test(r.querySelector('.ag-toast')?.textContent || '') && [...r.querySelectorAll('[data-wf="mon-step-test"]')].some((x) => !x.disabled)`, 5000));
+    check(`${tag}: danach Meldung "${t.stepTested}", Knöpfe wieder frei, Entwurf unverändert`, await s.waitFor(`return /${t.stepTested}/.test(r.querySelector('.ag-toast')?.textContent || '') && !r.querySelector('[data-wf="mon-step-test"].ag-running') && [...r.querySelectorAll('[data-wf="mon-step-test"]')].some((x) => !x.disabled)`, 5000));
     await s.sim("window.__delay = {}; window.__wsFail = Object.assign(new Error('Gerät antwortet nicht'), { code: 'failed' }); return 1");
     await s.tap('[data-wf="mon-step-test"][data-rule="0"][data-zone="out"][data-index="1"]');
     check(`${tag}: schlägt der Test fehl, steht der Grund in der Meldung`, await s.waitFor(`return /${t.stepTestFail}/.test(r.querySelector('.ag-toast')?.textContent || '') && /Gerät antwortet nicht/.test(r.querySelector('.ag-toast').textContent)`, 5000));
@@ -236,6 +252,8 @@ return { bg: seg.style.background, dark, alarm: bs.filter((b) => b.dataset.trigg
     check(`${tag}: nach dem Neuladen steht der Ablauf noch da`, await s.waitFor("const c=r.querySelectorAll('.ag-mon-rule')[0]; return c.querySelectorAll('.ag-wf-mon-ok .ag-wf-step').length === 3 && c.querySelectorAll('.ag-wf-mon-out .ag-wf-step').length === 2", 8000));
 
     // ----- Editor der Regel -----
+    // Erst wenn das Neuladen nach dem Speichern ganz vorbei ist: sonst fängt die Ladeanzeige den Tipp ab (unter Last gesehen, 2026-11-17)
+    await s.waitFor("return !r.host._wait && !r.querySelector('.ag-ldwrap')", 10000);
     await s.tap('[data-wf="mon-add"]');
     check(`${tag}: Editor offen, "Übernehmen" gesperrt (Name fehlt)`, await s.waitFor("const d=r.getElementById('ag-mon'); return d.open && d.querySelector('[data-wf=\"mon-save-form\"]').disabled"));
     await (await s.el('#ag-mon [data-wf="mon-name"]')).fill("Keller feucht");

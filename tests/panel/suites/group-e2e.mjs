@@ -57,6 +57,9 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: die Gruppe steht im Entwurf (Name, Anzahl, wartet, noch ohne Schritte)`, (await draft("main")).length === before + 1 && made.type === "group" && made.name === "Blinken" && made.mode === "count" && made.count === 4 && made.wait === true && made.steps.length === 0, JSON.stringify(made));
     const head = await s.ev("const g=r.querySelector('.ag-wf-main > .ag-wf-group[data-index=\"0\"]'); return g ? { pill: g.querySelector('.ag-wf-gpill').textContent.trim(), sum: g.querySelector('.ag-wf-gsum').textContent.trim(), waits: g.querySelector('.ag-wf-ghead .ag-waitpill')?.textContent.trim() || '', zone: g.querySelector('.ag-wf-glist').dataset.zone } : null");
     check(`${tag}: Karte der Gruppe: Kopfzeile mit Name, Wiederholung und der Pille "Wartet ..."; eigene Liste "main:0"`, head?.pill === t.title && head.sum === t.count && head.waits.startsWith(t.waits) && head.zone === "main:0", JSON.stringify(head));
+    // 1.62.1 (Wunsch des Nutzers): wie die Gruppe wiederholt, steht etwas grösser und fett, damit es auffällt
+    const sumStyle = await s.ev("const x=getComputedStyle(r.querySelector('.ag-wf-main > .ag-wf-group[data-index=\"0\"] .ag-wf-gsum')); return { size: x.fontSize, weight: Number(x.fontWeight) }");
+    check(`${tag}: "${t.count}" steht in 16 px und fett`, sumStyle.size === "16px" && sumStyle.weight >= 700, JSON.stringify(sumStyle));
 
     // Rahmen in der Farbe der Liste: beim Alarm rot, beim Scharfschalten hellrot (nie violett wie im Mockup)
     await setSteps("armed", [{ type: "group", mode: "count", count: 2, seconds: 60, steps: [], wait: false }]);

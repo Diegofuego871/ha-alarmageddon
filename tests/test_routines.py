@@ -679,3 +679,27 @@ async def test_old_backup_with_unconfirmed_arm_routine_restores(hass: HomeAssist
     assert result["success"], result
     await hass.async_block_till_done()
     assert [r["name"] for r in entry.options["routines"]] == ["Routine"]
+
+
+async def test_a_damaged_routine_never_stops_the_alarm_system_from_loading(hass: HomeAssistant, caplog) -> None:
+    """
+    Code-Review 1.63.0: Eine beschädigte Routine (Ablage von Hand geändert, kaputte Sicherung) darf die Anlage nie am Laden hindern. Bis 1.62.0 fing
+    der Start nur KeyError, ValueError und TypeError ab; ein Auslöser, der kein Wörterbuch ist, warf AttributeError, und die ganze Anlage lud nicht
+    (Sicherheitsregel: im Zweifel alarmieren). Die übrigen Routinen laufen weiter.
+    """
+    good = {"id": "r_gut", "name": "Gut", "enabled": True, "action": "away", "states": ["disarmed"], "unsafe": False,
+            "trigger": {"type": "device", "hold": 0, "tree": {"op": "and", "items": [{"kind": "state", "entity_id": "lock.haustuer", "state": "locked"}]}}}
+    damaged = [
+        {"id": "r_text", "name": "Text", "enabled": True, "action": "off", "states": ["disarmed"], "trigger": "kein Wörterbuch"},
+        {"id": "r_liste", "name": "Liste", "enabled": True, "action": "off", "states": ["disarmed"], "trigger": {"type": "device", "tree": ["x"]}},
+        {"id": "r_zeit", "name": "Zeit", "enabled": True, "action": "off", "states": ["disarmed"], "trigger": {"type": "schedule", "times": [None]}},
+    ]
+    hass.states.async_set("lock.haustuer", "unlocked")
+    entry = await setup_alarm(hass, routines=[*damaged, good])
+    assert hass.states.get(ALARM) is not None
+    assert caplog.text.count("is damaged and does not run") == 3
+    # Die gesunde Routine läuft
+    hass.states.async_set("lock.haustuer", "locked")
+    await hass.async_block_till_done()
+    assert state(hass) in (AlarmControlPanelState.ARMING, AlarmControlPanelState.ARMED_AWAY), state(hass)
+    assert entry.runtime_data.controller.mode == "away"
