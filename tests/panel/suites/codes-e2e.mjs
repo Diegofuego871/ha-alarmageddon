@@ -35,11 +35,18 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   await s.tap('[data-sub="system"]');
   await s.waitFor("return !!r.querySelector('[data-sys=\"code-open\"]')");
 
-  // ----- Seite: nur Zusammenfassung, Hauptcode und Quittieren -----
+  // ----- Seite: Zusammenfassung mit "Code hinzufügen" und "Codes anzeigen" (seit 1.64.0 wie Routinen und Töne), Hauptcode und Quittieren -----
   const page = await s.ev(`const c=r.querySelector('[data-sys="code-open"]').closest('.ag-chap'); return { summary: c.querySelector('.ag-codesum b').innerText.trim(), add: !!r.querySelector('.ag-content [data-sys="code-add"]'),
+    addPage: c.querySelector('.ag-codesum .ag-btnrow > .ag-btn:first-child')?.dataset.sys === 'code-add-page' && c.querySelector('.ag-codesum .ag-btnrow > .ag-btn:last-child')?.dataset.sys === 'code-open',
+    addText: c.querySelector('[data-sys="code-add-page"]')?.innerText.trim(),
     rows: c.querySelectorAll('.ag-coderow').length, main: !!c.querySelector('[data-sys="code"]'), ack: !!c.querySelector('[data-sys="ackcode"]'), hint: c.querySelector(':scope > .ag-chap-h')?.innerText.trim() === r.host._t('sysCodesHint'),
     noName: !c.innerText.includes('Anna'), noCode: !c.innerText.includes('2468') }`);
-  check(`${tag}: Seite: Zusammenfassung "${t.one}" mit "Codes anzeigen", kein "Code hinzufügen", keine Liste`, page.summary === t.one && !page.add && page.noName && page.noCode, JSON.stringify(page));
+  check(`${tag}: Seite: Zusammenfassung "${t.one}", links "${t.add}", rechts "Codes anzeigen", keine Liste`, page.summary === t.one && !page.add && page.addPage && page.addText === t.add && page.noName && page.noCode, JSON.stringify(page));
+  // "Code hinzufügen" auf der Seite öffnet dasselbe Formular wie im Fenster, ohne das Fenster der Liste
+  await s.tap('[data-sys="code-add-page"]');
+  check(`${tag}: Seite: "${t.add}" öffnet das Formular "${t.add}" direkt (ohne die Liste)`, await s.waitFor(`const d=r.getElementById('ag-codes'); return d.open && d.querySelector('h3')?.innerText.trim() === ${JSON.stringify(t.add)} && !!d.querySelector('[data-sys="code-save"]') && !r.getElementById('ag-codelist').open`));
+  await s.tap('#ag-codes [data-sys="code-close"]');
+  await s.waitFor("return !r.getElementById('ag-codes').open");
   check(`${tag}: Seite: Hauptcode und "Quittieren verlangt den Code" bleiben, der Hinweis steht über der Karte`, page.rows === 1 && page.main && page.ack && page.hint, JSON.stringify(page));
 
   // Zeile mit der Zusammenfassung wie bei Routinen und Tönen: Text in einer Zeile, der Knopf überdeckt ihn nie (Handy: darunter, Desktop: daneben)
@@ -196,7 +203,7 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   // ----- Höchstzahl, leere Liste -----
   await s.sim("const sys = window.__systems[0]; while (sys.codes.length < 20) { const id = 'c_x' + sys.codes.length; sys.codes.push({ id, name: 'Person ' + sys.codes.length, user_id: null }); } return 1");
   await s.ev("return r.host._fetch()");
-  check(`${tag}: 20 Codes: "${t.add}" gesperrt`, await s.waitFor("return r.querySelectorAll('#ag-codelist tr[data-code]').length === 20 && r.querySelector('#ag-codelist [data-sys=\"code-add\"]').disabled"));
+  check(`${tag}: 20 Codes: "${t.add}" gesperrt (im Fenster und auf der Seite)`, await s.waitFor("return r.querySelectorAll('#ag-codelist tr[data-code]').length === 20 && r.querySelector('#ag-codelist [data-sys=\"code-add\"]').disabled && r.querySelector('.ag-content [data-sys=\"code-add-page\"]').disabled"));
   await s.sim("const sys = window.__systems[0]; sys.codes = []; sys.pcodes = {}; return 1");
   await s.ev("return r.host._fetch()");
   check(`${tag}: ohne Codes: Hinweis mit blauem Knopf in der Mitte, kein Suchfeld, Fusszeile nur "Schliessen"`, await s.waitFor("const d=r.getElementById('ag-codelist'); return !d.querySelector('.ag-codetable') && !!d.querySelector('.ag-rtempty [data-sys=\"code-add\"].primary') && !d.querySelector('[data-sys=\"code-search\"]') && [...d.querySelectorAll('.ag-dlg-btns button')].map((b) => b.dataset.sys).join() === 'code-list-close'"));

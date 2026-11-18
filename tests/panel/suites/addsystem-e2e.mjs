@@ -3,8 +3,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { title: "Alarmanlage hinzufügen", btn: "Anlage hinzufügen", hint: "Gib einen Namen ein", taken: "bereits vergeben", create: "Hinzufügen", cancel: "Abbrechen", device: "Gerät", entity: "Alarm-Entität" },
-  en: { title: "Add alarm system", btn: "Add alarm system", hint: "Enter a name", taken: "already used", create: "Add", cancel: "Cancel", device: "Device", entity: "Alarm entity" },
+  de: { title: "Alarmanlage hinzufügen", btn: "Anlage hinzufügen", hint: "Gib einen Namen ein", taken: "bereits vergeben", create: "Hinzufügen", cancel: "Abbrechen", device: "Gerät", entity: "Alarm-Entität", copy: "Alarm-Entität kopieren" },
+  en: { title: "Add alarm system", btn: "Add alarm system", hint: "Enter a name", taken: "already used", create: "Add", cancel: "Cancel", device: "Device", entity: "Alarm entity", copy: "Copy Alarm entity" },
 };
 
 const browser = await launch();
@@ -35,6 +35,29 @@ for (const lang of ["de", "en"]) {
     const input = await s.el("#ag-add-input");
     await input.fill("Küche Süd");
     check(`${tag}: Vorschau zeigt Gerät und die ID, die der Server vergibt (alarm_control_panel.kuche_sud)`, await s.waitFor(`const p=r.getElementById('ag-addprev').innerText; return p.includes('alarm_control_panel.kuche_sud') && p.includes('Küche Süd') && p.includes(${JSON.stringify(t.device)}) && p.includes(${JSON.stringify(t.entity)}) && !r.getElementById('ag-add').querySelector('button[type=submit]').disabled`));
+    // Kopieren der Alarm-Entität (1.64.0, Wunsch des Nutzers): ein Knopf direkt hinter der ID, nur dort; kopiert wird die ganze ID, das Fenster bleibt
+    // offen, nichts wird angelegt, Name und "Hinzufügen" bleiben, wie sie sind
+    check(`${tag}: Kopieren-Knopf direkt hinter der Alarm-Entität ("${t.copy}"), auf derselben Zeile, im Fenster, nur einer`, await s.ev(`const d=r.getElementById('ag-add'); const bs=[...d.querySelectorAll('#ag-addprev [data-act="copy"]')]; if (bs.length !== 1) return false;
+      const b=bs[0]; const id=b.closest('.ag-addval')?.querySelector('b'); if (!id || id.textContent !== 'alarm_control_panel.kuche_sud') return false; const q=b.getBoundingClientRect(); const w=id.getBoundingClientRect(); const dl=d.getBoundingClientRect();
+      return b.dataset.value === 'alarm_control_panel.kuche_sud' && b.type === 'button' && b.getAttribute('aria-label') === ${JSON.stringify(t.copy)} && b.title === ${JSON.stringify(t.copy)} && q.left >= w.right - 1 && q.left - w.right <= 12
+        && q.top < w.bottom && q.bottom > w.top && q.right <= dl.right - 8 && q.width >= 30 && q.height >= 30`));
+    await s.ev("window.__copied = []; Object.defineProperty(r.host.ownerDocument.defaultView.navigator, 'clipboard', { configurable: true, value: { writeText: (v) => { window.__copied.push(v); return Promise.resolve(); } } }); return 1");
+    await s.tap('#ag-addprev [data-act="copy"]');
+    check(`${tag}: Kopieren legt die ganze ID in die Zwischenablage, Häkchen am Knopf; Fenster offen, nichts angelegt, Name und Knopf "${t.create}" unverändert`, await s.waitFor(`const d=r.getElementById('ag-add'); const b=d.querySelector('#ag-addprev [data-act="copy"]');
+      return JSON.stringify(window.__copied) === '["alarm_control_panel.kuche_sud"]' && b.classList.contains('done') && d.open && d.querySelector('#ag-add-input').value === 'Küche Süd' && !d.querySelector('button[type=submit]').disabled`)
+      && (await s.sim("return (window.__created || []).length === 0")));
+    check(`${tag}: nach kurzer Zeit wieder das Kopieren-Symbol`, await s.waitFor("const b=r.querySelector('#ag-addprev [data-act=\"copy\"]'); return !b.classList.contains('done') && !b.classList.contains('fail')", 4000));
+    // Ohne Zugriff auf die Zwischenablage (Companion App, kein HTTPS): Textfeld im Fenster, ganze ID markiert, dann "copy"
+    await s.ev(`const doc=r.host.ownerDocument; Object.defineProperty(doc.defaultView.navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('nicht erlaubt')) } });
+      window.__exec = null; doc.execCommand = (cmd) => { const a=r.getElementById('ag-add').querySelector('textarea'); window.__exec = { cmd, value: a?.value, all: !!a && a.selectionStart === 0 && a.selectionEnd === a.value.length }; return true; }; return 1`);
+    await s.tap('#ag-addprev [data-act="copy"]');
+    check(`${tag}: ohne Zwischenablage: Weg über ein Textfeld im Fenster mit der ganzen ID markiert, Häkchen, das Feld ist danach weg`, await s.waitFor(`const d=r.getElementById('ag-add'); return window.__exec?.cmd === 'copy' && window.__exec.value === 'alarm_control_panel.kuche_sud' && window.__exec.all
+      && d.querySelector('#ag-addprev [data-act="copy"]').classList.contains('done') && !d.querySelector('textarea')`), JSON.stringify(await s.ev("return window.__exec")));
+    // Beides verweigert: Warnzeichen statt Häkchen, kein Fehler im Browser
+    await s.ev("r.host.ownerDocument.execCommand = () => false; return 1");
+    await s.page.waitForTimeout(1700);
+    await s.tap('#ag-addprev [data-act="copy"]');
+    check(`${tag}: Kopieren nicht möglich: Warnzeichen am Knopf statt Häkchen`, await s.waitFor("const b=r.querySelector('#ag-addprev [data-act=\"copy\"]'); return b.classList.contains('fail') && !b.classList.contains('done')"));
     // Vergebener Name: Warnung, gesperrt (auch Gross-/Kleinschreibung)
     await input.fill("haus");
     check(`${tag}: schon vergebener Name ("haus"): Warnung, Hinzufügen gesperrt`, await s.waitFor(`const d=r.getElementById('ag-add'); return d.querySelector('#ag-addprev .ag-warntext') && d.querySelector('button[type=submit]').disabled && !d.querySelector('#ag-addprev').innerText.includes('alarm_control_panel')`));

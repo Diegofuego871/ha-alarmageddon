@@ -1,6 +1,10 @@
 // 1.47.0: Automatische Sicherung in Konfiguration › Anlage › Sicherung: Schalter (Standard an), Abstand (Standard wöchentlich), Marke "Automatisch"
 // in der Liste. Je Sprache, Desktop und Handy, echte Klicks/Taps.
 import { check, done, launch, open } from "../lib.mjs";
+import { readFileSync } from "node:fs";
+
+// Symbol "archive" aus dem Panel (seit 1.64.0 das eigene Symbol von "Sicherungen anzeigen")
+const ARCHIVE = readFileSync(new URL("../../../custom_components/alarmageddon/panel/common.js", import.meta.url), "utf8").match(/\barchive: "([^"]+)"/)[1];
 
 const T = { de: { auto: "Automatisch", every: ["Täglich", "Wöchentlich", "Monatlich"] }, en: { auto: "Automatic", every: ["Daily", "Weekly", "Monthly"] } };
 
@@ -66,10 +70,19 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Sortieren nach Name (ohne Namen zuerst)`, await s.waitFor("return !/Stand/.test(r.querySelector('.ag-bktable tr[data-bk] td').textContent)"));
     check(`${tag}: die Liste steht im Popup (nicht auf der Seite), das Popup scrollt, der Tabellenkopf klebt oben beim Rollen`, await s.ev(`const d=r.getElementById('ag-bklist'); const body=d.querySelector('.ag-dlg-body'); if (r.querySelector('.ag-sys-form .ag-bktable')) return false; if (!(body.scrollHeight > body.clientHeight + 20)) return false; body.scrollTop = 400; const h=r.querySelector('#ag-bklist .ag-bktable th').getBoundingClientRect(); const top=body.getBoundingClientRect().top; return body.scrollTop > 0 && h.top >= top - 1 && h.top <= top + 60`));
     check(`${tag}: alle 14 Zeilen stehen in der Liste, ohne inneren Rollbereich`, await s.ev("return r.querySelectorAll('#ag-bklist .ag-bktable tr[data-bk]').length === 14 && !r.querySelector('#ag-bklist .ag-bkscroll')"));
+    // Deutsch durchgängig "Backup", nie "Sicherung" (Wunsch des Nutzers, 2026-11-18): Kapitel samt Hinweis und Fenster mit Liste
+    if (lang === "de") check(`${tag}: Kapitel und Fenster sagen "Backup", nie "Sicherung"`, await s.ev("const t=r.querySelector('.ag-bklast').closest('.ag-chap').innerText + ' ' + r.getElementById('ag-bklist').innerText; return /Backup/.test(t) && !/[Ss]icherung|[Ss]ichern\\b|[Gg]esichert/.test(t)"));
     await s.tap('[data-sys="bk-close"]');
     await s.waitFor("return !r.getElementById('ag-bklist').open");
-    check(`${tag}: Seite: "Letzte Sicherung" mit Datum und Knopf "Sicherungen anzeigen"`, await s.ev("const l=r.querySelector('.ag-bklast'); return !!l && /(Letzte Sicherung|Last backup)/.test(l.innerText) && !!l.querySelector('[data-sys=\"bk-open\"]')"));
-    check(`${tag}: der Knopf "Sicherungen anzeigen" trägt das Listen-Symbol wie "Routinen anzeigen" (nicht das einer Sicherung)`, await s.ev("const d=(sel) => r.querySelector(sel)?.querySelector('svg path')?.getAttribute('d'); const a=d('[data-sys=\"bk-open\"]'); return !!a && a === d('[data-sys=\"rt-open\"]')"));
+    // Seit 1.64.0 (Wunsch des Nutzers) wie Routinen, eigene Töne und Codes: eine Zeile oben in der Karte, links "Backup erstellen", rechts "Backups
+    // anzeigen"; der Hinweis steht über der Karte, darunter die automatischen Backups
+    check(`${tag}: Seite: "Letztes Backup" mit Datum, daneben "Backup erstellen" und "Backups anzeigen" in derselben Zeile, oben in der Karte`, await s.ev(`const l=r.querySelector('.ag-bklast'); if (!l || !/(Letztes Backup|Last backup)/.test(l.innerText)) return false;
+      const b=[...l.querySelectorAll('.ag-btnrow > .ag-btn')].map((x) => x.dataset.sys); const card=l.closest('.ag-card'); const chap=l.closest('.ag-chap');
+      return b.join() === 'bk-create,bk-open' && card.firstElementChild === l && l.nextElementSibling?.classList.contains('ag-bkauto') && card.querySelectorAll('[data-sys="bk-create"], [data-sys="bk-open"]').length === 2
+        && !!chap.querySelector(':scope > .ag-chap-h') && chap.querySelector(':scope > .ag-chap-h').compareDocumentPosition(card) === Node.DOCUMENT_POSITION_FOLLOWING`));
+    // Bis 1.63.0 das Listen-Symbol der Routinen (Wunsch 1.58.0); seit 1.64.0 ein eigenes (Wunsch des Nutzers: jede Liste ihr Symbol), weder das der
+    // Routinen noch das der automatischen Sicherung
+    check(`${tag}: der Knopf "Sicherungen anzeigen" trägt sein eigenes Symbol (Archiv), nicht das von "Routinen anzeigen" und nicht das der automatischen Sicherung`, await s.ev(`const d=(sel) => r.querySelector(sel)?.querySelector('svg path')?.getAttribute('d'); const a=d('[data-sys="bk-open"]'); return a === ${JSON.stringify(ARCHIVE)} && a !== d('[data-sys="rt-open"]') && a !== d('.ag-bkauto .ag-oav')`));
     check(`${tag}: kein Überlauf`, await s.ev("return document.documentElement.scrollWidth <= window.innerWidth"));
     check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();

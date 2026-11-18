@@ -11,9 +11,11 @@
 <a href="https://hacs.xyz"><img src="https://img.shields.io/badge/HACS-Integration-41BDF5?style=flat-square" alt="HACS"></a>
 </p>
 
+<p align="center"><a href="https://www.buymeacoffee.com/Diego871"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" width="217" height="60"></a></p>
+
 [English](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/README.md)
 
-**Eine vollständige Alarmanlage für Home Assistant, ohne eine einzige Automation.** Du kreuzt an, welche Sensoren wachen, legst fest, was bei einem Alarm passiert, und schaltest scharf. Alles in einem Seitenpanel, am Computer und auf dem Handy; die Push-Meldungen kommen von selbst.
+**Eine vollständige Alarmanlage für Home Assistant, ohne eine einzige Automation.** Du kreuzt an, welche Sensoren wachen, legst fest, was bei einem Alarm passiert, und schaltest scharf. Alles in einem Seitenpanel, am Computer und auf dem Handy; die Push-Meldungen kommen von selbst, und Alarmageddon behält sich selbst im Blick.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/overview-de.png" alt="Übersicht mit zwei Anlagen, der Statuskachel und der Sensorliste" width="100%"></p>
 
@@ -32,6 +34,8 @@
 - **Keine Automationen, kein YAML.** Zonen je Modus, Ein- und Ausgangsverzögerung, Sirene und Alarmton, Routinen nach Zeit oder Gerät, Codes pro Person: alles eingebaut und grafisch eingestellt.
 - **Push-Meldungen von selbst.** Alarm, scharf, deaktiviert, Sensor nicht erreichbar, Batterie schwach: Du wählst nur die Empfänger. Die Alarmmeldung bringt ihre Knöpfe mit ("Quittieren", "Deaktivieren"), auf Wunsch kritisch.
 - **Sensoren unter Beobachtung.** Batterie mit Prognose, Empfang, letzte Änderung und der Verlauf jedes Sensors über 30 Tage. Fällt ein Sensor im scharfen Zustand aus, erfährst du es.
+- **Mehr als Einbruch.** Regeln der Überwachung für Kühlschrank, Keller oder Luft melden, wenn ein Wert seine Grenzen verlässt, getrennt vom Alarm und nie mit der Sirene.
+- **Behält sich selbst im Blick.** Ein Selbsttest prüft alle paar Stunden, ob alles, was die Anlagen brauchen, noch da und erreichbar ist. Ein HealthCheck-Dienst draussen (Healthchecks.io, Cronitor, Better Stack …) bekommt regelmässig ein Lebenszeichen und meldet sich, wenn Home Assistant verstummt.
 - **Nachvollziehbar.** Jeder Alarm wird mit Zeitachse aufgezeichnet: welcher Sensor, welche Schritte, welche Meldungen, wer quittiert hat.
 - **Im Zweifel alarmieren.** Zustand, Verzögerungen und Alarme überstehen Neustart und Absturz, kein Gerät hält die Sirene auf, ein Wächter beaufsichtigt den Ablauf.
 - **Bleibt zu Hause.** Keine Cloud, kein Konto. Jede Anlage ist eine gewöhnliche `alarm_control_panel`-Entität; jeder Sensor von Home Assistant funktioniert (Zigbee, Z-Wave, Thread/Matter, WLAN, Bluetooth).
@@ -40,7 +44,7 @@
 
 1. **Installieren:** HACS → drei Punkte → "Benutzerdefinierte Repositories" → `https://github.com/Diegofuego871/ha-alarmageddon`, Typ "Integration". "Alarmageddon" installieren und Home Assistant neu starten.
 2. **Anlage hinzufügen:** Einstellungen → Geräte & Dienste → "Integration hinzufügen" → "Alarmageddon". Name vergeben und, wenn du willst, einen Code.
-3. **Einrichten:** "Alarmageddon" in der Seitenleiste öffnen (nur Administratoren) und unter Konfiguration die drei Schritte von oben durchgehen: Sensoren, Aktionen, Benachrichtigungen. Mit "Testmeldung senden" und dem Abspielknopf eines Schritts probierst du alles ohne Alarm aus.
+3. **Einrichten:** "Alarmageddon" in der Seitenleiste öffnen (nur Administratoren) und unter Konfiguration die drei Schritte von oben durchgehen: Sensoren, Aktionen, Benachrichtigungen. Mit "Testmeldung senden" und dem Abspielknopf eines Schritts probierst du alles ohne Alarm aus. Unter Konfiguration › Anlage findest du Routinen, Codes pro Person, eigene Töne, HealthCheck und Backup.
 
 ## Rundgang
 
@@ -58,7 +62,7 @@ Ein rotes Band nennt den Sensor, der ausgelöst hat, mit den Knöpfen "Quittiere
 
 ### Sensoren im Blick
 
-Ein Tipp auf einen Sensor zeigt, was er getan hat: eine Grafik je Sensorart über 3 Stunden bis 30 Tage, die Ereignisse mit dem Zustand der Anlage in diesem Moment, dazu Batterie und Empfang mit Verlauf.
+Ein Tipp auf einen Sensor zeigt, was er getan hat: eine Grafik je Sensorart über 3 Stunden bis 30 Tage, die Ereignisse mit dem Zustand der Anlage in diesem Moment, dazu Batterie und Empfang mit Verlauf. Ein Sensor, den eine Regel der Überwachung verwendet, listet auch seine Regeln, und jede Grenze steht in der Grafik.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sensor-de.png" alt="Sensoransicht einer Tür: Verlauf über 7 Tage mit Kennzahlen und Ereignisliste" width="100%"></p>
 
@@ -67,6 +71,18 @@ Ein Tipp auf einen Sensor zeigt, was er getan hat: eine Grafik je Sensorart übe
 Neben dem Alarm, standardmässig aus: Regeln für das, was nichts mit Einbrechern zu tun hat. Ein Kühlschrank, der zu warm wird, ein feuchter Keller, schlechte Luft. Sie melden "Ausserhalb der Grenzen" und "Wieder in Ordnung" und lösen nie die Sirene aus.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/monitor-de.png" alt="Regeln der Überwachung: Kühlschrank zu warm mit den Abläufen ausserhalb der Grenzen und wieder in Ordnung" width="100%"></p>
+
+### Selbsttest
+
+Alarmageddon prüft sich alle paar Stunden und nach jedem Speichern selbst: Gibt es alle Sirenen, Lautsprecher, Aktionen und Empfänger noch, die die Anlagen verwenden, sind sie erreichbar, und ist ein Schritt, eine Meldung oder ein Lebenszeichen gescheitert? Die Statuskachel zeigt das Ergebnis; ein Fenster erklärt jedes Problem mit Ursachen und wie man es behebt, mit einem Sprung an die richtige Stelle. Jede Anlage hat eine Entität "Selbsttest", und Home Assistant führt die Probleme unter Reparaturen auf. Der Selbsttest liest nur: er schaltet nie etwas und hält nie einen Alarm auf.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/selftest-de.png" alt="Fenster des Selbsttests mit einer fehlenden Sirene, der Erklärung, den Ursachen und der Behebung" width="100%"></p>
+
+### HealthCheck
+
+Und wenn Home Assistant selbst ausfällt? Dann kann nichts darin es dir sagen. Unter Konfiguration › Anlage › HealthCheck schickt Alarmageddon bis zu fünf Diensten draussen, etwa Healthchecks.io, Cronitor, Better Stack oder Uptime Kuma, alle 1 Minute bis 24 Stunden ein Lebenszeichen. Bleiben die Lebenszeichen aus, meldet sich der Dienst. Solange der Selbsttest Probleme hat, ruft Alarmageddon stattdessen die Fehler-URL auf, so erfährst du auch davon. Es geht mit jedem Dienst, der einen einfachen Aufruf einer URL annimmt: Für bekannte Dienste wird der Fehler-Zusatz vorgeschlagen, entscheiden tust du. "Fehler senden" und "Lebenszeichen senden" probieren jeden Dienst aus; im Kapitel stehen auch der Selbsttest und sein Abstand.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/healthcheck-list-de.png" alt="Das Fenster HealthCheck-Dienste: drei Dienste mit URL, letztem Lebenszeichen, Intervall, Status und den Knöpfen zum Testen, Bearbeiten und Entfernen" width="100%"></p>
 
 ### Dashboard-Karten
 
@@ -80,16 +96,18 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Das ist ei
 
 - **Neustart und Absturz:** Jeder Wechsel des Zustands wird sofort geschrieben. Eine Eingangsverzögerung, die während eines Neustarts abläuft, wird zum Alarm; ein laufender Alarm geht weiter.
 - **Nichts hält die Sirene auf:** Ein Gerät, das nicht antwortet, wird nach 10 Sekunden übergangen; ein scheiternder Schritt stoppt den Rest nie; ein Wächter startet den Ablauf selbst, wenn er ausbleibt.
-- **Codes:** nur als Hash mit Salz gespeichert, nie angezeigt, nie in einer Sicherung. Fünf falsche Codes sperren die Anlage für eine Minute.
+- **Codes:** nur als Hash mit Salz gespeichert, nie angezeigt, nie in einem Backup. Fünf falsche Codes sperren die Anlage für eine Minute.
 - **Nur Administratoren** erreichen das Panel und seine Befehle. Knöpfe in Push-Meldungen wirken nur vom Handy eines Empfängers.
 - **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet, wird gemeldet oder zählt auf Wunsch als Alarm.
-- **Getestet:** über 1400 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 6800 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 347 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
+- **Selbsttest:** prüft regelmässig, ob alles, was der Alarm braucht, da und erreichbar ist, und hält fest, was scheiterte; er liest nur und hält nie einen Alarm auf.
+- **HealthCheck:** Lebenszeichen an einen Dienst draussen melden ein verstummtes Home Assistant. Die Ping-URL steht ganz nur im Panel und im Backup, nie im Log oder in einer Meldung; ein Lebenszeichen wartet höchstens 10 Sekunden.
+- **Getestet:** über 1500 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 7300 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 362 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
 
 ### Grenzen
 
 Alarmageddon ist keine zertifizierte Alarmanlage:
 
-- Fällt Home Assistant, der Strom, das Netzwerk oder der Funk-Koordinator aus, gibt es keinen Alarm. Für kritische Einsätze hilft eine Sirene mit eigenem Akku.
+- Fällt Home Assistant, der Strom, das Netzwerk oder der Funk-Koordinator aus, gibt es keinen Alarm. Für kritische Einsätze hilft eine Sirene mit eigenem Akku; ein HealthCheck-Dienst meldet wenigstens, dass Home Assistant verstummt ist.
 - Wie lange eine Sirene laufen darf, ist von Ort zu Ort verschieden geregelt. Kläre, was bei dir gilt, und stelle die Dauer in den Alarmaktionen ein.
 - Ein Ton "bis zum Deaktivieren" und eine Sirene ohne Schritt "aus" laufen, bis jemand deaktiviert.
 
@@ -101,7 +119,7 @@ Alarmageddon ist keine zertifizierte Alarmanlage:
 
 ## Mehr erfahren
 
-- **[Handbuch](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.de.md):** jede Ansicht und jede Einstellung im Detail, alle Sicherheitsmechanismen, Entitäten, Zahlen und Grenzen, Routinen, Sicherung, Hinweise für Entwickler.
+- **[Handbuch](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.de.md):** jede Ansicht und jede Einstellung im Detail, alle Sicherheitsmechanismen, Entitäten, Zahlen und Grenzen, Routinen, Selbsttest, HealthCheck, Backup, Hinweise für Entwickler.
 - **[Änderungsprotokoll](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/CHANGELOG.de.md):** was sich in welcher Version geändert hat.
 - **Sprachen:** Die Integration ist auf Englisch und wechselt auf Deutsch, wenn Home Assistant auf Deutsch läuft.
 - **Lizenz:** siehe [LICENSE](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/LICENSE).

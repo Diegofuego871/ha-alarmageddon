@@ -939,3 +939,77 @@ async def test_failing_actions_of_the_silent_alarm_never_touch_the_alarm(hass: H
     finally:
         release.set()
         await settle(hass)
+
+
+# ----- Selbsttest (1.65.0): Festhalten und Melden halten die Alarmaktionen nie auf -----
+
+
+@pytest.mark.parametrize("part", ["async_note", "async_resolve"])
+async def test_a_failing_selftest_never_stops_the_alarm_actions(hass: HomeAssistant, monkeypatch, part: str) -> None:
+    """
+    Scheitert der Selbsttest beim Festhalten (ein Schritt scheiterte) oder Aufheben eines Befunds (ein Schritt klappte), laufen die übrigen
+    Schritte trotzdem: das Ergebnis eines Aufrufs geht synchron und in einem try an den Selbsttest.
+    """
+    switch = async_mock_service(hass, "switch", "turn_on")
+    light = async_mock_service(hass, "light", "turn_on")
+
+    async def boom(_call: ServiceCall) -> None:
+        raise RuntimeError("Gerät kaputt")
+
+    def broken(*_args, **_kwargs) -> None:
+        raise RuntimeError("Selbsttest kaputt")
+
+    hass.services.async_register("hang", "now", boom)
+    monkeypatch.setattr(f"custom_components.alarmageddon.selftest.{part}", broken)
+    entry = await _alarm(hass, [STEP_HANG, STEP_SIREN, {"type": "action", "action": "light.turn_on", "target": ["light.flur"]}])
+    await settle(hass)
+    assert len(switch) == 1 and len(light) == 1, "die Schritte nach dem Selbsttest müssen laufen"
+    assert hass.states.get(ALARM).state == AlarmControlPanelState.TRIGGERED
+    await call(hass, "alarm_disarm")
+    await settle(hass)
+    assert entry.runtime_data.workflow.running is None
+
+
+async def test_a_hanging_selftest_notification_never_delays_the_alarm(hass: HomeAssistant, monkeypatch) -> None:
+    """Die Meldung des Selbsttests geht ohne Abwarten hinaus: hängt ihr Empfänger, schaltet die Sirene trotzdem sofort."""
+    from custom_components.alarmageddon.const import DATA_SELFTEST, DATA_SETTINGS
+
+    switch = async_mock_service(hass, "switch", "turn_on")
+
+    async def hang(_call: ServiceCall) -> None:
+        await asyncio.Event().wait()
+
+    hass.services.async_register("notify", "haengt", hang)
+    entry = await setup_alarm(hass, workflows={"home": [STEP_SIREN, {"type": "action", "action": "script.gibt_es_nicht"}]})
+    settings = hass.data[DATA_SETTINGS]
+    await settings.async_set_notify({**settings.notify, "maintenance_targets": ["notify.haengt"]})
+    await call(hass, "alarm_arm_home")
+    hass.data[DATA_SELFTEST].async_run()  # Befund (die Aktion fehlt) geht an den hängenden Empfänger
+    await open_sensor(hass, WINDOW)
+    assert len(switch) == 1
+    # Ohne async_block_till_done: das wartete auf den hängenden Empfänger (bis zu dessen Zeitgrenze)
+    await hass.services.async_call("alarm_control_panel", "alarm_disarm", {"entity_id": ALARM}, blocking=True)
+    await settle(hass)
+    assert hass.states.get(ALARM).state == AlarmControlPanelState.DISARMED
+    assert entry.runtime_data.workflow.running is None
+
+
+async def test_a_failing_selftest_never_skips_the_counter_service(hass: HomeAssistant, freezer, monkeypatch) -> None:
+    """
+    Scheitert der Selbsttest, nachdem ein Aufruf geklappt hat, plant der Schritt trotzdem sein "Rückgängig nach einer Zeit" (die Steckdose mit der
+    Sirene schaltet nach der eingestellten Zeit wieder aus).
+    """
+    from .test_alarm import advance
+
+    on = async_mock_service(hass, "switch", "turn_on")
+    off = async_mock_service(hass, "switch", "turn_off")
+
+    def broken(*_args, **_kwargs) -> None:
+        raise RuntimeError("Selbsttest kaputt")
+
+    monkeypatch.setattr("custom_components.alarmageddon.selftest.async_resolve", broken)
+    await _alarm(hass, [{**STEP_SIREN, "undo_after": 30}])
+    await settle(hass)
+    assert len(on) == 1
+    await advance(hass, freezer, 30)
+    assert len(off) == 1, "das Rückgängig muss trotzdem laufen"

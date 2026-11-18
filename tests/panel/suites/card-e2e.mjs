@@ -122,6 +122,19 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
       await s.ctx.close();
     }
+    // ----- Selbsttest (1.65.0): die Zeile steht immer da (mit der letzten Prüfung), Befunde zählen mit; ohne Attribute (älterer Server) keine Zeile -----
+    {
+      const st = { de: ["Selbsttest: keine Probleme", "Selbsttest: 2 Probleme", "geprüft vor 2 Std."], en: ["Self-test: no problems", "Self-test: 2 problems", "checked 2 hr. ago"] }[lang];
+      let s = await open();
+      check(`${tag}: Status ohne Befunde: Zeile "${st[0]}" mit "${st[2]}", "${t.ok}" bleibt`, await s.waitFor(`const r=root(1); return r.querySelector('.ag-status.ok h2')?.textContent === '${t.ok}' && r.querySelector('.ag-st-row')?.textContent.includes(${JSON.stringify(st[0])}) && r.querySelector('.ag-st-row').textContent.includes(${JSON.stringify(st[2])})`));
+      await s.ctx.close();
+      s = await open("&status=warn&selftest=2");
+      check(`${tag}: zwei Befunde: Zeile "${st[1]}" zählt mit (3 brauchen Aufmerksamkeit)`, await s.waitFor(`const r=root(1); return !!r.querySelector('.ag-status.warn') && /3/.test(r.querySelector('h2').textContent) && r.querySelector('.ag-st-row')?.textContent.includes(${JSON.stringify(st[1])})`));
+      await s.ctx.close();
+      s = await open("&selftest=old");
+      check(`${tag}: Server ohne Selbsttest: keine Zeile, kein Fehler`, await s.waitFor(`const r=root(1); return !!r.querySelector('.ag-status.ok') && !r.querySelector('.ag-st-row')`) && s.errors.length === 0, s.errors.join(" | "));
+      await s.ctx.close();
+    }
     // ----- Code-Review 1.63.0: die Karte durchsucht die Registrierung nur, wenn sie sich ändert, nicht bei jeder Zustandsänderung im Haus -----
     {
       const s = await open();

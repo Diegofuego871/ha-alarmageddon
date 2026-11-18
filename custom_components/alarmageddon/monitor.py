@@ -46,6 +46,7 @@ from .const import (
     MONITOR_NUMERIC_DOMAINS,
     MONITOR_STORE_KEY,
 )
+from . import selftest
 from .controller import AlarmController
 from .devices import display_name
 from .notify import TEXTS, async_send, build_payload, language, text
@@ -181,6 +182,7 @@ class MonitorEngine:
         self._reminders: dict[str, CALLBACK_TYPE] = {}
         self._flows: dict[str, asyncio.Task] = {}
         self._started = False
+        self.damaged: list[str] = []  # Kennungen beschädigter Regeln, die nicht laufen (für den Selbsttest, 1.65.0)
 
     @property
     def rules(self) -> list[dict[str, Any]]:
@@ -211,6 +213,7 @@ class MonitorEngine:
                 self._start_rule(rule)
             except (KeyError, ValueError, TypeError):
                 _LOGGER.warning("%s: monitoring rule '%s' is damaged and does not run", self.entry.title, rule.get("name"))
+                self.damaged.append(str(rule.get("id", "")))
         if any(x["kind"] == "armed" for rule in rules for x in self._leaves(rule)):
             self._unsubs.append(self._ctl.add_listener(self._on_alarm_change))
         self._started = True
@@ -451,7 +454,28 @@ class MonitorEngine:
             data = dict(step.get("data") or {})
             if step.get("target"):
                 data["entity_id"] = list(step["target"])
-            await self._bounded(self.hass.services.async_call(domain, service, data, blocking=True), f"{domain}.{service}")
+            label = f"{domain}.{service}"
+            try:
+                await self._bounded(self.hass.services.async_call(domain, service, data, blocking=True), label)
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:
+                self._selftest(rule, label, data.get("entity_id"), "timeout" if isinstance(err, TimeoutError) else "error", test)
+                raise
+            self._selftest(rule, label, data.get("entity_id"))
+
+    def _selftest(self, rule: dict[str, Any], label: str, targets: Any, reason: str = "", test: bool = False) -> None:
+        """Ergebnis eines Aufrufs an den Selbsttest (1.65.0): wie bei den Alarmaktionen, synchron und nie mit einem Fehler."""
+        try:
+            subject = selftest.call_subject(label, targets)
+            if not reason:
+                selftest.async_resolve(self.hass, self.entry.entry_id, "step_failed", subject)
+                return
+            place = {"area": "monitor", "id": str(rule.get("id", "")), "name": str(rule.get("name", "")), "test": test}
+            selftest.async_note(self.hass, self.entry.entry_id, "step_failed", subject, place=place, service=label,
+                                targets=selftest.call_targets(targets), reason=reason)
+        except Exception:  # noqa: BLE001 - der Selbsttest hält nie eine Regel auf
+            _LOGGER.exception("%s: the self-test could not record the result of %s", self.entry.title, label)
 
     async def _bounded(self, coro: Any, label: str) -> None:
         """Wartet höchstens SERVICE_TIMEOUT auf einen Aufruf; antwortet das Gerät nicht, geht es weiter (der Aufruf läuft als eigene Aufgabe weiter)."""

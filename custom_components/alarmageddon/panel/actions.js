@@ -557,7 +557,7 @@ export class ActionsUi {
     // Reiter "Überwachung" neben den Modi; ohne getrennte Modi stehen nur "Alarm" (ein Ablauf für alles) und "Überwachung" da
     const mon = s.monitor_enabled === true;
     const tabItems = [...(d.perMode ? triggers : mon ? [[triggers[0][0], this._t("wfAlarmTab"), "alert"]] : []), ...(mon ? [["monitor", this._t("wfMonitor"), "eye"]] : [])];
-    const tabs = tabItems.length ? h._segHtml("wf-trigger", tabItems, this.trigger, "data-trigger", "small") : "";
+    const tabs = tabItems.length ? h._segHtml("wf-trigger", tabItems, this.trigger, "data-trigger", "small ag-modeseg") : "";
     // Schalter "Einstellungen pro Modus": in jedem Reiter derselbe, an derselben Stelle (seit 1.63.0 auch bei "Überwachung", Wunsch des Nutzers;
     // vorher stand dort ein unsichtbarer Platzhalter). So steht die Reiterzeile in allen Reitern auf derselben Höhe und springt nie.
     const sw = `<div class="ag-pmsw"><button class="ag-toggle ${d.perMode ? "on" : ""}" data-wf="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("wfPerMode"))}"></button>

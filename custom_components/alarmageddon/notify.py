@@ -122,6 +122,27 @@ TEXTS: dict[str, dict[str, str]] = {
         "maint_title": "⚠️ Maintenance: {count} sensors",
         "maint_battery": "{sensor}: battery {value} %",
         "maint_offline": "{sensor}: unreachable since {time}",
+        "type_selftest": "Self-test",
+        "selftest_title_one": "⚠️ Self-test: 1 problem",
+        "selftest_title": "⚠️ Self-test: {count} problems",
+        "selftest_more": "… and {count} more. Details: Alarmageddon › Overview › Status.",
+        "selftest_all": "All alarm systems",
+        "st_entity_missing": "{system}: {name} is missing",
+        "st_entity_unavailable": "{system}: {name} is unreachable",
+        "st_service_missing": "{system}: action {service} does not exist",
+        "st_recipient_missing": "{system}: recipient {service} does not exist",
+        "st_no_recipients": "{system}: a push notification has no recipient",
+        "st_sound_missing": "{system}: a custom sound is missing",
+        "st_no_url": "{system}: no Home Assistant address for the sounds",
+        "st_rule_damaged": "{system}: {name} is damaged and does not run",
+        "st_system_not_loaded": "{name} could not be loaded",
+        "st_step_failed": "{system}: {service} failed",
+        "st_step_timeout": "{system}: {service} did not respond",
+        "st_step_hung": "{system}: the watchdog had to step in ({label})",
+        "st_notify_failed": "{system}: notification via {service} failed",
+        "st_start_failed": "{system}: a part could not start ({part})",
+        "st_backup_failed": "{system}: the automatic backup failed",
+        "st_ping_failed": "{system}: the health check to {service} failed",
         "time_format": "%m/%d %H:%M",
         "monitor_out_title": "⚠️ {rule}",
         "monitor_out": "{sensor}: {value}{limit} since {since}.",
@@ -208,6 +229,27 @@ TEXTS: dict[str, dict[str, str]] = {
         "maint_title": "⚠️ Wartung: {count} Sensoren",
         "maint_battery": "{sensor}: Batterie {value} %",
         "maint_offline": "{sensor}: nicht erreichbar seit {time}",
+        "type_selftest": "Selbsttest",
+        "selftest_title_one": "⚠️ Selbsttest: 1 Problem",
+        "selftest_title": "⚠️ Selbsttest: {count} Probleme",
+        "selftest_more": "… und {count} weitere. Einzelheiten: Alarmageddon › Übersicht › Status.",
+        "selftest_all": "Alle Anlagen",
+        "st_entity_missing": "{system}: {name} fehlt",
+        "st_entity_unavailable": "{system}: {name} ist nicht erreichbar",
+        "st_service_missing": "{system}: die Aktion {service} gibt es nicht",
+        "st_recipient_missing": "{system}: den Empfänger {service} gibt es nicht",
+        "st_no_recipients": "{system}: eine Push-Meldung hat keinen Empfänger",
+        "st_sound_missing": "{system}: ein eigener Ton fehlt",
+        "st_no_url": "{system}: keine Adresse von Home Assistant für die Töne",
+        "st_rule_damaged": "{system}: {name} ist beschädigt und läuft nicht",
+        "st_system_not_loaded": "{name} konnte nicht geladen werden",
+        "st_step_failed": "{system}: {service} ist gescheitert",
+        "st_step_timeout": "{system}: {service} hat nicht geantwortet",
+        "st_step_hung": "{system}: der Wächter musste eingreifen ({label})",
+        "st_notify_failed": "{system}: die Meldung über {service} ging nicht hinaus",
+        "st_start_failed": "{system}: ein Teil konnte nicht starten ({part})",
+        "st_backup_failed": "{system}: das automatische Backup ist gescheitert",
+        "st_ping_failed": "{system}: das Lebenszeichen an {service} ging nicht hinaus",
         "time_format": "%d.%m. %H:%M",
         "monitor_out_title": "⚠️ {rule}",
         "monitor_out": "{sensor}: {value}{limit} seit {since}.",
@@ -378,10 +420,17 @@ def build_payload(cfg: dict[str, Any], kind: str, title: str, message: str, *, t
 
 
 async def _async_call(hass: HomeAssistant, domain: str, service: str, payload: dict[str, Any]) -> None:
+    # Selbsttest (1.65.0): eine Meldung, die nicht hinausging, hält er fest; geht sie über denselben Dienst wieder hinaus, ist der Befund
+    # behoben. Hier importiert: der Selbsttest sendet seine eigene Meldung über dieses Modul.
+    from .selftest import async_note, async_resolve  # noqa: PLC0415
+
     try:
         await asyncio.wait_for(hass.services.async_call(domain, service, payload, blocking=True), 15)
-    except Exception:  # noqa: BLE001 - jede Meldung einzeln, ein Fehler stoppt die anderen nicht
+    except Exception as err:  # noqa: BLE001 - jede Meldung einzeln, ein Fehler stoppt die anderen nicht
         _LOGGER.exception("Notification via %s.%s failed", domain, service)
+        async_note(hass, None, "notify_failed", f"{domain}.{service}", service=f"{domain}.{service}", reason="timeout" if isinstance(err, TimeoutError) else "error")
+        return
+    async_resolve(hass, None, "notify_failed", f"{domain}.{service}")
 
 
 def _with_groups(steps: Any) -> list[dict[str, Any]]:

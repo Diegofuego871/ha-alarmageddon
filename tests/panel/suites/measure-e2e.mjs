@@ -64,7 +64,8 @@ for (const lang of ["de", "en"]) {
     // Ereignisse der Überwachung
     const events = await dlg("return [...d.querySelectorAll('.ag-sv-table tbody tr:not(.day)')].map((tr) => [tr.dataset.kind, tr.innerText.replace(/\\s+/g, ' ').trim()])");
     check(`${tag}: unten nur zwei Ereignisse der Überwachung (neuestes zuerst): wieder in Ordnung, ausserhalb`, events.length === 2 && events[0][0] === "ok" && events[1][0] === "out" && events[0][1].includes(t.ok) && events[1][1].includes(t.out), JSON.stringify(events));
-    check(`${tag}: die Ereignisse nennen Wert (9.2 °C) und Regel`, /9\.2 °C|9,2 °C/.test(events[1][1]) && events[1][1].includes("Kühlschrank zu warm"), events[1]?.[1]);
+    // Stand im Format der Sprache (1.64.0: bis dahin "9.2 °C" auch auf Deutsch, so wie der Server ihn ablegt)
+    check(`${tag}: die Ereignisse nennen Wert (${lang === "de" ? "9,2" : "9.2"} °C) und Regel`, events[1][1].includes(lang === "de" ? "9,2 °C" : "9.2 °C") && !(lang === "de" && events[1][1].includes("9.2")) && events[1][1].includes("Kühlschrank zu warm"), events[1]?.[1]);
     check(`${tag}: keine Messwerte als Zeilen (nur die zwei Ereignisse)`, (await dlg("return d.querySelectorAll('.ag-sv-table tbody tr:not(.day)').length")) === 2);
     // Zeitraum wechseln lädt neu, gleiche Art
     await s.tap('#ag-sensor [data-sv="range"][data-hours="168"]');

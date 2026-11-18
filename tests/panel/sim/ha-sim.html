@@ -160,9 +160,43 @@
   const entities = {};
   window.__presets = { door: ["arm_on_close"], window: [], motion: ["open_ok"], environment: ["always"], tamper: ["offline_alarm"], other: [] };
   const T = (enabled, critical) => ({ enabled, critical, volume: 0.8 });
-  window.__notify = { alarm_targets: ["notify.mobile_app_diego"], maintenance_targets: [], disarm_action: false, open_action: true, silence_action: false, battery_threshold: 20, offline_minutes: 60,
+  window.__notify = { alarm_targets: ["notify.mobile_app_diego"], maintenance_targets: [], disarm_action: false, open_action: true, silence_action: false, battery_threshold: 20, offline_minutes: 60, selftest_hours: 6,
     types: { triggered: T(true, true), pending: T(false, false), armed: T(false, false), disarmed: T(false, false), arm_failed: T(true, false), sensor_offline: T(true, true),
-      sensor_report: T(true, true), battery_low: T(true, false), sensor_unavailable: T(true, false) } };
+      sensor_report: T(true, true), battery_low: T(true, false), sensor_unavailable: T(true, false), selftest: T(true, false) } };
+  // Selbsttest (1.65.0) wie der Server (selftest.py payload): ?selftest=problems füllt Befunde (Konfiguration, Laufzeit, für alle Anlagen),
+  // ?selftest=none: noch nie geprüft. Tests setzen window.__selftest auch direkt; window.__selftestAfterRun: Befunde nach "Jetzt prüfen".
+  {
+    const last = iso(2 * 3600e3);
+    const next = new Date(Date.now() + 4 * 3600e3).toISOString();
+    const problems = params.get("selftest") === "problems" ? [
+      { key: "e_haus|entity_missing|siren.flur", kind: "config", code: "entity_missing", entry_id: "e_haus", subject: "siren.flur", entity_id: "siren.flur", role: "output", reason: "deleted",
+        places: [{ area: "workflow", list: "alarm", trigger: "away", step: 4 }] },
+      { key: "e_haus|entity_unavailable|media_player.sonos_wohnzimmer", kind: "config", code: "entity_unavailable", entry_id: "e_haus", subject: "media_player.sonos_wohnzimmer", entity_id: "media_player.sonos_wohnzimmer",
+        role: "player", since: iso(3 * 3600e3), places: [{ area: "workflow", list: "alarm", trigger: "away", step: 5 }] },
+      { key: "e_haus|step_failed|cover.open_cover|cover.rollladen_kueche,cover.rollladen_wohnzimmer", kind: "runtime", code: "step_failed", entry_id: "e_haus", subject: "cover.open_cover|cover.rollladen_kueche,cover.rollladen_wohnzimmer",
+        service: "cover.open_cover", targets: ["cover.rollladen_kueche", "cover.rollladen_wohnzimmer"], reason: "timeout", first: iso(26 * 3600e3), last: iso(5 * 3600e3), count: 3,
+        places: [{ area: "run", list: "alarm", trigger: "away", test: true }] },
+      { key: "*|recipient_missing|notify.mobile_app_altes_handy", kind: "config", code: "recipient_missing", entry_id: null, subject: "notify.mobile_app_altes_handy", service: "notify.mobile_app_altes_handy",
+        places: [{ area: "notify", group: "maintenance" }] },
+    ] : [];
+    window.__selftest = params.get("selftest") === "none" ? { last: null, next: null, hours: 6, problems: [] } : { last, next, hours: 6, problems };
+  }
+  // HealthCheck (1.65.0) wie der Server (healthcheck.py listing): ?hc=sample füllt drei Dienste mit erfundenen Adressen (nie echte Ping-URLs),
+  // ?hc=full fünf (Höchstzahl). window.__hcResult: Ergebnis des nächsten Lebenszeichens ("ok", "http", "timeout", "error").
+  {
+    const st = (ago, sent, result, code, test = false) => ({ at: iso(ago), sent, result, code, test });
+    const sample = [
+      { id: "a1b2c3d4e5f6", url: "https://hc-ping.com/5b2f3c1e-8d4a-4f6b-9c7e-2a1d0e9f8b3c", fail_suffix: "/fail", interval: 300, status: st(2 * 60e3, "ok", "ok", 200) },
+      { id: "b2c3d4e5f6a1", url: "https://cronitor.link/p/3f9a6c2e8b1d4e7f/haus-alarm", fail_suffix: "?state=fail", interval: 3600, status: st(34 * 60e3, "ok", "ok", 200) },
+      { id: "c3d4e5f6a1b2", url: "https://uptime.betterstack.com/api/v1/heartbeat/Qx7pW2mZk9RtV4sN", fail_suffix: "/fail", interval: 900, status: st(6 * 60e3, "ok", "timeout", null) },
+    ];
+    const extra = [
+      { id: "d4e5f6a1b2c3", url: "https://status.example.org/api/push/Kp4Rz8Lm2N?status=up&msg=OK", fail_suffix: "?status=down", interval: 60, status: null },
+      { id: "e5f6a1b2c3d4", url: "https://ping.example.net/check/garage", fail_suffix: "", interval: 86400, status: st(5 * 3600e3, "ok", "ok", 204) },
+    ];
+    window.__healthchecks = params.get("hc") === "sample" ? sample : params.get("hc") === "full" ? [...sample, ...extra] : [];
+    window.__hcCalls = [];
+  }
   window.__calls = [];
   window.__services = [];
   // Dienste von HA mit Feldern (Auswahl wie in echt, erfundene Beschreibung)
@@ -254,6 +288,8 @@
         version: "1.20.0",
         systems: window.__systems.filter((s) => !(window.__reload && window.__reload.id === s.entry_id && Date.now() < window.__reload.until)).map(({ code, pcodes, instance, event_notify_own, ...s }) => ({ ...s, instance: instance || "i0", event_notify: eventNotify(event_notify_own) })), sensors,
         users: [{ id: "u_anna", name: "Anna" }, { id: "u_diego", name: "Diego" }, { id: "u_gast", name: "Gast" }], presets: window.__presets, notify: window.__notify, display: { names_with_device: window.__namesWithDevice !== false }, auto_backup: window.__autoBackup || { enabled: true, every: "weekly" },
+        selftest: window.__systems.length ? window.__selftest : null,
+        healthchecks: window.__systems.length ? window.__healthchecks : [], healthcheck_max: 5,
         // Letzte echte Änderung (offen <-> zu) vom Server; die meisten Sensoren haben (noch) keine
         last_changes: { "binary_sensor.haustuer": iso(5 * 86400e3), "binary_sensor.fenster_kueche": iso(2 * 3600e3) },
         notify_services: ["notify.mobile_app_diego", "notify.mobile_app_partnerin", "notify.mobile_app_tablet"],
@@ -408,7 +444,9 @@
         const hot = msg.entity_id === "sensor.kuehlschrank_temperatur";
         return { kind: "value", hours: msg.hours, now: at(now), start: at(start), entity_id: msg.entity_id, unit, points,
           summary: { current: vs[n], mean: Math.round((vs.reduce((a, b) => a + b, 0) / vs.length) * 10) / 10, min: Math.min(...vs), max: Math.max(...vs) },
-          limits: hot ? [{ rule: "Kühlschrank zu warm", op: "above", limits: [8] }] : [],
+          // Grenzen aus den Regeln der Anlagen wie der Server (sensor_history.monitor_limits): jede Regel mit einem Messwert dieses Sensors (1.65.0)
+          limits: window.__systems.flatMap((sys) => (sys.monitors || []).flatMap((m) => m.tree.items.flatMap((i) => (i.items ? i.items : [i]))
+            .filter((l) => l.kind === "value" && l.entity_id === msg.entity_id).map((l) => ({ rule: m.name, op: l.op, limits: [Number(l.limit), ...(l.op === "outside" ? [Number(l.upper)] : [])] })))),
           events: hot ? [{ t: at(now - 2 * H), kind: "ok", rule: "Kühlschrank zu warm", system: window.__systems[0].title, entry_id: window.__systems[0].entry_id, value: "6.1", unit },
             { t: at(now - 3 * H), kind: "out", rule: "Kühlschrank zu warm", system: window.__systems[0].title, entry_id: window.__systems[0].entry_id, value: "9.2", unit }].filter((e) => new Date(e.t) > new Date(start)) : [] };
       }
@@ -440,11 +478,65 @@
         { entity_id: "switch.steckdose_wohnzimmer", name: "Steckdose Wohnzimmer", domain: "switch", area: "Wohnzimmer", device_class: "", states: ["on", "off"], state: "on" },
       ] };
     }
+    if (msg.type === "alarmageddon/selftest_run") {
+      window.__selftestRuns = (window.__selftestRuns || 0) + 1;
+      const hours = window.__notify.selftest_hours || 6;
+      window.__selftest = { ...window.__selftest, last: new Date().toISOString(), next: new Date(Date.now() + hours * 3600e3).toISOString(), hours,
+        problems: window.__selftestAfterRun ? JSON.parse(JSON.stringify(window.__selftestAfterRun)) : window.__selftest.problems };
+      return { selftest: JSON.parse(JSON.stringify(window.__selftest)) };
+    }
+    if (msg.type === "alarmageddon/selftest_dismiss") {
+      // Wie der Server: nur Befunde der Laufzeit lassen sich als erledigt markieren
+      const found = window.__selftest.problems.find((p) => p.key === msg.key && p.kind === "runtime");
+      if (!found) throw { code: "not_found", message: "No such runtime problem" };
+      window.__selftest = { ...window.__selftest, problems: window.__selftest.problems.filter((p) => p !== found) };
+      return { selftest: JSON.parse(JSON.stringify(window.__selftest)) };
+    }
+    // HealthCheck (1.65.0): Prüfungen wie der Server (settings.valid_healthcheck_url, valid_fail_suffix, Grenzen)
+    if (msg.type === "alarmageddon/healthcheck_save" || msg.type === "alarmageddon/healthcheck_delete" || msg.type === "alarmageddon/healthcheck_ping") {
+      window.__hcCalls.push(JSON.parse(JSON.stringify(msg)));
+      const list = window.__healthchecks;
+      const out = () => JSON.parse(JSON.stringify(list));
+      if (msg.type === "alarmageddon/healthcheck_save") {
+        let u;
+        try { u = new URL(msg.url); } catch { u = null; }
+        if (!u || !["http:", "https:"].includes(u.protocol) || /\s/.test(msg.url) || msg.url.length > 500) throw { code: "invalid_url", message: "The address must start with http:// or https://" };
+        const suffix = String(msg.fail_suffix || "");
+        if (suffix && (!/^[/?&]/.test(suffix) || /\s/.test(suffix) || suffix.length > 200)) throw { code: "invalid_suffix", message: "The failure suffix must start with /, ? or &" };
+        if (!Number.isInteger(msg.interval) || msg.interval < 60 || msg.interval > 86400) throw { code: "invalid_format", message: "interval" };
+        const entry = { url: msg.url, fail_suffix: suffix, interval: msg.interval };
+        if (msg.check_id) {
+          const i = list.findIndex((x) => x.id === msg.check_id);
+          if (i < 0) throw { code: "not_found", message: "No such health check" };
+          list[i] = { ...list[i], ...entry, id: msg.check_id };
+          return { id: msg.check_id, healthchecks: out() };
+        }
+        if (list.length >= 5) throw { code: "too_many", message: "At most 5 health checks" };
+        const id = Math.random().toString(16).slice(2, 14).padEnd(12, "0");
+        list.push({ id, ...entry, status: null });
+        return { id, healthchecks: out() };
+      }
+      if (msg.type === "alarmageddon/healthcheck_delete") {
+        const i = list.findIndex((x) => x.id === msg.check_id);
+        if (i < 0) throw { code: "not_found", message: "No such health check" };
+        list.splice(i, 1);
+        return { healthchecks: out() };
+      }
+      const item = list.find((x) => x.id === msg.check_id);
+      if (!item || (msg.kind === "fail" && !item.fail_suffix)) throw { code: "not_found", message: "No such health check" };
+      await new Promise((r) => setTimeout(r, window.__hcDelay ?? 250));
+      const result = window.__hcResult || "ok";
+      const status = { at: new Date().toISOString(), sent: msg.kind, result, code: result === "ok" ? 200 : result === "http" ? 404 : null, test: true };
+      item.status = status;
+      return { status: JSON.parse(JSON.stringify(status)), healthchecks: out() };
+    }
     if (msg.type === "alarmageddon/battery_forecast") {
       return { forecast: { "sensor.haustuer_batterie": 410, "sensor.bewegung_flur_batterie": 95, "sensor.fenster_bad_batterie": 0, "sensor.fenster_kueche_batterie": 21, "sensor.terrassentuer_batterie": null } };
     }
     if (msg.type === "alarmageddon/save_notify") {
       const incoming = JSON.parse(JSON.stringify(msg.notify));
+      if (incoming.selftest_hours !== undefined && (!Number.isInteger(incoming.selftest_hours) || incoming.selftest_hours < 1 || incoming.selftest_hours > 24)) throw { code: "invalid_format", message: "selftest_hours" };
+      if (incoming.selftest_hours) window.__selftest = { ...window.__selftest, hours: incoming.selftest_hours };
       const types = Object.fromEntries(Object.entries(window.__notify.types).map(([k, v]) => [k, { ...v, ...(incoming.types?.[k] || {}) }]));
       window.__notify = { ...window.__notify, ...incoming, types, modes: incoming.modes ?? window.__notify.modes ?? {}, per_mode: incoming.per_mode ?? window.__notify.per_mode ?? false };
       return { notify: window.__notify };

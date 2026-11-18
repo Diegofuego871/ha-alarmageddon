@@ -1,16 +1,24 @@
 // Sensoransicht (1.9.0): öffnet sich beim Klick auf einen Sensor der Übersicht. Reine Übersicht, keine Einstellungen.
 // Oben fest: Kopf (mit "In HA öffnen"), Kacheln als Reiter (Verlauf, Batterie, Empfang, Gerät), Zeitraum, Kennzahlen, Grafik.
 // Darunter scrollt nur die Liste. Desktop: Fenster in der Breite der Voreinstellungen; Handy: ganzer Bildschirm.
+// Sensoren der Überwachung (1.65.0, Wunsch des Nutzers): über der Liste die Reiter "Ereignisse" und "Regeln" (die Regeln der Überwachung, in denen
+// der Sensor vorkommt), je mit Suche und sortierbarer Tabelle; der Pfeil einer Regel führt zu ihr in Konfiguration › Aktionen › Überwachung.
+// Benennung wie überall im Panel "Regeln" (Entscheid des Nutzers, 2026-11-18, 19:47; eine erste Fassung hiess dort "Aktionen").
 // Die Daten kommen ausgewertet vom Server (sensor_history.py); hier wird nur gezeichnet.
 const V = new URL(import.meta.url).search;
-const { DC, MODE_ICON, MODE_KEY, TYPES, errText, esc, ic } = await import(`./common.js${V}`);
+const { DC, MODE_ICON, MODE_KEY, TYPES, copyBtn, copyValue, errText, esc, ic, matchQuery, searchField } = await import(`./common.js${V}`);
 const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
+const { normMonitor } = await import(`./monitor.js${V}`);
 
 const RANGES = { state: [3, 12, 24, 168, 720], value: [3, 12, 24, 168, 720], signal: [3, 12, 24, 168, 720], battery: [720, 2160, 8760] };
 const RANGE_LABEL = { 3: "svR3h", 12: "svR12h", 24: "svR1d", 168: "svR7d", 720: "svR30d", 2160: "svR90d", 8760: "svR1y" };
 const TAB_ICON = { state: "history", value: "history", battery: "battery", signal: "signal", device: "chip" };
 const MODES = ["home", "away", "night"];
 const HOUR = 3600000;
+// Reiter unter der Grafik (1.65.0): Standard-Sortierung je Reiter; Zustand einer Regel der Überwachung in dieser Reihenfolge
+const SORT_DEFAULT = { events: { key: "time", dir: "desc" }, rules: { key: "name", dir: "asc" } };
+const STATE_ORDER = { out: 0, on: 1, off: 2 };
+const cmp = (a, b) => (typeof a === "number" && typeof b === "number" ? a - b : String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true, sensitivity: "base" }));
 
 export class SensorView {
   constructor(host) {
@@ -22,6 +30,14 @@ export class SensorView {
     this.loading = false;
     this.error = null;
     this.seq = 0;
+    this.resetList();
+  }
+
+  // Reiter, Suche und Sortierung der Liste: je Sensor neu (1.65.0)
+  resetList() {
+    this.pane = "events";
+    this.lq = { events: "", rules: "" };
+    this.lsort = { events: { ...SORT_DEFAULT.events }, rules: { ...SORT_DEFAULT.rules } };
   }
 
   _t(key, vars) {
@@ -71,6 +87,7 @@ export class SensorView {
   }
 
   open(id) {
+    if (id !== this.id) this.resetList();
     this.id = id;
     this.tab = this.measure ? "value" : "state";
     this.data = null;
@@ -122,7 +139,27 @@ export class SensorView {
       this.render();
       this.load();
     } else if (act === "copy") {
-      this._copy(el);
+      copyValue(el, this.host._root.ownerDocument);
+    } else if (act === "pane") {
+      if (el.dataset.pane === this.pane) return true;
+      this.pane = el.dataset.pane;
+      this.render();
+    } else if (act === "lsort") {
+      const cur = this.lsort[this.pane];
+      const key = el.dataset.key;
+      this.lsort[this.pane] = { key, dir: cur.key === key ? (cur.dir === "asc" ? "desc" : "asc") : key === "time" ? "desc" : "asc" };
+      this._renderRows();
+    } else if (act === "lq-clear") {
+      const input = this.dlg.querySelector('[data-sv="lq"]');
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    } else if (act === "rule") {
+      // Zur Regel der Überwachung: Fenster zu, die Anlage der Regel (offene Änderungen fragen vorher), aufgeklappt in der Liste
+      if (el.disabled) return true;
+      const { entry, rule } = el.dataset;
+      this.close();
+      this.host.openMonitorRule(entry, rule);
     } else if (act === "range") {
       this.hours[this.tab] = Number(el.dataset.hours);
       this.load();
@@ -224,40 +261,6 @@ export class SensorView {
     this.host._placePills?.();
   }
 
-  // Wert in die Zwischenablage. Der Browser erlaubt `navigator.clipboard` im Panel (iframe) nicht überall (Companion App, kein HTTPS): dann der Weg
-  // über ein verstecktes Textfeld. Rückmeldung am Knopf selbst (Häkchen), ein Hinweis läge hinter dem Fenster.
-  async _copy(el) {
-    const value = el.dataset.value || "";
-    let ok = false;
-    try {
-      await this.host._root.ownerDocument.defaultView.navigator.clipboard.writeText(value);
-      ok = true;
-    } catch {
-      try {
-        const doc = this.host._root.ownerDocument;
-        const area = doc.createElement("textarea");
-        area.value = value;
-        area.setAttribute("readonly", "");
-        area.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
-        (el.closest("dialog") || doc.body).appendChild(area);
-        area.select();
-        area.setSelectionRange(0, value.length);
-        ok = doc.execCommand("copy");
-        area.remove();
-      } catch {
-        ok = false;
-      }
-    }
-    el.classList.toggle("done", ok);
-    el.classList.toggle("fail", !ok);
-    el.innerHTML = ic(ok ? "check" : "alert", 16);
-    clearTimeout(el._copyTimer);
-    el._copyTimer = setTimeout(() => {
-      el.classList.remove("done", "fail");
-      el.innerHTML = ic("copy", 16);
-    }, 1600);
-  }
-
   // Empfang von ZHA oder Bluetooth: der Wert kommt vom Server (1.41.0)
   _liveValue(live) {
     return live.value === null || live.value === undefined ? "–" : `${Math.round(live.value)} ${live.kind === "dbm" ? "dBm" : "LQI"}`;
@@ -328,38 +331,172 @@ export class SensorView {
       chart = d.hours <= 24 ? this._band(d, W) : this._dayRows(d, W);
       legend = this._legend([["sv-i-on", onLabel], ["sv-i-armed", this._t("svLegArmed")], ["sv-i-alarm", this._t("svLegAlarm")], ...(s.gone_count ? [["sv-i-gone", this._t("svGone")]] : [])]);
     }
-    return { fix: `${seg}${this._kpis(kpis)}<div class="ag-sv-chart">${chart}${busy ? this._loader() : ""}</div>${legend}`, list: this._eventsHtml(d, flavor) };
+    return { fix: `${seg}${this._kpis(kpis)}<div class="ag-sv-chart">${chart}${busy ? this._loader() : ""}</div>${legend}`, list: this._listArea(this._stateEventsSpec(d, flavor)) };
   }
 
-  _eventsHtml(d, flavor) {
+  // Zeilen der Ereignisse eines Ja/Nein-Sensors (Öffnungen, Bewegungen, Auslösungen, Ausfälle). Jede Zeile kennt ihre Werte zum Sortieren und den
+  // Text für die Suche (alles, was sie zeigt, dazu Tag und Uhrzeit); gezeichnet wird in _rowsHtml (1.65.0, vorher eine feste Tabelle)
+  _stateEventsSpec(d, flavor) {
     const start = new Date(d.start).getTime();
     const from = d.events_from ? new Date(d.events_from).getTime() : null;
     const notes = [];
     if (from !== null && from - start > HOUR) notes.push(this._t("svListFrom", { date: new Date(from).toLocaleDateString(this._locale(), { day: "numeric", month: "long" }) }));
     if (d.truncated) notes.push(this._t("svListTruncated"));
-    if (!d.events.length) return `<div class="ag-sv-msg ag-t2">${esc(this._t(from === null ? "svNoHistory" : "svNoEvents"))}</div>${notes.map((n) => `<p class="ag-sv-note">${esc(n)}</p>`).join("")}`;
     const what = (e) => (e.kind === "gone" ? this._t("svGoneEvent") : this._t(flavor === "open" ? "svEvOpened" : flavor === "motion" ? "svEvMotion" : "svEvTrig"));
     const len = (e) => (e.end === null ? this._t("svOngoing") : e.kind === "on" && flavor === "open" ? this._t("svDurOpen", { time: this._dur(e.seconds) }) : this._dur(e.seconds));
-    const tag = (e) => (e.mode ? `<span class="ag-sv-tag arm">${ic(MODE_ICON[e.mode] || "shield", 12)}${esc(this._t(MODE_KEY[e.mode] || "armed"))}</span>` : `<span class="ag-sv-tag">${esc(this._t("svDisarmed"))}</span>`);
+    const tagText = (e) => (e.mode ? this._t(MODE_KEY[e.mode] || "armed") : this._t("svDisarmed"));
+    const tag = (e) => (e.mode ? `<span class="ag-sv-tag arm">${ic(MODE_ICON[e.mode] || "shield", 12)}${esc(tagText(e))}</span>` : `<span class="ag-sv-tag">${esc(tagText(e))}</span>`);
     const alarm = (e) => (e.alarm ? `<button type="button" class="ag-sv-tag alarm" data-sv="alarm" data-id="${esc(e.alarm)}" title="${esc(this._t("svToAlarm"))}">${ic("alert", 12)}${esc(this._t("svAlarm"))}</button>` : "");
+    const rows = d.events.map((e) => {
+      const t = new Date(e.start).getTime();
+      const dot = `<span class="ag-sv-dot ${e.alarm ? "alarm" : e.kind === "gone" ? "gone" : ""}"></span>`;
+      return {
+        t,
+        sort: { time: t, event: what(e), duration: e.end === null ? Infinity : Number(e.seconds) || 0, system: tagText(e) },
+        hay: [what(e), len(e), tagText(e), e.alarm ? this._t("svAlarm") : "", this._dayLabel(new Date(t)), this._clock(e.start)],
+        wide: (time) => `<tr data-kind="${e.kind}"><td>${esc(time)}</td><td><span class="ag-sv-ev">${dot}${esc(what(e))}${alarm(e)}</span></td><td>${esc(len(e))}</td><td>${tag(e)}</td></tr>`,
+        narrow: (time) => `<tr data-kind="${e.kind}"><td>${esc(time)}</td><td><span class="ag-sv-ev">${dot}<span>${esc(what(e))}${alarm(e)}<small>${esc(len(e))}</small></span></span></td><td class="r">${tag(e)}</td></tr>`,
+      };
+    });
+    return {
+      rows,
+      notes,
+      cols: [["time", "svColTime", "c1"], ["event", "svColEvent", ""], ["duration", "svColDuration", "c3"], ["system", "svColSystem", "c4"]],
+      ncols: [["time", "svColTime", ""], ["event", "svColEvent", ""], ["system", "svColSystem", "r"]],
+      empty: `<div class="ag-sv-msg ag-t2">${esc(this._t(from === null ? "svNoHistory" : "svNoEvents"))}</div>`,
+    };
+  }
+
+  // ----- Liste unter der Grafik (1.65.0) -----
+
+  // Regeln der Überwachung, in denen dieser Sensor vorkommt, aus allen Anlagen. Zustand: "out" (gerade ausserhalb der Grenzen), "on" (läuft),
+  // "off" (die Regel oder die Überwachung der Anlage ist aus). Die Bedingung in Worten wie auf der Karte der Regel.
+  monRules() {
+    const mon = this.host.actions?.mon;
+    const out = [];
+    for (const sys of this.host._systems()) {
+      for (const raw of sys.monitors || []) {
+        let m;
+        try {
+          m = normMonitor(raw);
+        } catch {
+          continue;
+        }
+        if (!m.tree.items.flatMap((i) => (i.items ? i.items : [i])).some((l) => l.entity_id === this.id)) continue;
+        const running = sys.monitor_enabled === true && m.enabled;
+        const state = running && sys.monitor_active?.[m.id] ? "out" : running ? "on" : "off";
+        let cond = "";
+        try {
+          cond = mon ? mon.ruleSub(m) : "";
+        } catch {
+          cond = "";
+        }
+        out.push({ entry: sys.entry_id, system: sys.title, m, state, cond, reachable: sys.monitor_enabled === true });
+      }
+    }
+    return out;
+  }
+
+  // Reiter über der Liste nur bei Sensoren der Überwachung: jeder Messwert und alles, was in einer Regel der Überwachung vorkommt
+  withPanes() {
+    return this.measure || this.monRules().length > 0;
+  }
+
+  _rulesSpec(list) {
+    const multi = this.host._systems().length > 1;
+    const label = { out: this._t("svRuleOut"), on: this._t("svRuleOn"), off: this._t("svRuleOff") };
+    const rows = list.map((a) => {
+      const name = `<span class="ag-sv-rule"><b>${esc(a.m.name)}</b>${a.cond ? `<small>${esc(a.cond)}</small>` : ""}${multi && this.narrow ? `<small>${esc(a.system)}</small>` : ""}</span>`;
+      const st = `<span class="ag-sv-state ${a.state}">${a.state === "out" ? ic("alert", 12) : ""}${esc(label[a.state])}</span>`;
+      const tip = this._t(a.reachable ? "svRuleOpen" : "svRuleMonOff");
+      const go = `<button type="button" class="ag-cbtn" data-sv="rule" data-entry="${esc(a.entry)}" data-rule="${esc(a.m.id)}" ${a.reachable ? "" : "disabled"} aria-label="${esc(`${a.m.name}: ${tip}`)}" title="${esc(tip)}">${ic("chevRight", 16)}</button>`;
+      const tr = `<tr data-rule="${esc(a.m.id)}" data-state="${a.state}">`;
+      return {
+        t: 0,
+        sort: { name: a.m.name, system: a.system, state: STATE_ORDER[a.state] },
+        hay: [a.m.name, a.cond, a.system, label[a.state]],
+        wide: () => `${tr}<td>${name}</td>${multi ? `<td>${esc(a.system)}</td>` : ""}<td>${st}</td><td class="ag-sv-go">${go}</td></tr>`,
+        narrow: () => `${tr}<td>${name}</td><td class="r">${st}</td><td class="ag-sv-go">${go}</td></tr>`,
+      };
+    });
+    return {
+      rows,
+      notes: [],
+      byTime: false,
+      cols: [["name", "svColRules", ""], ...(multi ? [["system", "svColSystem", "c3"]] : []), ["state", "svColState", "c1"], [null, "", "ag-sv-go"]],
+      ncols: [["name", "svColRules", ""], ["state", "svColState", "r"], [null, "", "ag-sv-go"]],
+      empty: `<div class="ag-sv-msg ag-t2">${esc(this._t("svNoRules"))}</div>`,
+    };
+  }
+
+  // Zeilen der Liste zum Reiter: Ereignisse (je nach Art des Sensors) oder Regeln der Überwachung
+  _paneSpec(d) {
+    if (this.pane === "rules") return this._rulesSpec(this.monRules());
+    return this.tab === "value" ? this._monEventsSpec(d) : this._stateEventsSpec(d, this.flavor());
+  }
+
+  // Tabelle: Suche (jedes Wort muss vorkommen) und Sortierung je Spalte nur mit Reitern; nach Zeit sortiert mit einer Zeile je Tag, sonst steht der
+  // Tag bei der Uhrzeit. Ohne Reiter genau wie bis 1.64.0 (neueste zuerst, nicht sortierbar).
+  _rowsHtml(spec, sortable) {
+    if (!spec.rows.length) return spec.empty;
+    const q = sortable ? this.lq[this.pane] : "";
+    const sort = sortable ? this.lsort[this.pane] : SORT_DEFAULT.events;
+    const cols = this.narrow ? spec.ncols : spec.cols;
+    let rows = spec.rows.filter((r) => matchQuery(q, r.hay));
+    if (!rows.length) return `<div class="ag-sv-msg ag-t2">${esc(this._t("svNoMatch"))}</div>`;
+    if (sortable) rows = [...rows].sort((a, b) => cmp(a.sort[sort.key], b.sort[sort.key]) * (sort.dir === "desc" ? -1 : 1) || b.t - a.t);
+    const byDay = spec.byTime !== false && sort.key === "time";
     let day = "";
     let body = "";
-    const narrow = this.narrow;
-    for (const e of d.events) {
-      const date = new Date(e.start);
-      if (date.toDateString() !== day) {
+    for (const r of rows) {
+      const date = new Date(r.t);
+      if (byDay && date.toDateString() !== day) {
         day = date.toDateString();
-        body += `<tr class="day"><td colspan="${narrow ? 3 : 4}">${esc(this._dayLabel(date))}</td></tr>`;
+        body += `<tr class="day"><td colspan="${cols.length}">${esc(this._dayLabel(date))}</td></tr>`;
       }
-      const dot = `<span class="ag-sv-dot ${e.alarm ? "alarm" : e.kind === "gone" ? "gone" : ""}"></span>`;
-      body += narrow
-        ? `<tr data-kind="${e.kind}"><td>${esc(this._clock(e.start))}</td><td><span class="ag-sv-ev">${dot}<span>${esc(what(e))}${alarm(e)}<small>${esc(len(e))}</small></span></span></td><td class="r">${tag(e)}</td></tr>`
-        : `<tr data-kind="${e.kind}"><td>${esc(this._clock(e.start))}</td><td><span class="ag-sv-ev">${dot}${esc(what(e))}${alarm(e)}</span></td><td>${esc(len(e))}</td><td>${tag(e)}</td></tr>`;
+      const time = spec.byTime === false ? "" : byDay ? this._clock(date) : `${this._shortDay(date)}, ${this._clock(date)}`;
+      body += (this.narrow ? r.narrow : r.wide)(time);
     }
-    const head = narrow
-      ? `<tr><th>${esc(this._t("svColTime"))}</th><th>${esc(this._t("svColEvent"))}</th><th class="r">${esc(this._t("svColSystem"))}</th></tr>`
-      : `<tr><th class="c1">${esc(this._t("svColTime"))}</th><th>${esc(this._t("svColEvent"))}</th><th class="c3">${esc(this._t("svColDuration"))}</th><th class="c4">${esc(this._t("svColSystem"))}</th></tr>`;
-    return `<table class="ag-sv-table"><thead>${head}</thead><tbody>${body}</tbody></table>${notes.map((n) => `<p class="ag-sv-note">${esc(n)}</p>`).join("")}`;
+    const th = ([key, label, cls]) => {
+      const c = cls ? ` class="${cls}"` : "";
+      if (!key || !sortable) return `<th${c}>${label ? esc(this._t(label)) : ""}</th>`;
+      const on = sort.key === key;
+      const text = this._t(label);
+      return `<th${c} aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sv-sort ${on ? "on" : ""}" data-sv="lsort" data-key="${key}" title="${esc(this._t("sortBy", { column: text }))}">${esc(text)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;
+    };
+    return `<table class="ag-sv-table"><thead><tr>${cols.map(th).join("")}</tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  // Liste unter der Grafik: bei Sensoren der Überwachung mit den Reitern "Ereignisse" und "Regeln" und einem Suchfeld; die Leiste scrollt mit
+  // (auf dem Handy bleibt so mehr Platz für die Zeilen), der Tabellenkopf bleibt stehen
+  _listArea(spec) {
+    const tail = spec.notes.map((n) => `<p class="ag-sv-note">${esc(n)}</p>`).join("");
+    if (!this.withPanes()) return this._rowsHtml(spec, false) + tail;
+    const rules = this.monRules();
+    const pane = this.pane;
+    const btn = (key, label, icon, n) => `<button role="tab" data-sv="pane" data-pane="${key}" class="${pane === key ? "on" : ""}" aria-selected="${pane === key}">${ic(icon, 20)}<span>${esc(this._t(label))}<span class="ag-sv-n">${n}</span></span></button>`;
+    const shown = pane === "rules" ? this._rulesSpec(rules) : spec;
+    return `<div class="ag-sv-lbar"><div class="ag-seg small ag-sv-panes" role="tablist" data-seg="sv-panes">${btn("events", "svPaneEvents", "history", spec.rows.length)}${btn("rules", "svPaneRules", "eye", rules.length)}</div>
+      ${searchField("data-sv", "lq", this.lq[pane], this._t(pane === "rules" ? "svSearchRules" : "svSearchEvents"), this._t("clearSearch"))}</div>
+      <div class="ag-sv-rows">${this._rowsHtml(shown, true)}</div>${pane === "events" ? tail : ""}`;
+  }
+
+  // Nur die Zeilen neu (Suche, Sortierung): das Suchfeld behält Fokus und Eingabe
+  _renderRows() {
+    const el = this.dlg?.querySelector(".ag-sv-rows");
+    if (!el || !this.data) return;
+    el.innerHTML = this._rowsHtml(this._paneSpec(this.data), true);
+    // Beim nächsten Zeichnen das ganze Fenster neu (sonst hielte _setHtml den Stand vor der Suche für aktuell)
+    this.host._lastHtml?.delete(this.dlg);
+  }
+
+  onInput(el) {
+    if (el.dataset?.sv !== "lq") return false;
+    this.lq[this.pane] = el.value;
+    const clear = this.dlg?.querySelector('[data-sv="lq-clear"]');
+    if (clear) clear.hidden = !el.value;
+    this._renderRows();
+    return true;
   }
 
   // ----- Grafiken (SVG, Farben über Klassen aus den Variablen des Panels) -----
@@ -543,7 +680,7 @@ export class SensorView {
       kpis = [[fmt(s.current), this._t("svKCurrent")], [fmt(s.mean), this._t("svKMean")], [fmt(s.min), this._t("svKWeakest")]];
     }
     const chart = d.points.length < 2 ? `<div class="ag-sv-msg ag-t2">${esc(this._t("svNoValues"))}</div>` : (d.kind === "value" ? this._valueLine(d, this.narrow ? 358 : 832) : this._line(d, this.narrow ? 358 : 832));
-    return { fix: `${seg}${this._kpis(kpis)}<div class="ag-sv-chart">${chart}${busy ? this._loader() : ""}</div>`, list: value ? this._monitorEventsHtml(d) : this._valuesHtml(d, fmt) };
+    return { fix: `${seg}${this._kpis(kpis)}<div class="ag-sv-chart">${chart}${busy ? this._loader() : ""}</div>`, list: value ? this._listArea(this._monEventsSpec(d)) : this._valuesHtml(d, fmt) };
   }
 
   // Linie mit Fläche: Batterie mit Schwelle der Warnung, Batteriewechsel und Prognose; Empfang in dBm mit den Zonen gut, mittel, schwach
@@ -635,11 +772,13 @@ export class SensorView {
     const vmin = Math.min(...values);
     const vmax = Math.max(...values);
     const span = Math.max(vmax - vmin, Math.abs(vmax) * 0.05, 1);
-    // Grenzen, die nicht weiter als zwei Spannweiten von den Werten entfernt liegen
-    const limits = (d.limits || []).flatMap((l) => l.limits.map((value) => ({ rule: l.rule, value }))).filter((l) => l.value >= vmin - 2 * span && l.value <= vmax + 2 * span);
+    // Jede Grenze ist zu sehen (1.65.0, Entscheid des Nutzers): der Bereich der Grafik reicht bis zu ihr, auch wenn die Kurve dadurch flacher wird.
+    // Bis 1.64.0 fielen Grenzen weg, die weiter als zwei Spannweiten neben den Werten lagen (Kühlschrank mit 4,8 bis 6,1 °C: Grenze 14 °C fehlte).
+    const limits = (d.limits || []).flatMap((l) => l.limits.map((value) => ({ rule: l.rule, value }))).filter((l) => Number.isFinite(l.value));
     const lo = Math.min(vmin, ...limits.map((l) => l.value));
     const hi = Math.max(vmax, ...limits.map((l) => l.value));
-    const { ticks, step } = this._niceTicks(lo - span * 0.05, hi + span * 0.05);
+    const pad = Math.max(hi - lo, span) * 0.05;
+    const { ticks, step } = this._niceTicks(lo - pad, hi + pad);
     const min = ticks[0];
     const max = ticks[ticks.length - 1];
     const decimals = step >= 1 ? 0 : Math.min(2, Math.ceil(-Math.log10(step)));
@@ -669,31 +808,34 @@ export class SensorView {
   }
 
   // Ereignisse der Überwachung zu diesem Sensor (nie die Messwerte selbst: das wäre unübersichtlich): ausserhalb der Grenzen, wieder in Ordnung
-  _monitorEventsHtml(d) {
+  _monEventsSpec(d) {
     const events = d.events || [];
-    if (!events.length) return `<div class="ag-sv-msg ag-t2">${esc(this._t("svNoMonEvents"))}</div>`;
-    const narrow = this.narrow;
     const multi = this.host._systems().length > 1;
     const what = (e) => this._t(e.kind === "out" ? "svEvMonOut" : "svEvMonOk");
-    const val = (e) => (e.value ? `${e.value}${e.unit ? ` ${e.unit}` : ""}` : "–");
-    const tag = (e) => `<span class="ag-sv-tag">${esc(e.rule || "–")}${multi && e.system ? ` · ${esc(e.system)}` : ""}</span>`;
-    let day = "";
-    let body = "";
-    for (const e of events) {
-      const date = new Date(e.t);
-      if (date.toDateString() !== day) {
-        day = date.toDateString();
-        body += `<tr class="day"><td colspan="${narrow ? 3 : 4}">${esc(this._dayLabel(date))}</td></tr>`;
-      }
+    // Der Server legt den Stand als Zahl mit Punkt ab ("6.1"); angezeigt im Format der Sprache ("6,1 °C" auf Deutsch, 1.64.0)
+    const isNum = (v) => /^-?\d+(\.\d+)?$/.test(String(v));
+    const num = (v) => (isNum(v) ? Number(v).toLocaleString(this._locale()) : v);
+    const val = (e) => (e.value ? `${num(e.value)}${e.unit ? ` ${e.unit}` : ""}` : "–");
+    const tagText = (e) => `${e.rule || "–"}${multi && e.system ? ` · ${e.system}` : ""}`;
+    const tag = (e) => `<span class="ag-sv-tag">${esc(tagText(e))}</span>`;
+    const rows = events.map((e) => {
+      const t = new Date(e.t).getTime();
       const dot = `<span class="ag-sv-dot mon-${e.kind}"></span>`;
-      body += narrow
-        ? `<tr data-kind="${e.kind}"><td>${esc(this._clock(e.t))}</td><td><span class="ag-sv-ev">${dot}<span>${esc(what(e))}<small>${esc(val(e))}</small></span></span></td><td class="r">${tag(e)}</td></tr>`
-        : `<tr data-kind="${e.kind}"><td>${esc(this._clock(e.t))}</td><td><span class="ag-sv-ev">${dot}${esc(what(e))}</span></td><td>${esc(val(e))}</td><td>${tag(e)}</td></tr>`;
-    }
-    const head = narrow
-      ? `<tr><th>${esc(this._t("svColTime"))}</th><th>${esc(this._t("svColEvent"))}</th><th class="r">${esc(this._t("svColRule"))}</th></tr>`
-      : `<tr><th class="c1">${esc(this._t("svColTime"))}</th><th>${esc(this._t("svColEvent"))}</th><th class="c3">${esc(this._t("svColValue"))}</th><th class="c4">${esc(this._t("svColRule"))}</th></tr>`;
-    return `<table class="ag-sv-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+      return {
+        t,
+        sort: { time: t, event: what(e), value: isNum(e.value) ? Number(e.value) : -Infinity, rule: tagText(e) },
+        hay: [what(e), val(e), tagText(e), this._dayLabel(new Date(t)), this._clock(e.t)],
+        wide: (time) => `<tr data-kind="${e.kind}"><td>${esc(time)}</td><td><span class="ag-sv-ev">${dot}${esc(what(e))}</span></td><td>${esc(val(e))}</td><td>${tag(e)}</td></tr>`,
+        narrow: (time) => `<tr data-kind="${e.kind}"><td>${esc(time)}</td><td><span class="ag-sv-ev">${dot}<span>${esc(what(e))}<small>${esc(val(e))}</small></span></span></td><td class="r">${tag(e)}</td></tr>`,
+      };
+    });
+    return {
+      rows,
+      notes: [],
+      cols: [["time", "svColTime", "c1"], ["event", "svColEvent", ""], ["value", "svColValue", "c3"], ["rule", "svColRule", "c4"]],
+      ncols: [["time", "svColTime", ""], ["event", "svColEvent", ""], ["rule", "svColRule", "r"]],
+      empty: `<div class="ag-sv-msg ag-t2">${esc(this._t("svNoMonEvents"))}</div>`,
+    };
   }
 
   // ----- Gerät: nur zur Ansicht -----
@@ -701,7 +843,7 @@ export class SensorView {
   _deviceHtml() {
     const info = this.info();
     // Hinter jeder Angabe ein Knopf, der den ganzen Wert kopiert (auch wenn die Zeile ihn abschneidet oder umbricht)
-    const row = (label, value) => (value ? `<div class="ag-sv-drow"><span class="ag-t2">${esc(label)}</span><b>${esc(value)}</b><button type="button" class="ag-iconbtn ag-sv-copy" data-sv="copy" data-value="${esc(value)}" aria-label="${esc(this._t("svCopy", { name: label }))}" title="${esc(this._t("svCopy", { name: label }))}">${ic("copy", 16)}</button></div>` : "");
+    const row = (label, value) => (value ? `<div class="ag-sv-drow"><span class="ag-t2">${esc(label)}</span><b>${esc(value)}</b>${copyBtn(value, this._t("svCopy", { name: label }), 'data-sv="copy"', "ag-sv-copy")}</div>` : "");
     const facts = [row(this._t("svDevMaker"), info.manufacturer), row(this._t("svDevModel"), info.model), row(this._t("svDevFirmware"), info.sw_version),
       row(this._t("svDevIntegration"), info.integration || info.platform), row(this._t("svDevArea"), info.area), row(this._t("svDevEntity"), this.id)].join("");
     // Dieselbe Rechnung wie die Liste der Übersicht (list.members, 1.63.0, Code-Review): bis 1.62.0 stand hier "Immer aktiv" schon, wenn die

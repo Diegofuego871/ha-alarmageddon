@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 224  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 229  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -178,12 +178,14 @@ NOTIFY_TYPES: Final = {
     "triggered": "alarm", "pending": "alarm", "armed": "alarm", "disarmed": "alarm", "arm_failed": "alarm",
     "sensor_offline": "alarm", "sensor_report": "alarm",
     "battery_low": "maintenance", "sensor_unavailable": "maintenance",
+    # Selbsttest (1.65.0): eine Meldung je neuem Befund, wie Batterie und Ausfall (selftest.py)
+    "selftest": "maintenance",
 }
 # Standard je Art: (an, kritisch). Im Zweifel melden: Alarm und Ausfall eines Sensors im scharfen Zustand sind kritisch.
 NOTIFY_TYPE_DEFAULTS: Final = {
     "triggered": (True, True), "pending": (False, False), "armed": (False, False), "disarmed": (False, False),
     "arm_failed": (True, False), "sensor_offline": (True, True), "sensor_report": (True, True),
-    "battery_low": (True, False), "sensor_unavailable": (True, False),
+    "battery_low": (True, False), "sensor_unavailable": (True, False), "selftest": (True, False),
 }
 # Meldungsarten, die nur im scharfen Zustand vorkommen und je Modus eigene Werte haben können (0.29.0): Stiller Alarm, Eingangsverzögerung,
 # Scharf geschaltet, Sensorausfall im scharfen Zustand. notify["modes"][modus][art] = {enabled, critical, volume}, nur abweichende Werte.
@@ -211,9 +213,12 @@ DEFAULT_NOTIFY: Final = {
     # Wartung (0.5.0): Batterie schwach unter dieser Schwelle (%), nicht erreichbar ab so vielen Minuten
     "battery_threshold": 20,
     "offline_minutes": 60,
+    # Selbsttest (1.65.0): alle so viele Stunden prüfen (Wunsch des Nutzers: mindestens viermal am Tag, einstellbar)
+    "selftest_hours": 6,
 }
 BATTERY_THRESHOLD_RANGE: Final = (5, 50)
 OFFLINE_MINUTES_RANGE: Final = (5, 1440)
+SELFTEST_HOURS_RANGE: Final = (1, 24)
 # Wartung: Prüfung alle 15 Minuten, die erste 5 Minuten nach dem Start (Geräte verbinden sich erst)
 MAINTENANCE_STORE_KEY: Final = f"{DOMAIN}.maintenance"
 DATA_MAINTENANCE: Final = f"{DOMAIN}_maintenance"
@@ -221,6 +226,40 @@ MAINTENANCE_INTERVAL: Final = 15 * 60
 MAINTENANCE_START_DELAY: Final = 5 * 60
 # Erst wieder melden, wenn die Batterie so viele Prozentpunkte über der Schwelle war (gewechselt)
 BATTERY_HYSTERESIS: Final = 5
+# Selbsttest (1.65.0, Wunsch des Nutzers 2026-11-18, selftest.py): prüft, ob alles, was die Anlagen brauchen, noch da ist und funktioniert.
+# Eine Instanz für alle Anlagen. Prüfung nach dem Start (die Geräte verbinden sich erst), nach jedem Speichern (kurz danach, gesammelt), alle
+# "selftest_hours" Stunden (ein Takt schaut alle SELFTEST_TICK Sekunden, ob es Zeit ist) und auf Knopfdruck. Ein Gerät gilt erst als nicht
+# erreichbar, wenn es das seit SELFTEST_GRACE Sekunden ist (kein Befund bei einem kurzen Funkabriss).
+SELFTEST_STORE_KEY: Final = f"{DOMAIN}.selftest"
+DATA_SELFTEST: Final = f"{DOMAIN}_selftest"
+DATA_SELFTEST_LOCK: Final = f"{DOMAIN}_selftest_lock"
+SIGNAL_SELFTEST: Final = f"{DOMAIN}_selftest_updated"
+SELFTEST_TICK: Final = 5 * 60
+SELFTEST_START_DELAY: Final = 5 * 60
+SELFTEST_SOON: Final = 15
+SELFTEST_GRACE: Final = 5 * 60
+SELFTEST_REPORT_DELAY: Final = 60  # neue Laufzeitbefunde sammeln, bevor die Meldung hinausgeht
+SELFTEST_MAX_INCIDENTS: Final = 50  # Laufzeitbefunde insgesamt; der älteste fällt weg
+SELFTEST_MAX_PLACES: Final = 10  # Fundstellen je Befund
+# HealthCheck (1.65.0, Wunsch des Nutzers 2026-11-18, healthcheck.py): bis zu MAX_HEALTHCHECKS Lebenszeichen an externe Dienste, für alle Anlagen.
+# Generisch (Entscheid des Nutzers 21:54): je Eintrag die URL, ein Fehler-Zusatz und der Abstand (1 Minute bis 24 Stunden), keine Auswahl des Anbieters
+# (das Panel schlägt den Zusatz für bekannte Dienste nur vor). Jeder Eintrag sendet in seinem Abstand "in Ordnung" oder, solange der Selbsttest Probleme
+# hat, "Fehler"; der Dienst alarmiert, wenn das Lebenszeichen ausbleibt oder ein Fehler kommt. Wechselt das Ergebnis des Selbsttests, geht sofort ein
+# Lebenszeichen hinaus (höchstens alle HEALTHCHECK_MIN_GAP Sekunden je Eintrag). Die URL zeigt das Panel ganz und sie gehört ins Backup (Entscheid des
+# Nutzers 2026-11-18); in Logzeilen, Meldungen und Befunden steht nur der Rechnername.
+MAX_HEALTHCHECKS: Final = 5
+HEALTHCHECK_SUFFIX_MAX: Final = 200
+HEALTHCHECK_INTERVAL_RANGE: Final = (60, 86400)
+HEALTHCHECK_DEFAULT_INTERVAL: Final = 300
+HEALTHCHECK_URL_MAX: Final = 500
+HEALTHCHECK_TIMEOUT: Final = 10
+HEALTHCHECK_MIN_GAP: Final = 60
+# Ein Lebenszeichen im Abstand entfällt, wenn eben (vor weniger als so vielen Sekunden) eines wegen eines Wechsels des Selbsttests hinausging: es
+# zeigt schon den aktuellen Stand (sonst gingen nach dem Speichern zwei fast gleichzeitig hinaus). Tests der Knöpfe zählen nicht.
+HEALTHCHECK_DEDUP: Final = 10
+HEALTHCHECK_START_DELAY: Final = 30  # erstes Lebenszeichen nach dem Start
+HEALTHCHECK_STORE_KEY: Final = f"{DOMAIN}.healthcheck"
+DATA_HEALTHCHECK: Final = f"{DOMAIN}_healthcheck"
 PUSH_ACTION_DISARM: Final = "ALARMAGEDDON_DISARM_"  # + entry_id
 PUSH_ACTION_OPEN: Final = "ALARMAGEDDON_OPEN"
 PUSH_ACTION_SILENCE: Final = "ALARMAGEDDON_SILENCE_"  # + entry_id

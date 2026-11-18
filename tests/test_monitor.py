@@ -65,7 +65,10 @@ async def _setup(hass: HomeAssistant, monitors: list[dict], *, enabled: bool = T
     await set_temp(hass, start)
     entry = await setup_alarm(hass, monitors=monitors, monitor_enabled=enabled, **options)
     settings = hass.data[DATA_SETTINGS]
-    await settings.async_set_notify({**settings.notify, "maintenance_targets": ["notify.tablet"]})
+    # Der Selbsttest (1.65.0) meldet sich an dieselben Empfänger (zum Beispiel fehlt switch.steckdose im Test); hier zählen nur die Meldungen
+    # der Regeln. Der Selbsttest hat eigene Tests (tests/test_selftest.py).
+    types = {**settings.notify["types"], "selftest": {**settings.notify["types"]["selftest"], "enabled": False}}
+    await settings.async_set_notify({**settings.notify, "maintenance_targets": ["notify.tablet"], "types": types})
     await settle(hass)
     return entry, pushes
 

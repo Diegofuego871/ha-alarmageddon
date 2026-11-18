@@ -117,6 +117,9 @@
       },
       "ready_night": {
         "name": "Bereit für Nacht"
+      },
+      "selftest": {
+        "name": "Selbsttest"
       }
     },
     "sensor": {
@@ -155,6 +158,16 @@
           "description": "Nur nötig, wenn die Alarmanlage zum Quittieren einen Code verlangt."
         }
       }
+    }
+  },
+  "issues": {
+    "selftest": {
+      "title": "{name}: Der Selbsttest hat Probleme gefunden ({count})",
+      "description": "Der Selbsttest von Alarmageddon hat in der Alarmanlage **{name}** Probleme gefunden:\n\n{problems}\n\nIm Panel von Alarmageddon (Übersicht › Status › Selbsttest) steht zu jedem Problem eine Erklärung mit Hilfe. Diese Meldung verschwindet von selbst, sobald alles behoben ist."
+    },
+    "selftest_global": {
+      "title": "Alarmageddon: Der Selbsttest hat Probleme gefunden ({count})",
+      "description": "Der Selbsttest von Alarmageddon hat Probleme gefunden, die alle Alarmanlagen betreffen:\n\n{problems}\n\nIm Panel von Alarmageddon (Übersicht › Status › Selbsttest) steht zu jedem Problem eine Erklärung mit Hilfe. Diese Meldung verschwindet von selbst, sobald alles behoben ist."
     }
   }
 }

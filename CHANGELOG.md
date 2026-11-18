@@ -7,6 +7,53 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.65.0] - 2026-11-18
+
+Includes the changes from 1.64.0.
+
+### Added
+
+- **Self-test.** Alarmageddon now checks itself regularly: are all devices, speakers, actions (services), recipients and custom sounds that the actions, the monitoring rules, the routines and the notifications use still there and reachable, do the sensors of the alarm systems still exist, and is there an address for the speakers? During operation it also records steps that failed or did not answer, notifications that did not go out, parts that did not start, a failed automatic backup and life signs to the HealthCheck services that did not go out. A device that a step switches (siren, switch, speaker) counts as soon as it has been unreachable for five minutes; unreachable sensors are still reported by the maintenance messages (no double message). The self-test only reads: it never switches anything, plays no sound and sends no test message, and it never holds up an alarm.
+  - **When:** a few minutes after Home Assistant starts, shortly after every save, every 6 hours (adjustable from 1 to 24 hours under Configuration › Alarm system › HealthCheck) and with "Check now".
+  - **Where:** the status tile of the overview always shows a row with the last check; problems count towards "N need attention". A click opens a window with every problem, grouped by alarm system: what is wrong, where (with "Open", which jumps there), what it means, possible causes and how to fix it. Each alarm system gets a new entity "Self-test" (problem, diagnostic), the status entity and the dashboard card count the problems, and Home Assistant shows them under Repairs (one message per alarm system and one for all of them).
+  - **Notification:** new maintenance message "Self-test", switchable and adjustable like the others (recipients, critical, in Home Assistant); each problem is reported once, again only when it comes back after it was fixed.
+  - **Clearing:** a setup problem disappears by itself once it is fixed. A problem during operation disappears as soon as the same call works again (in an alarm or a test), or with "Done" in the window.
+- **HealthCheck: life signs to external services.** New chapter under Configuration › Alarm system, for all alarm systems: the self-test (last check, "Check now", "Show problems", interval) and up to five services such as Healthchecks.io, Cronitor, Better Stack or Uptime Kuma that Alarmageddon calls regularly. If Home Assistant fails or loses its internet connection, the life signs stop and the service alerts you, independently of Home Assistant.
+  - **Generic:** each entry has a ping URL (http or https), an optional failure suffix and an interval from 1 minute to 24 hours (number and unit, or a quick choice). As long as the self-test has problems, Alarmageddon calls the URL with the failure suffix instead ("/…" extends the path, "?…" or "&…" sets parameters); without a suffix only the life sign goes out. A change of the self-test is reported at once, at most once a minute per service.
+  - **Suggestions, never a choice made for you:** for well-known services (Healthchecks.io, Better Stack, Cronitor, Uptime Kuma) the form recognizes the URL and suggests the failure suffix. It is only filled in while you have not touched the field; otherwise the suggestion stands next to it with "Use". A preview shows the exact failure call.
+  - **List in a window** like sounds, routines and codes: a table with search and sorting (URL, last, interval, status), per row "Send failure" and "Send life sign" as a test, edit and remove. The row in the chapter shows how many services are set up and whether a life sign failed.
+  - **Security:** the ping URL is shown in full in the panel and stored in backups (it is your setting); the log, notifications and self-test problems only name the host. A life sign waits at most 10 seconds and never holds anything up. A life sign that does not go out becomes a self-test problem ("Open" leads to the list); it does not count as a failure for the next life sign.
+- **Sensor view: tabs "Events" and "Rules" for every sensor of the monitoring.** Measured values and yes/no sensors that appear in a monitoring rule show two tabs below the chart. "Rules" lists the monitoring rules with this sensor (all alarm systems) with the condition in words and the state "Active", "Off" or "Outside". Both lists can be searched and sorted by every column. The arrow of a rule opens it under Configuration › Actions › Monitoring, unfolded and briefly marked; unsaved changes in another alarm system are asked about first.
+
+### Changed
+
+- **Every limit is visible in the chart.** Until now a limit far from the values was left out without notice (a fridge at 5 °C showed no line for a limit of 14 °C); now the chart always reaches up to it.
+
+### Fixed
+
+- **Hint of the chapter "Maintenance messages".** It still named updates, which Alarmageddon has no longer checked since 0.27.0; it now names the self-test.
+
+## [1.64.0] - 2026-11-18
+
+Not released; included in 1.65.0.
+
+### Added
+
+- **Codes per person: "Add code" directly on the page.** Like routines and your own sounds, the row shows "Add code" on the left and "Show codes" on the right. It opens the same window as "Add code" in the list; with 20 codes it is disabled.
+- **Add alarm system: copy the entity ID.** A button right next to the alarm entity (for example `alarm_control_panel.garage`) copies it to the clipboard, with a check mark as feedback. It is the same button as in the sensor view, where values could already be copied.
+
+### Changed
+
+- **Every "Show …" button has its own icon.** Routines keep the list, your own sounds the speaker, codes get a key and backups an archive box; until now routines, codes and backups had the same list icon. The plus of "Add …" stays the same everywhere.
+- **The rows "Routines", "Your own sounds" and "Codes per person" are built the same.** On the phone both buttons of a row are equally wide when they fit next to each other.
+- **Chapter "Backup" like the others.** At the top "Last backup" with "Create backup" and "Show backups" next to each other in one row, below it the automatic backup; the hint stands above the card. Until now the two buttons were in two rows.
+- **German says "Backup" throughout.** The German panel mixed "Sicherung" and "Backup" until now; it now says "Backup" everywhere, also in the windows, hints, error messages and when deleting an alarm system. English is unchanged.
+- **The mode tabs look the same everywhere.** In the Sensors, Notifications and Alarm system tabs, and in the Actions tab without monitoring, the tabs of the modes now look like those of the Actions tab with monitoring: icons in the dark red of the alarm zone ("Monitoring" orange), the selected tab with a red border, the text neutral instead of blue.
+
+### Fixed
+
+- **Sensor view: the value of a monitoring event in the format of the language.** German showed "9.2 °C" instead of "9,2 °C".
+
 ## [1.63.0] - 2026-11-17
 
 ### Added
@@ -1882,6 +1929,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.65.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.65.0
 [1.63.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.63.0
 [1.62.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.62.0
 [1.61.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.61.0

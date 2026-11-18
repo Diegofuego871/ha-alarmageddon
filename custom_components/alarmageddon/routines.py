@@ -267,6 +267,7 @@ class RoutineEngine:
         self._last: dict[str, bool] = {}  # zuletzt ausgewerteter Baum je Routine: nur ein Wechsel auf wahr löst aus
         self._holds: dict[str, CALLBACK_TYPE] = {}
         self._fired: dict[str, float] = {}
+        self.damaged: list[str] = []  # Kennungen beschädigter Routinen, die nicht laufen (für den Selbsttest, 1.65.0)
 
     @property
     def rules(self) -> list[dict[str, Any]]:
@@ -287,6 +288,7 @@ class RoutineEngine:
                     self._start_device(rule, trigger)
             except Exception:  # noqa: BLE001 - eine beschädigte Routine (1.63.0: jeder Fehler, nicht nur KeyError) hält die Anlage nie vom Laden ab
                 _LOGGER.warning("%s: routine '%s' is damaged and does not run", self.entry.title, rule.get("name"))
+                self.damaged.append(str(rule.get("id", "")))
 
     def _start_device(self, rule: dict[str, Any], trigger: dict[str, Any]) -> None:
         tree = trigger["tree"]

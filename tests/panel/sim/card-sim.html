@@ -36,10 +36,13 @@
   set("binary_sensor.wohnung_ready_to_arm_home", "on", { blocking_sensors: [] });
   set("binary_sensor.wohnung_ready_to_arm_away", "on", { blocking_sensors: [] });
   set("binary_sensor.wohnung_ready_to_arm_night", "on", { blocking_sensors: [] });
+  // Selbsttest (1.65.0): ?selftest=N Befunde (Standard keine), die letzte Prüfung vor zwei Stunden; ?selftest=old: Server vor 1.65.0 (ohne Attribute)
+  const st = params.get("selftest");
+  const selftest = st === "old" ? {} : { selftest: Number(st || 0), selftest_last: new Date(Date.now() - 2 * 3600e3).toISOString() };
   const statusAttrs = params.get("status") === "warn"
-    ? { alarm: false, offline: ["binary_sensor.fenster_bad"], low_battery: [{ entity_id: "binary_sensor.haustuer", battery: 12 }], battery_threshold: 20 }
-    : { alarm: false, offline: [], low_battery: [], battery_threshold: 20 };
-  set("sensor.wohnung_status", params.get("status") === "warn" ? "2" : "0", statusAttrs);
+    ? { alarm: false, offline: ["binary_sensor.fenster_bad"], low_battery: [{ entity_id: "binary_sensor.haustuer", battery: 12 }], battery_threshold: 20, ...selftest }
+    : { alarm: false, offline: [], low_battery: [], battery_threshold: 20, ...selftest };
+  set("sensor.wohnung_status", String((params.get("status") === "warn" ? 2 : 0) + (selftest.selftest || 0)), statusAttrs);
   set("binary_sensor.fenster_bad", "unavailable", { friendly_name: "Fenster Bad" });
   set("binary_sensor.haustuer", "off", { friendly_name: "Haustür" });
   set("binary_sensor.garagentor", "on", { friendly_name: "Garagentor" });

@@ -68,7 +68,8 @@ Umsetzung:
 - README: `README.md` (Englisch) und `README.de.md` (Deutsch), gleicher
   Aufbau, gegenseitig verlinkt, immer beide im selben Commit. Die README ist seit 1.58.0 kurz (Idee, drei Schritte, Rundgang,
   Sicherheit); alle Einzelheiten stehen im Handbuch `docs/MANUAL.md` und `docs/MANUAL.de.md` (gleicher Aufbau, ein Test prüft es).
-  Neue Einzelheiten gehören ins Handbuch, nicht in die README.
+  Neue Einzelheiten gehören ins Handbuch, nicht in die README. Direkt unter den Abzeichen steht in beiden READMEs der Knopf "Buy Me a Coffee"
+  (Wunsch des Nutzers, 2026-11-18, Vorbild: Orphan Entity Cleaner in HACS; `width`/`height` als Attribute, GitHub entfernt `style`).
 - CHANGELOG: `CHANGELOG.md` (Englisch) und `CHANGELOG.de.md` (Deutsch),
   gleicher Aufbau nach Keep a Changelog (Added/Hinzugefügt, Changed/Geändert,
   Deprecated/Veraltet, Removed/Entfernt, Fixed/Behoben, Security/Sicherheit),
@@ -80,6 +81,12 @@ Umsetzung:
 - Panel-Texte in `panel/strings.js`, Englisch und Deutsch mit denselben
   Schlüsseln; HA-Texte in `strings.json` = `translations/en.json` und
   `translations/de.json`. Kein Text fest im Code.
+- **"Backup", nie "Sicherung" (Vorgabe des Nutzers, 2026-11-18):** Deutsch
+  heisst es in Panel, HA-Texten, README und Handbuch durchgängig "das Backup",
+  "Backup erstellen", "Backups anzeigen"; nie "Sicherung", "sichern",
+  "gesichert" für ein Backup (`tests/test_translations.py -k backup`).
+  "Sicherheit" ist etwas anderes. Code-Kommentare und frühere Einträge im
+  CHANGELOG bleiben, wie sie sind.
 - Kommunikation mit dem Nutzer: Deutsch, Schweizer Rechtschreibung (nie "ß",
   immer "ss"), präzise, ohne Füllwörter. Anführungszeichen: "".
 - Code-Kommentare und Docstrings auf Deutsch. Kommentare erklären das Warum,
@@ -250,6 +257,40 @@ Umsetzung:
   etwas an den Server schicken, nehmen bis zur Antwort keinen zweiten Druck an (`system.js _sendOnce`, Suite `codereview-e2e.mjs`).
 - Sensoransicht (seit 1.60.0): ein Messwert hat Werteverlauf, Batterie und Empfang, ein Binärsensor Verlauf, Batterie und Empfang
   (`ws_sensor_history`; bis 1.59.0 waren Batterie und Empfang für Messwerte abgelehnt). Test `test_measure_history.py -k battery_and_signal`.
+- Sensoransicht der Überwachung (seit 1.65.0, Entscheide des Nutzers vom 2026-11-18): jeder Messwert und jeder Sensor, der in einer Regel
+  der Überwachung vorkommt, hat über der Liste die Reiter "Ereignisse" und "Regeln", je mit Suche (`matchQuery`) und Sortierung nach jeder
+  Spalte; die Leiste scrollt mit, der Tabellenkopf bleibt stehen; beim Tippen nur die Zeilen neu (`sensorview.js _renderRows`). Der Pfeil führt
+  zur Regel (`openMonitorRule`: andere Anlage nur über `_guard`, Suche der Liste leer, aufgeklappt, unter den festen Leisten, `ag-flash`).
+  **Jede Grenze ist in der Grafik zu sehen** (`_valueLine`), nie eine still weggelassene. Andere Sensoren bleiben ohne Reiter. Suite
+  `svrules-e2e.mjs`. **Benennung (Entscheid des Nutzers, 19:47):** die Einträge der Überwachung heissen überall "Regeln" (Sensoransicht,
+  Konfiguration › Aktionen › Überwachung, Einstellungen), nie "Aktionen" oder "Überwachungsaktionen".
+- Selbsttest (seit 1.65.0, `selftest.py`, Entscheide des Nutzers vom 2026-11-18): prüft nach dem Start (`SELFTEST_START_DELAY`), kurz nach jedem
+  Speichern (Neuladen einer Anlage, `save_notify`), alle `selftest_hours` Stunden (Standard 6, 1 bis 24, seit der dritten Fassung im Kapitel HealthCheck
+  unter Konfiguration › Anlage, **immer sichtbar**, auch wenn die Meldung aus ist; der Entwurf der Benachrichtigungen sendet den Wert nie mit) und mit
+  "Jetzt prüfen". **Er liest nur**: nie einen Dienst aufrufen, nie einen Ton, nie eine
+  Probemeldung (Test `-k reads_only`). Befunde der Konfiguration (Geräte, Lautsprecher, Aktionen, Empfänger, Töne, Adresse, Sensoren, Routinen,
+  Regeln) verschwinden, sobald behoben; Befunde der Laufzeit (`async_note`: Aufruf gescheitert oder ohne Antwort, Wächter, Meldung, Start eines
+  Teils, automatisches Backup) verschwinden, wenn **derselbe Aufruf** wieder klappt (`async_resolve`, im Alarm oder im Test) oder mit "Erledigt"
+  (nur Laufzeit, der Server lehnt anderes ab). Ein Gerät eines Ablaufs zählt schon, wenn es seit `SELFTEST_GRACE` nicht erreichbar ist; Sensoren
+  des Alarms und der Überwachung nur, wenn sie fehlen (die Wartung meldet "nicht erreichbar"). Abläufe ausgeschalteter Modi werden nicht geprüft.
+  `async_note` und `async_resolve` sind synchron und fangen alles ab; die Aufrufe im Ablauf (`workflow._selftest`, `monitor._selftest`) stehen
+  zusätzlich im `try`: **der Selbsttest hält nie einen Schritt, einen Alarm oder ein "Rückgängig" auf** (Tests `test_action_hang.py -k selftest`).
+  Ein Befund trägt nur Kennungen und Namen, nie die Daten eines Aufrufs (Test `-k never_contain_secrets`, `test_codes_and_hashes_never_leave_the_server`).
+  Ausgabe: Statuskachel (Zeile immer, Befunde zählen mit), Fenster `#ag-selftest` (`panel/selftest.js`, Hilfe je Befund: Was ist los, Wo mit
+  "Öffnen", Was das bedeutet, Ursachen, So behebst du es), Entität `binary_sensor.<anlage>_self_test` (Problem, Diagnose, Liste nicht aufgezeichnet),
+  Statusentität und Infokarte zählen mit, Reparaturen von HA (je Anlage und `selftest_global`), Meldungsart `selftest` (je Befund einmal, erneut
+  erst nach dem Beheben). Ein neuer Befund ergänzt `CONFIG_CODES` oder `RUNTIME_CODES`, die Texte `st_*` in `notify.py` (EN/DE), `stT_`, `stW_`,
+  `stI_`, `stC_`, `stF_` in `strings.js` (die Suite `selftest-e2e.mjs` prüft alle) und einen Test in `tests/test_selftest.py`.
+- HealthCheck (seit 1.65.0, `healthcheck.py`, `panel/healthcheck.js`; Wunsch und Entscheide des Nutzers vom 2026-11-18): Lebenszeichen an externe Dienste,
+  für alle Anlagen, höchstens `MAX_HEALTHCHECKS`, Intervall `HEALTHCHECK_INTERVAL_RANGE`. **Generisch** (Entscheid des Nutzers): URL + Fehler-Zusatz,
+  keine Auswahl des Anbieters; bekannte Dienste werden nur vorgeschlagen, **der Nutzer hat immer das letzte Wort** (ein Vorschlag füllt nur ein
+  unberührtes Feld, sonst "Übernehmen"). Solange der Selbsttest Probleme hat, geht die Fehler-URL hinaus; ein gescheitertes Lebenszeichen
+  (`ping_failed`) zählt dafür nie (`failing()`). **Ausnahme vom Geheimnis-Grundsatz (Entscheid des Nutzers, "Ganz zeigen, im Backup"):** die Ping-URL
+  steht ganz im Panel und im Backup; im Log, in Meldungen und in Befunden steht nur der Rechnername (`host_of`), auch die Meldung einer Ausnahme der
+  Verbindung kommt nie ins Log (sie enthält oft die URL). Ein Lebenszeichen ist eine Hintergrundaufgabe mit `HEALTHCHECK_TIMEOUT`, hält nie etwas
+  auf; ein Wechsel des Selbsttests geht höchstens alle `HEALTHCHECK_MIN_GAP` Sekunden hinaus. Tests in `tests/test_healthcheck.py`, Zeilen
+  "HealthCheck" in `scripts/mutation_check.py`, Suite `healthcheck-e2e.mjs`. Nie die echte Ping-URL eines Nutzers (Bildschirmfoto) in Code, Tests
+  oder Bildern verwenden; der Nachbau hat erfundene Adressen (`?hc=sample`).
 - Neustart und Absturz (seit 1.58.0, Code-Review): Der Zustand steht in einer eigenen Ablage (`controller._save_state`, `STATE_STORE_KEY`), sofort bei jedem
   Wechsel geschrieben; beim Start gilt der neuere von eigener Ablage und Restore-Stand von HA (`controller.newer_state`). Was beim Wiederherstellen
   auslösen muss (abgelaufene Eingangsverzögerung), löst erst in `controller.async_finish_restore()` aus, wenn alle Zuhörer angemeldet sind
@@ -319,6 +360,15 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   Reiterleiste mit gleitender Kapsel am gewählten Knopf. Nie eine eigene
   Segmentleiste ohne Kapsel. Grösse darf abweichen, Stil nie. Eine Leiste
   ohne gewählten Knopf zeigt keine Kapsel.
+- **Reiter der Modi:** Jede Leiste, die zwischen den Modi wechselt
+  (Sensoren, Aktionen, Benachrichtigungen, Anlage), trägt `ag-modeseg`:
+  Symbole dunkelrot, "Überwachung" orange, Rand am gewählten Reiter, Text
+  neutral. Nie blau, nie eigene Gestaltung (`docs/DESIGN.md`, seit 1.64.0).
+- **Hinzufügen und Anzeigen:** Listen in eigenem Fenster haben dieselbe
+  Zeile `.ag-rtsum`: links "… hinzufügen" mit Plus (öffnet das Formular,
+  bei Backups "Backup erstellen"), rechts "… anzeigen" mit eigenem Symbol
+  je Liste (Routinen `groups`, Töne `speaker`, Codes `key`, HealthCheck
+  `heartPulse`, Backups `archive`).
 - **Suchfelder:** `<input type="search">` mit Lupe links und eigenem X zum
   Leeren rechts (nur sichtbar mit Inhalt, Fokus bleibt im Feld). Ein
   gemeinsamer Handler, keine eigene Gestaltung je Feld.

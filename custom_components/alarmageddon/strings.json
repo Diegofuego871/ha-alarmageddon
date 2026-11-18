@@ -117,6 +117,9 @@
       },
       "ready_night": {
         "name": "Ready to arm night"
+      },
+      "selftest": {
+        "name": "Self-test"
       }
     },
     "sensor": {
@@ -155,6 +158,16 @@
           "description": "Needed only if the alarm system asks for a code to acknowledge."
         }
       }
+    }
+  },
+  "issues": {
+    "selftest": {
+      "title": "{name}: the self-test found problems ({count})",
+      "description": "The Alarmageddon self-test found problems in the alarm system **{name}**:\n\n{problems}\n\nOpen the Alarmageddon panel (Overview › Status › Self-test) for an explanation and help on each problem. This message disappears by itself once everything is fixed."
+    },
+    "selftest_global": {
+      "title": "Alarmageddon: the self-test found problems ({count})",
+      "description": "The Alarmageddon self-test found problems that affect all alarm systems:\n\n{problems}\n\nOpen the Alarmageddon panel (Overview › Status › Self-test) for an explanation and help on each problem. This message disappears by itself once everything is fixed."
     }
   }
 }

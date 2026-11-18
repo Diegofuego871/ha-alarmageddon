@@ -92,8 +92,9 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: Meldungen offen`, await s.waitFor("return !!r.querySelector('.ag-nt [data-nt=\"permode\"]')"));
       await s.page.waitForTimeout(500);
       const kinds = () => s.ev(`return [...r.querySelectorAll('.ag-nt [data-nt="enabled"]')].map((b) => b.dataset.kind + (b.dataset.mode ? ":" + b.dataset.mode : ""))`);
-      // Seit 1.62.0 ohne "Stiller Alarm", "Eingangsverzögerung", "Scharf geschaltet" und "Deaktiviert" (feste Elemente im Reiter Aktionen)
-      const all = ["sensor_offline", "arm_failed", "battery_low", "sensor_unavailable"];
+      // Seit 1.62.0 ohne "Stiller Alarm", "Eingangsverzögerung", "Scharf geschaltet" und "Deaktiviert" (feste Elemente im Reiter Aktionen);
+      // seit 1.65.0 mit "Selbsttest" (Wartungsmeldung, ohne Modus)
+      const all = ["sensor_offline", "arm_failed", "battery_low", "sensor_unavailable", "selftest"];
       const off = await kinds();
       check(`${tag}: Schalter aus: eine Liste mit allen Arten, ohne Modus`, all.every((k) => off.includes(k)) && off.every((k) => !k.includes(":")) && off.length === all.length, off.join(","));
       await s.tap('[data-nt="permode"]');

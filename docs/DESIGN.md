@@ -86,3 +86,42 @@ aus dem HA-Nachbau prüfen.
 ## Orange Punkte (Vorgabe des Nutzers, 2026-11-10)
 
 Ein orange Punkt bedeutet immer "ungespeicherte Änderung" (Punkt am Reiter, `has-edit`). Andere Markierungen sind blau (`--ag-primary`), zum Beispiel der Punkt für einen eigenen Wert am Sensornamen (`.ag-owndot`) und am Kästchen (`.ag-box.own`). Verschwindet ein orange Punkt nach dem Speichern nicht, ist das ein Fehler.
+
+## Reiter der Modi (Vorgabe des Nutzers, 2026-11-18, seit 1.64.0)
+
+Jede Reiterleiste, die zwischen den Modi wechselt ("Einstellungen pro Modus"), trägt die Klasse `ag-modeseg` und sieht überall gleich aus: Sensoren (`sen-mode`), Aktionen (`wf-trigger`), Benachrichtigungen (`nt-mode`) und Anlage (`sys-scope`). Spur und Text neutral, die Symbole im Dunkelrot der Zone "Alarm" (`--ag-seg-alarm`), der Reiter "Überwachung" orange (`--ag-seg-monitor`); der gewählte Reiter hat einen Rand in der Farbe seiner Gruppe und ein volles Symbol, die anderen sind gedämpft. Hauptreiter, Unterreiter und alle übrigen Leisten bleiben blau. Eine neue Leiste der Modi bekommt dieselbe Klasse, keine eigene Gestaltung. Test: `tests/panel/suites/modetabs-e2e.mjs`.
+
+## Zeilen "Hinzufügen" und "Anzeigen" (Vorgabe des Nutzers, 2026-11-18, seit 1.64.0)
+
+Kapitel mit einer Liste in eigenem Fenster (Routinen, eigene Töne, Codes pro Person, Backup) haben dieselbe Zeile `.ag-setrow.ag-rtsum` als erste Zeile der Karte: Symbol und Zusammenfassung, dahinter zwei Knöpfe: zuerst "… hinzufügen" mit dem Plus (öffnet direkt das Formular; beim Backup "Backup erstellen"), dann "… anzeigen" mit eigenem Symbol. Weitere Einstellungen des Kapitels folgen darunter, der Hinweis steht über der Karte (`chapter(..., hint)`). Das Plus ist überall gleich; jedes "Anzeigen" hat sein Symbol: Routinen `groups`, eigene Töne `speaker`, Codes `key`, HealthCheck `heartPulse`, Backups `archive`. Auf dem Handy sind beide Knöpfe gleich breit, wenn sie nebeneinander passen. Test: `tests/panel/suites/sumrow-e2e.mjs`.
+
+## Selbsttest (seit 1.65.0, Wunsch des Nutzers vom 2026-11-18)
+
+- Statuskachel der Übersicht: eine Zeile "Selbsttest" steht immer da (auch bei "Alles in Ordnung"), mit "geprüft vor …" darunter und dem Pfeil wie
+  die anderen Zeilen. Symbol Stethoskop (`stethoscope`), grün ohne Befund, gelb mit Befunden, rot, wenn ein Befund einen Alarm verhindern oder stumm
+  machen kann. Mit Befunden zählt die Zeile bei "N brauchen Aufmerksamkeit" mit (eine Zeile, wie "Nicht erreichbar" und "Batterie schwach").
+- Fenster `#ag-selftest` (breit, auf dem Handy ganzer Bildschirm): Kopf mit letzter und nächster Prüfung und dem Abstand; je Anlage eine
+  Überschrift, die gemeinsamen Befunde unter "Alle Anlagen". Je Befund eine Karte mit farbigem Rand links (gelb, rot), zugeklappt Titel und Art
+  ("Einrichtung", "Im Betrieb"); aufgeklappt die Abschnitte "Was ist los?", "Wo" (Fundstellen als Wege wie im Panel, je mit "Öffnen"), "Was das
+  bedeutet", "Mögliche Ursachen" (Liste), "So behebst du es" (nummeriert) und eine Fusszeile (bei Befunden im Betrieb mit "Erledigt"). Bis zwei
+  Befunde sind aufgeklappt, sonst der erste. Unten "Jetzt prüfen" links, "Schliessen" rechts; darüber "Was prüft der Selbsttest?" zum Aufklappen.
+- Benachrichtigungen › Wartungsmeldungen: nur die Meldungsart "Selbsttest" wie die anderen (Hinweis nennt das Kapitel HealthCheck). Abstand und
+  "Jetzt prüfen" stehen seit der dritten Fassung von 1.65.0 im Kapitel HealthCheck (unten).
+
+## HealthCheck (seit 1.65.0, Wunsch und Entscheide des Nutzers vom 2026-11-18, 21:38 bis 21:54)
+
+- Kapitel "HealthCheck" in Konfiguration › Anlage, vor "Backup" (gilt für alle Anlagen), eine Karte mit drei Zeilen: Selbsttest (Symbol
+  `stethoscope` auf grünem, gelbem oder rotem Grund wie in der Statuskachel, "geprüft vor …" und nächste Prüfung, Knöpfe "Jetzt prüfen" und
+  "Probleme anzeigen"), "Selbsttest alle N Std." (Zahlenfeld, Entwurf der Seite wie das automatische Backup, ungültig rot mit Hinweis in der
+  Fusszeile), Zeile der Lebenszeichen `.ag-rtsum.ag-hcsum` ("N von 5 Diensten" oder "Kein externer Dienst", darunter gelb, wenn ein
+  Lebenszeichen scheiterte; "Dienst hinzufügen" mit Plus, "Dienste anzeigen" mit `heartPulse`; bei 5 ist "hinzufügen" gesperrt).
+- Fenster `#ag-hclist` wie die Codes: klebender Kopf mit Titel (ohne Symbol, wie Routinen, Töne, Codes) und Suche, Zähler, Tabelle in
+  `.ag-card.ag-bkwrap` (Spalten URL, Zuletzt, Intervall, Status, Knöpfe), sortierbar je Spalte. Der Tabellenkopf klebt unter dem Kopf des
+  Fensters (`--ag-pophead`, gemessen in `healthcheck.js _stickHead`). URL ganz, einspaltig, bricht an jeder Stelle; darunter der erkannte Dienst
+  als graue Marke und "Bei Fehler: …". Status mit Punkt (grün gesendet, gelb Fehler gesendet, rot gescheitert). Knöpfe: Warnzeichen "Fehler
+  senden" (gesperrt ohne Zusatz), Haken "Lebenszeichen senden", Stift, Papierkorb. Handy: Zuletzt, Intervall und Status als Zeile unter der URL
+  (`.ag-hc-m`), Spalten ausgeblendet, Knöpfe 34 px. Fusszeile "Schliessen" links, "Dienst hinzufügen" rechts.
+- Formular `#ag-hcform`: Ping-URL (Fokus beim Öffnen), darunter Hinweis und "Erkannt: …"; Fehler-Zusatz mit Hinweis, Vorschlag
+  "Vorschlag für …: …" mit "Übernehmen" nur, wenn der Zusatz vom Vorschlag abweicht, Vorschau "Aufruf bei Fehler: <URL>" in Monospace;
+  Intervall als Zahl und Einheit (Minuten, Stunden) und Schnellwahl als Chips (1 min, 5 min, 15 min, 1 h, 6 h, 24 h). Beim Tippen werden nur
+  Hinweise, Vorschau und Fehler neu gezeichnet, nie das Feld. Fehler erst nach dem ersten "Speichern" oder bei Inhalt im Feld.

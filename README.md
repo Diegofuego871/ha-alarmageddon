@@ -11,9 +11,11 @@
 <a href="https://hacs.xyz"><img src="https://img.shields.io/badge/HACS-Integration-41BDF5?style=flat-square" alt="HACS"></a>
 </p>
 
+<p align="center"><a href="https://www.buymeacoffee.com/Diego871"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" width="217" height="60"></a></p>
+
 [Deutsch](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/README.de.md)
 
-**A complete alarm system for Home Assistant, without a single automation.** You tick which sensors keep watch, decide what happens on an alarm, and arm. Everything in one side panel, on the computer and on the phone; the push notifications come by themselves.
+**A complete alarm system for Home Assistant, without a single automation.** You tick which sensors keep watch, decide what happens on an alarm, and arm. Everything in one side panel, on the computer and on the phone; the push notifications come by themselves, and Alarmageddon keeps an eye on itself.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/overview-en.png" alt="Overview with two alarm systems, the status tile and the sensor list" width="100%"></p>
 
@@ -32,6 +34,8 @@
 - **No automations, no YAML.** Zones per mode, entry and exit delay, siren and alarm sound, routines by time or by device, a code per person: all built in and set up graphically.
 - **Push notifications by themselves.** Alarm, armed, disarmed, sensor unreachable, battery low: you only choose the recipients. The alarm notification brings its buttons along ("Acknowledge", "Disarm"), critical if you like.
 - **Sensors under observation.** Battery with a forecast, signal, last change and the history of every sensor over 30 days. If a sensor drops out while armed, you are told.
+- **More than burglary.** Monitoring rules for the fridge, the cellar or the air report when a value leaves its limits, separate from the alarm and never with the siren.
+- **Watches itself.** A self-test checks every few hours whether everything the alarm systems use is still there and reachable. A HealthCheck service outside (Healthchecks.io, Cronitor, Better Stack …) gets a regular life sign and alerts you when Home Assistant falls silent.
 - **Traceable.** Every alarm is recorded with a timeline: which sensor, which steps, which notifications, who acknowledged.
 - **When in doubt, alarm.** State, delays and alarms survive a restart and a crash, no device holds up the siren, a watchdog supervises the flow.
 - **Stays at home.** No cloud, no account. Each alarm system is an ordinary `alarm_control_panel` entity; any sensor of Home Assistant works (Zigbee, Z-Wave, Thread/Matter, Wi-Fi, Bluetooth).
@@ -40,7 +44,7 @@
 
 1. **Install:** HACS → three dots → "Custom repositories" → `https://github.com/Diegofuego871/ha-alarmageddon`, type "Integration". Install "Alarmageddon" and restart Home Assistant.
 2. **Add an alarm system:** Settings → Devices & services → "Add integration" → "Alarmageddon". Give it a name and, if you like, a code.
-3. **Set it up:** open "Alarmageddon" in the sidebar (administrators only) and go through the three steps from above under Configuration: sensors, actions, notifications. "Send test message" and the play button of a step let you try everything without an alarm.
+3. **Set it up:** open "Alarmageddon" in the sidebar (administrators only) and go through the three steps from above under Configuration: sensors, actions, notifications. "Send test message" and the play button of a step let you try everything without an alarm. Under Configuration › Alarm system you find routines, codes per person, your own sounds, HealthCheck and backup.
 
 ## A tour
 
@@ -58,7 +62,7 @@ A red band names the sensor that triggered, with the buttons "Acknowledge" (the 
 
 ### Sensors at a glance
 
-A tap on a sensor shows what it did: a chart for each kind of sensor over 3 hours to 30 days, the events with the state of the alarm system at that moment, plus battery and signal with their history.
+A tap on a sensor shows what it did: a chart for each kind of sensor over 3 hours to 30 days, the events with the state of the alarm system at that moment, plus battery and signal with their history. A sensor that a monitoring rule uses also lists its rules, and every limit is drawn in the chart.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sensor-en.png" alt="Sensor view of a door: history over 7 days with key figures and the list of events" width="100%"></p>
 
@@ -67,6 +71,18 @@ A tap on a sensor shows what it did: a chart for each kind of sensor over 3 hour
 Next to the alarm, off by default: rules for what has nothing to do with burglars. A fridge that gets too warm, a damp cellar, bad air. They report "Outside the limits" and "Back to normal" and never trigger the siren.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/monitor-en.png" alt="Monitoring rules: fridge too warm with the flows outside the limits and back to normal" width="100%"></p>
+
+### Self-test
+
+Alarmageddon checks itself every few hours and after every save: are all sirens, speakers, actions and recipients that the alarm systems use still there and reachable, and did a step, a notification or a life sign fail? The status tile shows the result; a window explains every problem with its causes and how to fix it, with a jump to the right place. Each alarm system has a "Self-test" entity, and Home Assistant lists the problems under Repairs. The self-test only reads: it never switches anything and never holds up an alarm.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/selftest-en.png" alt="Self-test window with a missing siren, the explanation, causes and how to fix it" width="100%"></p>
+
+### HealthCheck
+
+What if Home Assistant itself fails? Nothing inside it can tell you. Under Configuration › Alarm system › HealthCheck, Alarmageddon sends a life sign to up to five services outside, such as Healthchecks.io, Cronitor, Better Stack or Uptime Kuma, every 1 minute to 24 hours. If the life signs stop, the service alerts you. As long as the self-test has problems, Alarmageddon calls the failure URL instead, so you hear about those too. It works with any service that accepts a simple URL call: for well-known services the failure suffix is suggested, you decide. "Send failure" and "Send life sign" try each service; the chapter also holds the self-test and its interval.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/healthcheck-list-en.png" alt="The window HealthCheck services: three services with URL, last life sign, interval, status and the buttons to test, edit and remove" width="100%"></p>
 
 ### Dashboard cards
 
@@ -83,13 +99,15 @@ An alarm system has to work when something else does not. This is built in and c
 - **Codes:** stored only as a salted hash, never shown, never in a backup. Five wrong codes lock the alarm system for one minute.
 - **Administrators only** reach the panel and its commands. Buttons in push notifications only work from the phone of a recipient.
 - **Failures:** a sensor that stops answering while armed is reported, or counts as an alarm if you like.
-- **Tested:** more than 1,400 automated tests against a real Home Assistant (in two versions), about 6,800 checks of the interface, and a mutation check that removes each of 347 safeguards and requires a test to fail.
+- **Self-test:** checks regularly whether everything the alarm uses is there and reachable, and records what failed; it only reads and never holds up an alarm.
+- **HealthCheck:** life signs to a service outside report a silent Home Assistant. The ping URL appears in full only in the panel and in backups, never in the log or a notification; a life sign waits at most 10 seconds.
+- **Tested:** more than 1,500 automated tests against a real Home Assistant (in two versions), about 7,300 checks of the interface, and a mutation check that removes each of 362 safeguards and requires a test to fail.
 
 ### Limits
 
 Alarmageddon is not a certified alarm system:
 
-- If Home Assistant, the power, the network or the radio coordinator fails, there is no alarm. A siren with its own battery helps for critical use.
+- If Home Assistant, the power, the network or the radio coordinator fails, there is no alarm. A siren with its own battery helps for critical use; a HealthCheck service at least tells you that Home Assistant is silent.
 - How long a siren may sound is regulated differently from place to place. Check what applies to you and set the duration in the alarm actions.
 - A sound "until disarmed" and a siren without an "off" step run until someone disarms.
 
@@ -101,7 +119,7 @@ Alarmageddon is not a certified alarm system:
 
 ## Learn more
 
-- **[Manual](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.md):** every view and every setting in detail, all safety mechanisms, entities, numbers and limits, routines, backup, notes for developers.
+- **[Manual](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.md):** every view and every setting in detail, all safety mechanisms, entities, numbers and limits, routines, self-test, HealthCheck, backup, notes for developers.
 - **[Changelog](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/CHANGELOG.md):** what changed in which version.
 - **Languages:** the integration is in English and switches to German when Home Assistant runs in German.
 - **License:** see [LICENSE](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/LICENSE).

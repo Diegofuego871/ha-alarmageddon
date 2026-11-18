@@ -10,7 +10,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
@@ -19,7 +19,7 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
 from . import websocket_api
-from .const import CONF_PER_MODE_SENSORS, CONF_SENSOR_MODES, CONF_SENSOR_OPTIONS, CONF_SENSORS, CONF_ZONE_PREFIX, DOMAIN, MODES, OPT_BYPASS, STATE_STORE_KEY
+from .const import CONF_PER_MODE_SENSORS, CONF_SENSOR_MODES, CONF_SENSOR_OPTIONS, CONF_SENSORS, CONF_ZONE_PREFIX, DATA_SELFTEST, DOMAIN, HEALTHCHECK_STORE_KEY, MODES, OPT_BYPASS, SELFTEST_STORE_KEY, STATE_STORE_KEY
 from .controller import AlarmController
 from .events import EventLog, async_remove_events
 from .recording import AlarmRecorder, async_remove_recordings
@@ -30,6 +30,8 @@ from .panel import async_register_panel, async_remove_panel
 from .monitor import MonitorEngine, async_remove_monitor_store
 from .routines import RoutineEngine, migrate_options
 from .reception import async_get_reception
+from .selftest import ISSUE_GLOBAL, async_get_selftest, async_note, async_resolve, async_stop_selftest
+from .healthcheck import async_get_healthcheck, async_stop_healthcheck
 from .sensor_history import async_get_stats
 from .settings import async_get_settings
 from .workflow import WorkflowRunner, async_remove_workflow_store
@@ -50,6 +52,7 @@ class RuntimeData:
     workflow: WorkflowRunner | None = None
     recorder: AlarmRecorder | None = None
     monitor: MonitorEngine | None = None
+    routines: RoutineEngine | None = None
 
 
 type AlarmageddonConfigEntry = ConfigEntry[RuntimeData]
@@ -103,19 +106,25 @@ def _migrate_schedules(hass: HomeAssistant, entry: ConfigEntry) -> None:
         hass.config_entries.async_update_entry(entry, options=migrated if migrated is not None else options)
 
 
-async def _isolated(entry: ConfigEntry, awaitable: Awaitable[Any], what: str) -> Any:
+async def _isolated(entry: ConfigEntry, awaitable: Awaitable[Any], what: str, part: str | None = None, hass: HomeAssistant | None = None) -> Any:
     """
     Etwas Zusätzliches (Protokoll, Aufzeichnung, Statistik, Aktionen, Wartung) vorbereiten, ohne dass sein Scheitern die Anlage mitnimmt.
     Sicherheitsregel: im Zweifel alarmieren. Ein Lesefehler einer Ablage oder ein Fehler beim Start der Aktionen darf nie
     verhindern, dass die Anlage auf ihre Sensoren hört; es steht im Log, die Anlage läuft ohne dieses Teil weiter.
+    Mit `part` (1.65.0) hält der Selbsttest fest, welches Teil nicht startete; startet es beim nächsten Laden, ist der Befund behoben.
     """
     try:
-        return await awaitable
+        result = await awaitable
     except asyncio.CancelledError:
         raise
     except Exception:  # noqa: BLE001 - nur dieses Teil fällt aus
         _LOGGER.exception("%s: %s failed; the alarm system runs without it", entry.title, what)
+        if part and hass is not None:
+            async_note(hass, entry.entry_id, "start_failed", part, part=part)
         return None
+    if part and hass is not None:
+        async_resolve(hass, entry.entry_id, "start_failed", part)
+    return result
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry) -> bool:
@@ -124,13 +133,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
     _migrate_schedules(hass, entry)
     integration = await async_get_integration(hass, DOMAIN)
     settings = await async_get_settings(hass)
+    # Selbsttest (1.65.0) zuerst: er hält fest, wenn ein Teil der Anlage nicht startet. Er ist Zusatz wie die Wartung.
+    selftest = await _isolated(entry, async_get_selftest(hass, settings), "loading the self-test")
     controller = AlarmController(hass, entry, settings)
-    controller.stats = await _isolated(entry, async_get_stats(hass), "loading the sensor statistics")
-    await _isolated(entry, async_get_reception(hass), "starting the reception log")
+    controller.stats = await _isolated(entry, async_get_stats(hass), "loading the sensor statistics", "stats", hass)
+    await _isolated(entry, async_get_reception(hass), "starting the reception log", "reception", hass)
     events = EventLog(hass, entry.entry_id, controller)
-    await _isolated(entry, events.async_load(), "loading the event log")
+    await _isolated(entry, events.async_load(), "loading the event log", "events", hass)
     recorder = AlarmRecorder(hass, entry.entry_id, controller)
-    await _isolated(entry, recorder.async_load(), "loading the alarm recordings")
+    await _isolated(entry, recorder.async_load(), "loading the alarm recordings", "recordings", hass)
     notifier = Notifier(hass, entry, controller, settings)
     workflow = WorkflowRunner(hass, entry, controller, notifier)
     notifier.workflow_has_notify = workflow.has_notify
@@ -147,18 +158,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
     notifier.async_start()
     entry.async_on_unload(notifier.async_stop)
     # Die Aktionen sind Zusatz zur Anlage selbst: scheitert ihr Start (Ablage), hört die Anlage trotzdem auf ihre Sensoren und meldet
-    await _isolated(entry, workflow.async_start(), "starting the alarm actions")
+    await _isolated(entry, workflow.async_start(), "starting the alarm actions", "workflow", hass)
     # Erst jetzt hören Protokoll, Aufzeichnung, Meldungen und Aktionen zu: eine während des Neustarts abgelaufene Eingangsverzögerung
     # wird hier zum Alarm (vorher stand der Alarm nur im Zustand, ohne Sirene und ohne Meldung)
     controller.async_finish_restore()
     routines = RoutineEngine(hass, entry, controller)
+    entry.runtime_data.routines = routines
     routines.async_start()
     entry.async_on_unload(routines.async_stop)
     # Die Überwachung ist Zusatz zur Anlage: scheitert ihr Start, läuft die Anlage trotzdem
     monitors = MonitorEngine(hass, entry, controller, notifier)
     entry.runtime_data.monitor = monitors
     entry.async_on_unload(monitors.async_stop)
-    await _isolated(entry, monitors.async_start(), "starting the monitoring")
+    await _isolated(entry, monitors.async_start(), "starting the monitoring", "monitor", hass)
     # Zonen, Modi und Verzögerungen bestimmen, welche Entitäten es gibt und wem zugehört wird: neu laden.
     # Der Zustand (scharf, Verzögerung, Alarm) übersteht das über die Wiederherstellung der Entität.
     entry.async_on_unload(entry.add_update_listener(_async_reload))
@@ -170,8 +182,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
         await async_register_panel(hass)
     except Exception:  # noqa: BLE001
         _LOGGER.exception("%s: the panel could not be registered; the alarm system runs without it", entry.title)
-    await _isolated(entry, async_start_maintenance(hass, settings), "starting the maintenance check")
-    await _isolated(entry, async_start_auto_backup(hass), "starting the automatic backup")
+    await _isolated(entry, async_start_maintenance(hass, settings), "starting the maintenance check", "maintenance", hass)
+    await _isolated(entry, async_start_auto_backup(hass), "starting the automatic backup", "auto_backup", hass)
+    # Selbsttest: beim ersten Laden Takt und erste Prüfung; lädt eine Anlage neu (nach dem Speichern), prüft er kurz danach erneut
+    if selftest is not None:
+        try:
+            selftest.async_start()
+        except Exception:  # noqa: BLE001 - der Selbsttest ist Zusatz
+            _LOGGER.exception("%s: starting the self-test failed; the alarm system runs without it", entry.title)
+    # HealthCheck (1.65.0): Lebenszeichen an externe Dienste, für alle Anlagen einmal; Zusatz wie der Selbsttest
+    healthcheck = await _isolated(entry, async_get_healthcheck(hass, settings), "loading the health check", "healthcheck", hass)
+    if healthcheck is not None:
+        try:
+            healthcheck.async_start()
+        except Exception:  # noqa: BLE001 - die Lebenszeichen sind Zusatz
+            _LOGGER.exception("%s: starting the health check failed; the alarm system runs without it", entry.title)
     # Reste der früheren Update-Prüfung (bis 0.27.0): die Meldung unter "Reparaturen" verschwindet mit der Funktion
     ir.async_delete_issue(hass, DOMAIN, "update_available")
     return True
@@ -212,6 +237,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     # Oberfläche die Anlage und hinge. Es verschwindet erst, wenn die letzte Anlage entfernt wird (async_remove_entry).
     if not others:
         await _isolated(entry, async_stop_maintenance(hass), "stopping the maintenance check")
+        await _isolated(entry, async_stop_healthcheck(hass), "stopping the health check")
+        await _isolated(entry, async_stop_selftest(hass), "stopping the self-test")
         async_stop_auto_backup(hass)
     return True
 
@@ -222,5 +249,12 @@ async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     await async_remove_workflow_store(hass, entry.entry_id)
     await async_remove_monitor_store(hass, entry.entry_id)
     await Store(hass, 1, f"{STATE_STORE_KEY}.{entry.entry_id}").async_remove()
+    # Selbsttest: die Meldung der Anlage unter "Reparaturen" verschwindet mit ihr; die übrigen Anlagen prüft er kurz danach neu
+    ir.async_delete_issue(hass, DOMAIN, f"selftest_{entry.entry_id}")
     if not any(e.entry_id != entry.entry_id for e in hass.config_entries.async_entries(DOMAIN)):
+        ir.async_delete_issue(hass, DOMAIN, ISSUE_GLOBAL)
+        await Store(hass, 1, SELFTEST_STORE_KEY).async_remove()
+        await Store(hass, 1, HEALTHCHECK_STORE_KEY).async_remove()
         async_remove_panel(hass)
+    elif (selftest := hass.data.get(DATA_SELFTEST)) is not None and hass.state is CoreState.running:
+        selftest.async_schedule()

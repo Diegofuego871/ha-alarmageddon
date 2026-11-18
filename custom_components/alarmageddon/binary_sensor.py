@@ -3,6 +3,9 @@ Eine Entität pro Zone: "ein" sobald ein Sensor der Zone offen ist.
 
 Statt HA-Helfergruppen (Entscheid im Konzept): Die Zonen gehören zur
 Integration, der Nutzer kann sie nicht versehentlich löschen oder umbauen.
+
+Dazu (1.65.0) je Anlage der Selbsttest: "Problem", solange der Selbsttest
+etwas gefunden hat, das die Anlage betrifft (selftest.py).
 """
 
 from __future__ import annotations
@@ -11,13 +14,18 @@ from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_ON
+from homeassistant.const import STATE_ON, EntityCategory
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
+from .const import DATA_SELFTEST, SIGNAL_SELFTEST
 from .controller import AlarmController
 from .entity import AlarmageddonEntity
+
+# So viele Befunde stehen in den Attributen (der Rest im Panel); die Liste wird nicht aufgezeichnet
+SELFTEST_ATTR_ITEMS = 20
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -25,6 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities([
         *(ZoneSensor(entry, controller, mode) for mode in controller.modes),
         *(ReadySensor(entry, controller, mode) for mode in controller.modes),
+        SelfTestSensor(entry),
     ])
 
 
@@ -93,3 +102,47 @@ class ReadySensor(AlarmageddonEntity, BinarySensorEntity):
         old, new = event.data["old_state"], event.data["new_state"]
         if (old is not None and old.state == STATE_ON) != (new is not None and new.state == STATE_ON):
             self.async_write_ha_state()
+
+
+class SelfTestSensor(AlarmageddonEntity, BinarySensorEntity):
+    """
+    Selbsttest der Anlage (1.65.0, Wunsch des Nutzers: eine Entität je Anlage): "Problem", solange der Selbsttest etwas gefunden hat, das
+    diese Anlage betrifft (ihre eigenen Befunde und die für alle Anlagen, zum Beispiel ein fehlender Empfänger). Vor der ersten Prüfung
+    "unbekannt". Attribute: Zeit der letzten Prüfung, Zahl der Befunde und die ersten Befunde (nur Art und Kennung, nie Geheimnisse).
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "selftest"
+    _unrecorded_attributes = frozenset({"problems"})
+
+    def __init__(self, entry: ConfigEntry) -> None:
+        super().__init__(entry, "selftest")
+
+    def _state(self) -> tuple[str | None, list[dict[str, Any]]]:
+        selftest = self.hass.data.get(DATA_SELFTEST) if self.hass is not None else None
+        if selftest is None:
+            return None, []
+        return selftest.last, selftest.for_entry(self._entry.entry_id)
+
+    @property
+    def is_on(self) -> bool | None:
+        last, problems = self._state()
+        if last is None and not problems:
+            return None
+        return bool(problems)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        last, problems = self._state()
+        items = [{"code": p["code"], "kind": p["kind"], **({"entity_id": p["entity_id"]} if p.get("entity_id") else {}),
+                  **({"service": p["service"]} if p.get("service") else {})} for p in problems[:SELFTEST_ATTR_ITEMS]]
+        return {"last_check": last, "count": len(problems), "problems": items}
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_SELFTEST, self._refresh))
+
+    @callback
+    def _refresh(self) -> None:
+        self.async_write_ha_state()

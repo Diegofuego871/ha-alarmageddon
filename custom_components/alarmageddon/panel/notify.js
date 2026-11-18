@@ -11,12 +11,15 @@ const GROUPS = {
   // Aktionen (je Anlage und Modus). Ihre früheren gemeinsamen Werte bleiben im Entwurf unberührt erhalten (der Server nimmt sie, solange
   // eine Anlage nichts Eigenes gespeichert hat).
   alarm: [["sensor_offline", "alert"], ["arm_failed", "doorOpen"]],
-  maintenance: [["battery_low", "battery"], ["sensor_unavailable", "offline"]],
+  // Selbsttest (1.65.0): eigene Meldungsart, einzeln ein- und auszuschalten wie die anderen
+  maintenance: [["battery_low", "battery"], ["sensor_unavailable", "offline"], ["selftest", "stethoscope"]],
 };
 // Arten, die nur im scharfen Zustand vorkommen: je Modus eigene Werte (Unterreiter), sonst der gemeinsame Wert
 const MODE_KINDS = [["sensor_offline", "alert"]];
 const ALL_MODES = ["home", "away", "night"];
 const TARGET_KEY = { alarm: "alarm_targets", maintenance: "maintenance_targets" };
+// Der Abstand des Selbsttests (selftest_hours) steht seit der dritten Fassung von 1.65.0 im Kapitel HealthCheck (Konfiguration › Anlage) und wird
+// dort gespeichert; dieser Entwurf sendet ihn nie mit (sonst überschriebe ein älterer Entwurf den neuen Wert)
 const RANGES = { battery_threshold: [5, 50], offline_minutes: [5, 1440] };
 const ARM_BUTTONS = ["arm_retry_action", "arm_force_action"];
 // Arten mit einem Zahlenfeld: Schlüssel, Beschriftung, Einheit
@@ -41,7 +44,7 @@ export class NotifyUi {
 
   get base() {
     const types = Object.fromEntries(KINDS.map((k) => [k, { enabled: true, critical: false, volume: 0.8 }]));
-    return (this.host._data?.notify || { alarm_targets: [], maintenance_targets: [], types, battery_threshold: 20, offline_minutes: 60 });
+    return (this.host._data?.notify || { alarm_targets: [], maintenance_targets: [], types, battery_threshold: 20, offline_minutes: 60, selftest_hours: 6 });
   }
 
   // Knopf der Meldung "Scharfschalten nicht möglich": "retry" oder "force"; ohne gespeicherten Wert an
@@ -231,7 +234,7 @@ export class NotifyUi {
     // Schalter "Einstellungen pro Modus": aus = ein Satz für alle Modi; ein = Reiter der Modi (der erste gewählt) mit eigenen Werten je Modus
     const modes = ALL_MODES.filter((m) => (h._systems().length ? h._systems().some((s) => (s.modes || []).includes(m)) : m !== "night"));
     if (d.per_mode && !modes.includes(this.modeTab)) this.modeTab = modes[0] || "home";
-    const tabs = d.per_mode ? h._segHtml("nt-mode", modes.map((m) => [`tab:${m}`, this._t(MODE_KEY[m]), MODE_ICON[m]]), `tab:${this.modeTab}`, "data-nt", "small") : "";
+    const tabs = d.per_mode ? h._segHtml("nt-mode", modes.map((m) => [`tab:${m}`, this._t(MODE_KEY[m]), MODE_ICON[m]]), `tab:${this.modeTab}`, "data-nt", "small ag-modeseg") : "";
     const sw = `<div class="ag-pmbar"><div class="ag-pmsw"><button class="ag-toggle ${d.per_mode ? "on" : ""}" data-nt="permode" role="switch" aria-checked="${d.per_mode}" aria-label="${esc(this._t("ntPerMode"))}"></button>
       <div class="ag-settx"><b>${esc(this._t("ntPerMode"))}</b><small>${esc(this._t(d.per_mode ? "ntPerModeOn" : "ntPerModeHint"))}</small></div></div>${tabs}</div>`;
     const modeList = () => MODE_KINDS.map(([kind, icon]) => this._type(kind, icon, dirty, false, this.modeTab)).join("");
@@ -286,7 +289,8 @@ export class NotifyUi {
     this.saving = true;
     this.renderFoot();
     try {
-      const result = await h._hass.callWS({ type: "alarmageddon/save_notify", notify: this.draft });
+      const { selftest_hours: _hours, ...notify } = this.draft;
+      const result = await h._hass.callWS({ type: "alarmageddon/save_notify", notify });
       if (h._data) h._data.notify = result?.notify || JSON.parse(JSON.stringify(this.draft));
       this._empty().clear();
       this.draft = null;

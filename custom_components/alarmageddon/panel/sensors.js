@@ -323,7 +323,7 @@ export class SensorsUi {
     const modes = this.modes().filter((m) => ALL_MODES.includes(m));
     if (d.perMode && !modes.includes(this.mtab) && !(this.mtab === "always" && this.alwaysOn)) this.mtab = modes[0] || "home";
     // Reiter der Modi und "Immer aktiv" (Rauch, Wasser, Gas: gilt auch bei deaktivierter Anlage), jeder mit allen Einstellungen für sich
-    const tabs = d.perMode ? h._segHtml("sen-mode", [...modes.map((m) => [`mt:${m}`, this._t(MODE_KEY[m]), MODE_ICON[m]]), ...(this.alwaysOn ? [["mt:always", this._t("wfAlways"), "flash"]] : [])], `mt:${this.mtab}`, "data-sen", "small") : "";
+    const tabs = d.perMode ? h._segHtml("sen-mode", [...modes.map((m) => [`mt:${m}`, this._t(MODE_KEY[m]), MODE_ICON[m]]), ...(this.alwaysOn ? [["mt:always", this._t("wfAlways"), "flash"]] : [])], `mt:${this.mtab}`, "data-sen", "small ag-modeseg") : "";
     h._setHtml(bar, `<div class="ag-pmsw"><button class="ag-toggle ${d.perMode ? "on" : ""}" data-sen="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("senPerMode"))}"></button>
       <div class="ag-settx"><b>${esc(this._t("senPerMode"))}</b><small>${esc(this._t(d.perMode ? "senPerModeOn" : "senPerModeHint"))}</small></div></div>${tabs}
       ${d.perMode ? `<div class="ag-pmscope" style="flex-basis:100%;margin:0">${ic(this.mtab === "always" ? "flash" : MODE_ICON[this.mtab], 18)}${esc(this._t(this.mtab === "always" ? "pmScopeAlways" : "pmScope", { mode: this._t(MODE_KEY[this.mtab] || "wfAlways") }))}</div>` : ""}`);

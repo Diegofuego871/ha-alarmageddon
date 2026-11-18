@@ -113,6 +113,8 @@ export class SystemUi {
       monitor: s.monitor_enabled === true, // "Überwachung" als Ganzes (Standard aus)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
       auto: this.autoOf(this.host._data?.auto_backup),
+      // Abstand des Selbsttests in Stunden (1.65.0, Kapitel HealthCheck; gilt für alle Anlagen, gespeichert in den Benachrichtigungen)
+      stHours: Number.isInteger(this.host._data?.notify?.selftest_hours) ? this.host._data.notify.selftest_hours : 6,
     };
   }
 
@@ -150,6 +152,7 @@ export class SystemUi {
     if (a.monitor !== d.monitor) n += 1;
     if (a.ackCode !== d.ackCode) n += 1;
     if (JSON.stringify(a.auto) !== JSON.stringify(d.auto)) n += 1;
+    if (a.stHours !== d.stHours) n += 1;
     if (canon(normRoutines(a.routines)) !== canon(normRoutines(d.routines))) n += 1;
     return n;
   }
@@ -167,6 +170,7 @@ export class SystemUi {
     }
     if (!ALL_MODES.some((m) => d.modes[m])) bad.push("modes");
     if (!Number.isInteger(d.auto.keep) || d.auto.keep < 1 || d.auto.keep > 50) bad.push("auto.keep");
+    if (!Number.isInteger(d.stHours) || d.stHours < 1 || d.stHours > 24) bad.push("st.hours");
     return bad;
   }
 
@@ -188,7 +192,7 @@ export class SystemUi {
     const bad = new Set(this.invalid());
     const num = (field, value, min = 0, max = MAX, unit = "seconds") => `<span class="ag-num ${bad.has(`${scope}.${field}`) ? "bad" : ""}"><input type="number" min="${min}" max="${max}" step="1" inputmode="numeric" data-sys="num" data-field="${field}" value="${esc(value)}" aria-label="${esc(this._t(NUM_LABEL[field]))}"><span class="ag-t2">${esc(this._t(unit))}</span></span>`;
     // Reiter der Modi nur mit eingeschaltetem Schalter
-    const scopeSeg = d.perMode ? h._segHtml("sys-scope", modes.map((m) => [m, this._t(MODE_KEY[m]), MODE_ICON[m]]), scope, "data-scope", "small") : "";
+    const scopeSeg = d.perMode ? h._segHtml("sys-scope", modes.map((m) => [m, this._t(MODE_KEY[m]), MODE_ICON[m]]), scope, "data-scope", "small ag-modeseg") : "";
     const switchRow = `<div class="ag-pmbar"><div class="ag-pmsw"><button class="ag-toggle ${d.perMode ? "on" : ""}" data-sys="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("sysPerMode"))}"></button>
       <div class="ag-settx"><b>${esc(this._t("sysPerMode"))}</b><small>${esc(this._t(d.perMode ? "sysPerModeOn" : "sysPerModeHint"))}</small></div></div>${scopeSeg}</div>`;
     const card = (rows) => `<div class="ag-card ag-setlist">${rows}</div>`;
@@ -208,7 +212,7 @@ export class SystemUi {
         <div class="ag-subh">${esc(this._t("chapTimes"))}</div>${card(timesRows)}
         <div class="ag-subh">${esc(this._t("chapBehaviour"))}</div>${card(behaviourRows)}</div>`);
     const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + perMode
-      + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._backupHtml() + this._deleteHtml();
+      + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._healthHtml(d, bad) + this._backupHtml() + this._deleteHtml();
     // Beim Tippen nie neu aufbauen (Cursor bliebe nicht stehen), nur bei Schaltern und Auswahl
     h._setHtml(form, html);
     h._placePills();
@@ -226,9 +230,12 @@ export class SystemUi {
     const s = this.system;
     const n = (s.codes || []).length;
     const summary = n ? this._t(n === 1 ? "codesSummaryOne" : "codesSummary", { count: n }) : this._t("codesNone");
+    // Wie Routinen und eigene Töne (1.64.0, Wunsch des Nutzers): links "Code hinzufügen" (öffnet gleich das Formular), rechts "Codes anzeigen"
+    // mit eigenem Symbol (Schlüssel)
     return chapter(this._t("sysCodes"), `<div class="ag-card ag-setlist ag-codes">
       <div class="ag-setrow ag-rtsum ag-codesum"><span class="ag-oav ${n ? "on" : ""}">${ic("hand", 20)}</span><div class="ag-settx"><b>${esc(summary)}</b></div>
-        <div class="ag-btnrow"><button class="ag-btn" data-sys="code-open">${ic("groups", 18)}${esc(this._t("codesShow"))}</button></div></div>
+        <div class="ag-btnrow"><button class="ag-btn" data-sys="code-add-page" ${n >= MAX_CODES ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("codeAdd"))}</button>
+          <button class="ag-btn" data-sys="code-open">${ic("key", 18)}${esc(this._t("codesShow"))}</button></div></div>
       <div class="ag-coderow"><span class="ag-oav">${ic("lockClosed", 20)}</span><span class="ag-grow"><b>${esc(this._t("sysCodeMain"))}</b><small class="ag-t2">${esc(this._t(s.main_code ? "sysCodeMainSet" : "sysCodeMainNone"))}</small></span>
         <button class="ag-btn" data-sys="code">${ic("cog", 18)}${esc(this._t("sysCodeOpen"))}</button></div>
       ${this._ackRow(d, Boolean(s.has_code))}</div>`, this._t("sysCodesHint"));
@@ -326,6 +333,25 @@ export class SystemUi {
     return chapter(t("csTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum"><span class="ag-oav ${n ? "on" : ""}">${ic("speaker", 20)}</span>
       <div class="ag-settx"><b>${esc(summary)}</b></div><div class="ag-btnrow"><button class="ag-btn" data-sys="cs-upload-page" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(t("csUpload"))}</button>
         <button class="ag-btn" data-sys="cs-open">${ic("speaker", 18)}${esc(t("csShow"))}</button></div></div></div>`, t("csHint"));
+  }
+
+  // HealthCheck (1.65.0, Wunsch des Nutzers 2026-11-18): der Selbsttest (letzte Prüfung, "Jetzt prüfen", Befunde, Abstand) und die Lebenszeichen an
+  // externe Dienste (Zusammenfassung wie Töne und Codes, Liste im Fenster, healthcheck.js). Gilt für alle Anlagen. Der Abstand ist Teil des Entwurfs
+  // der Seite (wie das automatische Backup), die Lebenszeichen werden im Fenster sofort gespeichert.
+  _healthHtml(d, bad) {
+    const t = (k, v) => this._t(k, v);
+    const st = this.host.selftest;
+    const data = st.data;
+    const n = st.problems().length;
+    const title = !data?.last && !n ? t("stRowNone") : n === 0 ? t("stRowOk") : n === 1 ? t("stRowProblem1") : t("stRowProblems", { count: n });
+    const sub = data?.last ? `${t("stRowAgo", { ago: this.host._fmtAgo(data.last) })}${data.next ? ` · ${t("stNext", { time: st._when(data.next) })}` : ""}` : t("hcStNever");
+    const tone = n ? (st.problems().some((p) => st._red(p)) ? "err" : "warn") : data?.last ? "ok" : "";
+    const stRow = `<div class="ag-setrow ag-rtsum ag-stsum"><span class="ag-oav ag-st-av ${tone}">${ic("stethoscope", 20)}</span><div class="ag-settx"><b>${esc(title)}</b><small>${esc(sub)}</small></div>
+      <div class="ag-btnrow"><button class="ag-btn" data-st="run" ${st.busy ? "disabled" : ""}>${ic("refresh", 18)}${esc(t("stRun"))}</button>
+        <button class="ag-btn" data-st="open">${ic("stethoscope", 18)}${esc(t("stShow"))}</button></div></div>`;
+    const hoursRow = `<div class="ag-setrow ag-sthours"><div class="ag-settx"><b>${esc(t("stEveryLabel"))}</b><small>${esc(t("stEveryHint"))}</small></div>
+      <span class="ag-num ${bad.has("st.hours") ? "bad" : ""}"><input type="number" min="1" max="24" step="1" inputmode="numeric" data-sys="st-hours" value="${esc(Number.isFinite(d.stHours) ? d.stHours : "")}" aria-label="${esc(t("stEveryLabel"))}"><span class="ag-t2">${esc(t("hoursUnit"))}</span></span></div>`;
+    return chapter(t("hcTitle"), `<div class="ag-card ag-setlist ag-codes ag-health">${stRow}${hoursRow}${this.host.healthcheck.summaryRow()}</div>`, t("hcHint"));
   }
 
   _csDlg() {
@@ -467,17 +493,20 @@ export class SystemUi {
       <span class="ag-oav ${auto.enabled ? "on" : ""}">${ic("restore", 20)}</span><div class="ag-settx"><b>${esc(this._t("bkAuto"))}</b><small>${esc(this._t("bkAutoHint", { max: keepOk ? auto.keep : 5 }))}</small></div>
       <span class="ag-num ag-abkeep ${keepOk ? "" : "bad"}" title="${esc(this._t("bkAutoKeep"))}"><input type="number" min="1" max="50" step="1" inputmode="numeric" data-sys="ab-keep" value="${keepOk ? esc(auto.keep) : esc(Number.isFinite(auto.keep) ? auto.keep : "")}" aria-label="${esc(this._t("bkAutoKeep"))}"><span class="ag-t2">${esc(this._t("bkAutoKeepUnit"))}</span></span>
       <select class="ag-input" data-sys="ab-every" aria-label="${esc(this._t("bkAutoEvery"))}" ${auto.enabled ? "" : "disabled"}>${every}</select></div>`;
-    return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes">${autoRow}<div class="ag-setrow"><div class="ag-settx"><small>${esc(this._t("bkHint"))}</small></div>
-      <div class="ag-btnrow"><button class="ag-btn" data-sys="bk-create">${ic("plus", 18)}${esc(this._t("bkSave"))}</button></div></div>
-      <div class="ag-setrow ag-bklast"><div class="ag-settx ag-bklast-tx">${this._bkLastHtml()}</div>
-        <button class="ag-btn" data-sys="bk-open">${ic("groups", 18)}${esc(this._t("bkShow"))}</button></div></div>`);
+    // Wie Routinen, eigene Töne und Codes (1.64.0, Wunsch des Nutzers): oben die Zeile mit "Letztes Backup", links "Backup erstellen", rechts
+    // "Backups anzeigen"; der Hinweis steht über der Karte, darunter die automatischen Backups
+    const has = Boolean(this.backups?.length);
+    return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes">
+      <div class="ag-setrow ag-rtsum ag-bklast"><span class="ag-oav ${has ? "on" : ""}">${ic("archive", 20)}</span><div class="ag-settx ag-bklast-tx">${this._bkLastHtml()}</div>
+        <div class="ag-btnrow"><button class="ag-btn" data-sys="bk-create">${ic("plus", 18)}${esc(this._t("bkSave"))}</button>
+          <button class="ag-btn" data-sys="bk-open">${ic("archive", 18)}${esc(this._t("bkShow"))}</button></div></div>${autoRow}</div>`, this._t("bkHint"));
   }
 
   // "Letzte Sicherung: Datum, Name" (die Liste selbst steht im Popup)
   _bkLastHtml() {
     if (this.backups === null) return "";
     const lang = this.host._lang || "en";
-    if (!this.backups.length) return `<small>${esc(this._t("bkLastNone"))}</small>`;
+    if (!this.backups.length) return `<b>${esc(this._t("bkLastNone"))}</b>`; // fett wie "Noch keine Codes" (Zeile wie Routinen, Töne, Codes; 1.64.0)
     const last = [...this.backups].sort((x, y) => (x.created < y.created ? 1 : -1))[0];
     const date = last.created ? new Date(last.created).toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" }) : "–";
     const name = last.name ? ` · ${last.name}` : last.auto ? ` · ${this._t("bkAutoTag")}` : "";
@@ -547,6 +576,7 @@ export class SystemUi {
     if (tools) tools.hidden = !this.backups?.length;
     const last = this.host._view?.querySelector(".ag-bklast-tx");
     if (last) last.innerHTML = this._bkLastHtml();
+    this.host._view?.querySelector(".ag-bklast > .ag-oav")?.classList.toggle("on", Boolean(this.backups?.length));
     this.host._stickySync?.();
   }
 
@@ -919,6 +949,7 @@ export class SystemUi {
       const first = badKeys[0];
       const text = first === "modes" ? this._t("sysModesNone")
         : first === "auto.keep" ? this._t("invalidCount", { min: 1, max: 50 })
+        : first === "st.hours" ? this._t("invalidCount", { min: 1, max: 24 })
         : first.endsWith(".confirm_window") ? this._t("invalidNumber", { min: 5, max: 600 }) : this._t("invalidNumber", { min: 0, max: MAX });
       status = `<span class="ag-err">${esc(text)}</span>`;
     }
@@ -943,6 +974,14 @@ export class SystemUi {
         home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, routines: d.routines,
         ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}) });
       Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code) });
+      // Abstand des Selbsttests (1.65.0): nur dieser Wert der Benachrichtigungen, alles andere bleibt, wie es ist
+      if (d.stHours !== this.base(s).stHours) {
+        const res = await h._hass.callWS({ type: "alarmageddon/save_notify", notify: { selftest_hours: d.stHours } });
+        if (h._data) {
+          h._data.notify = res.notify;
+          if (h._data.selftest) h._data.selftest.hours = d.stHours;
+        }
+      }
       if (autoChanged) {
         const res = await h._hass.callWS({ type: "alarmageddon/save_auto_backup", enabled: d.auto.enabled, every: d.auto.every, keep: d.auto.keep });
         if (h._data) h._data.auto_backup = res.auto_backup;
@@ -1134,7 +1173,8 @@ export class SystemUi {
       this._bkDlg()?.querySelector('[data-sys="import-file"]')?.click();
     } else if (act === "import-file") {
       return false;
-    } else if (act === "code-add") {
+    } else if (act === "code-add" || act === "code-add-page") {
+      // Aus dem Fenster "Codes pro Person" oder direkt von der Seite (1.64.0): dasselbe Formular
       this.openCodeForm();
     } else if (act === "code-edit") {
       this.openCodeForm(el.dataset.id);
@@ -1163,6 +1203,16 @@ export class SystemUi {
   }
 
   onInput(el) {
+    if (el.dataset.sys === "st-hours") {
+      // Entwurf der Seite wie das automatische Backup; ungültig (nicht 1 bis 24) sperrt "Speichern"
+      const d = this.ensureDraft();
+      const n = el.value.trim() === "" ? NaN : Number(el.value);
+      d.stHours = n;
+      el.closest(".ag-num").classList.toggle("bad", !(Number.isInteger(n) && n >= 1 && n <= 24));
+      this.saveState = null;
+      this.renderFoot();
+      return true;
+    }
     if (el.dataset.sys === "ab-keep") {
       // Entwurf der Seite: gespeichert wird mit "Speichern"; ungültig (nicht 1 bis 50) sperrt "Speichern"
       const d = this.ensureDraft();

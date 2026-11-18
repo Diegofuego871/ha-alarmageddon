@@ -422,13 +422,30 @@ class AlarmageddonStatusCard extends AlarmageddonCardBase {
       ...((a.offline || []).length ? [`<div class="ag-row"><span class="ag-mini err">${ic("offline", 16)}</span><span class="ag-grow">${esc(this._t("warnOffline", { count: a.offline.length }))}<small class="ag-t2" style="display:block">${esc(names(a.offline))}</small></span></div>`] : []),
       ...((a.low_battery || []).length ? [`<div class="ag-row"><span class="ag-mini warn">${ic("battery", 16)}</span><span class="ag-grow">${esc(this._t("warnBattery", { count: a.low_battery.length }))}<small class="ag-t2" style="display:block">${esc(names(a.low_battery))}</small></span></div>`] : []),
     ];
+    // Selbsttest (1.65.0): Befunde zählen mit (Entscheid des Nutzers); die Zeile steht immer da, mit der Zeit der letzten Prüfung
+    const n = Number(a.selftest) || 0;
+    const when = a.selftest_last ? this._ago(a.selftest_last) : "";
+    const label = !a.selftest_last && !n ? this._t("stRowNone") : n === 0 ? this._t("stRowOk") : n === 1 ? this._t("stRowProblem1") : this._t("stRowProblems", { count: n });
+    const stRow = a.selftest === undefined ? "" : `<div class="ag-row ag-st-row"><span class="ag-mini ${n ? "warn" : "ok"}">${ic("stethoscope", 16)}</span><span class="ag-grow">${esc(label)}${when ? `<small class="ag-t2" style="display:block">${esc(this._t("stRowAgo", { ago: when }))}</small>` : ""}</span></div>`;
+    if (n) items.push(stRow);
     if (!items.length) {
       this._set(`<div class="ag-card ag-sys ag-status ok"><div class="ag-sys-top"><div class="ag-shield" style="background:var(--ag-success-soft);color:var(--ag-success)">${ic("check", 28)}</div>
-        <div><div class="ag-label">${esc(this._t("statusTitle"))}</div><h2>${esc(this._t("statusOk"))}</h2><div class="ag-sys-sub">${esc(this._t("statusOkText"))}</div></div></div></div>`);
+        <div><div class="ag-label">${esc(this._t("statusTitle"))}</div><h2>${esc(this._t("statusOk"))}</h2><div class="ag-sys-sub">${esc(this._t("statusOkText"))}</div></div></div>${stRow ? `<div class="ag-rows">${stRow}</div>` : ""}</div>`);
       return;
     }
     this._set(`<div class="ag-card ag-sys ag-status warn"><div class="ag-sys-top"><div class="ag-shield" style="background:var(--ag-warning-soft);color:var(--ag-warning-text)">${ic("alert", 28)}</div>
-      <div><div class="ag-label">${esc(this._t("statusTitle"))}</div><h2>${esc(this._t("warnTitle", { count: items.length }))}</h2></div></div><div class="ag-rows">${items.join("")}</div></div>`);
+      <div><div class="ag-label">${esc(this._t("statusTitle"))}</div><h2>${esc(this._t("warnTitle", { count: items.length }))}</h2></div></div><div class="ag-rows">${items.join("")}${n ? "" : stRow}</div></div>`);
+  }
+
+  // Wie das Panel (_fmtAgo): auf die Minute gerundet, damit sich der Text nicht bei jeder Änderung von hass ändert
+  _ago(iso) {
+    const ms = Date.now() - new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return "";
+    const rtf = new Intl.RelativeTimeFormat(this._hass?.locale?.language || this._lang, { numeric: "auto", style: "short" });
+    const min = Math.round(ms / 60000);
+    if (min < 60) return rtf.format(-Math.max(min, 0), "minute");
+    const hours = Math.round(min / 60);
+    return hours < 48 ? rtf.format(-hours, "hour") : rtf.format(-Math.round(hours / 24), "day");
   }
 
   _act() {}

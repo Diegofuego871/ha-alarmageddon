@@ -1,5 +1,6 @@
 """
-Status der Anlage als Entität (1.34.0): wie viele Dinge Aufmerksamkeit brauchen (Alarm, nicht erreichbare Sensoren, schwache Batterien).
+Status der Anlage als Entität (1.34.0): wie viele Dinge Aufmerksamkeit brauchen (Alarm, nicht erreichbare Sensoren, schwache Batterien und
+seit 1.65.0 die Befunde des Selbsttests, Entscheid des Nutzers 2026-11-18: sie zählen mit).
 
 Die Infokarte für Dashboards liest sie. Das Panel braucht Administratorrechte, die Karte nicht: sie darf nur lesen, was jeder Nutzer in
 Home Assistant sehen kann, also Entitäten. Gerechnet wird wie in der Infokarte des Panels: ein Sensor gilt als nicht erreichbar, sobald
@@ -14,11 +15,12 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 
-from .const import DEFAULT_NOTIFY
+from .const import DATA_SELFTEST, DEFAULT_NOTIFY, SIGNAL_SELFTEST
 from .controller import AlarmController
 from .devices import battery_of
 from .entity import AlarmageddonEntity
@@ -74,19 +76,28 @@ class StatusSensor(AlarmageddonEntity, SensorEntity):
                 low.append({"entity_id": sensor, "battery": round(value)})
         return self._ctl.state == AlarmControlPanelState.TRIGGERED, offline, low
 
+    def _selftest(self) -> tuple[int, str | None]:
+        """Befunde des Selbsttests, die diese Anlage betreffen, und die Zeit der letzten Prüfung (1.65.0)."""
+        selftest = self.hass.data.get(DATA_SELFTEST) if self.hass is not None else None
+        if selftest is None:
+            return 0, None
+        return len(selftest.for_entry(self._entry.entry_id)), selftest.last
+
     @property
     def native_value(self) -> int:
         alarm, offline, low = self._problems()
-        return int(alarm) + len(offline) + len(low)
+        return int(alarm) + len(offline) + len(low) + self._selftest()[0]
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         alarm, offline, low = self._problems()
-        return {"alarm": alarm, "offline": offline, "low_battery": low, "battery_threshold": self._threshold()}
+        selftest, last = self._selftest()
+        return {"alarm": alarm, "offline": offline, "low_battery": low, "battery_threshold": self._threshold(), "selftest": selftest, "selftest_last": last}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self.async_on_remove(self._ctl.add_listener(self._refresh))
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_SELFTEST, self._refresh))
         sensors, batteries = self._watched()
         watched = sorted(sensors | set(batteries.values()))
         if watched:
@@ -100,7 +111,7 @@ class StatusSensor(AlarmageddonEntity, SensorEntity):
     def _refresh(self) -> None:
         # Nur schreiben, wenn sich etwas ändert: Sensoren melden ständig neue Attribute
         alarm, offline, low = self._problems()
-        key = (alarm, tuple(offline), tuple((x["entity_id"], x["battery"]) for x in low))
+        key = (alarm, tuple(offline), tuple((x["entity_id"], x["battery"]) for x in low), self._selftest())
         if key != self._last:
             self._last = key
             self.async_write_ha_state()

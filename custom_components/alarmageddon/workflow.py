@@ -52,6 +52,7 @@ from .const import (
     WORKFLOW_STORE_KEY,
 )
 from .controller import ARMED_STATE, AlarmController
+from . import selftest
 from .sound_loop import LOOP_MAX_SECONDS, loop_url
 
 _LOGGER = logging.getLogger(__name__)
@@ -755,14 +756,45 @@ class WorkflowRunner:
         if task.cancelled():
             return False
         task.result()
+        self._selftest_hung_ok(label)
         return True
 
     def _note(self, label: str) -> None:
-        """Eingriff des Wächters auf der Zeitachse des Alarms festhalten (nie mit einem Fehler)."""
+        """Eingriff des Wächters auf der Zeitachse des Alarms und im Selbsttest festhalten (nie mit einem Fehler)."""
         try:
             self._ctl.record("step_failed", action=label, reason="watchdog")
+            selftest.async_note(self.hass, self.entry.entry_id, "step_hung", label, place=self._selftest_place(), label=label)
         except Exception:  # noqa: BLE001 - der Wächter selbst darf nie scheitern
             _LOGGER.exception("%s: the watchdog could not record its intervention", self.entry.title)
+
+    # ----- Selbsttest (1.65.0): Ergebnis jedes Aufrufs, synchron und nie mit einem Fehler (der Alarm geht immer vor) -----
+
+    def _selftest_place(self) -> dict[str, Any]:
+        """Wo der Aufruf lief: Liste (Alarm, nach dem Quittieren, beim Scharfschalten ...), Auslöser und ob es ein Test war."""
+        run = self._run or {}
+        return {"area": "run", "list": str(run.get("phase") or ("after" if run.get("after") else "alarm")),
+                "trigger": str(_LANE.get() or run.get("trigger") or ""), "test": bool(run.get("test"))}
+
+    def _selftest(self, ok: bool, label: str, targets: Any, reason: str = "") -> None:
+        """
+        Gescheitert oder ohne Antwort: der Selbsttest hält es fest. Geklappt: ein Befund desselben Aufrufs (Dienst und Geräte) ist behoben,
+        ob im Alarm oder im Test (Entscheid des Nutzers, 2026-11-18).
+        """
+        try:
+            subject = selftest.call_subject(label, targets)
+            if ok:
+                selftest.async_resolve(self.hass, self.entry.entry_id, "step_failed", subject)
+            else:
+                selftest.async_note(self.hass, self.entry.entry_id, "step_failed", subject, place=self._selftest_place(), service=label,
+                                    targets=selftest.call_targets(targets), reason=reason)
+        except Exception:  # noqa: BLE001 - der Selbsttest hält nie einen Schritt auf
+            _LOGGER.exception("%s: the self-test could not record the result of %s", self.entry.title, label)
+
+    def _selftest_hung_ok(self, label: str) -> None:
+        try:
+            selftest.async_resolve(self.hass, self.entry.entry_id, "step_hung", label)
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("%s: the self-test could not clear %s", self.entry.title, label)
 
     def _also(self, trigger: str) -> str | None:
         """Zweiter Ablauf des laufenden Alarms neben `trigger` (aus dem Plan des Automaten), wenn es einen gibt."""
@@ -1053,7 +1085,7 @@ class WorkflowRunner:
             data = dict(step.get("data") or {})
             if step.get("target"):
                 data["entity_id"] = list(step["target"])
-            await self._bounded(self.hass.services.async_call(domain, service, data, blocking=True), f"{domain}.{service}")
+            await self._bounded(self.hass.services.async_call(domain, service, data, blocking=True), f"{domain}.{service}", targets=data.get("entity_id"))
             self._plan_undo(step, domain, service, data)
         elif kind == "sound":
             await self._play(step, resumable)
@@ -1405,11 +1437,11 @@ class WorkflowRunner:
             await self._call("media_player", "media_stop", {"entity_id": players})
             await self._put_back(remembered)
 
-    async def _bounded(self, coro: Any, label: str, timeout: float | None = None) -> None:
+    async def _bounded(self, coro: Any, label: str, timeout: float | None = None, targets: Any = None) -> None:
         """
         Wartet höchstens `timeout` (Standard SERVICE_TIMEOUT) auf einen Aufruf. Antwortet das Gerät nicht, geht es weiter: Der Aufruf
         läuft als eigener Task weiter (auch wenn er Abbrüche ignoriert, wir warten nicht auf ihn) und endet spätestens beim
-        Deaktivieren. Zeitüberschreitung und Fehler stehen auf der Zeitachse des Alarms.
+        Deaktivieren. Zeitüberschreitung und Fehler stehen auf der Zeitachse des Alarms und im Selbsttest (`targets`: die Geräte).
         """
         limit = SERVICE_TIMEOUT if timeout is None else timeout
         # Eigener, von HA verfolgter Task (wie ein gewöhnlicher Dienstaufruf), damit "alles abgearbeitet" ihn mitzählt
@@ -1424,6 +1456,7 @@ class WorkflowRunner:
             task.add_done_callback(self._late.discard)
             task.add_done_callback(lambda t: t.cancelled() or t.exception())  # Ausnahme als abgeholt markieren
             self._ctl.record("step_failed", action=label, reason="timeout")
+            self._selftest(False, label, targets, "timeout")
             raise TimeoutError(f"{label} did not respond within {limit} s")
         try:
             task.result()
@@ -1431,11 +1464,13 @@ class WorkflowRunner:
             raise
         except Exception:
             self._ctl.record("step_failed", action=label, reason="error")
+            self._selftest(False, label, targets, "error")
             raise
+        self._selftest(True, label, targets)
 
     async def _call(self, domain: str, service: str, data: dict[str, Any], timeout: float | None = None) -> None:
         try:
-            await self._bounded(self.hass.services.async_call(domain, service, data, blocking=True), f"{domain}.{service}", timeout)
+            await self._bounded(self.hass.services.async_call(domain, service, data, blocking=True), f"{domain}.{service}", timeout, data.get("entity_id"))
         except Exception:  # noqa: BLE001 - ein Gerät, das nicht antwortet, hält den Ablauf nicht auf
             _LOGGER.exception("%s: %s.%s failed", self.entry.title, domain, service)
 

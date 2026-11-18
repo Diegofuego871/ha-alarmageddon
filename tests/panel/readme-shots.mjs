@@ -196,6 +196,26 @@ for (const lang of ["en", "de"]) {
     await frame.evaluate(() => document.querySelector("alarmageddon-panel").shadowRoot.querySelector('#ag-sensor .ag-sv-range [data-hours="168"]')?.click());
     await page.waitForTimeout(500);
   } });
+  // Selbsttest (1.65.0): das Fenster mit den Befunden des Nachbaus (?selftest=problems), der erste aufgeklappt
+  await shot(lang, "selftest", { height: 900, query: "&selftest=problems", prepare: async ({ page, frame }) => {
+    await click('.ag-status [data-st="open"]')({ frame });
+    await page.waitForTimeout(500);
+  } });
+  // HealthCheck (1.65.0): das Kapitel in Konfiguration › Anlage (Selbsttest, Abstand, drei Dienste) und das Fenster mit der Liste. Erfundene
+  // Adressen des Nachbaus (?hc=sample), alle Lebenszeichen in Ordnung (wie es zum Selbsttest ohne Probleme passt)
+  const hcPrepare = (list) => async ({ page, frame }) => {
+    await page.evaluate(() => { for (const h of window.__healthchecks) h.status = { at: h.status?.at || new Date(Date.now() - 4 * 60e3).toISOString(), sent: "ok", result: "ok", code: 200, test: false }; });
+    await frame.evaluate(() => document.querySelector("alarmageddon-panel")._fetch());
+    await click('[data-sub="system"]')({ frame });
+    await page.waitForTimeout(800);
+    await toElement(frame, ".ag-chap:has(.ag-health)", 0, 18);
+    if (list) {
+      await click('.ag-hcsum [data-hc="open"]')({ frame });
+      await page.waitForTimeout(600);
+    }
+  };
+  await shot(lang, "healthcheck", { tab: "config", height: 720, query: "&hc=sample", prepare: hcPrepare(false) });
+  await shot(lang, "healthcheck-list", { tab: "config", height: 760, query: "&hc=sample", prepare: hcPrepare(true) });
   // Alarm auf dem Handy: rotes Band, Kachel mit Auslöser und "scharf seit … von …" (1.11.0)
   await shot(lang, "alarm", { mobile: true, prepare: async ({ page }) => {
     await page.evaluate(() => window.__setState("alarm_control_panel.haus", "triggered", { arm_mode: "away", changed_by: "Marco", armed_by: "Marco", armed_at: new Date(Date.now() - 95 * 60e3).toISOString(), triggered_by: "binary_sensor.haustuer", deadline: null }));

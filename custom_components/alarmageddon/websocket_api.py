@@ -37,6 +37,7 @@ from .const import (
     AUTO_BACKUP_KEEP_MAX,
     MAX_BACKUPS,
     OFFLINE_MINUTES_RANGE,
+    SELFTEST_HOURS_RANGE,
     CODE_PATTERN,
     CONF_CODE_ACK_REQUIRED,
     CONF_CODE_ARM_REQUIRED,
@@ -89,7 +90,13 @@ from .const import (
     SOUNDS_URL_PATH,
     WORKFLOW_TRIGGERS,
     DATA_MONITOR,
+    DATA_HEALTHCHECK,
+    DATA_SELFTEST,
     DOMAIN,
+    HEALTHCHECK_INTERVAL_RANGE,
+    HEALTHCHECK_SUFFIX_MAX,
+    HEALTHCHECK_URL_MAX,
+    MAX_HEALTHCHECKS,
     MEASURE_CLASSES,
     MONITOR_NUMERIC_DOMAINS,
     MODES,
@@ -106,7 +113,9 @@ from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
 from .schemas import step_list, END_NOTIFY_SCHEMA, EVENT_NOTICE_SCHEMA, valid_event_notify, valid_report_step, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
 from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_get_stats, async_measure_history, async_numeric_history, async_state_history
-from .settings import async_get_settings, sensor_type
+from .healthcheck import async_get_healthcheck
+from .selftest import async_get_selftest
+from .settings import async_get_settings, sensor_type, valid_fail_suffix, valid_healthcheck_url
 
 # So lange wartet die Antwort von "data" höchstens auf den Verlauf für "Letzte Änderung" (Sekunden)
 LAST_CHANGE_WAIT = 1.5
@@ -160,6 +169,11 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_remove_code)
     websocket_api.async_register_command(hass, ws_rename_sound)
     websocket_api.async_register_command(hass, ws_delete_sound)
+    websocket_api.async_register_command(hass, ws_selftest_run)
+    websocket_api.async_register_command(hass, ws_selftest_dismiss)
+    websocket_api.async_register_command(hass, ws_healthcheck_save)
+    websocket_api.async_register_command(hass, ws_healthcheck_delete)
+    websocket_api.async_register_command(hass, ws_healthcheck_ping)
 
 
 def _entry(hass: HomeAssistant, connection, msg: dict[str, Any]) -> ConfigEntry | None:
@@ -413,6 +427,11 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
         "display": {"names_with_device": settings.names_with_device},
         # Automatische Sicherung (1.47.0): an/aus und Abstand
         "auto_backup": settings.auto_backup,
+        # Selbsttest (1.65.0): letzte und nächste Prüfung, Befunde (nur Kennungen und Namen, nie Geheimnisse; die Texte formuliert das Panel)
+        "selftest": (await async_get_selftest(hass, settings)).payload() if loaded else None,
+        # HealthCheck (1.65.0): Lebenszeichen an externe Dienste mit ihrer URL (Entscheid des Nutzers: ganz im Panel) und dem letzten Ergebnis
+        "healthchecks": (await async_get_healthcheck(hass, settings)).listing() if loaded else [],
+        "healthcheck_max": MAX_HEALTHCHECKS,
         "notify_services": notify_services,
         "users": sorted(
             ({"id": u.id, "name": u.name} for u in await hass.auth.async_get_users() if not u.system_generated and u.is_active and u.name),
@@ -818,6 +837,7 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             vol.Optional("arm_force_action"): bool,
             vol.Optional("battery_threshold"): vol.All(vol.Coerce(int), vol.Range(min=BATTERY_THRESHOLD_RANGE[0], max=BATTERY_THRESHOLD_RANGE[1])),
             vol.Optional("offline_minutes"): vol.All(vol.Coerce(int), vol.Range(min=OFFLINE_MINUTES_RANGE[0], max=OFFLINE_MINUTES_RANGE[1])),
+            vol.Optional("selftest_hours"): vol.All(vol.Coerce(int), vol.Range(min=SELFTEST_HOURS_RANGE[0], max=SELFTEST_HOURS_RANGE[1])),
         },
     }
 )
@@ -830,6 +850,9 @@ async def ws_save_notify(hass: HomeAssistant, connection, msg: dict[str, Any]) -
     # Arten einzeln zusammenführen: eine Meldung mit nur einer Art lässt die anderen unberührt
     merged["types"] = {kind: {**current, **msg["notify"].get("types", {}).get(kind, {})} for kind, current in settings.notify["types"].items()}
     await settings.async_set_notify(merged)
+    # Selbsttest (1.65.0): Empfänger geändert, kurz danach neu prüfen
+    if loaded_selftest(hass) is not None:
+        loaded_selftest(hass).async_schedule()
     connection.send_result(msg["id"], {"notify": settings.notify})
 
 
@@ -901,6 +924,130 @@ async def ws_test_event_notify(hass: HomeAssistant, connection, msg: dict[str, A
         connection.send_error(msg["id"], "no_targets", "No recipients configured")
         return
     connection.send_result(msg["id"], {"ok": True, "targets": targets})
+
+
+def loaded_selftest(hass: HomeAssistant) -> Any:
+    """Der laufende Selbsttest (1.65.0), solange eine Anlage geladen ist; sonst None."""
+    selftest = hass.data.get(DATA_SELFTEST)
+    return selftest if selftest is not None and selftest.started else None
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/selftest_run"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_selftest_run(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """Knopf "Jetzt prüfen": alle Anlagen sofort prüfen (nur lesen, schaltet nichts) und die Befunde zurückgeben."""
+    if (selftest := loaded_selftest(hass)) is None:
+        connection.send_error(msg["id"], "not_found", "No alarm system")
+        return
+    connection.send_result(msg["id"], {"selftest": selftest.async_run()})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/selftest_dismiss", vol.Required("key"): vol.All(str, vol.Length(min=1, max=400))})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_selftest_dismiss(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    "Erledigt" im Fenster des Selbsttests: nur Befunde der Laufzeit (ein Aufruf scheiterte). Ein Befund der Konfiguration verschwindet erst,
+    wenn er behoben ist; ihn als erledigt zu markieren, lehnt der Server ab.
+    """
+    if (selftest := loaded_selftest(hass)) is None:
+        connection.send_error(msg["id"], "not_found", "No alarm system")
+        return
+    if not selftest.dismiss(msg["key"]):
+        connection.send_error(msg["id"], "not_found", "No such runtime problem")
+        return
+    connection.send_result(msg["id"], {"selftest": selftest.payload()})
+
+
+def loaded_healthcheck(hass: HomeAssistant) -> Any:
+    """Die laufenden Lebenszeichen (1.65.0), solange eine Anlage geladen ist; sonst None."""
+    healthcheck = hass.data.get(DATA_HEALTHCHECK)
+    return healthcheck if healthcheck is not None and healthcheck.started else None
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/healthcheck_save",
+        vol.Optional("check_id"): vol.All(str, vol.Length(min=1, max=16)),
+        vol.Required("url"): vol.All(str, vol.Length(max=HEALTHCHECK_URL_MAX)),
+        vol.Optional("fail_suffix", default=""): vol.All(str, vol.Length(max=HEALTHCHECK_SUFFIX_MAX)),
+        vol.Required("interval"): vol.All(int, vol.Range(min=HEALTHCHECK_INTERVAL_RANGE[0], max=HEALTHCHECK_INTERVAL_RANGE[1])),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_healthcheck_save(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    HealthCheck anlegen (ohne `check_id`) oder ändern: URL (http oder https), Fehler-Zusatz (leer, "/…", "?…" oder "&…"; generisch, kein Anbieter),
+    Abstand in Sekunden (1 Minute bis 24 Stunden). Höchstens MAX_HEALTHCHECKS. Danach geht von diesem Eintrag sofort ein Lebenszeichen hinaus.
+    Keine Sperre nötig (anders als bei den Codes): zwischen dem Lesen der Liste und `async_set_healthchecks`, das die Liste vor dem ersten `await`
+    ersetzt, wartet nichts; zwei Aufrufe zugleich sehen also immer den Stand des anderen.
+    """
+    if (healthcheck := loaded_healthcheck(hass)) is None:
+        connection.send_error(msg["id"], "not_found", "No alarm system")
+        return
+    url = valid_healthcheck_url(msg["url"])
+    if url is None:
+        connection.send_error(msg["id"], "invalid_url", "The address must start with http:// or https://")
+        return
+    suffix = valid_fail_suffix(url, msg["fail_suffix"])
+    if suffix is None:
+        connection.send_error(msg["id"], "invalid_suffix", "The failure suffix must start with /, ? or &")
+        return
+    settings = await async_get_settings(hass)
+    items = [dict(i) for i in settings.healthchecks]
+    entry = {"url": url, "fail_suffix": suffix, "interval": msg["interval"]}
+    if "check_id" in msg:
+        index = next((n for n, i in enumerate(items) if i["id"] == msg["check_id"]), None)
+        if index is None:
+            connection.send_error(msg["id"], "not_found", "No such health check")
+            return
+        items[index] = {"id": msg["check_id"], **entry}
+        hid = msg["check_id"]
+    else:
+        if len(items) >= MAX_HEALTHCHECKS:
+            connection.send_error(msg["id"], "too_many", f"At most {MAX_HEALTHCHECKS} health checks")
+            return
+        hid = secrets.token_hex(6)
+        items.append({"id": hid, **entry})
+    await settings.async_set_healthchecks(items)
+    healthcheck.async_reconfigure()
+    connection.send_result(msg["id"], {"id": hid, "healthchecks": healthcheck.listing()})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/healthcheck_delete", vol.Required("check_id"): vol.All(str, vol.Length(min=1, max=16))})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_healthcheck_delete(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    if (healthcheck := loaded_healthcheck(hass)) is None:
+        connection.send_error(msg["id"], "not_found", "No alarm system")
+        return
+    settings = await async_get_settings(hass)
+    items = [i for i in settings.healthchecks if i["id"] != msg["check_id"]]
+    if len(items) == len(settings.healthchecks):
+        connection.send_error(msg["id"], "not_found", "No such health check")
+        return
+    await settings.async_set_healthchecks(items)
+    healthcheck.async_reconfigure()
+    connection.send_result(msg["id"], {"healthchecks": healthcheck.listing()})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/healthcheck_ping", vol.Required("check_id"): vol.All(str, vol.Length(min=1, max=16)), vol.Required("kind"): vol.In(("ok", "fail"))}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_healthcheck_ping(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Testknöpfe "OK senden" und "Fehler senden" (Wunsch des Nutzers): genau das sofort an den Dienst, wartet auf die Antwort (höchstens
+    HEALTHCHECK_TIMEOUT). "Fehler" ohne Fehler-Zusatz gibt es nicht.
+    """
+    if (healthcheck := loaded_healthcheck(hass)) is None or (task := healthcheck.async_ping(msg["check_id"], test=msg["kind"])) is None:
+        connection.send_error(msg["id"], "not_found", "No such health check")
+        return
+    status = await task
+    connection.send_result(msg["id"], {"status": status, "healthchecks": healthcheck.listing()})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS)), vol.Optional("keep"): vol.All(int, vol.Range(min=1, max=AUTO_BACKUP_KEEP_MAX))})

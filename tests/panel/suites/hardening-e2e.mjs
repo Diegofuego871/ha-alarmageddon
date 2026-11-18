@@ -127,7 +127,7 @@ for (const lang of ["de", "en"]) {
       await s.tap('[data-sys="bk-close"]');
       await s.waitFor("return !r.getElementById('ag-bklist').open");
     };
-    check(`${tag}: Sichern: Knopf da, keine Liste auf der Seite, noch keine Sicherung (Hinweis auf der Seite und im Popup)`, await s.ev("return !!r.querySelector('[data-sys=\"bk-create\"]') && !r.querySelector('.ag-bktable') && /(Noch keine Sicherung|No backup yet)/.test(r.querySelector('.ag-bklast').innerText)"));
+    check(`${tag}: Sichern: Knopf da, keine Liste auf der Seite, noch keine Sicherung (Hinweis auf der Seite und im Popup)`, await s.ev("return !!r.querySelector('[data-sys=\"bk-create\"]') && !r.querySelector('.ag-bktable') && /(Noch kein Backup|No backup yet)/.test(r.querySelector('.ag-bklast').innerText)"));
     await openBk();
     check(`${tag}: Popup ohne Sicherung: Hinweis statt Tabelle`, await s.ev("return !r.querySelector('#ag-bklist .ag-bktable') && r.querySelector('#ag-bklist .ag-bkbody').innerText.length > 10"));
     await closeBk();
@@ -146,7 +146,7 @@ for (const lang of ["de", "en"]) {
     await openBk();
     check(`${tag}: zwei Sicherungen mit Datum und Anlagen, drei Knöpfe je Zeile`, await s.waitFor("const row=r.querySelector('.ag-bktable tr[data-bk]'); return r.querySelectorAll('.ag-bktable tr[data-bk]').length === 2 && /\\d{4}/.test(row.cells[1].textContent) && row.cells[2].textContent.includes('Haus') && row.querySelectorAll('.ag-iconbtn').length === 3"));
     check(`${tag}: Tabelle im Popup und passt in die Breite`, await s.ev("const w=r.querySelector('#ag-bklist .ag-dlg-body'); return !!w && r.querySelector('#ag-bklist .ag-bktable').scrollWidth <= w.clientWidth + 1"));
-    check(`${tag}: Seite zeigt "Letzte Sicherung" mit dem Namen der neuesten`, await s.ev("return /(Letzte Sicherung|Last backup)/.test(r.querySelector('.ag-bklast').innerText)"));
+    check(`${tag}: Seite zeigt "Letztes Backup" mit dem Namen der neuesten`, await s.ev("return /(Letztes Backup|Last backup)/.test(r.querySelector('.ag-bklast').innerText)"));
     const [bkDownload] = await Promise.all([s.page.waitForEvent("download", { timeout: 5000 }).catch(() => null), s.tap('.ag-bktable tr[data-bk] [data-sys="bk-download"]')]);
     check(`${tag}: einzelne Sicherung herunterladen`, !!bkDownload && /^alarmageddon-\d{4}-\d{2}-\d{2}\.json$/.test(bkDownload.suggestedFilename()), bkDownload?.suggestedFilename());
     await s.tap('.ag-bktable tr[data-bk] [data-sys="bk-restore"]');

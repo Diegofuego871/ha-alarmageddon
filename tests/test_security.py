@@ -31,7 +31,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 from custom_components.alarmageddon import websocket_api as ws_module
 from custom_components.alarmageddon import workflow as workflow_module
 from custom_components.alarmageddon.code import hash_code
-from custom_components.alarmageddon.const import CODE_LOCKOUT_SECONDS, CODE_MAX_ATTEMPTS, DOMAIN, MAX_STEPS
+from custom_components.alarmageddon.const import CODE_LOCKOUT_SECONDS, CODE_MAX_ATTEMPTS, DATA_HEALTHCHECK, DATA_SELFTEST, DOMAIN, HEALTHCHECK_STORE_KEY, MAX_STEPS
 
 from .conftest import ALARM, FRONT_DOOR, MOTION, WINDOW, options, setup_alarm
 from .test_actions import PHONE, PLAYER, SIREN, _notify_settings, _phone, _setup_workflow
@@ -88,6 +88,11 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "remove_code": {"entry_id": "ENTRY", "code_id": "x"},
     "rename_sound": {"sound_id": "custom_000000000000", "name": "Neuer Name"},
     "delete_sound": {"sound_id": "custom_000000000000"},
+    "selftest_run": {},
+    "selftest_dismiss": {"key": "*|backup_failed|auto"},
+    "healthcheck_save": {"url": "https://hc-ping.com/x", "fail_suffix": "/fail", "interval": 300},
+    "healthcheck_delete": {"check_id": "x"},
+    "healthcheck_ping": {"check_id": "x", "kind": "ok"},
 }
 
 
@@ -197,7 +202,7 @@ async def test_silence_button_only_from_a_configured_recipient(hass: HomeAssista
 # ----- Geheimnisse -----
 
 
-async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass_ws_client, hass_storage, caplog) -> None:
+async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass_ws_client, hass_storage, caplog, aioclient_mock) -> None:
     """
     Weder ein Code im Klartext noch Hash oder Salz erscheinen in einer Antwort an das Panel, in Zustand und Attributen,
     in den Ablagen der Integration (Ereignisse, Aufzeichnung, Sicherungen, Einstellungen) oder in ihren Logzeilen.
@@ -229,13 +234,28 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
         answers[command] = (await ws(client, type=f"{DOMAIN}/{command}"))["result"]
     created = (await ws(client, type=f"{DOMAIN}/backup_create", name="vor dem Umbau"))["result"]
     answers["backup"] = (await ws(client, type=f"{DOMAIN}/backup_get", backup_id=created["created"]["id"]))["result"]
+    # Selbsttest (1.65.0): Antwort, Entitäten (Attribute) und Ablage
+    answers["selftest_run"] = (await ws(client, type=f"{DOMAIN}/selftest_run"))["result"]
+    # HealthCheck (1.65.0): Antworten, Export und Ablage (die Ping-URL zeigt das Panel ganz, Entscheid des Nutzers; ein Code nie)
+    ping = "https://hc-ping.com/00000000-1111-2222-3333-444444444444"
+    aioclient_mock.get(ping, status=200)
+    saved = await ws(client, type=f"{DOMAIN}/healthcheck_save", url=ping, fail_suffix="/fail", interval=300)
+    answers["healthcheck_save"] = saved["result"]
+    answers["healthcheck_ping"] = (await ws(client, type=f"{DOMAIN}/healthcheck_ping", check_id=saved["result"]["id"], kind="ok"))["result"]
+    answers["export_healthcheck"] = (await ws(client, type=f"{DOMAIN}/export"))["result"]
+    assert answers["healthcheck_ping"]["status"]["result"] == "ok" and ping in json.dumps(answers["export_healthcheck"])
+    healthcheck = hass.data[DATA_HEALTHCHECK]
+    await healthcheck._store.async_save({"status": healthcheck.status})
     alarm = hass.states.get(ALARM)
     answers["state"] = {"state": alarm.state, "attributes": dict(alarm.attributes)}
+    answers["entities"] = {s.entity_id: {"state": s.state, "attributes": dict(s.attributes)} for s in hass.states.async_all() if s.entity_id.split(".")[1].startswith("haus")}
+    assert any("selbsttest" in e or "self_test" in e for e in answers["entities"]), "die Entität des Selbsttests muss geprüft werden"
+    await hass.data[DATA_SELFTEST].async_save()
     await entry.runtime_data.events.async_stop()
     await entry.runtime_data.recorder.async_stop()
     # Ablagen der Integration; die Optionen des Config Entry (dort liegt der Hash, nie der Code) sind nicht darunter
     answers["storage"] = {key: value for key, value in hass_storage.items() if key.startswith(DOMAIN)}
-    assert answers["storage"], "die Ablagen der Integration müssen geprüft werden"
+    assert answers["storage"] and HEALTHCHECK_STORE_KEY in answers["storage"], "die Ablagen der Integration müssen geprüft werden"
     for name, answer in answers.items():
         text = json.dumps(answer, default=str)
         for secret in secrets:

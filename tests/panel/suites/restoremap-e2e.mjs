@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 import { check, done, launch, open, outDir } from "../lib.mjs";
 
 const T = {
-  de: { intro: "Der Name spielt keine Rolle", skip: "Nicht wiederherstellen", newOpt: "Als neue Anlage hinzufügen", same: "dasselbe Ziel", sameNew: "heissen gleich", replaces: "Ersetzt die Einstellungen von", stays: "Bleibt, wie sie ist", taken: "heisst schon so", settings: "Gemeinsame Einstellungen auch wiederherstellen", codes: "Codes sind nie Teil einer Sicherung" },
+  de: { intro: "Der Name spielt keine Rolle", skip: "Nicht wiederherstellen", newOpt: "Als neue Anlage hinzufügen", same: "dasselbe Ziel", sameNew: "heissen gleich", replaces: "Ersetzt die Einstellungen von", stays: "Bleibt, wie sie ist", taken: "heisst schon so", settings: "Gemeinsame Einstellungen auch wiederherstellen", codes: "Codes sind nie Teil eines Backups" },
   en: { intro: "The name does not matter", skip: "Do not restore", newOpt: "Add as a new alarm system", same: "same target", sameNew: "same name", replaces: "Replaces the settings of", stays: "Stays as it is", taken: "already has this name", settings: "Restore the shared settings too", codes: "Codes are never part of a backup" },
 };
 

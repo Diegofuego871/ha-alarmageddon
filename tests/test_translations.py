@@ -127,6 +127,20 @@ def test_panel_strings_complete() -> None:
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node.js fehlt")
+def test_german_says_backup() -> None:
+    """Deutsch heisst es durchgängig "Backup", nie "Sicherung" (Vorgabe des Nutzers, 2026-11-18, seit 1.64.0); "Sicherheit" ist etwas anderes."""
+    word = re.compile(r"[Ss]icherung|\b[Ss]ichern\b|[Gg]esichert")
+    script = "import(process.argv[1]).then(({ STRINGS }) => console.log(JSON.stringify(STRINGS.de)))"
+    result = subprocess.run(
+        ["node", "-e", script, (INTEGRATION / "panel" / "strings.js").as_uri()], capture_output=True, text=True, check=True
+    )
+    panel = {key: text for key, text in json.loads(result.stdout).items() if word.search(text)}
+    assert panel == {}
+    server = [line for line in (INTEGRATION / "translations" / "de.json").read_text(encoding="utf-8").splitlines() if word.search(line)]
+    assert server == []
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js fehlt")
 def test_panel_language_selection() -> None:
     """Deutsch für de und de-*, sonst Englisch (Vorgabe des Nutzers)."""
     cases = {"de": "de", "de-CH": "de", "DE-at": "de", "en": "en", "en-GB": "en", "fr": "en", "dev": "en", "": "en"}

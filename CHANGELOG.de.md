@@ -7,6 +7,53 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.65.0] - 2026-11-18
+
+Enthält die Änderungen aus 1.64.0.
+
+### Hinzugefügt
+
+- **Selbsttest.** Alarmageddon prüft sich jetzt regelmässig selbst: Gibt es alle Geräte, Lautsprecher, Aktionen (Dienste), Empfänger und eigenen Töne noch, die die Aktionen, die Regeln der Überwachung, die Routinen und die Benachrichtigungen verwenden, und sind sie erreichbar? Gibt es die Sensoren der Anlagen noch, und hat Home Assistant eine Adresse für die Lautsprecher? Im Betrieb hält er zudem Schritte fest, die scheiterten oder nicht antworteten, Meldungen, die nicht hinausgingen, Teile, die nicht starteten, ein gescheitertes automatisches Backup und Lebenszeichen an die HealthCheck-Dienste, die nicht hinausgingen. Ein Gerät, das ein Schritt schaltet (Sirene, Schalter, Lautsprecher), zählt, sobald es seit fünf Minuten nicht erreichbar ist; nicht erreichbare Sensoren melden weiterhin die Wartungsmeldungen (keine doppelte Meldung). Der Selbsttest liest nur: er schaltet nie etwas, spielt keinen Ton, sendet keine Testmeldung und hält nie einen Alarm auf.
+  - **Wann:** wenige Minuten nach dem Start von Home Assistant, kurz nach jedem Speichern, alle 6 Stunden (einstellbar von 1 bis 24 Stunden unter Konfiguration › Anlage › HealthCheck) und mit "Jetzt prüfen".
+  - **Wo:** Die Statuskachel der Übersicht zeigt immer eine Zeile mit der letzten Prüfung; Probleme zählen bei "N brauchen Aufmerksamkeit" mit. Ein Klick öffnet ein Fenster mit allen Problemen, je Anlage: was los ist, wo (mit "Öffnen", das dorthin springt), was es bedeutet, mögliche Ursachen und wie man es behebt. Jede Anlage bekommt eine neue Entität "Selbsttest" (Problem, Diagnose), die Statusentität und die Infokarte zählen die Probleme mit, und Home Assistant zeigt sie unter Reparaturen (eine Meldung je Anlage und eine für alle).
+  - **Meldung:** neue Wartungsmeldung "Selbsttest", einzeln ein- und auszuschalten und einzustellen wie die anderen (Empfänger, kritisch, in Home Assistant); jedes Problem wird einmal gemeldet, erneut erst, wenn es nach dem Beheben wiederkommt.
+  - **Verschwinden:** Ein Problem der Einrichtung verschwindet von selbst, sobald es behoben ist. Ein Problem im Betrieb verschwindet, sobald derselbe Aufruf wieder klappt (im Alarm oder im Test), oder mit "Erledigt" im Fenster.
+- **HealthCheck: Lebenszeichen an externe Dienste.** Neues Kapitel unter Konfiguration › Anlage, für alle Anlagen: der Selbsttest (letzte Prüfung, "Jetzt prüfen", "Probleme anzeigen", Abstand) und bis zu fünf Dienste wie Healthchecks.io, Cronitor, Better Stack oder Uptime Kuma, die Alarmageddon regelmässig aufruft. Fällt Home Assistant aus oder verliert es das Internet, bleiben die Lebenszeichen aus, und der Dienst meldet sich, unabhängig von Home Assistant.
+  - **Generisch:** Jeder Eintrag hat eine Ping-URL (http oder https), einen Fehler-Zusatz (freiwillig) und ein Intervall von 1 Minute bis 24 Stunden (Zahl und Einheit oder eine Schnellwahl). Solange der Selbsttest Probleme hat, ruft Alarmageddon stattdessen die URL mit dem Fehler-Zusatz auf ("/…" verlängert den Pfad, "?…" oder "&…" setzt Parameter); ohne Zusatz geht nur das Lebenszeichen hinaus. Ein Wechsel des Selbsttests geht sofort hinaus, höchstens einmal je Minute und Dienst.
+  - **Vorschläge, nie eine Wahl für dich:** Bei bekannten Diensten (Healthchecks.io, Better Stack, Cronitor, Uptime Kuma) erkennt das Formular die URL und schlägt den Fehler-Zusatz vor. Er wird nur eingetragen, solange du das Feld nicht berührt hast; sonst steht der Vorschlag mit "Übernehmen" daneben. Eine Vorschau zeigt den genauen Aufruf bei Fehler.
+  - **Liste im Fenster** wie Töne, Routinen und Codes: Tabelle mit Suche und Sortierung (URL, Zuletzt, Intervall, Status), je Zeile "Fehler senden" und "Lebenszeichen senden" als Test, Bearbeiten und Entfernen. Die Zeile im Kapitel zeigt, wie viele Dienste eingerichtet sind und ob ein Lebenszeichen gescheitert ist.
+  - **Sicherheit:** Die Ping-URL steht ganz im Panel und im Backup (sie ist deine Einstellung); Log, Meldungen und Probleme des Selbsttests nennen nur den Rechnernamen. Ein Lebenszeichen wartet höchstens 10 Sekunden und hält nie etwas auf. Ein Lebenszeichen, das nicht hinausgeht, wird ein Problem des Selbsttests ("Öffnen" führt zur Liste); für das nächste Lebenszeichen zählt es nicht als Fehler.
+- **Sensoransicht: Reiter "Ereignisse" und "Regeln" für jeden Sensor der Überwachung.** Messwerte und Ja/Nein-Sensoren, die in einer Regel der Überwachung vorkommen, zeigen unter der Grafik zwei Reiter. "Regeln" listet die Regeln der Überwachung mit diesem Sensor (alle Anlagen) mit der Bedingung in Worten und dem Zustand "Aktiv", "Aus" oder "Ausserhalb". Beide Listen lassen sich durchsuchen und nach jeder Spalte sortieren. Der Pfeil einer Regel öffnet sie unter Konfiguration › Aktionen › Überwachung, aufgeklappt und kurz markiert; offene Änderungen an einer anderen Anlage fragen vorher nach.
+
+### Geändert
+
+- **Jede Grenze ist in der Grafik zu sehen.** Bisher fiel eine Grenze weit weg von den Werten ohne Hinweis weg (ein Kühlschrank mit 5 °C zeigte für eine Grenze von 14 °C keine Linie); jetzt reicht die Grafik immer bis zu ihr.
+
+### Behoben
+
+- **Hinweis des Kapitels "Wartungsmeldungen".** Er nannte noch Updates, die Alarmageddon seit 0.27.0 nicht mehr prüft; jetzt nennt er den Selbsttest.
+
+## [1.64.0] - 2026-11-18
+
+Nicht veröffentlicht; enthalten in 1.65.0.
+
+### Hinzugefügt
+
+- **Codes pro Person: "Code hinzufügen" direkt auf der Seite.** Wie bei den Routinen und den eigenen Tönen steht links "Code hinzufügen" und rechts "Codes anzeigen". Es öffnet dasselbe Fenster wie "Code hinzufügen" in der Liste; bei 20 Codes ist der Knopf gesperrt.
+- **Anlage hinzufügen: Entitäts-ID kopieren.** Ein Knopf direkt neben der Alarm-Entität (zum Beispiel `alarm_control_panel.garage`) kopiert sie in die Zwischenablage, mit einem Häkchen als Rückmeldung. Es ist derselbe Knopf wie in der Sensoransicht, wo sich Werte schon kopieren liessen.
+
+### Geändert
+
+- **Jeder Knopf "… anzeigen" hat ein eigenes Symbol.** Routinen behalten die Liste, eigene Töne den Lautsprecher, Codes bekommen einen Schlüssel und Backups eine Archivkiste; bisher hatten Routinen, Codes und Backups dasselbe Listensymbol. Das Plus von "… hinzufügen" bleibt überall gleich.
+- **Die Zeilen "Routinen", "Eigene Töne" und "Codes pro Person" sind gleich aufgebaut.** Auf dem Handy sind die beiden Knöpfe einer Zeile gleich breit, wenn sie nebeneinander Platz haben.
+- **Kapitel "Backup" wie die anderen.** Oben steht "Letztes Backup" mit "Backup erstellen" und "Backups anzeigen" nebeneinander in einer Zeile, darunter das automatische Backup; der Hinweis steht über der Karte. Bisher standen die beiden Knöpfe in zwei Zeilen.
+- **Deutsch heisst es durchgängig "Backup".** Das Panel mischte bisher "Sicherung" und "Backup" (zum Beispiel "Sicherung (alle Anlagen)" neben "Backup erstellen"); jetzt sagt es überall "Backup", auch in den Fenstern, Hinweisen und Fehlermeldungen und beim Löschen einer Anlage. Englisch ist unverändert.
+- **Die Reiter der Modi sehen überall gleich aus.** In den Reitern Sensoren, Benachrichtigungen und Anlage, und in den Aktionen ohne Überwachung, sehen die Reiter der Modi jetzt aus wie in den Aktionen mit Überwachung: Symbole im Dunkelrot der Zone "Alarm" ("Überwachung" orange), der gewählte Reiter mit rotem Rand, der Text neutral statt blau.
+
+### Behoben
+
+- **Sensoransicht: der Stand eines Ereignisses der Überwachung im Format der Sprache.** Auf Deutsch stand "9.2 °C" statt "9,2 °C".
+
 ## [1.63.0] - 2026-11-17
 
 ### Hinzugefügt
@@ -1882,6 +1929,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.65.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.65.0
 [1.63.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.63.0
 [1.62.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.62.0
 [1.61.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.61.0

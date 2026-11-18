@@ -4,7 +4,7 @@
 import { check, done, launch, open, outDir } from "../lib.mjs";
 
 const T = {
-  de: { rtNo: "Keine Routine passt", csNo: "Kein Ton passt", bkNo: "Keine Sicherung passt", bypass: "umgeht", unlocked: "aufgeschlossen", auto: "automatisch", autoOnly: "Nur automatische" },
+  de: { rtNo: "Keine Routine passt", csNo: "Kein Ton passt", bkNo: "Kein Backup passt", bypass: "umgeht", unlocked: "aufgeschlossen", auto: "automatisch", autoOnly: "Nur automatische" },
   en: { rtNo: "No routine matches", csNo: "No sound matches", bkNo: "No backup matches", bypass: "bypasses", unlocked: "unlocked", auto: "automatic", autoOnly: "Automatic only" },
 };
 

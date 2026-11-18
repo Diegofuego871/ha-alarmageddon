@@ -33,12 +33,13 @@ from homeassistant.helpers.event import async_call_later, async_track_time_chang
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, CONF_CODE_ACK_REQUIRED, CONF_CODE_HASH, CONF_CODES, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS, MODE_ENABLED_DEFAULT, MODE_ENABLED_KEY
+from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, DATA_HEALTHCHECK, CONF_CODE_ACK_REQUIRED, CONF_CODE_HASH, CONF_CODES, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS, MODE_ENABLED_DEFAULT, MODE_ENABLED_KEY
 from .custom_sounds import valid_backup_sounds
 from .monitor import check_monitors
 from .routines import check_routines, migrate_options
 from .schemas import SYSTEM_OPTIONS_SCHEMA
-from .settings import async_get_settings, valid_notify, valid_presets
+from .selftest import async_note, async_resolve
+from .settings import async_get_settings, valid_healthchecks, valid_notify, valid_presets
 from .systems import async_create_system, new_system_name
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,7 +65,8 @@ async def async_export(hass: HomeAssistant, integration_version: str | None) -> 
         "integration_version": integration_version,
         "created": dt_util.utcnow().isoformat(),
         # Eigene Töne (1.39.0): die Schritte verweisen nur auf die Kennung, die Datei steckt hier (Base64), damit ein Wiederherstellen nichts vermisst
-        "settings": {"presets": settings.presets, "notify": settings.notify, "names_with_device": settings.names_with_device,
+        # HealthCheck (1.65.0): die Lebenszeichen mit ihren URLs gehören ins Backup (Entscheid des Nutzers 2026-11-18)
+        "settings": {"presets": settings.presets, "notify": settings.notify, "names_with_device": settings.names_with_device, "healthchecks": settings.healthchecks,
                      "custom_sounds": await registry.async_export() if (registry := hass.data.get(DATA_CUSTOM_SOUNDS)) is not None else []},
         "systems": systems,
     }
@@ -101,6 +103,8 @@ def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
         # Anzeige der Namen (1.12.0); ältere Sicherungen kennen sie nicht, dann bleibt die Einstellung, wie sie ist
         "names_with_device": settings["names_with_device"] if isinstance(settings.get("names_with_device"), bool) else None,
         "custom_sounds": valid_backup_sounds(settings.get("custom_sounds")),
+        # HealthCheck (1.65.0); ältere Backups kennen sie nicht, dann bleiben die Einträge, wie sie sind
+        "healthchecks": valid_healthchecks(settings["healthchecks"]) if isinstance(settings.get("healthchecks"), list) else None,
     }
 
 
@@ -126,7 +130,7 @@ def plan(hass: HomeAssistant, backup: dict[str, Any]) -> dict[str, Any]:
         for i, s in enumerate(backup["systems"])
     ]
     targets = [{"entry_id": e.entry_id, "title": e.title} for e in entries]
-    return {"systems": found, "missing": missing, "settings": any(backup.get(k) is not None for k in ("presets", "notify", "names_with_device")), "items": items, "targets": targets, "sounds": len(backup.get("custom_sounds") or [])}
+    return {"systems": found, "missing": missing, "settings": any(backup.get(k) is not None for k in ("presets", "notify", "names_with_device", "healthchecks")), "items": items, "targets": targets, "sounds": len(backup.get("custom_sounds") or [])}
 
 
 def _resolve(hass: HomeAssistant, backup: dict[str, Any], mapping: list[dict[str, Any]] | None) -> list[tuple[dict[str, Any], ConfigEntry | str]]:
@@ -194,6 +198,10 @@ async def async_restore(hass: HomeAssistant, backup: dict[str, Any], mapping: li
         await settings.async_set_notify(backup["notify"])
     if restore_settings and backup.get("names_with_device") is not None:
         await settings.async_set_names_with_device(backup["names_with_device"])
+    if restore_settings and backup.get("healthchecks") is not None:
+        await settings.async_set_healthchecks(backup["healthchecks"])
+        if (healthcheck := hass.data.get(DATA_HEALTHCHECK)) is not None:
+            healthcheck.async_reconfigure()
     # Voreinstellungen zuerst und ohne Benachrichtigung: die Anlagen, deren Optionen sich gleich ändern, laden darüber neu
     # und sehen schon die neuen Voreinstellungen; die übrigen werden am Ende benachrichtigt. Jede Anlage lädt genau einmal.
     presets_changed = restore_settings and backup["presets"] is not None and await settings.async_store_presets(backup["presets"])
@@ -327,6 +335,10 @@ async def async_run_auto_backup(hass: HomeAssistant) -> None:
         await async_create_backup(hass, entries[0].runtime_data.version, "", auto=True)
     except Exception:  # noqa: BLE001 - nie ein Fehler nach aussen
         _LOGGER.exception("The automatic backup failed")
+        # Selbsttest (1.65.0): bleibt stehen, bis ein automatisches Backup wieder klappt oder der Nutzer ihn als erledigt markiert
+        async_note(hass, None, "backup_failed", "auto")
+        return
+    async_resolve(hass, None, "backup_failed", "auto")
 
 
 async def async_start_auto_backup(hass: HomeAssistant) -> None:

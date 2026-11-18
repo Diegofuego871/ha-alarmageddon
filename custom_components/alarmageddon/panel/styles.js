@@ -68,15 +68,16 @@ button { font: inherit; color: inherit; }
   transition: transform .46s cubic-bezier(.3, 1.35, .5, 1), width .46s cubic-bezier(.3, 1.35, .5, 1), height .46s cubic-bezier(.3, 1.35, .5, 1), opacity .46s ease; }
 .ag-pill.go { opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .ag-pill, .ag-seg > button { transition: none; } }
-/* Reiterleiste der Aktionen mit "Überwachung" (Variante E der Mockups, 2026-11-16): Spur und Text bleiben neutral. Die Icons tragen die Farbe der Gruppe
-   (Dunkelrot wie die Zone "Alarm" für Reiter, die alarmieren können, Orange für "Überwachung"), nicht gewählte etwas gedämpft; der gewählte Reiter bekommt
-   einen feinen Rand in der Farbe seiner Gruppe und ein volles Icon. */
-.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > button > svg { color: var(--ag-seg-alarm); opacity: .66; transition: opacity .22s ease; }
-.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > button[data-trigger="monitor"] > svg { color: var(--ag-seg-monitor); opacity: .78; }
-.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > button.on { color: var(--ag-text); }
-.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > button.on > svg { opacity: 1; }
-.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"]) > .ag-pill { box-shadow: inset 0 0 0 1.5px var(--ag-seg-alarm); transition: transform .46s cubic-bezier(.3, 1.35, .5, 1), width .46s cubic-bezier(.3, 1.35, .5, 1), height .46s cubic-bezier(.3, 1.35, .5, 1), opacity .46s ease, box-shadow .22s ease; }
-.ag-seg[data-seg="wf-trigger"]:has(> [data-trigger="monitor"].on) > .ag-pill { box-shadow: inset 0 0 0 1.5px var(--ag-seg-monitor); }
+/* Reiterleisten der Modi (Variante E der Mockups, 2026-11-16; seit 1.64.0 überall, Wunsch des Nutzers): Sensoren, Aktionen, Meldungen und Anlage,
+   immer mit der Klasse ag-modeseg. Spur und Text bleiben neutral. Die Icons tragen die Farbe der Gruppe (Dunkelrot wie die Zone "Alarm" für die
+   Modi und "Immer aktiv", Orange für "Überwachung"), nicht gewählte etwas gedämpft; der gewählte Reiter bekommt einen feinen Rand in der Farbe
+   seiner Gruppe und ein volles Icon. Bis 1.63.0 nur in den Aktionen und nur mit dem Reiter "Überwachung". */
+.ag-seg.ag-modeseg > button > svg { color: var(--ag-seg-alarm); opacity: .66; transition: opacity .22s ease; }
+.ag-seg.ag-modeseg > button[data-trigger="monitor"] > svg { color: var(--ag-seg-monitor); opacity: .78; }
+.ag-seg.ag-modeseg > button.on { color: var(--ag-text); }
+.ag-seg.ag-modeseg > button.on > svg { opacity: 1; }
+.ag-seg.ag-modeseg > .ag-pill { box-shadow: inset 0 0 0 1.5px var(--ag-seg-alarm); transition: transform .46s cubic-bezier(.3, 1.35, .5, 1), width .46s cubic-bezier(.3, 1.35, .5, 1), height .46s cubic-bezier(.3, 1.35, .5, 1), opacity .46s ease, box-shadow .22s ease; }
+.ag-seg.ag-modeseg:has(> [data-trigger="monitor"].on) > .ag-pill { box-shadow: inset 0 0 0 1.5px var(--ag-seg-monitor); }
 :host([dark]) { --ag-seg-alarm: #e04a47; --ag-seg-monitor: #f2a33a; }
 
 
@@ -232,6 +233,8 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-addprev { display: flex; flex-direction: column; gap: 6px; min-height: 138px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--ag-subtle); border: 1px solid var(--ag-divider); }
 .ag-addrow { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .ag-addrow b { font-weight: 500; overflow-wrap: anywhere; }
+.ag-addval { display: flex; align-items: center; gap: 4px; min-width: 0; } .ag-addval b { min-width: 0; }
+.ag-addval .ag-copy { margin: -8px 0; } /* die Zeile bleibt so hoch wie der Text: das Fenster springt beim Tippen nicht */
 .ag-addhint { display: flex; align-items: flex-start; gap: 8px; }
 .ag-addhint .ag-ic { flex: none; margin-top: 2px; }
 .ag-toast { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: max-content; max-width: calc(100% - 32px); background: #323232; color: #fff; padding: 12px 18px; border-radius: 12px; box-shadow: var(--ag-shadow); z-index: 10; font-size: 14px; }
@@ -1050,6 +1053,32 @@ dialog.ag-svdlg[open] { height: min(92vh, 860px); }
 .ag-sv-table th:last-child, .ag-sv-table td:last-child { padding-right: 24px; }
 .ag-sv-table td { padding: 10px 8px; border-bottom: 1px solid var(--ag-divider); font-variant-numeric: tabular-nums; vertical-align: middle; }
 .ag-sv-table tr.day td { color: var(--ag-text2); font-size: 12.5px; font-weight: 500; padding-top: 14px; padding-bottom: 6px; border-bottom: 0; }
+/* Liste der Sensoransicht mit den Reitern "Ereignisse" und "Regeln" (1.65.0): die Leiste scrollt mit, der Tabellenkopf bleibt stehen */
+.ag-sv-lbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 24px 10px; }
+.ag-sv-lbar .ag-seg { flex: none; }
+.ag-sv-lbar .list-search { flex: 1 1 220px; max-width: 360px; margin: 0; }
+:host([narrow]) .ag-sv-lbar { padding: 12px 16px 8px; }
+:host([narrow]) .ag-sv-lbar .ag-seg { flex: 1 1 100%; }
+:host([narrow]) .ag-sv-lbar .ag-seg > button { flex: 1; }
+:host([narrow]) .ag-sv-lbar .list-search { max-width: none; }
+.ag-sv-n { margin-left: 6px; font-size: 12px; color: var(--ag-text2); font-weight: 500; }
+.ag-sv-sort { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+.ag-sv-sort:hover { color: var(--ag-text); }
+.ag-sv-sort.on { color: var(--ag-primary); }
+.ag-sv-sort:focus-visible { outline: 2px solid var(--ag-primary); outline-offset: 2px; border-radius: 4px; }
+.ag-sv-table th.r .ag-sv-sort { flex-direction: row-reverse; }
+.ag-sv-rule b { display: block; font-weight: 500; }
+.ag-sv-rule small { display: block; color: var(--ag-text2); font-size: 12.5px; margin-top: 2px; }
+.ag-sv-state { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 12px; white-space: nowrap; }
+.ag-sv-state.on { background: var(--ag-success-soft); color: var(--ag-success); }
+.ag-sv-state.off { background: var(--ag-subtle); color: var(--ag-text2); }
+.ag-sv-state.out { background: var(--ag-warning-soft); color: var(--ag-warning-text); }
+.ag-sv-table .ag-sv-go { width: 1%; white-space: nowrap; }
+.ag-sv-go .ag-cbtn:disabled { opacity: .35; cursor: default; }
+/* Sprung aus der Sensoransicht zu einer Regel der Überwachung: kurz markiert */
+@keyframes ag-flash { 0%, 55% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ag-primary) 60%, transparent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+.ag-mon-rule.ag-flash { animation: ag-flash 2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .ag-mon-rule.ag-flash { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ag-primary) 60%, transparent); } }
 .ag-sv-table .c1 { width: 110px; } .ag-sv-table .c1w { width: 190px; } .ag-sv-table .c3 { width: 170px; } .ag-sv-table .c4 { width: 200px; } .ag-sv-table .r { text-align: right; }
 .ag-sv-ev { display: inline-flex; align-items: center; gap: 8px; }
 .ag-sv-ev small { display: block; color: var(--ag-text2); font-size: 12px; }
@@ -1111,9 +1140,11 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-sndbadge.playing .ag-wv { animation: ag-wave .9s ease-in-out infinite alternate; animation-delay: var(--d); }
 @keyframes ag-wave { from { transform: scaleY(.35); } to { transform: scaleY(1.25); } }
 @media (prefers-reduced-motion: reduce) { .ag-sndbadge.playing .ag-wv { animation: none; } }
-.ag-sv-copy { flex: none; width: 30px; height: 30px; margin: -4px -6px -4px -6px; color: var(--ag-text2); }
-.ag-sv-copy.done { color: var(--ag-success); }
-.ag-sv-copy.fail { color: var(--ag-error); }
+/* Kopier-Knopf (common.js copyBtn; seit 1.64.0 gemeinsam: Sensoransicht, "Anlage hinzufügen") */
+.ag-copy { flex: none; width: 30px; height: 30px; color: var(--ag-text2); }
+.ag-copy.done { color: var(--ag-success); }
+.ag-copy.fail { color: var(--ag-error); }
+.ag-sv-copy { margin: -4px -6px -4px -6px; }
 .ag-sv-chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .ag-sv-config { align-self: flex-start; margin-top: 8px; }
 /* Handy: ganzer Bildschirm, X oben rechts; Zustand und "In HA öffnen" in einer zweiten Zeile des Kopfs */
@@ -1264,7 +1295,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-rtsum .ag-settx { flex: 1 1 12em; min-width: 0; }
 .ag-rtsum .ag-btnrow { margin-left: auto; }
 :host([narrow]) .ag-rtsum .ag-btnrow { flex: 1 1 100%; margin-left: 0; }
-:host([narrow]) .ag-rtsum .ag-btnrow > .ag-btn { flex: 1 1 auto; justify-content: center; }
+:host([narrow]) .ag-rtsum .ag-btnrow > .ag-btn { flex: 1 1 0; justify-content: center; } /* gleich breit in jeder Zeile (Routinen, eigene Töne, Codes; 1.64.0): reicht der Platz nicht, behält der längere seinen Text */
 /* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */
 :host([narrow]) .ag-cs-pop .ag-csrow { flex-wrap: wrap; }
 :host([narrow]) .ag-cs-pop .ag-csrow .ag-settx { flex: 1 1 0; min-width: 0; }
@@ -1354,4 +1385,80 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-wf-line.ag-wf-glist.loop { padding-left: 24px; }
 :host([narrow]) .ag-wf-loop { left: 6px; }
 /* 1.58.0: unsichtbarer Platzhalter, der seinen Platz behält (Reiterzeile der Aktionen springt beim Wechsel auf "Überwachung" nicht) */
+/* Selbsttest (1.65.0): Zeile der Statuskachel, Fenster mit den Befunden (je Befund eine aufklappbare Karte mit Hilfe), Zeile im Reiter Benachrichtigungen */
+.ag-st-row { padding-left: 2px; padding-right: 2px; }
+.ag-status.ok > .ag-rows { margin-top: 12px; }
+.ag-st-pop .ag-pop-head > h3 { gap: 10px; }
+.ag-st-meta { margin-top: -8px; }
+.ag-st-list { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+.ag-st-group { display: flex; align-items: center; gap: 8px; margin: 8px 2px 0; font-weight: 600; font-size: 14px; color: var(--ag-text2); }
+.ag-st-ok { display: flex; align-items: center; gap: 12px; padding: 14px; }
+.ag-st-item { padding: 0; overflow: hidden; border-left: 4px solid var(--ag-warning); }
+.ag-st-item.err { border-left-color: var(--ag-error); }
+.ag-st-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ag-st-head:hover { background: var(--ag-hover); }
+.ag-st-head b { font-weight: 600; overflow-wrap: anywhere; }
+.ag-st-chev { display: grid; place-items: center; color: var(--ag-text2); transition: transform .15s; }
+.ag-st-chev.open { transform: rotate(90deg); }
+.ag-st-body { padding: 0 14px 14px 54px; display: flex; flex-direction: column; gap: 12px; font-size: 13.5px; }
+.ag-st-body p { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.ag-st-sect { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ag-text2); margin-bottom: 4px; }
+.ag-st-ul { margin: 0; padding-left: 20px; line-height: 1.45; display: flex; flex-direction: column; gap: 3px; }
+.ag-st-places { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.ag-st-places li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; border-radius: 10px; background: var(--ag-subtle); }
+.ag-st-places li > span { min-width: 0; overflow-wrap: anywhere; }
+.ag-st-go { flex: none; }
+.ag-st-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px solid var(--ag-divider); }
+.ag-st-about { margin-top: 6px; padding: 12px 14px; border-radius: 14px; background: var(--ag-subtle); font-size: 13.5px; }
+.ag-st-about > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; list-style: none; }
+.ag-st-about > summary::-webkit-details-marker { display: none; }
+.ag-st-about[open] > summary { margin-bottom: 8px; }
+.ag-st-about p { margin: 8px 0 0; }
+:host([narrow]) .ag-st-body { padding-left: 14px; }
+:host([narrow]) .ag-st-foot { flex-direction: column; align-items: stretch; }
+/* Kapitel HealthCheck (1.65.0): Selbsttest, Abstand, Zeile der Lebenszeichen wie Töne und Codes */
+.ag-st-av.ok { background: var(--ag-success-soft); color: var(--ag-success); }
+.ag-st-av.warn { background: var(--ag-warning-soft); color: var(--ag-warning-text); }
+.ag-st-av.err { background: var(--ag-error-soft); color: var(--ag-error); }
+.ag-sthours .ag-num { flex: none; margin-left: auto; }
+:host([narrow]) .ag-sthours { flex-wrap: wrap; row-gap: 10px; }
+:host([narrow]) .ag-sthours .ag-settx { flex: 1 1 100%; }
+:host([narrow]) .ag-sthours .ag-num { margin-left: 0; }
+/* Liste der Lebenszeichen: Tabelle wie die Backups; die URL steht ganz da und bricht an jeder Stelle um (sie hat keine Leerzeichen) */
+.ag-hctable td { vertical-align: middle; }
+.ag-hc-pop .ag-hctable th, :host([narrow]) .ag-hc-pop .ag-hctable th { top: calc(var(--ag-pophead, 22px) - 22px); }
+.ag-hctable .ag-hcurl .ag-mono { overflow-wrap: anywhere; word-break: break-all; font-size: 12.5px; }
+.ag-hctable td.ag-hcurl { min-width: 15em; }
+.ag-hctable .ag-actrow { gap: 2px; }
+.ag-hctable td.ag-acts { padding-right: 10px; }
+.ag-hctable .ag-hcinfo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 4px; font-size: 12px; }
+.ag-hctable td.ag-hclast, .ag-hctable td.ag-hcint { white-space: nowrap; font-size: 13px; }
+.ag-hcstate { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.ag-hcstate::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ag-text3); flex: none; }
+.ag-hcstate.ok::before { background: var(--ag-success); }
+.ag-hcstate.warn::before { background: var(--ag-warning); }
+.ag-hcstate.err { color: var(--ag-error); }
+.ag-hcstate.err::before { background: var(--ag-error); }
+.ag-hc-m { display: none; }
+:host([narrow]) .ag-hctable td, :host([narrow]) .ag-hctable th { padding-left: 6px; padding-right: 6px; }
+:host([narrow]) .ag-hctable td.ag-hcurl { min-width: 0; }
+:host([narrow]) .ag-hctable td:first-child, :host([narrow]) .ag-hctable th:first-child .ag-sortbtn { padding-left: 12px; }
+:host([narrow]) .ag-hctable .ag-hclast, :host([narrow]) .ag-hctable .ag-hcint, :host([narrow]) .ag-hctable .ag-hcst { display: none; }
+:host([narrow]) .ag-hctable .ag-hc-m { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; font-size: 12px; }
+:host([narrow]) .ag-hctable .ag-iconbtn { width: 34px; height: 34px; }
+:host([narrow]) .ag-hctable .ag-actrow { gap: 2px; }
+/* Formular eines Dienstes */
+.ag-hcform { display: flex; flex-direction: column; gap: 16px; }
+.ag-hcform > h3 { margin: 0; }
+.ag-hcfield { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ag-hclabel { font-weight: 600; font-size: 13.5px; }
+.ag-hcfield > .ag-input { width: 100%; box-sizing: border-box; }
+.ag-hcfield .ag-err { color: var(--ag-error); }
+.ag-hcknown { margin-top: 4px; }
+.ag-hcoffer { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; font-size: 13px; }
+.ag-hcoffer:empty, [data-hcp="offer"]:empty { display: none; }
+.ag-hcprev .ag-mono { overflow-wrap: anywhere; word-break: break-all; font-size: 12px; }
+.ag-hcint-row { display: flex; gap: 10px; align-items: center; }
+.ag-hcint-row select { width: auto; min-width: 9em; }
+.ag-hcpresets { padding: 2px 0 0; }
 `;

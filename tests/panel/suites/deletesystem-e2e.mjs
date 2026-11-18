@@ -3,7 +3,7 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { title: "Anlage löschen", noUndo: "nicht rückgängig", goes: "Das verschwindet", stays: "Das bleibt", backup: "Vorher eine Sicherung anlegen", backupName: "Vor dem Löschen: Garage", confirm: "Endgültig löschen", notDisarmed: "Zuerst die Anlage deaktivieren" },
+  de: { title: "Anlage löschen", noUndo: "nicht rückgängig", goes: "Das verschwindet", stays: "Das bleibt", backup: "Vorher ein Backup erstellen", backupName: "Vor dem Löschen: Garage", confirm: "Endgültig löschen", notDisarmed: "Zuerst die Anlage deaktivieren" },
   en: { title: "Delete alarm system", noUndo: "cannot be undone", goes: "What goes away", stays: "What stays", backup: "Make a backup first", backupName: "Before deleting: Garage", confirm: "Delete for good", notDisarmed: "Disarm the alarm system first" },
 };
 

@@ -6,7 +6,7 @@ All the details about Alarmageddon. The quick start (idea, installation, tour) i
 
 ## Contents
 
-- [The interface](#the-interface): overview, sensor view, sensors and zones, alarm actions, notifications, monitoring, alarm, log, dashboard cards
+- [The interface](#the-interface): overview, sensor view, sensors and zones, alarm actions, notifications, self-test, HealthCheck, monitoring, alarm, log, dashboard cards
 - [Safety mechanisms](#safety-mechanisms) and their limits
 - [Apple HomeKit](#apple-homekit)
 - [Entities](#entities)
@@ -56,7 +56,35 @@ On the same page the messages of the flow sit as fixed elements at their point: 
 
 ### Notifications
 
-The standard recipients are chosen separately for alarms and for maintenance messages, and every message can override them with its own recipients. Below follow the chapters "Fault messages" (arming not possible, sensor unreachable while armed) and "Maintenance messages" (sensor unreachable, low battery). Every kind can be switched on or off, be critical (sounds in silent mode) and have its own volume; the failure while armed per mode if you like. The messages "Armed", "Disarmed", "Entry delay" and "Silent alarm" are in the Actions tab, at their point in the flow of every alarm system. "Arming not possible" carries two buttons: "Try again" arms the same mode once more, "Arm anyway" arms although sensors are open and bypasses them until you disarm. They work for one hour, only while the system is disarmed and only from the phone of a recipient of that message; each can be switched off.
+The standard recipients are chosen separately for alarms and for maintenance messages, and every message can override them with its own recipients. Below follow the chapters "Fault messages" (arming not possible, sensor unreachable while armed) and "Maintenance messages" (sensor unreachable, low battery, self-test; its interval is under Configuration › Alarm system › HealthCheck). Every kind can be switched on or off, be critical (sounds in silent mode) and have its own volume; the failure while armed per mode if you like. The messages "Armed", "Disarmed", "Entry delay" and "Silent alarm" are in the Actions tab, at their point in the flow of every alarm system. "Arming not possible" carries two buttons: "Try again" arms the same mode once more, "Arm anyway" arms although sensors are open and bypasses them until you disarm. They work for one hour, only while the system is disarmed and only from the phone of a recipient of that message; each can be switched off.
+
+### Self-test
+
+Alarmageddon checks itself regularly. Are all devices, speakers, actions (services), recipients and custom sounds that the actions, the monitoring rules, the routines and the notifications use still there and reachable? Do the sensors of the alarm systems still exist, and does Home Assistant have an address for the speakers? During operation it also records steps that failed or did not answer within 10 seconds, interventions of the watchdog, notifications that did not go out, parts of an alarm system that did not start, a failed automatic backup and life signs to the HealthCheck services that did not go out.
+
+- **When:** a few minutes after Home Assistant starts (the devices connect first), shortly after every save, every 6 hours (1 to 24 hours under Configuration › Alarm system › HealthCheck, "Self-test every", saved with "Save" of the page) and with "Check now" (in the window of the self-test and in the chapter HealthCheck).
+- **In the panel:** the status tile of the overview always shows a row "Self-test" with the time of the last check; problems count towards "N need attention" (red when a problem can prevent or silence an alarm). A click opens a window with every problem, grouped by alarm system and "All alarm systems": what is wrong, where (with "Open", which jumps to the step, rule, routine or setting), what it means, possible causes and how to fix it.
+- **What counts:** a device that a step switches (siren, switch, speaker) counts as soon as it has been unreachable for 5 minutes, not only when it is missing. Sensors of the alarm systems and of the monitoring count only when they are missing; unreachable sensors are reported by the maintenance messages (no double message). Flows of a mode that is switched off are not checked.
+- **Clearing:** a setup problem disappears by itself once it is fixed (at the next check; after saving the self-test checks again shortly afterwards). A problem during operation disappears as soon as the same call works again, in an alarm or a test, or with "Done" in the window.
+- **Elsewhere:** each alarm system has an entity "Self-test" (problem; its own problems and those for all alarm systems), the status entity and the dashboard card count the problems, and Home Assistant shows them under Settings › Repairs (one message per alarm system, one for all of them). The maintenance message "Self-test" reports every new problem once.
+- **Read only:** the self-test never switches a device, plays no sound and sends no test message. It never holds up an alarm: a fault in the self-test stays in the self-test.
+
+### HealthCheck
+
+If Home Assistant itself fails (power, crash, no internet), nothing inside it can report that. A HealthCheck service outside can: Alarmageddon sends it a life sign at a fixed interval, and when the life signs stop, the service alerts you by e-mail, push or SMS, depending on the service. The chapter "HealthCheck" under Configuration › Alarm system applies to all alarm systems and holds the self-test (last check, "Check now", "Show problems", "Self-test every") and the life signs.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/healthcheck-en.png" alt="The chapter HealthCheck under Configuration › Alarm system: the self-test with Check now and Show problems, its interval, and the row of the services" width="100%"></p>
+
+- **Services:** up to 5, for example Healthchecks.io, Cronitor, Better Stack or Uptime Kuma; any service that accepts a simple call of a URL (GET) works. The row in the chapter shows how many are set up and whether a life sign failed, with "Add service" and "Show services".
+- **Generic:** each entry has three values. The **ping URL** (http or https) that the service shows for its check. The **failure suffix** (optional): as long as the self-test has problems, Alarmageddon calls the URL with this suffix instead, so the service reports a failure at once instead of only after the missing life sign; "/…" extends the path (`/fail`), "?…" or "&…" sets parameters (`?state=fail`, a parameter of the same name is replaced). Empty: only the life sign goes out. The **interval** from 1 minute to 24 hours, as number and unit or with a quick choice (1 min, 5 min, 15 min, 1 h, 6 h, 24 h). At the service, set the period (and grace time) a little longer than the interval.
+- **Suggestions:** for well-known services the form recognizes the URL and suggests the suffix: Healthchecks.io (also self-hosted with `/ping/<uuid>`) and Better Stack `/fail`, Cronitor `?state=fail`, Uptime Kuma `?status=down` (from its push URL; not tried against a real Uptime Kuma). The suggestion is only filled in while you have not touched the field; otherwise it stands next to it with "Use". You always have the last word. Below the field a preview shows the exact failure call.
+- **When:** right after saving, at the interval, and at once when the result of the self-test changes (problems found or all fixed), at most once a minute per service. After a start of Home Assistant the first life sign goes out after 30 seconds.
+- **List:** the window shows a table with search and sorting (URL, last, interval, status). Every row shows the whole URL, the recognized service, the suffix, the time of the last life sign and its result ("Life sign sent", "Failure sent", "Failed" with HTTP status, "no answer" or "no connection"). Per row: "Send failure" (only with a suffix) and "Send life sign" as a test, edit and remove. After a test with "Send failure" the service stays down until the next life sign; "Send life sign" restores it at once.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/healthcheck-list-en.png" alt="The window HealthCheck services: a table with three services, each with URL, recognized service, failure suffix, last life sign, interval, status and the buttons Send failure, Send life sign, edit and remove" width="100%"></p>
+
+- **When a life sign does not go out:** it becomes a problem of the self-test ("Health check to … failed", with the reason; "Open" leads to the list) and disappears with the next life sign that works, or when you remove the service. It does not count as a failure for the next life sign (it could not be reported the same way).
+- **Security:** the ping URL is shown in full in the panel and stored in backups, because it is your setting. The log, notifications and problems of the self-test only name the host (for example `hc-ping.com`). A life sign waits at most 10 seconds and never holds up an alarm, a save or the self-test.
 
 ### Monitoring
 
@@ -70,7 +98,7 @@ Every step of a rule has a play button that runs just this step once (a push mes
 
 Monitoring runs always, also while the alarm system is disarmed, and never triggers the siren or the alarm (fire and water stay with "Always active"). A sensor that does not respond never counts: it neither triggers a rule nor ends it, so a radio loss never reports "back to normal". A running rule does not report again after a restart.
 
-The measured sensors of the monitoring (temperature, humidity, CO2) also appear in the panel overview with their value, and a tap opens the same view as for every sensor: the tab "History" with the course of the values, battery, signal and device. Below the chart there are only the events of the monitoring ("Outside the limits", "Back to normal"), never the single values. The editor of a rule explains the return margin with your own values: at which value the rule triggers, from which value it is back to normal and where the buffer zone lies.
+The measured sensors of the monitoring (temperature, humidity, CO2) also appear in the panel overview with their value, and a tap opens the same view as for every sensor: the tab "History" with the course of the values, battery, signal and device. Below the chart there are only the events of the monitoring ("Outside the limits", "Back to normal"), never the single values. Every limit of a monitoring rule with this sensor is drawn as a dashed line; the chart reaches up to it even if it lies far from the values (the curve then becomes flatter). For every sensor that appears in the monitoring (measured values and yes/no sensors in a monitoring rule) there are two tabs above the list: "Events" and "Rules". "Rules" lists the monitoring rules with this sensor, of every alarm system, with the condition in words and their state ("Active", "Off", "Outside" when it is triggered right now). Both lists have a search field and can be sorted by every column (tap the column title; sorted by time, the list keeps a row per day). The arrow of a rule leads to it under Configuration › Actions › Monitoring, unfolded and briefly marked; if you have unsaved changes in another alarm system, the panel asks first. The editor of a rule explains the return margin with your own values: at which value the rule triggers, from which value it is back to normal and where the buffer zone lies.
 
 ### When there is an alarm
 
@@ -103,7 +131,7 @@ If the card does not appear in the card picker: restart Home Assistant after the
 - **Modes:** "Home", "Away" and "Night", each switchable on and off, each with its own zone, delays and actions.
 - **Two-sensor confirmation:** a motion sensor can require a second sensor before it triggers, against false alarms.
 - **Backup:** all settings as a file or stored in the integration, never with codes. An automatic backup (daily, weekly or monthly; on and weekly by default) keeps the last 5 (you choose 1 to 50), in addition to your own 10.
-- **Several alarm systems:** house and garage, each as its own device.
+- **Several alarm systems:** house and garage, each as its own device. "Add alarm system" at the top of the panel shows the device and the alarm entity before anything is created; the button next to the entity ID copies it (for automations and dashboards).
 - **Back to the overview:** the panel remembers where you were for 30 minutes; after that it starts on the overview again.
 
 ## Safety mechanisms
@@ -122,14 +150,16 @@ An alarm system has to work when something else does not. These mechanisms are b
 | Nothing holds up the siren | A device that does not answer is skipped after 10 seconds, a push notification is never waited for, and a failing step, log, recording or notification never stops the rest |
 | Watchdog | The alarm actions are supervised as a whole: the first step starts within 8 seconds, no step delays the next one beyond its limit, and a flow that breaks off goes on with the next step. Interventions appear in the timeline of the alarm |
 | You decide how long the siren sounds | There is no fixed duration in the code. You set it in the flow ("wait" between on and off, or a duration for a sound, up to an hour per step). It is kept exactly and counts from the first start, also across a restart |
+| Self-test | Checks regularly whether everything the alarm systems use is there and reachable, and records what failed during operation; it only reads and never holds up an alarm |
+| HealthCheck | Life signs to an external service: if Home Assistant fails or loses the internet, the service alerts you; problems of the self-test are reported there too. A life sign waits at most 10 seconds and never holds anything up |
 | Sensors that fail | A sensor that becomes unreachable while armed is reported at once, or triggers the alarm with the option "failure counts as alarm". Low batteries are reported before they are empty |
-| Tested | More than 1,400 automated tests against a real Home Assistant (in two versions, an older and a current one), about 6,800 checks of the interface on computer and phone, and a mutation check that removes each of 347 safeguards and requires a test to fail |
+| Tested | More than 1,500 automated tests against a real Home Assistant (in two versions, an older and a current one), about 7,300 checks of the interface on computer and phone, and a mutation check that removes each of 362 safeguards and requires a test to fail |
 
 ### Limits
 
 Alarmageddon is not a certified alarm system. Please keep in mind:
 
-- If Home Assistant, the power, the network or the radio coordinator fails, there is no alarm. A siren with its own battery helps for critical use.
+- If Home Assistant, the power, the network or the radio coordinator fails, there is no alarm. A siren with its own battery helps for critical use; a HealthCheck service at least tells you that Home Assistant is silent.
 - How long a siren may sound is regulated differently from place to place. Check what applies to you and set the duration in the alarm actions; a siren with its own time limit is the safest choice.
 - A sound "until disarmed" and a siren without an "off" step run until someone disarms. That is your choice in the flow.
 
@@ -146,7 +176,8 @@ Alarmageddon is not a certified alarm system. Please keep in mind:
 | `alarm_control_panel.<name>` | The alarm system. Attributes: `arm_mode`, `triggered_by`, `bypassed_sensors`, `deadline`, `changed_by`, `armed_at`, `armed_by`, `state_since` (since when it is in its state; survives a restart) |
 | `binary_sensor.<name>_zone_<mode>` | On when a sensor of the zone of this mode is open |
 | "Ready to arm" per mode | On when no open sensor blocks arming in this mode. Attribute: `blocking_sensors` |
-| `sensor.<name>_status` | Number of open problems: alarm, unreachable sensors, weak batteries. Attributes: `alarm`, `offline`, `low_battery`, `battery_threshold` |
+| `sensor.<name>_status` | Number of open problems: alarm, unreachable sensors, weak batteries, problems of the self-test. Attributes: `alarm`, `offline`, `low_battery`, `battery_threshold`, `selftest`, `selftest_last` |
+| `binary_sensor.<name>_self_test` | Self-test (problem, diagnostic): on while the self-test has found something that affects this alarm system, unknown before the first check. Attributes: `last_check`, `count`, `problems` (the first 20, only kind and ID) |
 
 Zone and "Ready" entities exist only for the modes that are switched on.
 
@@ -181,6 +212,7 @@ Details for those who want to know exactly.
 | Action group | 1 to 100 rounds or 1 to 3600 s, at most 10 actions, at least 1 s per round |
 | Test of the alarm actions | Ends after 60 s at the latest |
 | Low battery, sensor unreachable | Below 20 %, after 60 minutes (both adjustable) |
+| HealthCheck | Up to 5 services, interval 1 minute to 24 hours, at most 10 s per call, on a change of the self-test at most once a minute per service |
 | Kept per alarm system | Events and alarms for one year (at most 5000 events and 200 alarms with 300 entries each, with actions and notifications at most 600); 10 backups in total |
 
 ### Options per sensor
@@ -219,7 +251,7 @@ Details for those who want to know exactly.
 - **Media players** fetch the sounds from Home Assistant, so they must reach its local URL (Settings → System → Network).
 - **Buttons of the alarm notification:** "Open" (on by default), "Silence alarm sound" (stops the steps, the alarm stays), "Acknowledge" (on by default; ends the alarm, the alarm system stays armed and alarms again at the next trigger) and "Disarm" (iOS asks for Face ID or the passcode, Android does not).
 - **Critical notifications:** the volume applies to iOS; Android plays them on the alarm channel, set its volume on the phone.
-- **Maintenance messages:** each problem once, several in one notification, again after the battery was replaced or the sensor responded.
+- **Maintenance messages:** each problem once, several in one notification, again after the battery was replaced or the sensor responded. The same for the self-test: again only when a problem comes back after it was fixed.
 - **Battery forecast:** from the recorder history of the last 90 days; empty without enough history.
 
 ### Routines, backup and HomeKit in detail
@@ -230,8 +262,8 @@ Details for those who want to know exactly.
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/routines-en.png" alt="The chapter Routines in Configuration › Alarm system, with routines by time and by device" width="100%"></p>
 
 - **Only "Disarmed" needs no confirmation.** A routine runs only in the states you choose. A new routine starts with just "Disarmed"; every other state (arming, armed, entry delay, alarm) first needs the confirmation "I understand this" under "Safety", for disarming and for arming alike: whoever can operate the trigger would otherwise disarm or switch the mode (for example from Home to Away) without a code. Until you confirm, the other states cannot be switched on, and turning the confirmation off drops them again. Disarming in other states carries the tag "Bypasses the code". Routines saved before this rule keep working and show the tag "Confirmation missing" until you save them again. Schedules from earlier versions became routines when updating (states: exit delay, armed, disarmed); old backups are converted on restoring.
-- **Backup:** up to 10 backups of your own in the integration, plus the last automatic ones (5 by default, you choose 1 to 50; switch, number and interval under Configuration › Alarm system › Backup, saved with "Save" of the page; the list of backups opens in its own window; checked every night at 03:17 and after a start; no identical copy is stored), plus export and import as a file (in the window "Show backups"; a search field and the filter "Automatic only" are there as well). When restoring you choose for each alarm system of the backup what it is applied to: an existing alarm system (whatever its name), a new one, or none; the shared settings can be left out. Codes are never included; the backup of Home Assistant itself contains everything.
-- **Codes per person in the panel:** under Configuration › Alarm system the page shows the number of codes with the button "Show codes", plus the main code and "Acknowledging asks for the code". The window (full screen on the phone) shows a table with name, user and code, sortable by name and user, with a search field. The code appears there only as "••••••": only a hash is stored, no code can be shown again. The pencil opens the same window as "Add code" (in the footer) with name and user; empty code fields keep the current code. The eye in the code field shows the code you are typing and hides it again. Simple codes show a red warning (sequences like 1234 or 2468, only one digit, repeated patterns like 1212 or 1122, three equal digits in a row, mirrored numbers, lines on the keypad like 2580, years, dates like 24121990); they can still be saved. Codes with fewer than 4 or more than 8 digits are not accepted by the integration.
+- **Backup:** up to 10 backups of your own in the integration, plus the last automatic ones (5 by default, you choose 1 to 50; switch, number and interval under Configuration › Alarm system › Backup, saved with "Save" of the page; checked every night at 03:17 and after a start; no identical copy is stored), plus export and import as a file. The page shows "Last backup" at the top with the buttons "Create backup" and "Show backups" (like routines, your own sounds and codes), below it the automatic backup. The list of backups opens in its own window, with export and import, a search field and the filter "Automatic only". When restoring you choose for each alarm system of the backup what it is applied to: an existing alarm system (whatever its name), a new one, or none; the shared settings can be left out. The HealthCheck services are included with their URL. Codes are never included; the backup of Home Assistant itself contains everything.
+- **Codes per person in the panel:** under Configuration › Alarm system the page shows the number of codes with the buttons "Add code" and "Show codes" (like routines and your own sounds), plus the main code and "Acknowledging asks for the code". The window (full screen on the phone) shows a table with name, user and code, sortable by name and user, with a search field. The code appears there only as "••••••": only a hash is stored, no code can be shown again. The pencil opens the same window as "Add code" (in the footer) with name and user; empty code fields keep the current code. The eye in the code field shows the code you are typing and hides it again. Simple codes show a red warning (sequences like 1234 or 2468, only one digit, repeated patterns like 1212 or 1122, three equal digits in a row, mirrored numbers, lines on the keypad like 2580, years, dates like 24121990); they can still be saved. Codes with fewer than 4 or more than 8 digits are not accepted by the integration.
 - **HomeKit, exit delay:** Apple Home shows "Off" with the target "Away" during the exit delay. Use no exit delay for "Home" and "Night" (default).
 - **HomeKit, entry delay:** Apple Home keeps showing "armed" and switches to "Alarm" when the alarm starts.
 

@@ -10,6 +10,7 @@ from collections.abc import Callable
 import copy
 import re
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
@@ -24,6 +25,12 @@ from .const import (
     BATTERY_THRESHOLD_RANGE,
     DEFAULT_NOTIFY,
     OFFLINE_MINUTES_RANGE,
+    SELFTEST_HOURS_RANGE,
+    HEALTHCHECK_DEFAULT_INTERVAL,
+    HEALTHCHECK_INTERVAL_RANGE,
+    HEALTHCHECK_SUFFIX_MAX,
+    HEALTHCHECK_URL_MAX,
+    MAX_HEALTHCHECKS,
     NOTIFY_TYPES,
     DEFAULT_PRESETS,
     DEVICE_CLASS_TYPE,
@@ -82,7 +89,7 @@ def valid_notify(value: Any) -> dict[str, Any]:
     for key in ("disarm_action", "open_action", "silence_action", "acknowledge_action", "arm_retry_action", "arm_force_action"):
         if isinstance(value.get(key), bool):
             out[key] = value[key]
-    for key, (low, high) in (("battery_threshold", BATTERY_THRESHOLD_RANGE), ("offline_minutes", OFFLINE_MINUTES_RANGE)):
+    for key, (low, high) in (("battery_threshold", BATTERY_THRESHOLD_RANGE), ("offline_minutes", OFFLINE_MINUTES_RANGE), ("selftest_hours", SELFTEST_HOURS_RANGE)):
         if isinstance(value.get(key), (int, float)) and not isinstance(value.get(key), bool):
             out[key] = max(low, min(high, int(value[key])))
     # Alte Form zuerst, die neue überschreibt sie
@@ -135,6 +142,86 @@ def valid_notify(value: Any) -> dict[str, Any]:
     return out
 
 
+HEALTHCHECK_ID = re.compile(r"^[a-z0-9]{1,16}$")
+
+
+def valid_healthcheck_url(value: Any) -> str | None:
+    """Adresse eines Lebenszeichens: http oder https mit Rechnername, ohne Leerzeichen, höchstens HEALTHCHECK_URL_MAX Zeichen; sonst None."""
+    if not isinstance(value, str):
+        return None
+    url = value.strip()
+    if not url or len(url) > HEALTHCHECK_URL_MAX or any(c.isspace() for c in url):
+        return None
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return None
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        return None
+    return url
+
+
+def apply_fail_suffix(url: str, suffix: str) -> str | None:
+    """
+    Adresse für "Fehler" aus der URL und dem Fehler-Zusatz (1.65.0, generisch, Entscheid des Nutzers): "/…" kommt hinten an den Pfad (vor die
+    Parameter), "?…" (oder "&…") setzt Parameter und ersetzt gleichnamige. Beispiele: Healthchecks.io und Better Stack "/fail", Cronitor
+    "?state=fail". Leerer Zusatz: None (der Eintrag sendet nur das Lebenszeichen). Ein anderer Anfang ist ungültig: None.
+    """
+    if not suffix:
+        return None
+    parts = urlsplit(url)
+    if suffix.startswith("/"):
+        return urlunsplit(parts._replace(path=parts.path.rstrip("/") + suffix))
+    if suffix[0] in "?&":
+        extra = parse_qsl(suffix[1:], keep_blank_values=True)
+        if not extra:
+            return None
+        names = {k for k, _v in extra}
+        query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k not in names] + extra
+        return urlunsplit(parts._replace(query=urlencode(query)))
+    return None
+
+
+def valid_fail_suffix(url: str, value: Any) -> str | None:
+    """Fehler-Zusatz: leer, oder mit "/", "?" oder "&" am Anfang, ohne Leerzeichen, höchstens HEALTHCHECK_SUFFIX_MAX Zeichen, ergibt eine gültige URL."""
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        return None
+    suffix = value.strip()
+    if not suffix:
+        return ""
+    if len(suffix) > HEALTHCHECK_SUFFIX_MAX or any(c.isspace() for c in suffix):
+        return None
+    try:
+        full = apply_fail_suffix(url, suffix)
+    except ValueError:
+        return None
+    return suffix if full is not None and valid_healthcheck_url(full) is not None else None
+
+
+def valid_healthchecks(value: Any) -> list[dict[str, Any]]:
+    """
+    Lebenszeichen an externe Dienste (1.65.0): höchstens MAX_HEALTHCHECKS, jeder Eintrag einzeln geprüft (ein beschädigter fällt weg, nie die Liste).
+    {"id", "url", "fail_suffix" (leer erlaubt), "interval" (Sekunden)}. Ein ungültiger Zusatz wird leer (der Eintrag sendet dann nur das Lebenszeichen).
+    """
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in value if isinstance(value, list) else []:
+        if not isinstance(item, dict) or len(out) >= MAX_HEALTHCHECKS:
+            continue
+        hid, url = item.get("id"), valid_healthcheck_url(item.get("url"))
+        if not isinstance(hid, str) or not HEALTHCHECK_ID.match(hid) or hid in seen or url is None:
+            continue
+        interval = item.get("interval")
+        if isinstance(interval, bool) or not isinstance(interval, int):
+            interval = HEALTHCHECK_DEFAULT_INTERVAL
+        interval = max(HEALTHCHECK_INTERVAL_RANGE[0], min(HEALTHCHECK_INTERVAL_RANGE[1], interval))
+        seen.add(hid)
+        out.append({"id": hid, "url": url, "fail_suffix": valid_fail_suffix(url, item.get("fail_suffix")) or "", "interval": interval})
+    return out
+
+
 def valid_auto_backup(value: Any) -> dict[str, Any]:
     """Aus der Ablage gelesen oder vom Panel gesendet: unbekannte Werte fallen auf die Vorgabe (an, wöchentlich) zurück."""
     raw = value if isinstance(value, dict) else {}
@@ -156,6 +243,8 @@ class Settings:
             "names_with_device": True,
             # Automatische Sicherung (1.47.0): an (Standard), wöchentlich; gilt für alle Anlagen, nicht Teil der Sicherung selbst
             "auto_backup": dict(AUTO_BACKUP_DEFAULT),
+            # HealthCheck (1.65.0): Lebenszeichen an externe Dienste, für alle Anlagen; Teil des Backups (Entscheid des Nutzers)
+            "healthchecks": [],
             # Letzte echte Änderung (offen <-> zu) je Sensor, ISO-Zeit; intern, nicht in der Sicherung (Laufzeitdaten)
             "last_changes": {},
         }
@@ -192,6 +281,7 @@ class Settings:
         self.data["notify"] = valid_notify(self.data.get("notify"))
         self.data["names_with_device"] = self.data.get("names_with_device") is not False
         self.data["auto_backup"] = valid_auto_backup(self.data.get("auto_backup"))
+        self.data["healthchecks"] = valid_healthchecks(self.data.get("healthchecks"))
         # Reste der früheren Update-Funktion (bis 0.27.0) beim Laden verwerfen
         self.data.pop("update", None)
         self.data.pop("update_notified", None)
@@ -228,6 +318,15 @@ class Settings:
 
     async def async_set_auto_backup(self, enabled: bool, every: str, keep: int | None = None) -> None:
         self.data["auto_backup"] = valid_auto_backup({"enabled": enabled, "every": every, "keep": self.auto_backup["keep"] if keep is None else keep})
+        await self._async_write()
+
+    @property
+    def healthchecks(self) -> list[dict[str, Any]]:
+        return self.data["healthchecks"]
+
+    async def async_set_healthchecks(self, items: list[dict[str, Any]]) -> None:
+        # Lebenszeichen ändern nichts an den Anlagen: speichern ohne sie neu zu laden (healthcheck.py liest die Liste neu)
+        self.data["healthchecks"] = valid_healthchecks(items)
         await self._async_write()
 
     @property

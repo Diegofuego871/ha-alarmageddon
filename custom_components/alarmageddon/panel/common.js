@@ -40,6 +40,10 @@ export const P = {
   orderUp: "M19 7H22L18 3L14 7H17V21H19M2 17H12V19H2M6 5V7H2V5M2 11H9V13H2V11Z",
   orderDown: "M19 17H22L18 21L14 17H17V3H19M2 17H12V19H2M6 5V7H2V5M2 11H9V13H2V11Z",
   groups: "M3,4H7V8H3V4M9,5V7H21V5H9M3,10H7V14H3V10M9,11V13H21V11H9M3,16H7V20H3V16M9,17V19H21V17H9Z",
+  // Eigene Symbole der Knöpfe "… anzeigen" (1.64.0, Wunsch des Nutzers: jede Liste ihr Symbol; Routinen behalten groups, Töne speaker).
+  // key: Schlüssel, waagrecht entworfen und um 45 Grad gedreht (Ring links unten, Bart rechts oben); archive: Kiste mit Deckel und Griff.
+  key: "M4.08,11.58A5.9,5.9 0 1,1 12.42,19.92A5.9,5.9 0 1,1 4.08,11.58ZM6.56,14.05A2.4,2.4 0 1,0 9.95,17.44A2.4,2.4 0 1,0 6.56,14.05ZM10.8,11.08L18.58,3.3L20.7,5.42L19.85,6.27L22.32,8.75L20.41,10.66L17.94,8.18L17.16,8.96L18.86,10.66L16.95,12.57L15.25,10.87L12.92,13.2Z",
+  archive: "M3,3H21V8H3V3ZM4,9H20V20A1,1 0 0,1 19,21H5A1,1 0 0,1 4,20V9ZM9,12V14H15V12H9Z",
   hand: "M10,9A1,1 0 0,1 11,8A1,1 0 0,1 12,9V13.47L13.21,13.6L18.15,15.79C18.68,16.03 19,16.56 19,17.14V21.5C18.97,22.32 18.32,22.97 17.5,23H11C10.62,23 10.26,22.85 10,22.57L5.1,18.37L5.84,17.6C6.03,17.39 6.3,17.28 6.58,17.28H6.8L10,19V9Z",
   tune: "M3,17V19H9V17H3M3,5V7H13V5H3M13,21V19H21V17H13V15H11V21H13M7,9V11H3V13H7V15H9V9H7M21,13V11H11V13H21M15,9H17V7H21V5H17V3H15V9Z",
   flash: "M7,2V13H10V22L17,10H13L17,2H7Z",
@@ -80,6 +84,10 @@ export const P = {
   trash: "M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z",
   grip: "M9,3H11V5H9V3M13,3H15V5H13V3M9,7H11V9H9V7M13,7H15V9H13V7M9,11H11V13H9V11M13,11H15V13H13V11M9,15H11V17H9V15M13,15H15V17H13V15M9,19H11V21H9V19M13,19H15V21H13V19Z",
   restore: "M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z",
+  // HealthCheck (1.65.0): Lebenszeichen an externe Dienste
+  heartPulse: "M7.5,4A5.5,5.5 0 0,0 2,9.5C2,10 2.09,10.5 2.22,11H6.3L7.57,7.63C7.87,6.83 9.05,6.75 9.43,7.63L11.5,13L12.09,11.58C12.22,11.25 12.57,11 13,11H21.78C21.91,10.5 22,10 22,9.5A5.5,5.5 0 0,0 16.5,4C14.64,4 13,4.93 12,6.34C11,4.93 9.36,4 7.5,4V4M3,12.5A1,1 0 0,0 2,13.5A1,1 0 0,0 3,14.5H5.44L11,20C12,20.9 12,20.9 13,20L18.56,14.5H21A1,1 0 0,0 22,13.5A1,1 0 0,0 21,12.5H13.4L12.47,14.8C12.07,15.81 10.92,15.67 10.55,14.83L8.5,9.5L7.54,11.83C7.39,12.21 7.05,12.5 6.6,12.5H3Z",
+  // Selbsttest (1.65.0)
+  stethoscope: "M19,8C19.56,8 20,8.43 20,9A1,1 0 0,1 19,10C18.43,10 18,9.55 18,9C18,8.43 18.43,8 19,8M2,2V11C2,13.96 4.19,16.5 7.14,16.91C7.76,19.92 10.42,22 13.5,22A6.5,6.5 0 0,0 20,15.5V11.81C21.16,11.39 22,10.29 22,9A3,3 0 0,0 19,6A3,3 0 0,0 16,9C16,10.29 16.84,11.4 18,11.81V15.41C18,17.91 16,19.91 13.5,19.91C11.5,19.91 9.82,18.7 9.22,16.9C12,16.3 14,13.8 14,11V2H10V5H12V11A4,4 0 0,1 8,15A4,4 0 0,1 4,11V5H6V2H2Z",
 };
 // Symbole aus mehreren Teilen: "Ansicht" ist ein Auge mit Zahnrad (das Zahnrad schneidet eine Lücke in das Auge, damit beide lesbar bleiben)
 const RAW = {
@@ -145,6 +153,46 @@ export async function runOnce(owner, key, work, paint) {
       paint();
     }
   }
+}
+
+// Kopieren in die Zwischenablage (1.64.0 zusammengelegt, Wunsch des Nutzers: auch im Fenster "Anlage hinzufügen"): überall derselbe Knopf und
+// dieselbe Rückmeldung. Bisher nur in der Sensoransicht (`sensorview.js`). `attrs` trägt das Attribut des zuständigen Klick-Handlers.
+export const copyBtn = (value, label, attrs = "", cls = "") =>
+  `<button type="button" class="ag-iconbtn ag-copy ${cls}" ${attrs} data-value="${esc(value)}" aria-label="${esc(label)}" title="${esc(label)}">${ic("copy", 16)}</button>`;
+
+// Wert des Knopfs `el` in die Zwischenablage. Der Browser erlaubt `navigator.clipboard` im Panel (iframe) nicht überall (Companion App, kein
+// HTTPS): dann der Weg über ein verstecktes Textfeld, in einem offenen Fenster in diesem (ausserhalb eines modalen Fensters lässt sich nichts
+// markieren). Rückmeldung am Knopf selbst (Häkchen oder Warnzeichen), ein Hinweis läge hinter dem Fenster. `doc`: Dokument des Panels.
+export async function copyValue(el, doc) {
+  const value = el.dataset.value || "";
+  let ok = false;
+  try {
+    await doc.defaultView.navigator.clipboard.writeText(value);
+    ok = true;
+  } catch {
+    try {
+      const area = doc.createElement("textarea");
+      area.value = value;
+      area.setAttribute("readonly", "");
+      area.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+      (el.closest("dialog") || doc.body).appendChild(area);
+      area.select();
+      area.setSelectionRange(0, value.length);
+      ok = doc.execCommand("copy");
+      area.remove();
+    } catch {
+      ok = false;
+    }
+  }
+  el.classList.toggle("done", ok);
+  el.classList.toggle("fail", !ok);
+  el.innerHTML = ic(ok ? "check" : "alert", 16);
+  clearTimeout(el._copyTimer);
+  el._copyTimer = setTimeout(() => {
+    el.classList.remove("done", "fail");
+    el.innerHTML = ic("copy", 16);
+  }, 1600);
+  return ok;
 }
 
 // Maskieren auch von Anführungszeichen: Namen landen in Attributen (LEARNINGS)
