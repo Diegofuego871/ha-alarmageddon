@@ -3,6 +3,10 @@
 // des Anbieters. Für bekannte Dienste schlägt das Panel den Zusatz vor (`suggest`); der Nutzer hat immer das letzte Wort: ein Vorschlag füllt das
 // Feld nur, solange es niemand berührt hat, sonst steht er als "Übernehmen" daneben. Die URL steht ganz in der Tabelle (Entscheid des Nutzers).
 // Sofort gespeichert (WebSocket healthcheck_save/_delete), nicht Teil des Entwurfs der Seite. Testknöpfe je Zeile: "Fehler senden", "OK senden".
+// Seit 1.66.0 hat jeder Eintrag einen Namen (Pflichtfeld, Wunsch des Nutzers 2026-11-19); in der Liste steht der Name, die URL darunter gekürzt
+// (ganz im Tooltip und im Formular). Ein Intervall je Eintrag, kein eigenes bei scharfer Anlage (Entscheid des Nutzers 2026-11-19: der Selbsttest
+// prüft dann öfter, und findet er etwas, geht der Fehler sofort hinaus). Knöpfe der Zeile in Kreisen wie bei Routinen und Tönen (`.ag-wf-btns`), auf dem Handy in einer
+// eigenen Zeile unter dem Eintrag (Wunsch des Nutzers 2026-11-19).
 const V = new URL(import.meta.url).search;
 const { ic, esc, errText, fmtDur, matchQuery, searchField } = await import(`./common.js${V}`);
 
@@ -72,7 +76,7 @@ export class HealthCheckUi {
   constructor(host) {
     this.host = host;
     this.q = "";
-    this.sort = { key: "url", dir: "asc" };
+    this.sort = { key: "name", dir: "asc" };
     this.form = null; // offenes Formular: { id, url, suffix, touched, value, unit, error, saving }
     this.busy = new Set(); // laufende Tests "id|ok" oder "id|fail"
   }
@@ -104,7 +108,7 @@ export class HealthCheckUi {
     const failed = this.items.filter((i) => i.status && i.status.result !== "ok").length;
     const text = n ? this._t("hcSummary", { count: n, max: this.max }) : this._t("hcNone");
     const sub = !n ? this._t("hcNoneHint") : failed ? this._t(failed === 1 ? "hcFailedOne" : "hcFailed", { count: failed }) : this._t("hcAllOk");
-    return `<div class="ag-setrow ag-rtsum ag-hcsum"><span class="ag-oav ${n ? "on" : ""}">${ic("heartPulse", 20)}</span><div class="ag-settx"><b>${esc(text)}</b><small class="${failed ? "ag-warntext" : ""}">${esc(sub)}</small></div>
+    return `<div class="ag-setrow ag-rtsum ag-hcsum"><span class="ag-oav ag-tint ag-tint-health ${n ? "on" : ""}">${ic("heartPulse", 20)}</span><div class="ag-settx"><b>${esc(text)}</b><small class="${failed ? "ag-warntext" : ""}">${esc(sub)}</small></div>
       <div class="ag-btnrow"><button class="ag-btn" data-hc="add" ${n >= this.max ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("hcAdd"))}</button>
         <button class="ag-btn" data-hc="open">${ic("heartPulse", 18)}${esc(this._t("hcShow"))}</button></div></div>`;
   }
@@ -125,8 +129,9 @@ export class HealthCheckUi {
     const body = dlg.querySelector(".ag-hcbody");
     if (body && !force) {
       this.host._setHtml(body, this._body());
-      const add = dlg.querySelector('.ag-dlg-btns [data-hc="add"]');
-      if (add) add.disabled = this.items.length >= this.max;
+      // Fusszeile wie bei Codes, Routinen und Tönen: "Dienst hinzufügen" erst, wenn die Liste nicht leer ist (sonst steht er in der Mitte)
+      const foot = dlg.querySelector(".ag-dlg-btns");
+      if (foot) this.host._setHtml(foot, this._foot());
       const tools = dlg.querySelector(".ag-hctools");
       if (tools) tools.hidden = !this.items.length;
       this._stickHead(dlg);
@@ -136,8 +141,15 @@ export class HealthCheckUi {
     this.host._setHtml(dlg, `<div class="ag-dlg-body ag-hc-pop"><div class="ag-pop-head"><h3>${esc(this._t("hcListTitle"))}</h3>
       <div class="ag-tools ag-pop-tools ag-hctools" ${n ? "" : "hidden"}>${searchField("data-hc", "search", this.q, this._t("hcFilter"), this._t("clearSearch"))}</div></div>
       <div class="ag-hcbody">${this._body()}</div>
-      <div class="ag-dlg-btns"><button class="ag-btn" data-hc="close">${esc(this._t("close"))}</button><span class="ag-grow"></span><button class="ag-btn primary" data-hc="add" ${n >= this.max ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("hcAdd"))}</button></div></div>`);
+      <div class="ag-dlg-btns">${this._foot()}</div></div>`);
     this._stickHead(dlg);
+  }
+
+  // "Schliessen" und "Dienst hinzufügen" nebeneinander rechts, wie in allen Fenstern mit Liste (Wunsch des Nutzers 2026-11-19)
+  _foot() {
+    const n = this.items.length;
+    const add = n ? `<button class="ag-btn primary" data-hc="add" ${n >= this.max ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("hcAdd"))}</button>` : "";
+    return `<button class="ag-btn" data-hc="close">${esc(this._t("close"))}</button>${add}`;
   }
 
   // Der Tabellenkopf klebt unter dem klebenden Kopf des Fensters (Titel und Suche), nicht dahinter (Vorgabe: der Tabellenkopf scrollt nie weg)
@@ -177,32 +189,30 @@ export class HealthCheckUi {
     const t = (k, v) => this._t(k, v);
     const items = this.items;
     if (!items.length) return `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(t("hcEmpty"))}</span><button class="ag-btn primary" data-hc="add">${ic("plus", 18)}${esc(t("hcAdd"))}</button></div>`;
-    const shown = items.filter((i) => matchQuery(this.q, i.url, i.fail_suffix, suggest(i.url)?.name || "", fmtDur(i.interval), this._statusText(i.status)));
+    const shown = items.filter((i) => matchQuery(this.q, i.name || "", i.url, i.fail_suffix, suggest(i.url)?.name || "", fmtDur(i.interval), this._statusText(i.status)));
     if (!shown.length) return `<div class="ag-card ag-popempty"><span class="ag-t2">${esc(t("hcNoMatch"))}</span></div>`;
     const sort = this.sort;
-    const val = { url: (i) => i.url.toLowerCase(), last: (i) => i.status?.at || "", interval: (i) => i.interval, status: (i) => this._statusText(i.status) }[sort.key];
+    const val = { name: (i) => (i.name || i.url).toLowerCase(), last: (i) => i.status?.at || "", interval: (i) => i.interval, status: (i) => this._statusText(i.status) }[sort.key];
     const cmp = (a, b) => (typeof a === "number" ? a - b : String(a).localeCompare(String(b), this.host._lang || "en", { numeric: true }));
-    const list = [...shown].sort((a, b) => cmp(val(a), val(b)) * (sort.dir === "desc" ? -1 : 1) || cmp(a.url, b.url));
-    const btn = (act, icon, label, id, extra = "") => `<button class="ag-iconbtn ${extra}" data-hc="${act}" data-id="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}" ${this.busy.has(`${id}|${act === "test-fail" ? "fail" : "ok"}`) ? "disabled" : ""}>${ic(icon, 18)}</button>`;
+    const list = [...shown].sort((a, b) => cmp(val(a), val(b)) * (sort.dir === "desc" ? -1 : 1) || cmp(a.name || "", b.name || "") || cmp(a.url, b.url));
+    const btn = (act, icon, label, id, off = false) => `<button class="ag-iconbtn" data-hc="${act}" data-id="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}" ${off || this.busy.has(`${id}|${act === "test-fail" ? "fail" : "ok"}`) ? "disabled" : ""}>${ic(icon, 18)}</button>`;
     const rows = list.map((i) => {
       const known = suggest(i.url);
-      const failTitle = i.fail_suffix ? t("hcTestFail") : t("hcTestFailNone");
-      return `<tr data-hc-row="${esc(i.id)}"><td class="ag-hcurl"><span class="ag-mono">${esc(i.url)}</span>
+      return `<tr data-hc-row="${esc(i.id)}"><td class="ag-hcurl"><b class="ag-hcname">${esc(i.name || i.url)}</b><span class="ag-mono ag-hcaddr" title="${esc(i.url)}">${esc(i.url)}</span>
           <small class="ag-t2 ag-hcinfo">${known ? `<span class="ag-tag none">${esc(known.name)}</span> ` : ""}${esc(i.fail_suffix ? t("hcSuffixShort", { suffix: i.fail_suffix }) : t("hcSuffixNone"))}</small>
-          <small class="ag-t2 ag-hc-m"><span class="ag-hcstate ${this._statusTone(i.status)}">${esc(this._statusText(i.status))}</span><span>${esc(`${t("hcColInterval")}: ${fmtDur(i.interval)} · ${t("hcColLast")}: ${i.status ? this._when(i.status.at) : "–"}`)}</span></small></td>
+          <div class="ag-hc-m"><span class="ag-hcstate ${this._statusTone(i.status)}">${esc(this._statusText(i.status))}</span>
+            <span class="ag-t2">${esc(`${t("hcColInterval")}: ${fmtDur(i.interval)} · ${t("hcColLast")}: ${i.status ? this._when(i.status.at) : "–"}`)}</span></div></td>
         <td class="ag-t2 ag-hclast">${esc(i.status ? this._when(i.status.at) : "–")}</td>
         <td class="ag-t2 ag-hcint">${esc(fmtDur(i.interval))}</td>
         <td class="ag-hcst"><span class="ag-hcstate ${this._statusTone(i.status)}">${esc(this._statusText(i.status))}</span></td>
-        <td class="ag-acts"><div class="ag-actrow">
-          <button class="ag-iconbtn ag-hc-testfail" data-hc="test-fail" data-id="${esc(i.id)}" title="${esc(failTitle)}" aria-label="${esc(failTitle)}" ${!i.fail_suffix || this.busy.has(`${i.id}|fail`) ? "disabled" : ""}>${ic("alert", 18)}</button>
-          ${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
+        <td class="ag-acts"><div class="ag-wf-btns ag-hcbtns">${btn("test-fail", "alert", t(i.fail_suffix ? "hcTestFail" : "hcTestFailNone"), i.id, !i.fail_suffix)}${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
     }).join("");
     const th = (k, label, cls = "") => {
       const on = sort.key === k;
       return `<th class="${cls}" aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sortbtn ${on ? "on" : ""}" data-hc="sort" data-key="${k}" title="${esc(t("sortBy", { column: label }))}">${esc(label)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;
     };
     return `<div class="ag-t2 ag-small" style="margin:10px 4px 6px">${esc(t("hcCount", { count: items.length, max: this.max }))}</div>
-      <div class="ag-card ag-bkwrap"><table class="ag-table ag-hctable"><tr>${th("url", t("hcColUrl"))}${th("last", t("hcColLast"), "ag-hclast")}${th("interval", t("hcColInterval"), "ag-hcint")}${th("status", t("hcColStatus"), "ag-hcst")}<th></th></tr>${rows}</table></div>`;
+      <div class="ag-card ag-bkwrap"><table class="ag-table ag-hctable"><tr>${th("name", t("hcColName"), "ag-hcurl")}${th("last", t("hcColLast"), "ag-hclast")}${th("interval", t("hcColInterval"), "ag-hcint")}${th("status", t("hcColStatus"), "ag-hcst")}<th class="ag-hcacts"></th></tr>${rows}</table></div>`;
   }
 
   // ----- Formular -----
@@ -212,21 +222,24 @@ export class HealthCheckUi {
     if (!item && this.items.length >= this.max) return;
     const interval = item?.interval ?? 300;
     const hours = interval % 3600 === 0;
-    this.form = { id: item?.id || null, url: item?.url || "", suffix: item?.fail_suffix ?? "", touched: Boolean(item), value: hours ? interval / 3600 : Math.round(interval / 60), unit: hours ? "h" : "min", error: "", saving: false };
+    this.form = { id: item?.id || null, name: item?.name || "", url: item?.url || "", suffix: item?.fail_suffix ?? "", touched: Boolean(item),
+      value: hours ? interval / 3600 : Math.round(interval / 60), unit: hours ? "h" : "min", error: "", saving: false };
     this.renderForm(true);
     const dlg = this.formDlg;
     if (!dlg.open) dlg.showModal();
-    if (!item) dlg.querySelector('[data-hc="f-url"]')?.focus();
+    if (!item) dlg.querySelector('[data-hc="f-name"]')?.focus();
   }
 
   _seconds(f = this.form) {
     const n = Number(f.value);
-    if (!Number.isInteger(n)) return NaN;
+    if (f.value === "" || !Number.isInteger(n)) return NaN;
     return f.unit === "h" ? n * 3600 : n * 60;
   }
 
   _formProblems(f = this.form) {
     const out = {};
+    const name = String(f.name || "").trim();
+    if (!name || name.length > 60) out.name = this._t(name ? "hcErrNameLong" : "hcErrName");
     if (!validUrl(f.url)) out.url = this._t(String(f.url || "").trim() ? "hcErrUrl" : "hcErrUrlEmpty");
     if (String(f.suffix || "").trim() && (!/^[/?&]/.test(f.suffix.trim()) || !applySuffix(f.url, f.suffix) || /\s/.test(f.suffix.trim()))) out.suffix = this._t("hcErrSuffix");
     const sec = this._seconds(f);
@@ -241,12 +254,13 @@ export class HealthCheckUi {
     const bad = this._formProblems();
     const known = suggest(f.url);
     const preview = validUrl(f.url) && !bad.suffix ? applySuffix(f.url, f.suffix) : null;
-    const err = (key) => (bad[key] && (f.shown || String(key === "url" ? f.url : key === "suffix" ? f.suffix : "x").trim()) ? `<small class="ag-err ag-block">${esc(bad[key])}</small>` : "");
+    const err = (key) => (bad[key] && (f.shown || String({ url: f.url, suffix: f.suffix, name: f.name }[key] ?? "x").trim()) ? `<small class="ag-err ag-block">${esc(bad[key])}</small>` : "");
     return {
       known: known ? `<span class="ag-tag none ag-hcknown">${esc(t("hcKnown", { name: known.name }))}</span>` : "",
       offer: known && known.suffix !== String(f.suffix || "").trim()
         ? `<div class="ag-hcoffer"><span class="ag-t2">${esc(t("hcSuggest", { name: known.name, suffix: known.suffix }))}</span><button type="button" class="ag-link" data-hc="f-take">${esc(t("hcTake"))}</button></div>` : "",
       prev: preview ? `${esc(t("hcPreview"))} <span class="ag-mono">${esc(preview)}</span>` : esc(t(String(f.suffix || "").trim() ? "hcPreviewNone" : "hcPreviewEmpty")),
+      "err-name": err("name"),
       "err-url": err("url"),
       "err-suffix": err("suffix"),
       "err-interval": err("interval"),
@@ -263,6 +277,9 @@ export class HealthCheckUi {
     const bad = this._formProblems();
     this.host._setHtml(dlg, `<form class="ag-dlg-body ag-hcform" data-form="hc" novalidate><h3>${esc(t(f.id ? "hcEditTitle" : "hcAddTitle"))}</h3>
       <div class="ag-t2 ag-small">${esc(t("hcFormHint"))}</div>
+      <label class="ag-hcfield"><span class="ag-hclabel">${esc(t("hcName"))}</span>
+        <input class="ag-input" type="text" data-hc="f-name" value="${esc(f.name)}" placeholder="${esc(t("hcNamePh"))}" autocomplete="off" maxlength="60" required>
+        <span data-hcp="err-name">${p["err-name"]}</span></label>
       <label class="ag-hcfield"><span class="ag-hclabel">${esc(t("hcUrl"))}</span>
         <input class="ag-input" type="url" inputmode="url" data-hc="f-url" value="${esc(f.url)}" placeholder="https://…" autocomplete="off" spellcheck="false" maxlength="500">
         <small class="ag-t2 ag-block">${esc(t("hcUrlHint"))}</small><span data-hcp="known">${p.known}</span><span data-hcp="err-url">${p["err-url"]}</span></label>
@@ -298,6 +315,8 @@ export class HealthCheckUi {
       if (value !== this.host._root.activeElement && String(value.value) !== String(f.value)) value.value = f.value;
       value.closest(".ag-num")?.classList.toggle("bad", Boolean(this._formProblems().interval));
     }
+    const unit = dlg.querySelector('[data-hc="f-unit"]');
+    if (unit && unit.value !== f.unit) unit.value = f.unit;
     const err = dlg.querySelector(".ag-dlg-err");
     if (err) err.textContent = f.error || "";
   }
@@ -312,7 +331,7 @@ export class HealthCheckUi {
     f.error = "";
     this.renderForm();
     try {
-      const res = await h._hass.callWS({ type: "alarmageddon/healthcheck_save", ...(f.id ? { check_id: f.id } : {}), url: f.url.trim(), fail_suffix: String(f.suffix || "").trim(), interval: this._seconds() });
+      const res = await h._hass.callWS({ type: "alarmageddon/healthcheck_save", ...(f.id ? { check_id: f.id } : {}), name: String(f.name).trim(), url: f.url.trim(), fail_suffix: String(f.suffix || "").trim(), interval: this._seconds() });
       if (h._data) h._data.healthchecks = res.healthchecks;
       this.form = null;
       this.formDlg.close();
@@ -321,7 +340,7 @@ export class HealthCheckUi {
       if (h._tab === "config" && h._sub === "system") h.systemUi.render();
     } catch (err) {
       f.saving = false;
-      const known = { invalid_url: "hcErrUrl", invalid_suffix: "hcErrSuffix", too_many: "hcErrTooMany" }[err?.code];
+      const known = { invalid_name: "hcErrName", invalid_url: "hcErrUrl", invalid_suffix: "hcErrSuffix", too_many: "hcErrTooMany" }[err?.code];
       f.error = known ? this._t(known) : this._t("saveFailed", { message: errText(err) });
       this.renderForm();
     }
@@ -331,7 +350,7 @@ export class HealthCheckUi {
     const h = this.host;
     const item = this.items.find((i) => i.id === id);
     if (!item) return;
-    const ok = await h._confirm(this._t("hcDeleteTitle"), this._t("hcDeleteText", { url: item.url }), this._t("remove"));
+    const ok = await h._confirm(this._t("hcDeleteTitle"), this._t("hcDeleteText", { name: item.name || item.url }), this._t("remove"));
     if (!ok) return;
     try {
       const res = await h._hass.callWS({ type: "alarmageddon/healthcheck_delete", check_id: id });
@@ -386,8 +405,6 @@ export class HealthCheckUi {
         const hours = sec % 3600 === 0;
         this.form.unit = hours ? "h" : "min";
         this.form.value = hours ? sec / 3600 : sec / 60;
-        const unit = this.formDlg?.querySelector('[data-hc="f-unit"]');
-        if (unit) unit.value = this.form.unit;
         const value = this.formDlg?.querySelector('[data-hc="f-value"]');
         if (value) value.value = String(this.form.value);
         this._refreshFormParts();
@@ -423,7 +440,9 @@ export class HealthCheckUi {
     }
     const f = this.form;
     if (!f) return true;
-    if (act === "f-url") {
+    if (act === "f-name") {
+      f.name = el.value;
+    } else if (act === "f-url") {
       f.url = el.value;
       // Vorschlag nur, solange niemand den Zusatz berührt hat: der Nutzer hat das letzte Wort
       const known = suggest(f.url);

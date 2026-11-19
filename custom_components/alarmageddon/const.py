@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 229  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 230  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -213,8 +213,10 @@ DEFAULT_NOTIFY: Final = {
     # Wartung (0.5.0): Batterie schwach unter dieser Schwelle (%), nicht erreichbar ab so vielen Minuten
     "battery_threshold": 20,
     "offline_minutes": 60,
-    # Selbsttest (1.65.0): alle so viele Stunden prüfen (Wunsch des Nutzers: mindestens viermal am Tag, einstellbar)
+    # Selbsttest (1.65.0): alle so viele Stunden prüfen (Wunsch des Nutzers: mindestens viermal am Tag, einstellbar); solange eine Anlage scharf
+    # ist, im eigenen, meist kürzeren Abstand (Wunsch des Nutzers 2026-11-19: zwei Zeiten, gleiche Spanne)
     "selftest_hours": 6,
+    "selftest_hours_armed": 1,
 }
 BATTERY_THRESHOLD_RANGE: Final = (5, 50)
 OFFLINE_MINUTES_RANGE: Final = (5, 1440)
@@ -228,7 +230,8 @@ MAINTENANCE_START_DELAY: Final = 5 * 60
 BATTERY_HYSTERESIS: Final = 5
 # Selbsttest (1.65.0, Wunsch des Nutzers 2026-11-18, selftest.py): prüft, ob alles, was die Anlagen brauchen, noch da ist und funktioniert.
 # Eine Instanz für alle Anlagen. Prüfung nach dem Start (die Geräte verbinden sich erst), nach jedem Speichern (kurz danach, gesammelt), alle
-# "selftest_hours" Stunden (ein Takt schaut alle SELFTEST_TICK Sekunden, ob es Zeit ist) und auf Knopfdruck. Ein Gerät gilt erst als nicht
+# "selftest_hours" Stunden, solange eine Anlage scharf ist alle "selftest_hours_armed" Stunden (ein Takt schaut alle SELFTEST_TICK Sekunden, ob es
+# Zeit ist; nach dem Scharfschalten prüft er also spätestens nach SELFTEST_TICK, wenn die letzte Prüfung länger zurückliegt) und auf Knopfdruck. Ein Gerät gilt erst als nicht
 # erreichbar, wenn es das seit SELFTEST_GRACE Sekunden ist (kein Befund bei einem kurzen Funkabriss).
 SELFTEST_STORE_KEY: Final = f"{DOMAIN}.selftest"
 DATA_SELFTEST: Final = f"{DOMAIN}_selftest"
@@ -252,11 +255,13 @@ HEALTHCHECK_SUFFIX_MAX: Final = 200
 HEALTHCHECK_INTERVAL_RANGE: Final = (60, 86400)
 HEALTHCHECK_DEFAULT_INTERVAL: Final = 300
 HEALTHCHECK_URL_MAX: Final = 500
+HEALTHCHECK_NAME_MAX: Final = 60  # Name des Dienstes (Pflichtfeld, Wunsch des Nutzers 2026-11-19)
 HEALTHCHECK_TIMEOUT: Final = 10
 HEALTHCHECK_MIN_GAP: Final = 60
-# Ein Lebenszeichen im Abstand entfällt, wenn eben (vor weniger als so vielen Sekunden) eines wegen eines Wechsels des Selbsttests hinausging: es
-# zeigt schon den aktuellen Stand (sonst gingen nach dem Speichern zwei fast gleichzeitig hinaus). Tests der Knöpfe zählen nicht.
-HEALTHCHECK_DEDUP: Final = 10
+# Takt der Lebenszeichen (1.66.0, ersetzt den Zeitgeber je Eintrag und HEALTHCHECK_DEDUP): alle so viele Sekunden schauen, welcher Eintrag
+# fällig ist. Fällig heisst: seit dem letzten Lebenszeichen ohne Testknopf ist sein Abstand vergangen. So gehen zwei Lebenszeichen nie fast
+# gleichzeitig hinaus (nach dem Speichern und nach einem Wechsel des Selbsttests), und ein geänderter Abstand gilt ohne neuen Zeitgeber.
+HEALTHCHECK_TICK: Final = 10
 HEALTHCHECK_START_DELAY: Final = 30  # erstes Lebenszeichen nach dem Start
 HEALTHCHECK_STORE_KEY: Final = f"{DOMAIN}.healthcheck"
 DATA_HEALTHCHECK: Final = f"{DOMAIN}_healthcheck"

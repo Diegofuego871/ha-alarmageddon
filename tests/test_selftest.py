@@ -92,6 +92,37 @@ async def test_finds_missing_devices_actions_and_recipients_in_the_alarm_actions
     assert codes(hass) == {("service_missing", "script.gibt_es_nicht"), ("recipient_missing", "notify.weg")}
 
 
+async def test_the_list_of_checked_entries(hass: HomeAssistant, hass_ws_client, hass_storage) -> None:
+    """
+    Wunsch des Nutzers 2026-11-19: im Fenster des Selbsttests die Liste aller geprüften Entitäten (mit Namen), dazu Aktionen und Empfänger; grün,
+    was in Ordnung ist. Auf Abruf (selftest_checked), nicht in `data`; über einen Neustart (Ablage) erhalten.
+    """
+    async_mock_service(hass, "switch", "turn_on")
+    async_mock_service(hass, "notify", "handy")
+    hass.states.async_set(LIGHT, "off", {"friendly_name": "Licht Flur"})
+    await setup_alarm(hass, workflows={"home": [STEP_SIREN, STEP_LIGHT, {"type": "action", "action": "script.gibt_es_nicht"},
+                                                {"type": "notify", "targets": ["notify.weg", "notify.handy"]}]})
+    payload = selftest(hass).async_run()
+    client = await hass_ws_client(hass)
+    result = (await ws(client, type=f"{DOMAIN}/selftest_checked"))["result"]
+    items = {(i["type"], i["id"]): i for i in result["items"]}
+    assert result["last"] == selftest(hass).last and payload["checked"] == len(result["items"])
+    assert items[("entity", WINDOW)]["role"] == "sensor" and items[("entity", WINDOW)]["ok"] is True
+    assert items[("entity", LIGHT)] | {"entries": []} == {"type": "entity", "id": LIGHT, "role": "output", "ok": True, "name": "Licht Flur", "entries": []}
+    assert items[("entity", SIREN)]["ok"] is False, "fehlt: nicht grün"
+    assert items[("service", "script.gibt_es_nicht")]["ok"] is False and items[("service", "light.turn_on")]["ok"] is False
+    assert items[("recipient", "notify.handy")]["ok"] is True and items[("recipient", "notify.weg")]["ok"] is False
+    assert all(i["entries"] for i in result["items"] if i["type"] == "entity")
+    # Über einen Neustart erhalten (Ablage), jeder Eintrag einzeln geprüft
+    await selftest(hass).async_save()
+    stored = hass_storage[SELFTEST_STORE_KEY]["data"]["checked"]
+    assert {(i["type"], i["id"]) for i in stored} == set(items)
+    fresh = st.SelfTest(hass, hass.data[DATA_SETTINGS])
+    hass_storage[SELFTEST_STORE_KEY]["data"]["checked"] = [*stored, {"type": "erfunden", "id": "x", "ok": True}, "kaputt", {"type": "entity", "id": "", "ok": True}]
+    await fresh.async_load()
+    assert len(fresh.checked) == len(stored)
+
+
 async def test_an_unreachable_device_counts_only_after_the_grace_time(hass: HomeAssistant, freezer) -> None:
     """Entscheid des Nutzers: ein Gerät eines Ablaufs, das nicht erreichbar ist, zählt (nicht erst, wenn es fehlt); ein kurzer Abriss nicht."""
     async_mock_service(hass, "switch", "turn_on")
@@ -542,6 +573,34 @@ async def test_the_interval_is_a_setting(hass: HomeAssistant, freezer, hass_ws_c
     assert dt_util.parse_datetime(selftest(hass).last) > first
 
 
+async def test_while_armed_the_armed_interval_applies(hass: HomeAssistant, freezer, hass_ws_client) -> None:
+    """Wunsch des Nutzers 2026-11-19: zwei Abstände, "nicht scharf" und "scharf" (gleiche Spanne 1 bis 24 Stunden, Standard 6 und 1)."""
+    await setup_alarm(hass)
+    assert hass.data[DATA_SETTINGS].notify["selftest_hours_armed"] == 1
+    client = await hass_ws_client(hass)
+    for bad in (0, 25):
+        assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_hours_armed": bad}))["success"] is False
+    assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_hours": 6, "selftest_hours_armed": 2}))["success"]
+    freezer.tick(timedelta(seconds=st.SELFTEST_SOON + 1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    first = dt_util.parse_datetime(selftest(hass).last)
+    payload = selftest(hass).payload()
+    assert (payload["hours"], payload["hours_disarmed"], payload["hours_armed"], payload["armed"]) == (6, 6, 2, False)
+    freezer.tick(timedelta(hours=2, minutes=10))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert dt_util.parse_datetime(selftest(hass).last) == first, "nicht scharf: alle 6 Stunden"
+    await call(hass, "alarm_arm_home")
+    payload = selftest(hass).payload()
+    assert (payload["hours"], payload["armed"]) == (2, True)
+    assert payload["next"] == (first + timedelta(hours=2)).isoformat()
+    freezer.tick(timedelta(seconds=st.SELFTEST_TICK))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert dt_util.parse_datetime(selftest(hass).last) > first, "scharf: die zwei Stunden sind um, beim nächsten Takt"
+
+
 # ----- Ablage -----
 
 
@@ -646,5 +705,8 @@ def test_the_interval_is_part_of_the_settings_and_backups() -> None:
     assert valid_notify({"selftest_hours": 0})["selftest_hours"] == 1
     assert valid_notify({"selftest_hours": 99})["selftest_hours"] == 24
     assert valid_notify({"selftest_hours": True})["selftest_hours"] == 6
+    assert valid_notify({})["selftest_hours_armed"] == 1
+    assert valid_notify({"selftest_hours_armed": 3})["selftest_hours_armed"] == 3
+    assert valid_notify({"selftest_hours_armed": 99})["selftest_hours_armed"] == 24
     assert valid_notify({"types": {"selftest": {"enabled": False}}})["types"]["selftest"]["enabled"] is False
     assert valid_notify({})["types"]["selftest"] == {"enabled": True, "critical": False, "volume": 0.8, "persistent": False, "targets": []}

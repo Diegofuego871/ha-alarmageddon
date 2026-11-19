@@ -74,15 +74,15 @@ Next to the alarm, off by default: rules for what has nothing to do with burglar
 
 ### Self-test
 
-Alarmageddon checks itself every few hours and after every save: are all sirens, speakers, actions and recipients that the alarm systems use still there and reachable, and did a step, a notification or a life sign fail? The status tile shows the result; a window explains every problem with its causes and how to fix it, with a jump to the right place. Each alarm system has a "Self-test" entity, and Home Assistant lists the problems under Repairs. The self-test only reads: it never switches anything and never holds up an alarm.
+Alarmageddon checks itself every few hours (more often while armed) and after every save: are all sirens, speakers, actions and recipients that the alarm systems use still there and reachable, and did a step, a notification or a life sign fail? The status tile shows the result; a window explains every problem with its causes and how to fix it, with a jump to the right place, and lists everything that was checked, green when in order. Each alarm system has a "Self-test" entity, and Home Assistant lists the problems under Repairs. The self-test only reads: it never switches anything and never holds up an alarm.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/selftest-en.png" alt="Self-test window with a missing siren, the explanation, causes and how to fix it" width="100%"></p>
 
 ### HealthCheck
 
-What if Home Assistant itself fails? Nothing inside it can tell you. Under Configuration › Alarm system › HealthCheck, Alarmageddon sends a life sign to up to five services outside, such as Healthchecks.io, Cronitor, Better Stack or Uptime Kuma, every 1 minute to 24 hours. If the life signs stop, the service alerts you. As long as the self-test has problems, Alarmageddon calls the failure URL instead, so you hear about those too. It works with any service that accepts a simple URL call: for well-known services the failure suffix is suggested, you decide. "Send failure" and "Send life sign" try each service; the chapter also holds the self-test and its interval.
+What if Home Assistant itself fails? Nothing inside it can tell you. Under Configuration › Alarm system › HealthCheck, Alarmageddon sends a life sign to up to five services outside, such as Healthchecks.io, Cronitor, Better Stack or Uptime Kuma, every 1 minute to 24 hours. If the life signs stop, the service alerts you. As long as the self-test has problems, Alarmageddon calls the failure URL instead, so you hear about those too. It works with any service that accepts a simple URL call: for well-known services the failure suffix is suggested, you decide. "Send failure" and "Send life sign" try each service; the chapter also holds the self-test and its two intervals (not armed, armed).
 
-<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/healthcheck-list-en.png" alt="The window HealthCheck services: three services with URL, last life sign, interval, status and the buttons to test, edit and remove" width="100%"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/healthcheck-list-en.png" alt="The window HealthCheck services: three services with name, shortened URL, last life sign, interval, status and round buttons to test, edit and remove" width="100%"></p>
 
 ### Dashboard cards
 
@@ -101,7 +101,7 @@ An alarm system has to work when something else does not. This is built in and c
 - **Failures:** a sensor that stops answering while armed is reported, or counts as an alarm if you like.
 - **Self-test:** checks regularly whether everything the alarm uses is there and reachable, and records what failed; it only reads and never holds up an alarm.
 - **HealthCheck:** life signs to a service outside report a silent Home Assistant. The ping URL appears in full only in the panel and in backups, never in the log or a notification; a life sign waits at most 10 seconds.
-- **Tested:** more than 1,500 automated tests against a real Home Assistant (in two versions), about 7,300 checks of the interface, and a mutation check that removes each of 362 safeguards and requires a test to fail.
+- **Tested:** more than 1,500 automated tests against a real Home Assistant (in two versions), about 7,400 checks of the interface, and a mutation check that removes each of 368 safeguards and requires a test to fail.
 
 ### Limits
 

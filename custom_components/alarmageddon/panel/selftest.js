@@ -3,7 +3,10 @@
 // wie möglich), dazu "Öffnen" (springt an die Stelle) und bei Befunden der Laufzeit "Erledigt". "Jetzt prüfen" prüft sofort.
 // Die Befunde kommen vom Server (selftest.py) nur als Kennungen und Namen; die Texte stehen hier (strings.js), wie überall im Panel.
 const V = new URL(import.meta.url).search;
-const { ic, esc, errText, MODE_KEY } = await import(`./common.js${V}`);
+const { ic, esc, errText, MODE_KEY, matchQuery, searchField } = await import(`./common.js${V}`);
+
+// Liste "Geprüft" (Wunsch des Nutzers 2026-11-19): Gruppen in dieser Reihenfolge; Entitäten nach ihrer Rolle, dazu Aktionen und Empfänger
+const CHECKED_GROUPS = [["entity", "sensor"], ["entity", "watch"], ["entity", "output"], ["entity", "player"], ["entity", "trigger"], ["service", ""], ["recipient", ""]];
 
 // Befunde, die einen Alarm verhindern oder stumm machen können: rot statt gelb
 const RED_CODES = new Set(["system_not_loaded", "start_failed", "no_recipients", "no_url"]);
@@ -13,6 +16,8 @@ export class SelfTestUi {
     this.host = host;
     this.opened = new Set(); // aufgeklappte Befunde (Schlüssel)
     this.busy = false;
+    this.checked = null; // Liste "Geprüft" der letzten Prüfung (vom Server auf Abruf)
+    this.checkedQ = "";
   }
 
   _t(key, vars) {
@@ -25,6 +30,10 @@ export class SelfTestUi {
 
   get dlg() {
     return this.host._root.getElementById("ag-selftest");
+  }
+
+  get checkedDlg() {
+    return this.host._root.getElementById("ag-stchecked");
   }
 
   problems() {
@@ -63,12 +72,16 @@ export class SelfTestUi {
     const d = this.data;
     const list = this.problems();
     const meta = !d?.last ? this._t("stNever")
-      : [this._t("stLast", { time: this._when(d.last) }), d.next ? this._t("stNext", { time: this._when(d.next) }) : "", this._every(d.hours)].filter(Boolean).join(" · ");
-    const body = list.length ? this._groups(list) : `<div class="ag-card ag-st-ok"><span class="ag-mini ok">${ic("check", 18)}</span><div><b>${esc(this._t("stOkTitle"))}</b><small class="ag-t2 ag-block">${esc(this._t("stOkText"))}</small></div></div>`;
-    const about = `<details class="ag-st-about"><summary>${ic("info", 16)}<span>${esc(this._t("stAbout"))}</span></summary>${this._lines(this._t("stAboutText"))}<p class="ag-t2 ag-small">${esc(this._t("stWhen", { every: this._every(d?.hours || 6) }))}</p></details>`;
+      : [this._t("stLast", { time: this._when(d.last) }), d.next ? this._t("stNext", { time: this._when(d.next) }) : "", `${this._every(d.hours)}${d.armed ? ` (${this._t("stArmedNow")})` : ""}`].filter(Boolean).join(" · ");
+    // Runder Pfeil zur Liste "Geprüft" (Wunsch des Nutzers 2026-11-19): ohne Befunde in der Karte "Keine Probleme", mit Befunden als eigene Karte
+    const go = d?.last ? `<button type="button" class="ag-cbtn ag-st-checkedgo" data-st="checked-open" aria-label="${esc(this._t("stCheckedOpen"))}" title="${esc(this._t("stCheckedOpen"))}">${ic("chevRight", 16)}</button>` : "";
+    const okCard = `<div class="ag-card ag-st-ok"><span class="ag-mini ok">${ic("check", 18)}</span><div class="ag-grow"><b>${esc(this._t("stOkTitle"))}</b><small class="ag-t2 ag-block">${esc(this._t("stOkText"))}</small>${d?.checked ? `<small class="ag-t2 ag-block">${esc(this._t("stCheckedRow", { count: d.checked }))}</small>` : ""}</div>${go}</div>`;
+    const checkedCard = d?.last ? `<div class="ag-card ag-st-ok ag-st-checkedrow"><span class="ag-mini">${ic("check", 18)}</span><div class="ag-grow"><b>${esc(this._t("stCheckedRow", { count: d.checked || 0 }))}</b><small class="ag-t2 ag-block">${esc(this._t("stCheckedHint"))}</small></div>${go}</div>` : "";
+    const body = list.length ? `${this._groups(list)}${checkedCard}` : okCard;
+    const about = `<details class="ag-st-about"><summary>${ic("info", 16)}<span>${esc(this._t("stAbout"))}</span></summary>${this._lines(this._t("stAboutText"))}<p class="ag-t2 ag-small">${esc(this._t("stWhen", { every: this._every(d?.hours_disarmed || d?.hours || 6), armed: this._every(d?.hours_armed || 1) }))}</p></details>`;
     this.host._setHtml(dlg, `<div class="ag-dlg-body ag-st-pop"><div class="ag-pop-head"><h3>${ic("stethoscope", 20)}<span>${esc(this._t("stTitle"))}</span></h3><div class="ag-t2 ag-small ag-st-meta">${esc(meta)}</div></div>
       <div class="ag-st-list">${body}${about}</div>
-      <div class="ag-dlg-btns"><button class="ag-btn" data-st="run" ${this.busy ? "disabled" : ""}>${ic("refresh", 18)}${esc(this._t("stRun"))}</button><span class="ag-grow"></span><button class="ag-btn primary" data-st="close">${esc(this._t("close"))}</button></div></div>`);
+      <div class="ag-dlg-btns"><button class="ag-btn" data-st="close">${esc(this._t("close"))}</button><button class="ag-btn primary" data-st="run" ${this.busy ? "disabled" : ""}>${ic("refresh", 18)}${esc(this._t("stRun"))}</button></div></div>`);
   }
 
   _every(hours) {
@@ -188,7 +201,7 @@ export class SelfTestUi {
     else if (place.area === "notify") {
       const what = place.group ? this._t(place.group === "alarm" ? "stP_alarmGroup" : "stP_maintGroup") : this._t(`ntT_${place.type}`);
       parts = [this._t("stP_notify"), what, place.mode ? this._t(MODE_KEY[place.mode] || "modeAway") : ""];
-    } else if (place.area === "healthcheck") parts = [this._t("stP_healthcheck"), p.service || ""];
+    } else if (place.area === "healthcheck") parts = [this._t("stP_healthcheck"), p.name || p.service || ""];
     else if (place.area === "run") parts = [system, this._t("stP_actions"), place.trigger ? this._trigger(place.trigger) : "", this._t(`stL_${place.list}`), place.test ? this._t("stP_test") : ""];
     else parts = [system];
     return parts.filter(Boolean).join(" › ");
@@ -211,6 +224,80 @@ export class SelfTestUi {
     this.dlg?.close();
     if (target.kind === "monitor") return h.openMonitorRule(target.entry, target.id);
     h.openPlace(target.kind, target.entry, target.trigger);
+  }
+
+  // ----- Liste "Geprüft" (Wunsch des Nutzers 2026-11-19): alles, was die letzte Prüfung angeschaut hat, grün, was in Ordnung ist -----
+
+  async openChecked() {
+    const dlg = this.checkedDlg;
+    this.checkedQ = "";
+    this.checked = null;
+    this.renderChecked(true);
+    if (!dlg.open) dlg.showModal();
+    try {
+      this.checked = await this.host._hass.callWS({ type: "alarmageddon/selftest_checked" });
+    } catch (err) {
+      this.checked = { last: null, items: [], error: errText(err) };
+    }
+    this.renderChecked(true);
+  }
+
+  _checkedRows() {
+    const t = (k, v) => this._t(k, v);
+    const c = this.checked;
+    if (!c) return `<div class="ag-card ag-popempty"><span class="ag-t2">…</span></div>`;
+    if (c.error) return `<div class="ag-card ag-popempty"><span class="ag-err">${esc(t("errGeneric", { message: c.error }))}</span></div>`;
+    if (!c.items.length) return `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(t("stCheckedEmpty"))}</span></div>`;
+    const several = this.host._systems().length > 1;
+    const systems = (i) => (several ? i.entries.map((e) => this.host._system(e)?.title).filter(Boolean).join(", ") : "");
+    const shown = c.items.filter((i) => matchQuery(this.checkedQ, i.name, i.id, systems(i), t(`stG_${i.type === "entity" ? i.role || "output" : i.type}`)));
+    if (!shown.length) return `<div class="ag-card ag-popempty"><span class="ag-t2">${esc(t("stCheckedNoMatch"))}</span></div>`;
+    const collator = new Intl.Collator(this.host._lang || "en", { numeric: true, sensitivity: "base" });
+    return CHECKED_GROUPS.map(([type, role]) => {
+      const items = shown.filter((i) => i.type === type && (type !== "entity" || (i.role || "output") === (role || "output"))).sort((a, b) => collator.compare(a.name, b.name));
+      if (!items.length) return "";
+      const rows = items.map((i) => {
+        const sys = systems(i);
+        const sub = [i.type === "entity" || i.name !== i.id ? i.id : "", sys].filter(Boolean).join(" · ");
+        return `<div class="ag-st-chk ${i.ok ? "ok" : "bad"}" data-chk="${esc(`${i.type}|${i.id}`)}"><span class="ag-mini ${i.ok ? "ok" : "err"}" title="${esc(t(i.ok ? "stCheckedOk" : "stCheckedBad"))}" aria-label="${esc(t(i.ok ? "stCheckedOk" : "stCheckedBad"))}">${ic(i.ok ? "check" : "alert", 16)}</span>
+          <div class="ag-grow"><b>${esc(i.name)}</b>${sub ? `<small class="ag-t2 ag-block">${esc(sub)}</small>` : ""}</div></div>`;
+      }).join("");
+      const label = t(`stG_${type === "entity" ? role : type}`);
+      return `<div class="ag-st-group">${esc(label)} <span class="ag-t2">${items.length}</span></div><div class="ag-card ag-st-chklist">${rows}</div>`;
+    }).join("");
+  }
+
+  renderChecked(force = false) {
+    const dlg = this.checkedDlg;
+    if (!dlg || (!dlg.open && !force)) return;
+    const body = dlg.querySelector(".ag-st-chkbody");
+    if (body && !force) {
+      this.host._setHtml(body, this._checkedRows());
+      return;
+    }
+    const c = this.checked;
+    const meta = c?.last ? this._t("stCheckedMeta", { time: this._when(c.last), count: c.items.length }) : "";
+    const okCount = c?.items?.filter((i) => i.ok).length ?? 0;
+    const sum = c?.items?.length ? `<div class="ag-t2 ag-small">${esc(this._t("stCheckedSum", { ok: okCount, count: c.items.length }))}</div>` : "";
+    this.host._setHtml(dlg, `<div class="ag-dlg-body ag-st-chkpop"><div class="ag-pop-head"><h3>${esc(this._t("stCheckedTitle"))}</h3>
+      ${meta ? `<div class="ag-t2 ag-small">${esc(meta)}</div>` : ""}
+      <div class="ag-tools ag-pop-tools" ${c?.items?.length ? "" : "hidden"}>${searchField("data-st", "checked-search", this.checkedQ, this._t("stCheckedSearch"), this._t("clearSearch"))}</div></div>
+      <div class="ag-st-chkbody">${sum}${this._checkedRows()}</div>
+      <div class="ag-dlg-btns"><button class="ag-btn" data-st="checked-close">${esc(this._t("close"))}</button></div></div>`);
+  }
+
+  onInput(el) {
+    if (el?.dataset?.st !== "checked-search") return false;
+    this.checkedQ = el.value;
+    const clear = this.checkedDlg?.querySelector('[data-st="checked-search-clear"]');
+    if (clear) clear.hidden = !this.checkedQ;
+    const body = this.checkedDlg?.querySelector(".ag-st-chkbody");
+    if (body) {
+      const okCount = this.checked?.items?.filter((i) => i.ok).length ?? 0;
+      const sum = this.checked?.items?.length ? `<div class="ag-t2 ag-small">${esc(this._t("stCheckedSum", { ok: okCount, count: this.checked.items.length }))}</div>` : "";
+      this.host._setHtml(body, `${sum}${this._checkedRows()}`);
+    }
+    return true;
   }
 
   // ----- Server -----
@@ -251,6 +338,17 @@ export class SelfTestUi {
     if (!act) return false;
     if (act === "open") this.open();
     else if (act === "close") this.dlg?.close();
+    else if (act === "checked-open") this.openChecked();
+    else if (act === "checked-close") this.checkedDlg?.close();
+    else if (act === "checked-search") return true;
+    else if (act === "checked-search-clear") {
+      const input = el.closest(".list-search")?.querySelector("input");
+      if (input) {
+        input.value = "";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+      }
+    }
     else if (act === "run") this.run();
     else if (act === "toggle") {
       const key = el.dataset.key;

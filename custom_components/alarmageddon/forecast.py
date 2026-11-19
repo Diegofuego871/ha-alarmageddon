@@ -1,25 +1,14 @@
 """
 Batterieprognose (0.5.0): Wann fällt die Batterie unter die Schwelle?
 
-Aus dem Verlauf (Recorder) der letzten 90 Tage, ab dem letzten
-Batteriewechsel (Sprung nach oben), lineare Regression. Ohne genug Daten
-(weniger als 3 Tage, kein Abfall) keine Prognose: lieber nichts als eine
-erfundene Zahl.
+Ab dem letzten Batteriewechsel (Sprung nach oben), lineare Regression. Ohne genug Daten (weniger als 3 Tage, kein Abfall) keine
+Prognose: lieber nichts als eine erfundene Zahl. Die Punkte liefert `sensor_history` (Langzeitstatistik von Home Assistant, sonst der
+Verlauf), für die Sensoransicht und seit 1.66.0 auch für die Tabelle (`async_battery_forecasts`, ein Jahr). Bis 1.65.0 las die Tabelle hier
+nur den Verlauf der letzten 90 Tage, den der Recorder meist nur 10 Tage aufbewahrt.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from functools import partial
-import logging
-from typing import Any
-
-from homeassistant.core import HomeAssistant
-from homeassistant.util import dt as dt_util
-
-_LOGGER = logging.getLogger(__name__)
-
-HISTORY_DAYS = 90
 MIN_SPAN_DAYS = 3
 REPLACED_JUMP = 10  # Prozentpunkte nach oben gelten als Batteriewechsel
 MAX_DAYS = 3650
@@ -53,41 +42,3 @@ def forecast_days(points: list[tuple[float, float]], threshold: float) -> float 
         return None
     days = (current - threshold) / -slope / 86400
     return round(min(days, MAX_DAYS), 1)
-
-
-def _value(item: Any) -> tuple[float, float] | None:
-    """State oder kompaktes dict aus dem Recorder -> (Zeit, Prozent)."""
-    if isinstance(item, dict):
-        raw, when = item.get("state"), item.get("last_changed")
-        when = dt_util.parse_datetime(when) if isinstance(when, str) else when
-    else:
-        raw, when = item.state, item.last_changed
-    try:
-        value = float(raw)
-    except (TypeError, ValueError):
-        return None
-    if not isinstance(when, datetime) or not 0 <= value <= 100:
-        return None
-    return when.timestamp(), value
-
-
-async def async_forecasts(hass: HomeAssistant, batteries: list[str], threshold: float) -> dict[str, float | None]:
-    """Prognose je Batteriesensor; ohne Recorder ein leeres Ergebnis."""
-    if not batteries or "recorder" not in hass.config.components:
-        return {}
-    from homeassistant.components.recorder import get_instance, history  # noqa: PLC0415 - nur mit Recorder
-
-    start = dt_util.utcnow() - timedelta(days=HISTORY_DAYS)
-    try:
-        states = await get_instance(hass).async_add_executor_job(
-            partial(history.get_significant_states, hass, start, None, batteries,
-                    significant_changes_only=False, minimal_response=True, no_attributes=True)
-        )
-    except Exception:  # noqa: BLE001 - eine Prognose darf das Panel nie stören
-        _LOGGER.exception("Battery history could not be read")
-        return {}
-    out: dict[str, float | None] = {}
-    for entity_id in batteries:
-        points = sorted(p for item in states.get(entity_id, []) if (p := _value(item)))
-        out[entity_id] = forecast_days(points, threshold)
-    return out

@@ -90,7 +90,8 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "delete_sound": {"sound_id": "custom_000000000000"},
     "selftest_run": {},
     "selftest_dismiss": {"key": "*|backup_failed|auto"},
-    "healthcheck_save": {"url": "https://hc-ping.com/x", "fail_suffix": "/fail", "interval": 300},
+    "selftest_checked": {},
+    "healthcheck_save": {"name": "Test", "url": "https://hc-ping.com/x", "fail_suffix": "/fail", "interval": 300},
     "healthcheck_delete": {"check_id": "x"},
     "healthcheck_ping": {"check_id": "x", "kind": "ok"},
 }
@@ -236,10 +237,12 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
     answers["backup"] = (await ws(client, type=f"{DOMAIN}/backup_get", backup_id=created["created"]["id"]))["result"]
     # Selbsttest (1.65.0): Antwort, Entitäten (Attribute) und Ablage
     answers["selftest_run"] = (await ws(client, type=f"{DOMAIN}/selftest_run"))["result"]
+    answers["selftest_checked"] = (await ws(client, type=f"{DOMAIN}/selftest_checked"))["result"]
+    assert answers["selftest_checked"]["items"], "die Liste des Geprüften muss geprüft werden"
     # HealthCheck (1.65.0): Antworten, Export und Ablage (die Ping-URL zeigt das Panel ganz, Entscheid des Nutzers; ein Code nie)
     ping = "https://hc-ping.com/00000000-1111-2222-3333-444444444444"
     aioclient_mock.get(ping, status=200)
-    saved = await ws(client, type=f"{DOMAIN}/healthcheck_save", url=ping, fail_suffix="/fail", interval=300)
+    saved = await ws(client, type=f"{DOMAIN}/healthcheck_save", name="Haus", url=ping, fail_suffix="/fail", interval=300)
     answers["healthcheck_save"] = saved["result"]
     answers["healthcheck_ping"] = (await ws(client, type=f"{DOMAIN}/healthcheck_ping", check_id=saved["result"]["id"], kind="ok"))["result"]
     answers["export_healthcheck"] = (await ws(client, type=f"{DOMAIN}/export"))["result"]

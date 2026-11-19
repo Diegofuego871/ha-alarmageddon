@@ -7,6 +7,27 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.66.0] - 2026-11-19
+
+### Added
+
+- **Self-test: shorter interval while armed.** Besides the interval for "not armed" (default every 6 hours), the self-test has a second one that applies as long as an alarm system is not disarmed (exit delay, armed, entry delay, alarm): default every hour. Both can be set from 1 to 24 hours under Configuration › Alarm system › HealthCheck. The window of the self-test names the interval that applies. If the self-test finds a problem, the HealthCheck services get the failure call at once, so they keep one interval.
+- **Self-test: list of everything checked.** A round arrow in the self-test window (in "No problems found", or below the problems) opens a list of everything the last check looked at: every entity with its name (sensors of the alarm systems and of the monitoring, devices in the actions, speakers, devices that trigger routines), every action and every recipient, grouped, green when in order, with search. "Close" closes only the list.
+- **Backup: "What is in a backup?"** An info row above the backup card opens a list of what a backup contains and what it does not: codes, the log (alarms, events, alarm recordings), sensor history, states and results are not included; the backup of Home Assistant itself saves everything.
+- **HealthCheck: a name for every service.** Each service now has a name (required, up to 60 characters), shown first in the list with the URL shortened below it (in full in the tooltip and the form). Services from 1.65.0 are named after the host of their URL until you change the name.
+
+### Changed
+
+- **HealthCheck list:** round buttons as in routines and sounds; on the phone they get a row of their own below the entry. "Close" stands next to "Add service" on the right, as in all windows with a list. The list is sorted by name.
+- **Self-test window:** "Close" and "Check now" stand next to each other on the right, as in all windows.
+- **Chapters under Configuration › Alarm system:** the icons of Routines, Codes per person, Your own sounds, the HealthCheck services and Backup each have their own light colour, so the chapters stand apart. Only the icon changes; an empty chapter stays grey, and the self-test keeps its colour by result.
+- **Notification of a failed life sign:** names the service by its name and host (never the URL).
+- **Timing of the life signs:** a life sign goes out at most 10 seconds after its interval has passed. A life sign postponed after a change of the self-test is dropped when the regular one goes out first, so there are never two calls in a row.
+
+### Fixed
+
+- **Battery forecast in the sensor list.** Some sensors showed "–" in the column "Forecast" although the sensor view showed a forecast (for example "~16 months" with "1 year"). Two causes: the forecast only covered the sensors of the zones and "always active", so measured values of the monitoring and sensors only in the list never got one; and it only used the history of the recorder, which Home Assistant keeps for 10 days by default, so a battery that had not changed for weeks or rose slightly at the end got no forecast. The list now covers all its sensors and calculates like the sensor view with "1 year", from the long-term statistics since the last battery change.
+
 ## [1.65.0] - 2026-11-18
 
 Includes the changes from 1.64.0.
@@ -1929,6 +1950,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.66.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.0
 [1.65.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.65.0
 [1.63.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.63.0
 [1.62.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.62.0

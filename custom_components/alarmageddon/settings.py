@@ -28,6 +28,7 @@ from .const import (
     SELFTEST_HOURS_RANGE,
     HEALTHCHECK_DEFAULT_INTERVAL,
     HEALTHCHECK_INTERVAL_RANGE,
+    HEALTHCHECK_NAME_MAX,
     HEALTHCHECK_SUFFIX_MAX,
     HEALTHCHECK_URL_MAX,
     MAX_HEALTHCHECKS,
@@ -89,7 +90,8 @@ def valid_notify(value: Any) -> dict[str, Any]:
     for key in ("disarm_action", "open_action", "silence_action", "acknowledge_action", "arm_retry_action", "arm_force_action"):
         if isinstance(value.get(key), bool):
             out[key] = value[key]
-    for key, (low, high) in (("battery_threshold", BATTERY_THRESHOLD_RANGE), ("offline_minutes", OFFLINE_MINUTES_RANGE), ("selftest_hours", SELFTEST_HOURS_RANGE)):
+    for key, (low, high) in (("battery_threshold", BATTERY_THRESHOLD_RANGE), ("offline_minutes", OFFLINE_MINUTES_RANGE), ("selftest_hours", SELFTEST_HOURS_RANGE),
+                              ("selftest_hours_armed", SELFTEST_HOURS_RANGE)):
         if isinstance(value.get(key), (int, float)) and not isinstance(value.get(key), bool):
             out[key] = max(low, min(high, int(value[key])))
     # Alte Form zuerst, die neue überschreibt sie
@@ -200,10 +202,20 @@ def valid_fail_suffix(url: str, value: Any) -> str | None:
     return suffix if full is not None and valid_healthcheck_url(full) is not None else None
 
 
+def valid_healthcheck_name(value: Any) -> str | None:
+    """Name eines Dienstes (Pflichtfeld): ohne Leerzeichen am Rand, ohne Steuerzeichen, 1 bis HEALTHCHECK_NAME_MAX Zeichen; sonst None."""
+    if not isinstance(value, str):
+        return None
+    name = " ".join(value.split())
+    return name if 0 < len(name) <= HEALTHCHECK_NAME_MAX and name.isprintable() else None
+
+
 def valid_healthchecks(value: Any) -> list[dict[str, Any]]:
     """
     Lebenszeichen an externe Dienste (1.65.0): höchstens MAX_HEALTHCHECKS, jeder Eintrag einzeln geprüft (ein beschädigter fällt weg, nie die Liste).
-    {"id", "url", "fail_suffix" (leer erlaubt), "interval" (Sekunden)}. Ein ungültiger Zusatz wird leer (der Eintrag sendet dann nur das Lebenszeichen).
+    {"id", "name", "url", "fail_suffix" (leer erlaubt), "interval" (Sekunden)}. Ein ungültiger Zusatz wird leer (der Eintrag sendet dann nur das
+    Lebenszeichen). Der Name ist seit 1.66.0 Pflicht; ein Eintrag ohne gültigen Namen (aus 1.65.0, auch aus einem Backup) heisst wie der Rechner
+    seiner URL.
     """
     out: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -218,7 +230,8 @@ def valid_healthchecks(value: Any) -> list[dict[str, Any]]:
             interval = HEALTHCHECK_DEFAULT_INTERVAL
         interval = max(HEALTHCHECK_INTERVAL_RANGE[0], min(HEALTHCHECK_INTERVAL_RANGE[1], interval))
         seen.add(hid)
-        out.append({"id": hid, "url": url, "fail_suffix": valid_fail_suffix(url, item.get("fail_suffix")) or "", "interval": interval})
+        name = valid_healthcheck_name(item.get("name")) or (urlsplit(url).hostname or "?")[:HEALTHCHECK_NAME_MAX]
+        out.append({"id": hid, "name": name, "url": url, "fail_suffix": valid_fail_suffix(url, item.get("fail_suffix")) or "", "interval": interval})
     return out
 
 

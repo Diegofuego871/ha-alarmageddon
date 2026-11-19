@@ -3,7 +3,9 @@ HealthCheck (1.65.0, Wunsch und Entscheide des Nutzers 2026-11-18): Lebenszeiche
 Better Stack. Fällt Home Assistant, das Internet oder der Strom aus, bleibt das Lebenszeichen aus, und der Dienst alarmiert; das kann
 Alarmageddon selbst nicht melden.
 
-- Bis zu MAX_HEALTHCHECKS Einträge, für alle Anlagen (wie Backup und eigene Töne), je mit eigenem Abstand (1 Minute bis 24 Stunden).
+- Bis zu MAX_HEALTHCHECKS Einträge, für alle Anlagen (wie Backup und eigene Töne), je mit Namen (seit 1.66.0 Pflicht) und einem Abstand
+  (1 Minute bis 24 Stunden). Kein eigener Abstand bei scharfer Anlage (Entscheid des Nutzers 2026-11-19): der Selbsttest prüft dann öfter, und
+  sein Wechsel auf "Probleme" geht ohnehin sofort hinaus.
 - Inhalt (Entscheid des Nutzers: "Lebenszeichen + Fehler"): im Abstand die URL des Eintrags ("in Ordnung"); hat der Selbsttest Probleme, statt
   dessen die URL mit dem Fehler-Zusatz des Eintrags (generisch, Entscheid des Nutzers 21:54: "/fail" für Healthchecks.io und Better Stack,
   "?state=fail" für Cronitor; ohne Zusatz nur das Lebenszeichen). Das Panel schlägt den Zusatz für bekannte Dienste vor, der Nutzer entscheidet.
@@ -37,10 +39,10 @@ from homeassistant.util import dt as dt_util
 from .const import (
     DATA_HEALTHCHECK,
     DATA_SELFTEST,
-    HEALTHCHECK_DEDUP,
     HEALTHCHECK_MIN_GAP,
     HEALTHCHECK_START_DELAY,
     HEALTHCHECK_STORE_KEY,
+    HEALTHCHECK_TICK,
     HEALTHCHECK_TIMEOUT,
     SIGNAL_SELFTEST,
 )
@@ -86,9 +88,9 @@ class HealthCheck:
         self._settings = settings
         self._store = Store(hass, 1, HEALTHCHECK_STORE_KEY)
         self.status: dict[str, dict[str, Any]] = {}  # je Eintrag das letzte Lebenszeichen: Zeit, "ok"/"fail" gesendet, Ergebnis, HTTP-Status
-        self._config: dict[str, dict[str, Any]] = {}  # Stand der Einträge, nach dem die Zeitgeber laufen
-        self._timers: dict[str, list[CALLBACK_TYPE]] = {}
+        self._config: dict[str, dict[str, Any]] = {}  # Stand der Einträge beim letzten Abgleich (geänderte senden sofort neu)
         self._later: dict[str, CALLBACK_TYPE] = {}
+        self._hold_until = 0.0  # nach dem Start erst nach HEALTHCHECK_START_DELAY
         self._last_try: dict[str, float] = {}
         self._last_auto: dict[str, float] = {}  # letztes Lebenszeichen ohne Testknopf
         self._failing: bool | None = None
@@ -107,14 +109,16 @@ class HealthCheck:
             return
         self.started = True
         self._failing = self.failing()
+        self._hold_until = dt_util.utcnow().timestamp() + HEALTHCHECK_START_DELAY
         self._unsubs.append(async_dispatcher_connect(self.hass, SIGNAL_SELFTEST, self._on_selftest))
+        self._unsubs.append(async_track_time_interval(self.hass, self._tick, timedelta(seconds=HEALTHCHECK_TICK)))
+        self._unsubs.append(async_call_later(self.hass, HEALTHCHECK_START_DELAY, self._tick))
         self.async_reconfigure(first=True)
 
     async def async_stop(self) -> None:
-        for unsub in [*self._unsubs, *(u for timers in self._timers.values() for u in timers), *self._later.values()]:
+        for unsub in [*self._unsubs, *self._later.values()]:
             unsub()
         self._unsubs.clear()
-        self._timers.clear()
         self._later.clear()
         self._config.clear()
         self.started = False
@@ -145,34 +149,35 @@ class HealthCheck:
 
     @callback
     def async_reconfigure(self, first: bool = False) -> None:
-        """Zeitgeber nach den gespeicherten Einträgen; neue und geänderte senden sofort (nach dem Start nach HEALTHCHECK_START_DELAY)."""
+        """Nach dem Speichern: neue und geänderte Einträge sind sofort fällig, entfernte vergessen (samt ihrem Befund)."""
         current = {i["id"]: i for i in self.items()}
         for hid in [h for h in self._config if h not in current or self._config[h] != current[h]]:
-            for unsub in self._timers.pop(hid, []):
-                unsub()
             if (later := self._later.pop(hid, None)) is not None:
                 later()
             self._config.pop(hid, None)
+            self._last_auto.pop(hid, None)  # geändert: gleich mit den neuen Werten
             if hid not in current:
                 self.status.pop(hid, None)
                 self._last_try.pop(hid, None)
-                self._last_auto.pop(hid, None)
                 async_resolve(self.hass, None, "ping_failed", hid)
-        for hid, item in current.items():
-            if hid in self._config:
-                continue
-            self._config[hid] = dict(item)
-            self._timers[hid] = [
-                async_track_time_interval(self.hass, partial(self._tick, hid), timedelta(seconds=item["interval"])),
-                async_call_later(self.hass, HEALTHCHECK_START_DELAY if first else 1, partial(self._tick, hid)),
-            ]
+        fresh = [hid for hid in current if hid not in self._config]
+        for hid in fresh:
+            self._config[hid] = dict(current[hid])
         self._save()
+        # Neue und geänderte senden gleich (nach dem Start erst nach HEALTHCHECK_START_DELAY, über den Takt)
+        if not first:
+            for hid in fresh:
+                self.async_ping(hid)
 
     @callback
-    def _tick(self, hid: str, _now: Any = None) -> None:
-        if dt_util.utcnow().timestamp() - self._last_auto.get(hid, 0.0) < HEALTHCHECK_DEDUP:
+    def _tick(self, _now: Any = None) -> None:
+        """Jeder Eintrag, dessen Abstand seit dem letzten Lebenszeichen (ohne Testknopf) vergangen ist, sendet jetzt."""
+        now = dt_util.utcnow().timestamp()
+        if not self.started or now < self._hold_until:
             return
-        self.async_ping(hid)
+        for item in self.items():
+            if now - self._last_auto.get(item["id"], 0.0) >= int(item["interval"]):
+                self.async_ping(item["id"])
 
     @callback
     def _on_selftest(self) -> None:
@@ -204,6 +209,9 @@ class HealthCheck:
                 self._later[hid] = async_call_later(self.hass, wait, partial(self._ping_later, hid))
                 return None
         self._last_try[hid] = self._last_auto[hid] = dt_util.utcnow().timestamp()
+        # Ein aufgeschobenes Lebenszeichen (Wechsel des Selbsttests) entfällt: dieses zeigt schon den aktuellen Stand
+        if (later := self._later.pop(hid, None)) is not None:
+            later()
         return self.hass.async_create_background_task(self._send(item), f"alarmageddon health check {hid}")
 
     @callback
@@ -235,9 +243,9 @@ class HealthCheck:
                 async_resolve(self.hass, None, "ping_failed", hid)
             else:
                 host = host_of(item["url"])
-                _LOGGER.warning("Health check to %s failed: %s", host, f"HTTP {code}" if code is not None else result)
+                _LOGGER.warning("Health check %s to %s failed: %s", item.get("name", ""), host, f"HTTP {code}" if code is not None else result)
                 async_note(self.hass, None, "ping_failed", hid, place={"area": "healthcheck", "id": hid}, service=host, reason=result,
-                           label=str(code) if code is not None else "")
+                           label=str(code) if code is not None else "", name=str(item.get("name") or host))
             self._save()
         return status
 

@@ -33,7 +33,8 @@ from custom_components.alarmageddon.const import (
 from custom_components.alarmageddon.healthcheck import fail_url, host_of
 from custom_components.alarmageddon.settings import valid_fail_suffix, valid_healthchecks
 
-from .conftest import setup_alarm
+from .conftest import ALARM, setup_alarm
+from .test_alarm import call
 
 # Erfundene Kennungen (nie eine echte URL eines Nutzers in Tests)
 HC = "https://hc-ping.com/00000000-1111-2222-3333-444444444444"
@@ -54,7 +55,7 @@ async def advance(hass: HomeAssistant, freezer, seconds: float) -> None:
 
 
 async def add(client, **values: Any) -> dict[str, Any]:
-    return await ws(client, type=f"{DOMAIN}/healthcheck_save", **{"url": HC, "fail_suffix": "/fail", "interval": 300, **values})
+    return await ws(client, type=f"{DOMAIN}/healthcheck_save", **{"name": "Haus", "url": HC, "fail_suffix": "/fail", "interval": 300, **values})
 
 
 def calls(aioclient_mock: AiohttpClientMocker) -> list[str]:
@@ -78,10 +79,16 @@ def test_values_are_checked_one_by_one() -> None:
         {"id": "lang", "url": "http://192.168.1.5:8000/ping/x", "interval": 999999, "fail_suffix": "fail"},
         "kein Wörterbuch",
     ])
+    # Ohne Namen (Einträge aus 1.65.0) heisst ein Eintrag wie sein Rechner
     assert out == [
-        {"id": "ok", "url": BS, "fail_suffix": "/fail", "interval": 60},
-        {"id": "lang", "url": "http://192.168.1.5:8000/ping/x", "fail_suffix": "", "interval": 86400},
+        {"id": "ok", "name": "uptime.betterstack.com", "url": BS, "fail_suffix": "/fail", "interval": 60},
+        {"id": "lang", "name": "192.168.1.5", "url": "http://192.168.1.5:8000/ping/x", "fail_suffix": "", "interval": 86400},
     ]
+    # Unbekannte Felder (etwa ein zweites Intervall) fallen weg
+    named = valid_healthchecks([{"id": "a", "name": "  Haus \n  Büro ", "url": HC, "interval": 3600, "interval_armed": 30},
+                                {"id": "b", "name": "x" * 61, "url": HC, "interval": 3600}])
+    assert named == [{"id": "a", "name": "Haus Büro", "url": HC, "fail_suffix": "", "interval": 3600},
+                     {"id": "b", "name": "hc-ping.com", "url": HC, "fail_suffix": "", "interval": 3600}]
 
 
 @pytest.mark.parametrize(("url", "suffix", "expected"), [
@@ -156,20 +163,47 @@ async def test_problems_of_the_selftest_send_a_failure_at_once(hass: HomeAssista
     assert calls(aioclient_mock) == [HC, f"{HC}/fail", HC], "danach das Lebenszeichen in Ordnung"
 
 
-async def test_a_change_of_the_selftest_right_before_the_interval_sends_once(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
-    """Geht wegen eines Wechsels des Selbsttests eben ein Lebenszeichen hinaus, entfällt das fällige im Abstand (es zeigte nur dasselbe)."""
+async def test_a_regular_life_sign_replaces_a_deferred_one(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
+    """Ein Wechsel des Selbsttests kurz nach einem Lebenszeichen wartet die Minute ab; geht vorher eines regulär hinaus, entfällt das aufgeschobene."""
     aioclient_mock.get(HC, status=200)
     aioclient_mock.get(f"{HC}/fail", status=200)
     await setup_alarm(hass)
     client = await hass_ws_client(hass)
-    await add(client)  # erstes Lebenszeichen in einer Sekunde
-    # Ein Befund, den in diesen fünf Minuten nichts aufhebt (das automatische Backup nach dem Start hebt "backup_failed" auf)
-    st.async_note(hass, None, "notify_failed", "notify.altes_handy", service="notify.altes_handy", reason="error")
-    hass.data[DATA_SELFTEST]._flush()  # der Wechsel kommt vor dem ersten Lebenszeichen an
+    hid = (await add(client, interval=60))["result"]["id"]
     await advance(hass, freezer, 2)
-    assert calls(aioclient_mock) == [f"{HC}/fail"]
-    await advance(hass, freezer, 300)
-    assert calls(aioclient_mock) == [f"{HC}/fail", f"{HC}/fail"], "der Abstand läuft weiter"
+    assert calls(aioclient_mock) == [HC]
+    # Ein Befund, den in dieser Zeit nichts aufhebt (das automatische Backup nach dem Start hebt "backup_failed" auf)
+    st.async_note(hass, None, "notify_failed", "notify.altes_handy", service="notify.altes_handy", reason="error")
+    hass.data[DATA_SELFTEST]._flush()
+    healthcheck = hass.data[DATA_HEALTHCHECK]
+    assert hid in healthcheck._later, "aufgeschoben: das letzte Lebenszeichen ist keine Minute her"
+    healthcheck.async_ping(hid)  # regulär, wie der Takt: zeigt den aktuellen Stand
+    assert hid not in healthcheck._later
+    await advance(hass, freezer, 2)
+    assert calls(aioclient_mock) == [HC, f"{HC}/fail"]
+    await advance(hass, freezer, 58)
+    assert calls(aioclient_mock) == [HC, f"{HC}/fail", f"{HC}/fail"], "danach nur das fällige im Abstand"
+
+
+async def test_arming_does_not_change_the_interval(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
+    """
+    Entscheid des Nutzers 2026-11-19: kein eigenes Intervall bei scharfer Anlage (nur der Selbsttest prüft dann öfter; findet er etwas, geht der
+    Fehler sofort hinaus). Ein zweites Intervall nimmt der Server nicht an.
+    """
+    aioclient_mock.get(HC, status=200)
+    await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    assert (await add(client, interval=3600, interval_armed=60))["success"] is False
+    saved = await add(client, interval=300)
+    assert "interval_armed" not in saved["result"]["healthchecks"][0]
+    await advance(hass, freezer, 2)
+    assert calls(aioclient_mock) == [HC]
+    await call(hass, "alarm_arm_home")
+    assert hass.states.get(ALARM).state == "armed_home"
+    await advance(hass, freezer, 280)
+    assert calls(aioclient_mock) == [HC], "scharf: weiter alle 5 Minuten, nicht öfter"
+    await advance(hass, freezer, 30)
+    assert calls(aioclient_mock) == [HC, HC]
 
 
 async def test_a_service_without_failure_address_only_sends_the_heartbeat(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
@@ -251,7 +285,12 @@ async def test_save_edit_delete_and_limits(hass: HomeAssistant, freezer, hass_ws
     too_many = await add(client)
     assert too_many["success"] is False and too_many["error"]["code"] == "too_many"
     edited = await add(client, check_id=ids[0], url=BS, fail_suffix="/fail", interval=86400)
-    assert edited["success"] and edited["result"]["healthchecks"][0] == {"id": ids[0], "url": BS, "fail_suffix": "/fail", "interval": 86400, "status": None}
+    first = {k: v for k, v in edited["result"]["healthchecks"][0].items() if k != "status"}
+    assert edited["success"] and first == {"id": ids[0], "name": "Haus", "url": BS, "fail_suffix": "/fail", "interval": 86400}
+    # Name ist Pflicht (Wunsch des Nutzers 2026-11-19)
+    for bad_name in ("", "   ", "x" * 61):
+        assert (await add(client, check_id=ids[0], name=bad_name))["error"]["code"] in ("invalid_name", "invalid_format")
+    assert (await ws(client, type=f"{DOMAIN}/healthcheck_save", url=HC, fail_suffix="", interval=300))["success"] is False
     assert (await add(client, check_id="gibtsnicht"))["error"]["code"] == "not_found"
     await advance(hass, freezer, 2)
     deleted = await ws(client, type=f"{DOMAIN}/healthcheck_delete", check_id=ids[0])

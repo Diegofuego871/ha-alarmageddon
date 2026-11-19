@@ -74,15 +74,15 @@ Neben dem Alarm, standardmässig aus: Regeln für das, was nichts mit Einbrecher
 
 ### Selbsttest
 
-Alarmageddon prüft sich alle paar Stunden und nach jedem Speichern selbst: Gibt es alle Sirenen, Lautsprecher, Aktionen und Empfänger noch, die die Anlagen verwenden, sind sie erreichbar, und ist ein Schritt, eine Meldung oder ein Lebenszeichen gescheitert? Die Statuskachel zeigt das Ergebnis; ein Fenster erklärt jedes Problem mit Ursachen und wie man es behebt, mit einem Sprung an die richtige Stelle. Jede Anlage hat eine Entität "Selbsttest", und Home Assistant führt die Probleme unter Reparaturen auf. Der Selbsttest liest nur: er schaltet nie etwas und hält nie einen Alarm auf.
+Alarmageddon prüft sich alle paar Stunden (scharf öfter) und nach jedem Speichern selbst: Gibt es alle Sirenen, Lautsprecher, Aktionen und Empfänger noch, die die Anlagen verwenden, sind sie erreichbar, und ist ein Schritt, eine Meldung oder ein Lebenszeichen gescheitert? Die Statuskachel zeigt das Ergebnis; ein Fenster erklärt jedes Problem mit Ursachen und wie man es behebt, mit einem Sprung an die richtige Stelle, und listet alles Geprüfte auf, grün, wenn in Ordnung. Jede Anlage hat eine Entität "Selbsttest", und Home Assistant führt die Probleme unter Reparaturen auf. Der Selbsttest liest nur: er schaltet nie etwas und hält nie einen Alarm auf.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/selftest-de.png" alt="Fenster des Selbsttests mit einer fehlenden Sirene, der Erklärung, den Ursachen und der Behebung" width="100%"></p>
 
 ### HealthCheck
 
-Und wenn Home Assistant selbst ausfällt? Dann kann nichts darin es dir sagen. Unter Konfiguration › Anlage › HealthCheck schickt Alarmageddon bis zu fünf Diensten draussen, etwa Healthchecks.io, Cronitor, Better Stack oder Uptime Kuma, alle 1 Minute bis 24 Stunden ein Lebenszeichen. Bleiben die Lebenszeichen aus, meldet sich der Dienst. Solange der Selbsttest Probleme hat, ruft Alarmageddon stattdessen die Fehler-URL auf, so erfährst du auch davon. Es geht mit jedem Dienst, der einen einfachen Aufruf einer URL annimmt: Für bekannte Dienste wird der Fehler-Zusatz vorgeschlagen, entscheiden tust du. "Fehler senden" und "Lebenszeichen senden" probieren jeden Dienst aus; im Kapitel stehen auch der Selbsttest und sein Abstand.
+Und wenn Home Assistant selbst ausfällt? Dann kann nichts darin es dir sagen. Unter Konfiguration › Anlage › HealthCheck schickt Alarmageddon bis zu fünf Diensten draussen, etwa Healthchecks.io, Cronitor, Better Stack oder Uptime Kuma, alle 1 Minute bis 24 Stunden ein Lebenszeichen. Bleiben die Lebenszeichen aus, meldet sich der Dienst. Solange der Selbsttest Probleme hat, ruft Alarmageddon stattdessen die Fehler-URL auf, so erfährst du auch davon. Es geht mit jedem Dienst, der einen einfachen Aufruf einer URL annimmt: Für bekannte Dienste wird der Fehler-Zusatz vorgeschlagen, entscheiden tust du. "Fehler senden" und "Lebenszeichen senden" probieren jeden Dienst aus; im Kapitel stehen auch der Selbsttest und seine zwei Abstände (nicht scharf, scharf).
 
-<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/healthcheck-list-de.png" alt="Das Fenster HealthCheck-Dienste: drei Dienste mit URL, letztem Lebenszeichen, Intervall, Status und den Knöpfen zum Testen, Bearbeiten und Entfernen" width="100%"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/healthcheck-list-de.png" alt="Das Fenster HealthCheck-Dienste: drei Dienste mit Name, gekürzter URL, letztem Lebenszeichen, Intervall, Status und runden Knöpfen zum Testen, Bearbeiten und Entfernen" width="100%"></p>
 
 ### Dashboard-Karten
 
@@ -101,7 +101,7 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Das ist ei
 - **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet, wird gemeldet oder zählt auf Wunsch als Alarm.
 - **Selbsttest:** prüft regelmässig, ob alles, was der Alarm braucht, da und erreichbar ist, und hält fest, was scheiterte; er liest nur und hält nie einen Alarm auf.
 - **HealthCheck:** Lebenszeichen an einen Dienst draussen melden ein verstummtes Home Assistant. Die Ping-URL steht ganz nur im Panel und im Backup, nie im Log oder in einer Meldung; ein Lebenszeichen wartet höchstens 10 Sekunden.
-- **Getestet:** über 1500 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 7300 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 362 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
+- **Getestet:** über 1500 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 7400 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 368 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
 
 ### Grenzen
 

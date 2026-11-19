@@ -18,8 +18,8 @@ const GROUPS = {
 const MODE_KINDS = [["sensor_offline", "alert"]];
 const ALL_MODES = ["home", "away", "night"];
 const TARGET_KEY = { alarm: "alarm_targets", maintenance: "maintenance_targets" };
-// Der Abstand des Selbsttests (selftest_hours) steht seit der dritten Fassung von 1.65.0 im Kapitel HealthCheck (Konfiguration › Anlage) und wird
-// dort gespeichert; dieser Entwurf sendet ihn nie mit (sonst überschriebe ein älterer Entwurf den neuen Wert)
+// Die Abstände des Selbsttests (selftest_hours, selftest_hours_armed) stehen seit der dritten Fassung von 1.65.0 im Kapitel HealthCheck (Konfiguration › Anlage) und werden
+// dort gespeichert; dieser Entwurf sendet sie nie mit (sonst überschriebe ein älterer Entwurf die neuen Werte)
 const RANGES = { battery_threshold: [5, 50], offline_minutes: [5, 1440] };
 const ARM_BUTTONS = ["arm_retry_action", "arm_force_action"];
 // Arten mit einem Zahlenfeld: Schlüssel, Beschriftung, Einheit
@@ -289,7 +289,7 @@ export class NotifyUi {
     this.saving = true;
     this.renderFoot();
     try {
-      const { selftest_hours: _hours, ...notify } = this.draft;
+      const { selftest_hours: _hours, selftest_hours_armed: _armed, ...notify } = this.draft;
       const result = await h._hass.callWS({ type: "alarmageddon/save_notify", notify });
       if (h._data) h._data.notify = result?.notify || JSON.parse(JSON.stringify(this.draft));
       this._empty().clear();

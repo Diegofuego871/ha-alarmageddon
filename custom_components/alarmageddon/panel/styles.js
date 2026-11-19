@@ -344,6 +344,19 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-orow .ag-toggle { margin: 6px 0 0; }
 .ag-oav { width: var(--ag-tile); height: var(--ag-tile); border-radius: 11px; background: var(--ag-subtle); color: var(--ag-text2); display: grid; place-items: center; flex: none; }
 .ag-oav.on { background: var(--ag-primary-soft); color: var(--ag-primary); }
+/* Kapitel unter Konfiguration › Anlage mit eigener Farbe (1.66.0, Wunsch des Nutzers 2026-11-19): nur das Symbol, in leichtem Pastell wie
+   die übrigen; ohne Inhalt bleibt es grau wie bisher. Der Selbsttest behält seine Farbe nach dem Ergebnis (.ag-st-av). */
+.ag-oav.ag-tint.on { background: color-mix(in srgb, var(--ag-tint) 15%, transparent); color: var(--ag-tint); }
+.ag-tint-routines { --ag-tint: #7e57c2; }
+.ag-tint-codes { --ag-tint: #00897b; }
+.ag-tint-sounds { --ag-tint: #3f51b5; }
+.ag-tint-health { --ag-tint: #d81b60; }
+.ag-tint-backup { --ag-tint: #8d6e63; }
+:host([dark]) .ag-tint-routines { --ag-tint: #b39ddb; }
+:host([dark]) .ag-tint-codes { --ag-tint: #4db6ac; }
+:host([dark]) .ag-tint-sounds { --ag-tint: #9fa8da; }
+:host([dark]) .ag-tint-health { --ag-tint: #f48fb1; }
+:host([dark]) .ag-tint-backup { --ag-tint: #bcaaa4; }
 .ag-otx { flex: 1; min-width: 0; }
 .ag-otx b { font-weight: 500; display: block; }
 .ag-otx small { display: block; color: var(--ag-text2); font-size: 12.5px; margin-top: 2px; line-height: 1.35; }
@@ -1414,25 +1427,37 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-st-about > summary::-webkit-details-marker { display: none; }
 .ag-st-about[open] > summary { margin-bottom: 8px; }
 .ag-st-about p { margin: 8px 0 0; }
+/* Backup: "Was ist im Backup?" über der Karte, sonst wie beim Selbsttest */
+.ag-bk-about { margin: 0 0 10px; }
 :host([narrow]) .ag-st-body { padding-left: 14px; }
 :host([narrow]) .ag-st-foot { flex-direction: column; align-items: stretch; }
 /* Kapitel HealthCheck (1.65.0): Selbsttest, Abstand, Zeile der Lebenszeichen wie Töne und Codes */
 .ag-st-av.ok { background: var(--ag-success-soft); color: var(--ag-success); }
 .ag-st-av.warn { background: var(--ag-warning-soft); color: var(--ag-warning-text); }
 .ag-st-av.err { background: var(--ag-error-soft); color: var(--ag-error); }
-.ag-sthours .ag-num { flex: none; margin-left: auto; }
-:host([narrow]) .ag-sthours { flex-wrap: wrap; row-gap: 10px; }
+.ag-sthours { flex-wrap: wrap; row-gap: 10px; }
+.ag-sthours .ag-settx { flex: 1 1 18em; min-width: 0; }
+.ag-sthours .ag-num { flex: none; }
 :host([narrow]) .ag-sthours .ag-settx { flex: 1 1 100%; }
-:host([narrow]) .ag-sthours .ag-num { margin-left: 0; }
+:host([narrow]) .ag-sthfs { margin-left: 0; display: grid; grid-template-columns: max-content auto; align-items: center; gap: 10px 12px; }
+:host([narrow]) .ag-sthf { display: contents; }
 /* Liste der Lebenszeichen: Tabelle wie die Backups; die URL steht ganz da und bricht an jeder Stelle um (sie hat keine Leerzeichen) */
 .ag-hctable td { vertical-align: middle; }
 .ag-hc-pop .ag-hctable th, :host([narrow]) .ag-hc-pop .ag-hctable th { top: calc(var(--ag-pophead, 22px) - 22px); }
-.ag-hctable .ag-hcurl .ag-mono { overflow-wrap: anywhere; word-break: break-all; font-size: 12.5px; }
-.ag-hctable td.ag-hcurl { min-width: 15em; }
-.ag-hctable .ag-actrow { gap: 2px; }
-.ag-hctable td.ag-acts { padding-right: 10px; }
+/* Desktop: feste Spalten; der Dienst bekommt den Rest, die URL darunter auf eine Zeile gekürzt (ganz im Tooltip und im Formular) */
+.ag-hctable { table-layout: fixed; }
+.ag-hctable th.ag-hclast { width: 96px; }
+.ag-hctable th.ag-hcint { width: 110px; }
+.ag-hctable th.ag-hcst { width: 190px; }
+.ag-hctable th.ag-hcacts { width: 232px; }
+.ag-hctable td.ag-hcurl { min-width: 0; }
+.ag-hcname { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.ag-hcaddr { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; color: var(--ag-text2); margin-top: 2px; }
 .ag-hctable .ag-hcinfo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 4px; font-size: 12px; }
 .ag-hctable td.ag-hclast, .ag-hctable td.ag-hcint { white-space: nowrap; font-size: 13px; }
+.ag-hctable td.ag-acts { padding-right: 12px; }
+.ag-hcbtns { justify-content: flex-end; gap: 8px; }
+.ag-hcbtns .ag-iconbtn:disabled { opacity: .3; cursor: default; }
 .ag-hcstate { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 .ag-hcstate::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ag-text3); flex: none; }
 .ag-hcstate.ok::before { background: var(--ag-success); }
@@ -1440,13 +1465,23 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-hcstate.err { color: var(--ag-error); }
 .ag-hcstate.err::before { background: var(--ag-error); }
 .ag-hc-m { display: none; }
-:host([narrow]) .ag-hctable td, :host([narrow]) .ag-hctable th { padding-left: 6px; padding-right: 6px; }
-:host([narrow]) .ag-hctable td.ag-hcurl { min-width: 0; }
-:host([narrow]) .ag-hctable td:first-child, :host([narrow]) .ag-hctable th:first-child .ag-sortbtn { padding-left: 12px; }
-:host([narrow]) .ag-hctable .ag-hclast, :host([narrow]) .ag-hctable .ag-hcint, :host([narrow]) .ag-hctable .ag-hcst { display: none; }
-:host([narrow]) .ag-hctable .ag-hc-m { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; font-size: 12px; }
-:host([narrow]) .ag-hctable .ag-iconbtn { width: 34px; height: 34px; }
-:host([narrow]) .ag-hctable .ag-actrow { gap: 2px; }
+/* Handy (Wunsch des Nutzers 2026-11-19): je Eintrag Name, URL, Stand, Intervall und letztes Lebenszeichen über die ganze Breite, darunter eine eigene Zeile mit den
+   runden Knöpfen wie bei Routinen und Tönen. Die Zeilen der Tabelle werden dazu Flex-Zeilen; der Kopf (nur "Dienst") klebt weiter. */
+:host([narrow]) .ag-hctable, :host([narrow]) .ag-hctable tbody { display: block; width: 100%; }
+:host([narrow]) .ag-hctable tr { display: flex; flex-wrap: wrap; align-items: center; }
+/* Kopf: als Flex-Zeile kann die Zelle nicht kleben (ihr Block ist die Zeile), darum klebt die ganze erste Zeile */
+:host([narrow]) .ag-hc-pop .ag-hctable tr:first-child { position: sticky; top: calc(var(--ag-pophead, 22px) - 22px); z-index: 2; background: var(--ag-card); box-shadow: 0 1px 0 var(--ag-divider); }
+:host([narrow]) .ag-hc-pop .ag-hctable tr:first-child th { position: static; box-shadow: none; }
+:host([narrow]) .ag-hctable th.ag-hcurl { flex: 1 1 100%; padding: 0; }
+:host([narrow]) .ag-hctable th.ag-hcurl .ag-sortbtn { padding: 14px 12px; }
+:host([narrow]) .ag-hctable th.ag-hclast, :host([narrow]) .ag-hctable th.ag-hcint, :host([narrow]) .ag-hctable th.ag-hcst, :host([narrow]) .ag-hctable th.ag-hcacts,
+:host([narrow]) .ag-hctable td.ag-hclast, :host([narrow]) .ag-hctable td.ag-hcint, :host([narrow]) .ag-hctable td.ag-hcst { display: none; }
+:host([narrow]) .ag-hctable td { height: auto; }
+:host([narrow]) .ag-hctable td.ag-hcurl { flex: 1 1 100%; min-width: 0; border-bottom: 0; padding: 12px 12px 6px; }
+:host([narrow]) .ag-hctable td.ag-acts { flex: 1 1 100%; width: auto; padding: 0 12px 12px; }
+:host([narrow]) .ag-hctable tr:last-child td.ag-acts { border-bottom: 0; }
+:host([narrow]) .ag-hc-m { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; font-size: 12px; }
+:host([narrow]) .ag-hcbtns { gap: 14px; margin-top: 0; }
 /* Formular eines Dienstes */
 .ag-hcform { display: flex; flex-direction: column; gap: 16px; }
 .ag-hcform > h3 { margin: 0; }
@@ -1461,4 +1496,18 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-hcint-row { display: flex; gap: 10px; align-items: center; }
 .ag-hcint-row select { width: auto; min-width: 9em; }
 .ag-hcpresets { padding: 2px 0 0; }
+/* Liste "Geprüft" des Selbsttests (Wunsch des Nutzers 2026-11-19): runder Pfeil in der Karte, Fenster mit Gruppen, je Eintrag grünes Häkchen */
+.ag-st-ok .ag-st-checkedgo { margin-left: auto; align-self: center; }
+.ag-st-checkedrow { margin-top: 4px; }
+.ag-st-chkbody { display: flex; flex-direction: column; gap: 8px; }
+.ag-st-chklist { padding: 0; overflow: hidden; }
+.ag-st-chk { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--ag-divider); }
+.ag-st-chk:last-child { border-bottom: 0; }
+.ag-st-chk b { font-weight: 500; overflow-wrap: anywhere; }
+.ag-st-chk small { overflow-wrap: anywhere; }
+.ag-st-chkbody > .ag-st-group { margin-top: 8px; }
+/* Selbsttest alle N Std.: nicht scharf und scharf nebeneinander, auf dem Handy untereinander */
+.ag-sthfs { display: flex; gap: 10px 18px; flex-wrap: wrap; margin-left: auto; }
+.ag-sthf { display: inline-flex; align-items: center; gap: 8px; }
+.ag-sthf-l { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ag-text2); }
 `;

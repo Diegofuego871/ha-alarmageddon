@@ -175,7 +175,7 @@ export class RoutinesUi {
     // gehört zum Entwurf der Seite: solange sie nicht gespeichert ist, steht ein dezenter orange Hinweis in der Zeile.
     const full = d.routines.length >= MAX_ROUTINES;
     const pending = this.unsaved().any ? `<small class="ag-unsaved">${esc(this._t("unsavedChanges"))}</small>` : "";
-    return chapter(this._t("rtTitle"), `<div class="ag-card ag-setlist ag-codes ag-rt"><div class="ag-setrow ag-rtsum"><span class="ag-oav ${d.routines.length ? "on" : ""}">${ic("flash", 20)}</span>
+    return chapter(this._t("rtTitle"), `<div class="ag-card ag-setlist ag-codes ag-rt"><div class="ag-setrow ag-rtsum"><span class="ag-oav ag-tint ag-tint-routines ${d.routines.length ? "on" : ""}">${ic("flash", 20)}</span>
       <div class="ag-settx"><b>${esc(summary)}</b>${pending}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="rt-add-page" ${full ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("rtAdd"))}</button>
         <button class="ag-btn" data-sys="rt-open">${ic("groups", 18)}${esc(this._t("rtShow"))}</button></div></div></div>`, this._t("rtHint"));
   }

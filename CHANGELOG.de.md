@@ -7,6 +7,27 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.66.0] - 2026-11-19
+
+### Hinzugefügt
+
+- **Selbsttest: kürzerer Abstand bei scharfer Anlage.** Neben dem Abstand für "nicht scharf" (Standard alle 6 Stunden) hat der Selbsttest einen zweiten, der gilt, solange eine Anlage nicht deaktiviert ist (Ausgangsverzögerung, scharf, Eingangsverzögerung, Alarm): Standard jede Stunde. Beide sind von 1 bis 24 Stunden einstellbar unter Konfiguration › Anlage › HealthCheck. Das Fenster des Selbsttests nennt den Abstand, der gerade gilt. Findet der Selbsttest ein Problem, bekommen die HealthCheck-Dienste sofort den Fehler-Aufruf; sie behalten darum ein Intervall.
+- **Selbsttest: Liste von allem Geprüften.** Ein runder Pfeil im Fenster des Selbsttests (in "Keine Probleme gefunden" oder unter den Problemen) öffnet eine Liste von allem, was die letzte Prüfung angeschaut hat: jede Entität mit ihrem Namen (Sensoren der Anlagen und der Überwachung, Geräte in den Aktionen, Lautsprecher, Geräte, die Routinen auslösen), jede Aktion und jeder Empfänger, gruppiert, grün, wenn in Ordnung, mit Suche. "Schliessen" schliesst nur die Liste.
+- **Backup: "Was ist im Backup?"** Eine Info-Zeile über der Karte des Backups klappt eine Liste auf, was ein Backup enthält und was nicht: Codes, das Protokoll (Alarme, Ereignisse, Aufzeichnungen der Alarme), Verlauf der Sensoren, Zustände und Ergebnisse sind nicht dabei; das Backup von Home Assistant selbst sichert alles.
+- **HealthCheck: ein Name für jeden Dienst.** Jeder Dienst hat jetzt einen Namen (Pflichtfeld, bis 60 Zeichen), in der Liste zuerst, die URL gekürzt darunter (ganz im Tooltip und im Formular). Dienste aus 1.65.0 heissen wie der Rechner ihrer URL, bis du den Namen änderst.
+
+### Geändert
+
+- **Liste der HealthCheck-Dienste:** runde Knöpfe wie bei Routinen und Tönen; auf dem Handy stehen sie in einer eigenen Zeile unter dem Eintrag. "Schliessen" steht rechts neben "Dienst hinzufügen", wie in allen Fenstern mit Liste. Die Liste ist nach Name sortiert.
+- **Fenster des Selbsttests:** "Schliessen" und "Jetzt prüfen" stehen rechts nebeneinander, wie in allen Fenstern.
+- **Kapitel unter Konfiguration › Anlage:** Die Symbole von Routinen, Codes pro Person, Eigene Töne, den HealthCheck-Diensten und Backup haben je eine eigene, leichte Farbe; so heben sich die Kapitel ab. Nur das Symbol ändert sich; ein leeres Kapitel bleibt grau, der Selbsttest behält seine Farbe nach dem Ergebnis.
+- **Meldung eines gescheiterten Lebenszeichens:** nennt den Dienst mit Namen und Rechner (nie die URL).
+- **Zeitpunkt der Lebenszeichen:** Ein Lebenszeichen geht höchstens 10 Sekunden nach Ablauf seines Intervalls hinaus. Ein Lebenszeichen, das nach einem Wechsel des Selbsttests aufgeschoben ist, entfällt, wenn das reguläre zuerst hinausgeht; so gehen nie zwei Aufrufe kurz nacheinander hinaus.
+
+### Behoben
+
+- **Batterieprognose in der Sensorliste.** Bei manchen Sensoren stand in der Spalte "Prognose" "–", obwohl die Sensoransicht eine Prognose zeigte (etwa "~16 Monate" bei "1 Jahr"). Zwei Ursachen: Die Prognose umfasste nur die Sensoren der Zonen und "immer aktiv", Messwerte der Überwachung und Sensoren nur in der Liste bekamen nie eine; und sie rechnete nur mit dem Verlauf des Recorders, den Home Assistant standardmässig 10 Tage aufbewahrt, so bekam eine Batterie, die seit Wochen gleich stand oder zuletzt leicht stieg, keine Prognose. Die Liste umfasst jetzt alle ihre Sensoren und rechnet wie die Sensoransicht bei "1 Jahr", aus der Langzeitstatistik seit dem letzten Batteriewechsel.
+
 ## [1.65.0] - 2026-11-18
 
 Enthält die Änderungen aus 1.64.0.
@@ -1929,6 +1950,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.66.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.0
 [1.65.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.65.0
 [1.63.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.63.0
 [1.62.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.62.0

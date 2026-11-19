@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 // Symbol "archive" aus dem Panel (seit 1.64.0 das eigene Symbol von "Sicherungen anzeigen")
 const ARCHIVE = readFileSync(new URL("../../../custom_components/alarmageddon/panel/common.js", import.meta.url), "utf8").match(/\barchive: "([^"]+)"/)[1];
 
-const T = { de: { auto: "Automatisch", every: ["Täglich", "Wöchentlich", "Monatlich"] }, en: { auto: "Automatic", every: ["Daily", "Weekly", "Monthly"] } };
+const T = { de: { auto: "Automatisch", every: ["Täglich", "Wöchentlich", "Monatlich"], about: "Was ist im Backup?", not: "Nicht enthalten:", log: "das Protokoll" },
+  en: { auto: "Automatic", every: ["Daily", "Weekly", "Monthly"], about: "What is in a backup?", not: "Not included:", log: "the log" } };
 
 const browser = await launch();
 for (const lang of ["de", "en"]) {
@@ -16,6 +17,19 @@ for (const lang of ["de", "en"]) {
     const s = await open(browser, { mobile, lang, tab: "config" });
     await s.tap('[data-sub="system"]');
     check(`${tag}: Schalter "Automatisch sichern" steht an, Abstand wöchentlich`, await s.waitFor("return r.querySelector('[data-sys=\"ab-on\"]')?.getAttribute('aria-checked') === 'true' && r.querySelector('[data-sys=\"ab-every\"]').value === 'weekly' && !r.querySelector('[data-sys=\"ab-every\"]').disabled"));
+    // "Was ist im Backup?" (Wunsch des Nutzers 2026-11-19): Info-Zeile über der Karte, zu; ein Klick klappt auf, das Protokoll steht unter "Nicht enthalten"
+    const about = () => s.ev("const d=r.querySelector('.ag-bk-about'); const card=d && d.nextElementSibling; return d ? { open: d.open, text: d.innerText, svg: !!d.querySelector('summary svg'), above: !!card && card.classList.contains('ag-card') && card.querySelector('.ag-bklast') !== null } : null");
+    let ab = await about();
+    check(`${tag}: Backup: "${t.about}" mit Info-Symbol über der Karte, zu`, ab && !ab.open && ab.svg && ab.above && ab.text.includes(t.about), JSON.stringify(ab));
+    await s.tap('.ag-bk-about summary');
+    ab = await about();
+    const line = ab?.text.split("\n").find((l) => l.startsWith(t.not)) || "";
+    check(`${tag}: aufgeklappt: was dabei ist und "${t.not}" mit ${t.log}`, ab?.open && line.includes(t.log) && line.includes(lang === "de" ? "Codes" : "codes"), JSON.stringify(ab));
+    await s.ev("r.host._lastHtml = new WeakMap(); r.host.systemUi.render(); return 1");
+    check(`${tag}: bleibt offen, wenn die Seite neu gezeichnet wird`, await s.ev("return r.querySelector('.ag-bk-about')?.open === true"));
+    await s.tap('.ag-bk-about summary');
+    await s.ev("r.host._lastHtml = new WeakMap(); r.host.systemUi.render(); return 1");
+    check(`${tag}: ein zweiter Klick klappt zu, auch nach dem Neuzeichnen`, await s.ev("return r.querySelector('.ag-bk-about')?.open === false"));
     const opts = await s.ev("return [...r.querySelectorAll('[data-sys=\"ab-every\"] option')].map((o) => [o.value, o.textContent])");
     check(`${tag}: täglich, wöchentlich, monatlich`, JSON.stringify(opts) === JSON.stringify([["daily", t.every[0]], ["weekly", t.every[1]], ["monthly", t.every[2]]]), JSON.stringify(opts));
     check(`${tag}: Schalter links, Text rechts davon`, await s.ev("const b=r.querySelector('[data-sys=\"ab-on\"]'); const x=b.closest('.ag-setrow').querySelector('.ag-settx'); return b.getBoundingClientRect().right <= x.getBoundingClientRect().left"));

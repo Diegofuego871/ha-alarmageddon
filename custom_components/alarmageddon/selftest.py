@@ -14,7 +14,8 @@ nur nicht erreichbar ist (seit SELFTEST_GRACE Sekunden), nicht erst, wenn es feh
 Wartung als nicht erreichbar ("Sensor nicht erreichbar"); der Selbsttest meldet bei ihnen nur, wenn sie ganz fehlen (keine doppelte Meldung).
 
 Wann: nach dem Start (SELFTEST_START_DELAY, die Geräte verbinden sich erst), kurz nach jedem Speichern (eine Anlage lädt neu, die
-Benachrichtigungen), alle "selftest_hours" Stunden (Einstellung im Kapitel Wartungsmeldungen) und auf Knopfdruck ("Jetzt prüfen").
+Benachrichtigungen), alle "selftest_hours" Stunden, solange eine Anlage scharf ist alle "selftest_hours_armed" Stunden (Kapitel HealthCheck unter
+Konfiguration › Anlage) und auf Knopfdruck ("Jetzt prüfen").
 
 Wohin: Panel (Statuskachel und Fenster mit Hilfe), Entität je Anlage (binary_sensor, Geräteklasse Problem), Statusentität der Anlage (zählt
 mit), Reparaturen von Home Assistant (je Anlage eine Meldung, dazu eine für alle Anlagen) und die Wartungsmeldung "Selbsttest" (je Befund
@@ -35,6 +36,7 @@ import logging
 import re
 from typing import Any
 
+from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import CALLBACK_TYPE, CoreState, HomeAssistant, callback
@@ -118,16 +120,37 @@ def _key(entry_id: str | None, code: str, subject: str) -> str:
 # ----- Prüfung der Konfiguration -----
 
 
+# Was der Selbsttest geprüft hat (Wunsch des Nutzers 2026-11-19: "Liste aller geprüften Entitäten", damit man sieht, dass alles geprüft wird):
+# Art, Kennung, Rolle, je Eintrag einmal, mit den Anlagen, die ihn verwenden. Arten: Entität, Aktion (Dienst), Empfänger.
+CHECKED_TYPES = ("entity", "service", "recipient")
+CHECKED_ROLES = ("sensor", "watch", "output", "player", "trigger", "")
+CHECKED_MAX = 2000
+# Befunde, die einen geprüften Eintrag betreffen (dann steht er nicht grün in der Liste)
+CHECKED_PROBLEMS = {"entity": ("entity_missing", "entity_unavailable"), "service": ("service_missing",), "recipient": ("recipient_missing",)}
+
+
 class _Collector:
     """Sammelt die Befunde einer Anlage (oder der gemeinsamen Einstellungen): ein Befund je Ursache, mit allen Fundstellen."""
 
-    def __init__(self, hass: HomeAssistant, entry_id: str | None, now: datetime) -> None:
+    def __init__(self, hass: HomeAssistant, entry_id: str | None, now: datetime, checked: dict[str, dict[str, Any]] | None = None) -> None:
         self.hass = hass
         self.entry_id = entry_id
         self.now = now
         self.registry = er.async_get(hass)
         self.items: dict[str, dict[str, Any]] = {}
         self.sound_places: list[dict[str, Any]] = []
+        self.checked = checked if checked is not None else {}
+
+    def seen(self, kind: str, ident: str, role: str = "") -> None:
+        """Geprüft (unabhängig vom Ergebnis): für die Liste "Geprüft" im Fenster des Selbsttests."""
+        key = f"{kind}|{ident}"
+        item = self.checked.get(key)
+        if item is None:
+            if len(self.checked) >= CHECKED_MAX:
+                return
+            item = self.checked[key] = {"type": kind, "id": ident, "role": role, "entries": []}
+        if self.entry_id and self.entry_id not in item["entries"]:
+            item["entries"].append(self.entry_id)
 
     def add(self, code: str, subject: str, place: dict[str, Any] | None, **fields: Any) -> None:
         key = _key(self.entry_id, code, subject)
@@ -141,6 +164,7 @@ class _Collector:
         """Fehlt die Entität (gelöscht, umbenannt, deaktiviert) oder ist sie seit SELFTEST_GRACE nicht erreichbar?"""
         if not isinstance(entity_id, str) or not ENTITY_ID.match(entity_id):
             return
+        self.seen("entity", entity_id, role)
         state = self.hass.states.get(entity_id)
         if state is None:
             reg = self.registry.async_get(entity_id)
@@ -151,6 +175,8 @@ class _Collector:
 
     def service(self, service: Any, place: dict[str, Any]) -> None:
         name = str(service or "")
+        if name:
+            self.seen("service", name)
         domain, _, action = name.partition(".")
         if not domain or not action or not self.hass.services.has_service(domain, action):
             self.add("service_missing", name, place, service=name)
@@ -162,6 +188,7 @@ class _Collector:
         """
         own = [t for t in targets or [] if isinstance(t, str)] if isinstance(targets, list) else []
         for target in own:
+            self.seen("recipient", target)
             if not _notify_exists(self.hass, target):
                 self.add("recipient_missing", target, place, service=target)
         if not own and default is not None and not default and not persistent:
@@ -250,12 +277,12 @@ def _leaves(tree: Any) -> list[dict[str, Any]]:
     return out
 
 
-def check_entry(hass: HomeAssistant, entry: ConfigEntry, cfg: dict[str, Any], now: datetime) -> list[dict[str, Any]]:
-    """Befunde einer geladenen Anlage."""
+def check_entry(hass: HomeAssistant, entry: ConfigEntry, cfg: dict[str, Any], now: datetime, checked: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Befunde einer geladenen Anlage; `checked` sammelt, was geprüft wurde."""
     runtime = entry.runtime_data
     ctl = runtime.controller
     options = entry.options
-    c = _Collector(hass, entry.entry_id, now)
+    c = _Collector(hass, entry.entry_id, now, checked)
     alarm_sensors = ctl.all_sensors()
     # Was die Wartung schon als "nicht erreichbar" meldet: dort nur "fehlt"
     maintained = alarm_sensors | ctl.monitor_sensors()
@@ -318,9 +345,9 @@ def check_entry(hass: HomeAssistant, entry: ConfigEntry, cfg: dict[str, Any], no
     return list(c.items.values())
 
 
-def check_global(hass: HomeAssistant, cfg: dict[str, Any], now: datetime) -> list[dict[str, Any]]:
+def check_global(hass: HomeAssistant, cfg: dict[str, Any], now: datetime, checked: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     """Befunde für alle Anlagen: Empfänger der Benachrichtigungen, Anlagen, die nicht geladen werden konnten."""
-    c = _Collector(hass, None, now)
+    c = _Collector(hass, None, now, checked)
     for group in ("alarm", "maintenance"):
         for target in cfg.get(f"{group}_targets") or []:
             if isinstance(target, str) and not _notify_exists(hass, target):
@@ -395,6 +422,7 @@ class SelfTest:
         self.config: dict[str, dict[str, Any]] = {}  # Befunde der Konfiguration aus der letzten Prüfung
         self.incidents: dict[str, dict[str, Any]] = {}  # Laufzeitbefunde, bis behoben oder erledigt
         self.reported: dict[str, str] = {}  # Befund -> Zeit der Meldung (je Befund einmal)
+        self.checked: list[dict[str, Any]] = []  # was die letzte Prüfung geprüft hat (Liste "Geprüft" im Panel)
         self._unsubs: list[CALLBACK_TYPE] = []
         self._soon: CALLBACK_TYPE | None = None
         self._flush_timer: CALLBACK_TYPE | None = None
@@ -420,6 +448,13 @@ class SelfTest:
         for key, value in (reported.items() if isinstance(reported, dict) else ()):
             if isinstance(key, str) and isinstance(value, str):
                 self.reported[key] = value
+        # Geprüftes der letzten Prüfung: jeder Eintrag einzeln geprüft, ein beschädigter fällt weg
+        for value in (stored.get("checked") if isinstance(stored.get("checked"), list) else [])[:CHECKED_MAX]:
+            if (not isinstance(value, dict) or value.get("type") not in CHECKED_TYPES or value.get("role", "") not in CHECKED_ROLES
+                    or not isinstance(value.get("id"), str) or not 0 < len(value["id"]) <= 255 or not isinstance(value.get("ok"), bool)):
+                continue
+            entries = [e for e in value.get("entries") or [] if isinstance(e, str)][:20] if isinstance(value.get("entries"), list) else []
+            self.checked.append({"type": value["type"], "id": value["id"], "role": value.get("role", ""), "entries": entries, "ok": value["ok"]})
 
     @callback
     def async_start(self) -> None:
@@ -453,12 +488,31 @@ class SelfTest:
         self._issues.clear()
 
     def _data(self) -> dict[str, Any]:
-        return {"last": self.last, "config": self.config, "incidents": self.incidents, "reported": self.reported}
+        return {"last": self.last, "config": self.config, "incidents": self.incidents, "reported": self.reported, "checked": self.checked}
+
+    def checked_payload(self) -> dict[str, Any]:
+        """Liste "Geprüft" der letzten Prüfung für das Panel (auf Abruf, nicht in jeder Antwort `data`): mit den Namen, wie HA sie zeigt."""
+        known = {e.entry_id for e in self.hass.config_entries.async_entries(DOMAIN)}
+        items = []
+        for item in self.checked:
+            entries = [e for e in item["entries"] if e in known]
+            if item["entries"] and not entries:
+                continue  # nur von einer entfernten Anlage verwendet
+            name = display_name(self.hass, item["id"]) if item["type"] == "entity" else item["id"]
+            items.append({**item, "entries": entries, "name": name})
+        return {"last": self.last, "items": items}
+
+    def _setting(self, key: str, default: int) -> int:
+        value = (self._settings.notify or {}).get(key, default)
+        return max(SELFTEST_HOURS_RANGE[0], min(SELFTEST_HOURS_RANGE[1], value)) if isinstance(value, int) and not isinstance(value, bool) else default
+
+    def armed(self) -> bool:
+        return any_armed(self.hass)
 
     @property
     def hours(self) -> int:
-        value = (self._settings.notify or {}).get("selftest_hours", 6)
-        return max(SELFTEST_HOURS_RANGE[0], min(SELFTEST_HOURS_RANGE[1], int(value))) if isinstance(value, int) else 6
+        """Abstand, der gerade gilt (Wunsch des Nutzers 2026-11-19): ist eine Anlage scharf, der für "scharf", sonst der für "nicht scharf"."""
+        return self._setting("selftest_hours_armed", 1) if self.armed() else self._setting("selftest_hours", 6)
 
     def due(self, now: datetime | None = None) -> bool:
         last = dt_util.parse_datetime(self.last) if self.last else None
@@ -489,17 +543,18 @@ class SelfTest:
         now = dt_util.utcnow()
         cfg = self._settings.notify
         found: dict[str, dict[str, Any]] = {}
+        checked: dict[str, dict[str, Any]] = {}
         entries = self.hass.config_entries.async_entries(DOMAIN)
         for entry in entries:
             if entry.state is not ConfigEntryState.LOADED:
                 continue
             try:
-                for item in check_entry(self.hass, entry, cfg, now):
+                for item in check_entry(self.hass, entry, cfg, now, checked):
                     found[item["key"]] = item
             except Exception:  # noqa: BLE001 - eine Anlage, die sich nicht prüfen lässt, hält die Prüfung der anderen nie auf
                 _LOGGER.exception("%s: the self-test could not check this alarm system", entry.title)
         try:
-            for item in check_global(self.hass, cfg, now):
+            for item in check_global(self.hass, cfg, now, checked):
                 found[item["key"]] = item
         except Exception:  # noqa: BLE001
             _LOGGER.exception("The self-test could not check the notification settings")
@@ -508,6 +563,8 @@ class SelfTest:
         for key in [k for k, v in self.incidents.items() if v.get("entry_id") and v["entry_id"] not in known]:
             del self.incidents[key]
         self.config = found
+        bad = {(kind, p["subject"]) for kind, codes in CHECKED_PROBLEMS.items() for p in found.values() if p.get("code") in codes}
+        self.checked = [{**item, "ok": (item["type"], item["id"]) not in bad} for item in checked.values()]
         self.last = now.isoformat()
         self._flush()
         self._report()
@@ -600,6 +657,11 @@ class SelfTest:
             "last": self.last,
             "next": (last + timedelta(hours=self.hours)).isoformat() if last else None,
             "hours": self.hours,
+            "hours_disarmed": self._setting("selftest_hours", 6),
+            "hours_armed": self._setting("selftest_hours_armed", 1),
+            "armed": self.armed(),
+            # Anzahl geprüfter Einträge der letzten Prüfung (die Liste selbst auf Abruf: selftest_checked)
+            "checked": len(self.checked),
             "problems": [{k: v for k, v in p.items()} for p in self.problems()],
         }
 
@@ -708,6 +770,22 @@ def async_resolve(hass: HomeAssistant, entry_id: str | None, code: str, subject:
             selftest.resolve(entry_id, code, subject)
     except Exception:  # noqa: BLE001
         _LOGGER.exception("The self-test could not clear a problem")
+
+
+def any_armed(hass: HomeAssistant) -> bool:
+    """
+    Ist eine Anlage scharf? Jeder Zustand ausser "deaktiviert" zählt (Ausgangsverzögerung, scharf, Eingangsverzögerung, Alarm). Für den kürzeren
+    Abstand des Selbsttests (1.66.0, Wunsch des Nutzers 2026-11-19; die Lebenszeichen behalten ein Intervall, Entscheid des Nutzers am selben Tag); nie
+    ein Fehler (im Zweifel "nicht scharf", der längere Abstand gilt).
+    """
+    try:
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            controller = getattr(getattr(entry, "runtime_data", None), "controller", None) if entry.state is ConfigEntryState.LOADED else None
+            if controller is not None and controller.state != AlarmControlPanelState.DISARMED:
+                return True
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("The self-test could not read the state of the alarm systems")
+    return False
 
 
 def call_subject(service: str, targets: Any) -> str:

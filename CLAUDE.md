@@ -265,8 +265,9 @@ Umsetzung:
   `svrules-e2e.mjs`. **Benennung (Entscheid des Nutzers, 19:47):** die Einträge der Überwachung heissen überall "Regeln" (Sensoransicht,
   Konfiguration › Aktionen › Überwachung, Einstellungen), nie "Aktionen" oder "Überwachungsaktionen".
 - Selbsttest (seit 1.65.0, `selftest.py`, Entscheide des Nutzers vom 2026-11-18): prüft nach dem Start (`SELFTEST_START_DELAY`), kurz nach jedem
-  Speichern (Neuladen einer Anlage, `save_notify`), alle `selftest_hours` Stunden (Standard 6, 1 bis 24, seit der dritten Fassung im Kapitel HealthCheck
-  unter Konfiguration › Anlage, **immer sichtbar**, auch wenn die Meldung aus ist; der Entwurf der Benachrichtigungen sendet den Wert nie mit) und mit
+  Speichern (Neuladen einer Anlage, `save_notify`), alle `selftest_hours` Stunden, solange eine Anlage nicht deaktiviert ist alle `selftest_hours_armed`
+  Stunden (Standard 6 und 1, je 1 bis 24; zweiter Abstand seit 1.66.0, Wunsch des Nutzers 2026-11-19; `selftest.any_armed`), eingestellt im Kapitel
+  HealthCheck unter Konfiguration › Anlage, **immer sichtbar**, auch wenn die Meldung aus ist; der Entwurf der Benachrichtigungen sendet die Werte nie mit) und mit
   "Jetzt prüfen". **Er liest nur**: nie einen Dienst aufrufen, nie einen Ton, nie eine
   Probemeldung (Test `-k reads_only`). Befunde der Konfiguration (Geräte, Lautsprecher, Aktionen, Empfänger, Töne, Adresse, Sensoren, Routinen,
   Regeln) verschwinden, sobald behoben; Befunde der Laufzeit (`async_note`: Aufruf gescheitert oder ohne Antwort, Wächter, Meldung, Start eines
@@ -277,16 +278,20 @@ Umsetzung:
   zusätzlich im `try`: **der Selbsttest hält nie einen Schritt, einen Alarm oder ein "Rückgängig" auf** (Tests `test_action_hang.py -k selftest`).
   Ein Befund trägt nur Kennungen und Namen, nie die Daten eines Aufrufs (Test `-k never_contain_secrets`, `test_codes_and_hashes_never_leave_the_server`).
   Ausgabe: Statuskachel (Zeile immer, Befunde zählen mit), Fenster `#ag-selftest` (`panel/selftest.js`, Hilfe je Befund: Was ist los, Wo mit
-  "Öffnen", Was das bedeutet, Ursachen, So behebst du es), Entität `binary_sensor.<anlage>_self_test` (Problem, Diagnose, Liste nicht aufgezeichnet),
+  "Öffnen", Was das bedeutet, Ursachen, So behebst du es), Liste "Geprüft" (`#ag-stchecked`, WS `selftest_checked` auf Abruf, nie in `data`;
+  `_Collector.seen` hält je Prüfung fest, was angeschaut wurde, grün nur ohne Befund dazu), Entität `binary_sensor.<anlage>_self_test` (Problem, Diagnose, Liste nicht aufgezeichnet),
   Statusentität und Infokarte zählen mit, Reparaturen von HA (je Anlage und `selftest_global`), Meldungsart `selftest` (je Befund einmal, erneut
   erst nach dem Beheben). Ein neuer Befund ergänzt `CONFIG_CODES` oder `RUNTIME_CODES`, die Texte `st_*` in `notify.py` (EN/DE), `stT_`, `stW_`,
   `stI_`, `stC_`, `stF_` in `strings.js` (die Suite `selftest-e2e.mjs` prüft alle) und einen Test in `tests/test_selftest.py`.
 - HealthCheck (seit 1.65.0, `healthcheck.py`, `panel/healthcheck.js`; Wunsch und Entscheide des Nutzers vom 2026-11-18): Lebenszeichen an externe Dienste,
-  für alle Anlagen, höchstens `MAX_HEALTHCHECKS`, Intervall `HEALTHCHECK_INTERVAL_RANGE`. **Generisch** (Entscheid des Nutzers): URL + Fehler-Zusatz,
+  für alle Anlagen, höchstens `MAX_HEALTHCHECKS`, je mit Namen (seit 1.66.0 Pflichtfeld, `valid_healthcheck_name`; Einträge ohne Namen aus
+  1.65.0 heissen wie ihr Rechner) und **einem** Intervall in `HEALTHCHECK_INTERVAL_RANGE`. Kein eigenes Intervall bei scharfer Anlage
+  (Entscheid des Nutzers 2026-11-19: das hat nur der Selbsttest, und sein Wechsel auf "Probleme" geht ohnehin sofort hinaus). Ein Takt alle
+  `HEALTHCHECK_TICK` Sekunden sendet, was fällig ist (nie zwei fast gleichzeitig). **Generisch** (Entscheid des Nutzers): URL + Fehler-Zusatz,
   keine Auswahl des Anbieters; bekannte Dienste werden nur vorgeschlagen, **der Nutzer hat immer das letzte Wort** (ein Vorschlag füllt nur ein
   unberührtes Feld, sonst "Übernehmen"). Solange der Selbsttest Probleme hat, geht die Fehler-URL hinaus; ein gescheitertes Lebenszeichen
   (`ping_failed`) zählt dafür nie (`failing()`). **Ausnahme vom Geheimnis-Grundsatz (Entscheid des Nutzers, "Ganz zeigen, im Backup"):** die Ping-URL
-  steht ganz im Panel und im Backup; im Log, in Meldungen und in Befunden steht nur der Rechnername (`host_of`), auch die Meldung einer Ausnahme der
+  steht im Panel (in der Liste gekürzt mit Tooltip, im Formular ganz) und ganz im Backup; im Log, in Meldungen und in Befunden steht nur der Rechnername (`host_of`), auch die Meldung einer Ausnahme der
   Verbindung kommt nie ins Log (sie enthält oft die URL). Ein Lebenszeichen ist eine Hintergrundaufgabe mit `HEALTHCHECK_TIMEOUT`, hält nie etwas
   auf; ein Wechsel des Selbsttests geht höchstens alle `HEALTHCHECK_MIN_GAP` Sekunden hinaus. Tests in `tests/test_healthcheck.py`, Zeilen
   "HealthCheck" in `scripts/mutation_check.py`, Suite `healthcheck-e2e.mjs`. Nie die echte Ping-URL eines Nutzers (Bildschirmfoto) in Code, Tests

@@ -39,6 +39,10 @@ EVENTS_MAX = 300  # Zeilen der Liste je Abfrage (neueste zuerst)
 POINTS_MAX = 240  # Punkte einer Linie (Batterie, Empfang)
 LIVE_POINT_GAP = 60  # Sekunden: ist der letzte Punkt älter, endet die Linie mit dem aktuellen Wert bei "jetzt"
 BATTERY_JUMP = 20  # Sprung nach oben um so viele Prozentpunkte gilt als Batteriewechsel
+# Prognose der Tabelle (1.66.0): wie die Sensoransicht bei "1 Jahr" aus der Langzeitstatistik. Bis 1.65.0 rechnete die Tabelle nur mit dem
+# Verlauf (den der Recorder standardmässig 10 Tage aufbewahrt): eine Batterie, die seit Wochen gleich steht oder kurz wieder steigt, bekam
+# dort keine Prognose, die Ansicht aber schon (Meldung des Nutzers 2026-11-19).
+FORECAST_HOURS = 8760
 GONE = ("unavailable", "unknown")
 ARMED = {"armed_home": "home", "armed_away": "away", "armed_night": "night"}
 # Zeiträume der Ansicht in Stunden: Verlauf und Empfang 3 Stunden bis 30 Tage, Batterie 30 Tage bis 1 Jahr
@@ -405,14 +409,51 @@ async def async_numeric_history(hass: HomeAssistant, entity_id: str, kind: str, 
                     "mean": round(sum(values) / len(values), 1) if values else None, "min": min(values, default=None), "max": max(values, default=None)},
     }
     if kind == "battery":
-        changes = battery_changes(points)
-        since = [(w, v) for w, v in points if not changes or w >= changes[-1]]
-        days = (since[-1][0] - since[0][0]).total_seconds() / 86400 if len(since) > 1 else 0
         out["threshold"] = threshold
-        out["changes"] = [when.isoformat() for when in changes]
-        out["summary"]["per_day"] = round((since[-1][1] - since[0][1]) / days, 2) if days >= 1 else None
-        out["summary"]["days_left"] = forecast_days([(w.timestamp(), v) for w, v in since], threshold)
-        out["summary"]["last_change"] = changes[-1].isoformat() if changes else None
+        battery = battery_summary(points, threshold)
+        out["changes"] = battery.pop("changes")
+        out["summary"].update(battery)
+    return out
+
+
+def battery_summary(points: list[tuple[datetime, float]], threshold: float) -> dict[str, Any]:
+    """Batteriewechsel, Abfall je Tag und Tage bis zur Schwelle ab dem letzten Wechsel; für die Sensoransicht und die Tabelle gleich."""
+    changes = battery_changes(points)
+    since = [(w, v) for w, v in points if not changes or w >= changes[-1]]
+    days = (since[-1][0] - since[0][0]).total_seconds() / 86400 if len(since) > 1 else 0
+    return {
+        "changes": [when.isoformat() for when in changes],
+        "per_day": round((since[-1][1] - since[0][1]) / days, 2) if days >= 1 else None,
+        "days_left": forecast_days([(w.timestamp(), v) for w, v in since], threshold),
+        "last_change": changes[-1].isoformat() if changes else None,
+    }
+
+
+async def async_battery_points(hass: HomeAssistant, entity_id: str, hours: int) -> list[tuple[datetime, float]]:
+    """Punkte der Batterie wie in der Sensoransicht: Statistik (sonst Verlauf), die Linie endet mit dem aktuellen Wert bei "jetzt"."""
+    now = dt_util.utcnow()
+    points = await async_numeric(hass, entity_id, now - timedelta(hours=hours), hours)
+    state = hass.states.get(entity_id)
+    current = _number(state.state) if state else None
+    if current is not None and points and (now - points[-1][0]).total_seconds() >= LIVE_POINT_GAP:
+        points = [*points, (now, current)]
+    return points
+
+
+async def async_battery_forecasts(hass: HomeAssistant, batteries: list[str], threshold: float) -> dict[str, float | None]:
+    """
+    Tage bis zur Schwelle je Batteriesensor für die Tabelle, gleich gerechnet wie die Sensoransicht bei "1 Jahr" (FORECAST_HOURS). Ohne Recorder
+    ein leeres Ergebnis; ein Fehler bei einem Sensor lässt nur ihn ohne Prognose (eine Prognose darf das Panel nie stören).
+    """
+    if not batteries or "recorder" not in hass.config.components:
+        return {}
+    out: dict[str, float | None] = {}
+    for entity_id in batteries:
+        try:
+            out[entity_id] = battery_summary(await async_battery_points(hass, entity_id, FORECAST_HOURS), threshold)["days_left"]
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Battery forecast failed for %s", entity_id)
+            out[entity_id] = None
     return out
 
 

@@ -94,6 +94,7 @@ from .const import (
     DATA_SELFTEST,
     DOMAIN,
     HEALTHCHECK_INTERVAL_RANGE,
+    HEALTHCHECK_NAME_MAX,
     HEALTHCHECK_SUFFIX_MAX,
     HEALTHCHECK_URL_MAX,
     MAX_HEALTHCHECKS,
@@ -108,14 +109,13 @@ from .const import (
     SENSOR_TYPES,
 )
 from .devices import battery_of, device_field, device_sensors, display_name, free_entity_id, main_device, system_device
-from .forecast import async_forecasts
 from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
 from .schemas import step_list, END_NOTIFY_SCHEMA, EVENT_NOTICE_SCHEMA, valid_event_notify, valid_report_step, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
-from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_get_stats, async_measure_history, async_numeric_history, async_state_history
+from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_battery_forecasts, async_get_stats, async_measure_history, async_numeric_history, async_state_history
 from .healthcheck import async_get_healthcheck
 from .selftest import async_get_selftest
-from .settings import async_get_settings, sensor_type, valid_fail_suffix, valid_healthcheck_url
+from .settings import async_get_settings, sensor_type, valid_fail_suffix, valid_healthcheck_name, valid_healthcheck_url
 
 # So lange wartet die Antwort von "data" höchstens auf den Verlauf für "Letzte Änderung" (Sekunden)
 LAST_CHANGE_WAIT = 1.5
@@ -171,6 +171,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_delete_sound)
     websocket_api.async_register_command(hass, ws_selftest_run)
     websocket_api.async_register_command(hass, ws_selftest_dismiss)
+    websocket_api.async_register_command(hass, ws_selftest_checked)
     websocket_api.async_register_command(hass, ws_healthcheck_save)
     websocket_api.async_register_command(hass, ws_healthcheck_delete)
     websocket_api.async_register_command(hass, ws_healthcheck_ping)
@@ -838,6 +839,7 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             vol.Optional("battery_threshold"): vol.All(vol.Coerce(int), vol.Range(min=BATTERY_THRESHOLD_RANGE[0], max=BATTERY_THRESHOLD_RANGE[1])),
             vol.Optional("offline_minutes"): vol.All(vol.Coerce(int), vol.Range(min=OFFLINE_MINUTES_RANGE[0], max=OFFLINE_MINUTES_RANGE[1])),
             vol.Optional("selftest_hours"): vol.All(vol.Coerce(int), vol.Range(min=SELFTEST_HOURS_RANGE[0], max=SELFTEST_HOURS_RANGE[1])),
+            vol.Optional("selftest_hours_armed"): vol.All(vol.Coerce(int), vol.Range(min=SELFTEST_HOURS_RANGE[0], max=SELFTEST_HOURS_RANGE[1])),
         },
     }
 )
@@ -943,6 +945,20 @@ async def ws_selftest_run(hass: HomeAssistant, connection, msg: dict[str, Any]) 
     connection.send_result(msg["id"], {"selftest": selftest.async_run()})
 
 
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/selftest_checked"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_selftest_checked(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Liste "Geprüft" der letzten Prüfung (Wunsch des Nutzers 2026-11-19): jede geprüfte Entität, Aktion und jeder Empfänger mit Namen und Ergebnis.
+    Auf Abruf, nicht in `data` (das läuft alle 30 Sekunden; eine lange Liste gehört nicht hinein).
+    """
+    if (selftest := loaded_selftest(hass)) is None:
+        connection.send_error(msg["id"], "not_found", "No alarm system")
+        return
+    connection.send_result(msg["id"], selftest.checked_payload())
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/selftest_dismiss", vol.Required("key"): vol.All(str, vol.Length(min=1, max=400))})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -970,6 +986,7 @@ def loaded_healthcheck(hass: HomeAssistant) -> Any:
     {
         vol.Required("type"): f"{DOMAIN}/healthcheck_save",
         vol.Optional("check_id"): vol.All(str, vol.Length(min=1, max=16)),
+        vol.Required("name"): vol.All(str, vol.Length(max=HEALTHCHECK_NAME_MAX * 2)),
         vol.Required("url"): vol.All(str, vol.Length(max=HEALTHCHECK_URL_MAX)),
         vol.Optional("fail_suffix", default=""): vol.All(str, vol.Length(max=HEALTHCHECK_SUFFIX_MAX)),
         vol.Required("interval"): vol.All(int, vol.Range(min=HEALTHCHECK_INTERVAL_RANGE[0], max=HEALTHCHECK_INTERVAL_RANGE[1])),
@@ -979,13 +996,17 @@ def loaded_healthcheck(hass: HomeAssistant) -> Any:
 @websocket_api.async_response
 async def ws_healthcheck_save(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """
-    HealthCheck anlegen (ohne `check_id`) oder ändern: URL (http oder https), Fehler-Zusatz (leer, "/…", "?…" oder "&…"; generisch, kein Anbieter),
-    Abstand in Sekunden (1 Minute bis 24 Stunden). Höchstens MAX_HEALTHCHECKS. Danach geht von diesem Eintrag sofort ein Lebenszeichen hinaus.
+    HealthCheck anlegen (ohne `check_id`) oder ändern: Name (Pflichtfeld seit 1.66.0, Wunsch des Nutzers 2026-11-19), URL (http oder https), Fehler-Zusatz (leer, "/…", "?…" oder "&…"; generisch, kein Anbieter),
+    Abstand in Sekunden (1 Minute bis 24 Stunden; kein eigener bei scharfer Anlage, Entscheid des Nutzers 2026-11-19). Höchstens MAX_HEALTHCHECKS. Danach geht von diesem Eintrag sofort ein Lebenszeichen hinaus.
     Keine Sperre nötig (anders als bei den Codes): zwischen dem Lesen der Liste und `async_set_healthchecks`, das die Liste vor dem ersten `await`
     ersetzt, wartet nichts; zwei Aufrufe zugleich sehen also immer den Stand des anderen.
     """
     if (healthcheck := loaded_healthcheck(hass)) is None:
         connection.send_error(msg["id"], "not_found", "No alarm system")
+        return
+    name = valid_healthcheck_name(msg["name"])
+    if name is None:
+        connection.send_error(msg["id"], "invalid_name", "A name is required")
         return
     url = valid_healthcheck_url(msg["url"])
     if url is None:
@@ -997,7 +1018,7 @@ async def ws_healthcheck_save(hass: HomeAssistant, connection, msg: dict[str, An
         return
     settings = await async_get_settings(hass)
     items = [dict(i) for i in settings.healthchecks]
-    entry = {"url": url, "fail_suffix": suffix, "interval": msg["interval"]}
+    entry = {"name": name, "url": url, "fail_suffix": suffix, "interval": msg["interval"]}
     if "check_id" in msg:
         index = next((n for n, i in enumerate(items) if i["id"] == msg["check_id"]), None)
         if index is None:
@@ -1511,17 +1532,16 @@ async def ws_routine_entities(hass: HomeAssistant, connection, msg: dict[str, An
 @websocket_api.async_response
 async def ws_battery_forecast(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """
-    Tage bis "Batterie schwach" je Batteriesensor der gewählten Sensoren.
-    Eigener Befehl, weil der Verlauf dauern kann: die Liste erscheint sofort,
+    Tage bis "Batterie schwach" je Batteriesensor der gewählten Sensoren, seit 1.66.0 gleich gerechnet wie die Sensoransicht bei "1 Jahr"
+    (Langzeitstatistik, `sensor_history.async_battery_forecasts`). Eigener Befehl, weil die Abfrage dauern kann: die Liste erscheint sofort,
     die Prognose kommt nach.
     """
-    sensors: set[str] = set()
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        if entry.state is ConfigEntryState.LOADED:
-            sensors |= entry.runtime_data.controller.all_sensors()
+    # Dieselben Sensoren wie die Liste (1.66.0): bis 1.65.0 nur die der Zonen und "immer aktiv", die Messwerte der Überwachung und Sensoren nur
+    # in der Liste bekamen nie eine Prognose (Meldung des Nutzers 2026-11-19: "–" bei den Fühlern im Kühlschrank)
+    sensors, _monitoring = _chosen_sensors(hass)
     batteries = sorted(set(battery_of(hass, sensors).values()))
     settings = await async_get_settings(hass)
-    result = await async_forecasts(hass, batteries, settings.notify["battery_threshold"])
+    result = await async_battery_forecasts(hass, batteries, settings.notify["battery_threshold"])
     connection.send_result(msg["id"], {"forecast": result})
 
 
