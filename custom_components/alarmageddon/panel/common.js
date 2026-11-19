@@ -256,4 +256,7 @@ export const searchField = (attr, name, value, label, clearLabel) => `<label cla
   <button type="button" class="ag-clear" ${attr}="${name}-clear" aria-label="${esc(clearLabel)}" ${value ? "" : "hidden"}>${ic("close", 16)}</button></label>`;
 
 // Kapitel in den Einstellungen (wie in Device Panel): Titel mit Strich davor, optional eine Zeile Erklärung, darunter die Karte
+// Titel eines Fensters mit dem Symbol seines Kapitels (1.66.2, Wunsch des Nutzers 2026-11-19): dieselbe getönte Kachel wie in der Zeile unter
+// Konfiguration › Anlage, etwas grösser (Computer 42 px, Handy 38 px). `cls` ist die Tönung der Zeile, etwa "ag-tint ag-tint-health on".
+export const iconTitle = (icon, cls, text) => `<h3 class="ag-ttl"><span class="ag-oav ag-ttl-av ${cls}" aria-hidden="true">${ic(icon, 24)}</span><span>${esc(text)}</span></h3>`;
 export const chapter = (title, body, hint = "", extra = "") => `<section class="ag-chap ${extra}"><h3 class="ag-chap-t">${esc(title)}</h3>${hint ? `<p class="ag-chap-h">${esc(hint)}</p>` : ""}${body}</section>`;

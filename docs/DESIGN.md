@@ -115,7 +115,18 @@ eigene, noch freie Farbe. Test: `healthcheck-e2e.mjs`.
 
 "Was ist im Backup?" (seit 1.66.0, Wunsch des Nutzers 2026-11-19): Info-Zeile `<details class="ag-st-about ag-bk-about">` über der Karte des
 Backups, zu; aufgeklappt eine Liste, was enthalten ist und was nicht (Codes, Protokoll, Verlauf, Zustände, Ergebnisse); bleibt offen, wenn die
-Seite neu gezeichnet wird (`SystemUi.bkAboutOpen`). Stil wie "Was prüft der Selbsttest?". Test: `autobackup-e2e.mjs`.
+Seite neu gezeichnet wird (`SystemUi.bkAboutOpen`). Stil wie "Was prüft der Selbsttest?". Test: `autobackup-e2e.mjs`. Ebenso "Was sind
+HealthCheck-Dienste?" unter der Liste im Fenster der Dienste (seit 1.67.0, `HealthCheckUi.aboutOpen`, Beispiele als Links); Test: `healthcheck-e2e.mjs`.
+
+Symbol des Kapitels im Fenstertitel (seit 1.67.0, Wunsch des Nutzers 2026-11-19): Fenster eines Kapitels unter Konfiguration › Anlage (Listen,
+Vorschau und Formulare: Routinen, eigene Töne, Codes pro Person, HealthCheck-Dienste, Selbsttest, Geprüft, Backups) tragen links im Titel dieselbe
+getönte Kachel wie ihre Zeile (`common.js iconTitle`, `.ag-ttl-av`), immer in Farbe, etwas grösser: Computer 42 px, Handy 38 px (Zeile 36 px). Der
+Selbsttest nimmt seine Farbe nach dem Ergebnis (`SelfTestUi.tone`). Rückfragen (Löschen?) bleiben ohne Symbol. Test: `sumrow-e2e.mjs`.
+
+Breite der Fenster (seit 1.67.0, Wunsch des Nutzers 2026-11-19): Listen und Formulare haben am Computer die Standardbreite `dialog.ag-wide`
+(880 px), auch ein Formular über einer Liste (`#ag-hcform`, `#ag-codes` mit `SystemUi._codeDlg(true)`); Rückfragen bleiben schmal (420 px,
+`_codeDlg(false)`). Handy: immer ganzer Bildschirm. Noch schmal und nicht angeglichen: Anlage hinzufügen, Umbenennen, Ansicht. Tests:
+`healthcheck-e2e.mjs`, `codes-e2e.mjs`, `hardening-e2e.mjs`.
 
 ## Selbsttest (seit 1.65.0, Wunsch des Nutzers vom 2026-11-18)
 
@@ -141,7 +152,9 @@ Seite neu gezeichnet wird (`SystemUi.bkAboutOpen`). Stil wie "Was prüft der Sel
 - Kapitel "HealthCheck" in Konfiguration › Anlage, vor "Backup" (gilt für alle Anlagen), eine Karte mit drei Zeilen: Selbsttest (Symbol
   `stethoscope` auf grünem, gelbem oder rotem Grund wie in der Statuskachel, "geprüft vor …" und nächste Prüfung, Knöpfe "Jetzt prüfen" und
   "Probleme anzeigen"), "Selbsttest alle" mit zwei Zahlenfeldern "Nicht scharf" (Schild durchgestrichen) und "Scharf" (Schild), Entwurf der
-  Seite wie das automatische Backup, ungültig rot mit Hinweis in der Fusszeile; auf dem Handy untereinander, bündig (Raster), Zeile der Lebenszeichen `.ag-rtsum.ag-hcsum` ("N von 5 Diensten" oder "Kein externer Dienst", darunter gelb, wenn ein
+  Seite wie das automatische Backup, ungültig rot mit Hinweis in der Fusszeile; seit 1.67.0 (Wunsch des Nutzers 2026-11-19) auf Computer und Handy
+  untereinander unter dem Text, bündig (Raster), je Zahl und Einheit (Minuten, Stunden; 5 Minuten bis 24 Stunden; bei 320 px rückt die Einheit unter
+  das Feld), Zeile der Lebenszeichen `.ag-rtsum.ag-hcsum` ("N von 5 Diensten" oder "Kein externer Dienst", darunter gelb, wenn ein
   Lebenszeichen scheiterte; "Dienst hinzufügen" mit Plus, "Dienste anzeigen" mit `heartPulse`; bei 5 ist "hinzufügen" gesperrt).
 - Fenster `#ag-hclist` wie die Codes: klebender Kopf mit Titel (ohne Symbol, wie Routinen, Töne, Codes) und Suche, Zähler, Tabelle in
   `.ag-card.ag-bkwrap` (Spalten Dienst, Zuletzt, Intervall, Status, Knöpfe; feste Breiten, `table-layout: fixed`), sortierbar je Spalte. Der

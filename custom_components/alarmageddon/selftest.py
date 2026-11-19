@@ -14,7 +14,7 @@ nur nicht erreichbar ist (seit SELFTEST_GRACE Sekunden), nicht erst, wenn es feh
 Wartung als nicht erreichbar ("Sensor nicht erreichbar"); der Selbsttest meldet bei ihnen nur, wenn sie ganz fehlen (keine doppelte Meldung).
 
 Wann: nach dem Start (SELFTEST_START_DELAY, die Geräte verbinden sich erst), kurz nach jedem Speichern (eine Anlage lädt neu, die
-Benachrichtigungen), alle "selftest_hours" Stunden, solange eine Anlage scharf ist alle "selftest_hours_armed" Stunden (Kapitel HealthCheck unter
+Benachrichtigungen), alle "selftest_minutes" Minuten, solange eine Anlage scharf ist alle "selftest_minutes_armed" Minuten (Kapitel HealthCheck unter
 Konfiguration › Anlage) und auf Knopfdruck ("Jetzt prüfen").
 
 Wohin: Panel (Statuskachel und Fenster mit Hilfe), Entität je Anlage (binary_sensor, Geräteklasse Problem), Statusentität der Anlage (zählt
@@ -70,7 +70,7 @@ from .const import (
     MODES,
     NOTIFY_TYPES,
     SELFTEST_GRACE,
-    SELFTEST_HOURS_RANGE,
+    SELFTEST_MINUTES_RANGE,
     SELFTEST_MAX_INCIDENTS,
     SELFTEST_MAX_PLACES,
     SELFTEST_REPORT_DELAY,
@@ -504,19 +504,22 @@ class SelfTest:
 
     def _setting(self, key: str, default: int) -> int:
         value = (self._settings.notify or {}).get(key, default)
-        return max(SELFTEST_HOURS_RANGE[0], min(SELFTEST_HOURS_RANGE[1], value)) if isinstance(value, int) and not isinstance(value, bool) else default
+        return max(SELFTEST_MINUTES_RANGE[0], min(SELFTEST_MINUTES_RANGE[1], value)) if isinstance(value, int) and not isinstance(value, bool) else default
 
     def armed(self) -> bool:
         return any_armed(self.hass)
 
     @property
-    def hours(self) -> int:
-        """Abstand, der gerade gilt (Wunsch des Nutzers 2026-11-19): ist eine Anlage scharf, der für "scharf", sonst der für "nicht scharf"."""
-        return self._setting("selftest_hours_armed", 1) if self.armed() else self._setting("selftest_hours", 6)
+    def minutes(self) -> int:
+        """
+        Abstand in Minuten, der gerade gilt (Wunsch des Nutzers 2026-11-19): ist eine Anlage scharf, der für "scharf", sonst der für "nicht
+        scharf". Seit 1.67.0 in Minuten (5 bis 1440), vorher in Stunden.
+        """
+        return self._setting("selftest_minutes_armed", 60) if self.armed() else self._setting("selftest_minutes", 360)
 
     def due(self, now: datetime | None = None) -> bool:
         last = dt_util.parse_datetime(self.last) if self.last else None
-        return last is None or (now or dt_util.utcnow()) - last >= timedelta(hours=self.hours)
+        return last is None or (now or dt_util.utcnow()) - last >= timedelta(minutes=self.minutes)
 
     @callback
     def _tick(self, now: Any = None) -> None:
@@ -655,10 +658,10 @@ class SelfTest:
         last = dt_util.parse_datetime(self.last) if self.last else None
         return {
             "last": self.last,
-            "next": (last + timedelta(hours=self.hours)).isoformat() if last else None,
-            "hours": self.hours,
-            "hours_disarmed": self._setting("selftest_hours", 6),
-            "hours_armed": self._setting("selftest_hours_armed", 1),
+            "next": (last + timedelta(minutes=self.minutes)).isoformat() if last else None,
+            "minutes": self.minutes,
+            "minutes_disarmed": self._setting("selftest_minutes", 360),
+            "minutes_armed": self._setting("selftest_minutes_armed", 60),
             "armed": self.armed(),
             # Anzahl geprüfter Einträge der letzten Prüfung (die Liste selbst auf Abruf: selftest_checked)
             "checked": len(self.checked),

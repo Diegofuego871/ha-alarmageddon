@@ -89,6 +89,9 @@ for (const lang of ["de", "en"]) {
     // Entfernen mit Rückfrage (im Fenster)
     await s.tap('#ag-codelist [data-sys="code-del"][data-id="c_anna"]');
     check(`${tag}: Rückfrage Entfernen`, await s.waitFor("return r.getElementById('ag-codes').open && !!r.querySelector('#ag-codes [data-sys=\"code-remove\"]')"));
+    // Rückfragen bleiben schmal, nach einem breiten Formular im selben Fenster (1.67.0: nur Formulare in der Standardbreite)
+    const ask = await s.ev("const d=r.getElementById('ag-codes'); return { w: Math.round(d.getBoundingClientRect().width), wide: d.classList.contains('ag-wide'), vw: innerWidth }");
+    check(`${tag}: Rückfrage Entfernen schmal (nicht in der Breite der Formulare)`, !ask.wide && (ask.w <= 420 || ask.w === ask.vw), JSON.stringify(ask));
     await s.tap('#ag-codes [data-sys="code-remove"]');
     check(`${tag}: Code entfernt`, await s.waitFor("return !r.getElementById('ag-codes').open && ![...r.querySelectorAll('#ag-codelist tr[data-code]')].some((x) => x.innerText.includes('Anna'))"));
     await s.tap('#ag-codelist [data-sys="code-list-close"]');

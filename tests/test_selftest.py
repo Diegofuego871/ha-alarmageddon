@@ -19,7 +19,7 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed, async_mock_service
 
 from custom_components.alarmageddon import selftest as st
-from custom_components.alarmageddon.const import DATA_SELFTEST, DATA_SETTINGS, DOMAIN, SELFTEST_GRACE, SELFTEST_STORE_KEY
+from custom_components.alarmageddon.const import DATA_SELFTEST, DATA_SETTINGS, DOMAIN, SELFTEST_GRACE, SELFTEST_STORE_KEY, SETTINGS_STORE_KEY
 
 from .conftest import ALARM, FRONT_DOOR, WINDOW, options, setup_alarm
 from .test_alarm import call
@@ -542,7 +542,7 @@ async def test_runs_after_the_start_and_after_saving(hass: HomeAssistant, freeze
     assert second is not None and second > first
     client = await hass_ws_client(hass)
     freezer.tick(timedelta(minutes=1))
-    assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_hours": 12}))["success"]
+    assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_minutes": 720}))["success"]
     freezer.tick(timedelta(seconds=st.SELFTEST_SOON + 1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
@@ -550,55 +550,93 @@ async def test_runs_after_the_start_and_after_saving(hass: HomeAssistant, freeze
 
 
 async def test_the_interval_is_a_setting(hass: HomeAssistant, freezer, hass_ws_client) -> None:
-    """Entscheid des Nutzers: einstellbar (Standard alle 6 Stunden, 1 bis 24); der Takt schaut alle paar Minuten, ob es Zeit ist."""
+    """
+    Entscheid des Nutzers: einstellbar (Standard alle 6 Stunden); seit 1.67.0 in Minuten, 5 bis 1440 (Wunsch des Nutzers 2026-11-19); der Takt
+    schaut jede Minute, ob es Zeit ist.
+    """
     await setup_alarm(hass)
-    assert hass.data[DATA_SETTINGS].notify["selftest_hours"] == 6
+    assert hass.data[DATA_SETTINGS].notify["selftest_minutes"] == 360
+    assert st.SELFTEST_TICK == 60
     client = await hass_ws_client(hass)
-    for bad in (0, 25):
-        assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_hours": bad}))["success"] is False
-    assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_hours": 2}))["success"]
+    for bad in (0, 4, 1441):
+        assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_minutes": bad}))["success"] is False
+    assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_minutes": 90}))["success"]
     # Die Prüfung kurz nach dem Start und nach dem Speichern abwarten
     freezer.tick(timedelta(seconds=st.SELFTEST_SOON + 1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
     first = dt_util.parse_datetime(selftest(hass).last)
-    assert selftest(hass).payload()["next"] == (first + timedelta(hours=2)).isoformat()
-    freezer.tick(timedelta(hours=1, minutes=50))
+    assert selftest(hass).payload()["next"] == (first + timedelta(minutes=90)).isoformat()
+    freezer.tick(timedelta(minutes=89))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
     assert dt_util.parse_datetime(selftest(hass).last) == first
-    freezer.tick(timedelta(minutes=15))
+    freezer.tick(timedelta(minutes=2))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    assert dt_util.parse_datetime(selftest(hass).last) > first
+    assert dt_util.parse_datetime(selftest(hass).last) > first, "nach 90 Minuten, beim nächsten Takt (höchstens eine Minute später)"
 
 
 async def test_while_armed_the_armed_interval_applies(hass: HomeAssistant, freezer, hass_ws_client) -> None:
-    """Wunsch des Nutzers 2026-11-19: zwei Abstände, "nicht scharf" und "scharf" (gleiche Spanne 1 bis 24 Stunden, Standard 6 und 1)."""
+    """
+    Wunsch des Nutzers 2026-11-19: zwei Abstände, "nicht scharf" und "scharf" (Standard 6 Stunden und 1 Stunde); seit 1.67.0 in Minuten, damit
+    etwa alle 5 Minuten bei scharfer Anlage geht.
+    """
     await setup_alarm(hass)
-    assert hass.data[DATA_SETTINGS].notify["selftest_hours_armed"] == 1
+    assert hass.data[DATA_SETTINGS].notify["selftest_minutes_armed"] == 60
     client = await hass_ws_client(hass)
-    for bad in (0, 25):
-        assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_hours_armed": bad}))["success"] is False
-    assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_hours": 6, "selftest_hours_armed": 2}))["success"]
+    for bad in (0, 4, 1441):
+        assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_minutes_armed": bad}))["success"] is False
+    assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_minutes": 360, "selftest_minutes_armed": 5}))["success"]
     freezer.tick(timedelta(seconds=st.SELFTEST_SOON + 1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
     first = dt_util.parse_datetime(selftest(hass).last)
     payload = selftest(hass).payload()
-    assert (payload["hours"], payload["hours_disarmed"], payload["hours_armed"], payload["armed"]) == (6, 6, 2, False)
-    freezer.tick(timedelta(hours=2, minutes=10))
+    assert (payload["minutes"], payload["minutes_disarmed"], payload["minutes_armed"], payload["armed"]) == (360, 360, 5, False)
+    freezer.tick(timedelta(minutes=10))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
     assert dt_util.parse_datetime(selftest(hass).last) == first, "nicht scharf: alle 6 Stunden"
     await call(hass, "alarm_arm_home")
     payload = selftest(hass).payload()
-    assert (payload["hours"], payload["armed"]) == (2, True)
-    assert payload["next"] == (first + timedelta(hours=2)).isoformat()
+    assert (payload["minutes"], payload["armed"]) == (5, True)
+    assert payload["next"] == (first + timedelta(minutes=5)).isoformat()
     freezer.tick(timedelta(seconds=st.SELFTEST_TICK))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    assert dt_util.parse_datetime(selftest(hass).last) > first, "scharf: die zwei Stunden sind um, beim nächsten Takt"
+    second = dt_util.parse_datetime(selftest(hass).last)
+    assert second > first, "scharf: die 5 Minuten sind um, beim nächsten Takt"
+    freezer.tick(timedelta(minutes=4))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert dt_util.parse_datetime(selftest(hass).last) == second
+    freezer.tick(timedelta(minutes=1, seconds=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert dt_util.parse_datetime(selftest(hass).last) > second, "scharf: wieder nach 5 Minuten, nicht erst nach 10"
+
+
+async def test_stored_hours_of_1_66_become_minutes(hass: HomeAssistant, hass_storage) -> None:
+    """Gespeicherte Einstellungen bis 1.66.x tragen Stunden (12 und 2): nach dem Update gelten 720 und 120 Minuten, der Selbsttest rechnet damit."""
+    hass_storage[SETTINGS_STORE_KEY] = {"version": 1, "key": SETTINGS_STORE_KEY, "data": {"notify": {"selftest_hours": 12, "selftest_hours_armed": 2}}}
+    await setup_alarm(hass)
+    notify = hass.data[DATA_SETTINGS].notify
+    assert (notify["selftest_minutes"], notify["selftest_minutes_armed"], "selftest_hours" in notify) == (720, 120, False)
+    assert (selftest(hass).payload()["minutes_disarmed"], selftest(hass).payload()["minutes_armed"]) == (720, 120)
+
+
+async def test_a_panel_of_1_66_still_saves_hours(hass: HomeAssistant, hass_ws_client) -> None:
+    """Ein noch offenes Panel bis 1.66.x sendet Stunden: sie gelten als Minuten (mal 60), nie als Fehler und nie neben den Minuten gespeichert."""
+    await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_hours": 12, "selftest_hours_armed": 2}))["success"]
+    notify = hass.data[DATA_SETTINGS].notify
+    assert (notify["selftest_minutes"], notify["selftest_minutes_armed"]) == (720, 120)
+    assert "selftest_hours" not in notify and "selftest_hours_armed" not in notify
+    # Mit beiden gilt der Wert in Minuten
+    assert (await ws(client, type=f"{DOMAIN}/save_notify", notify={"selftest_hours": 3, "selftest_minutes": 15}))["success"]
+    assert hass.data[DATA_SETTINGS].notify["selftest_minutes"] == 15
 
 
 # ----- Ablage -----
@@ -697,16 +735,23 @@ async def test_texts_exist_for_every_code(hass: HomeAssistant, language: str) ->
 
 
 def test_the_interval_is_part_of_the_settings_and_backups() -> None:
-    """Der Abstand gehört zu den Benachrichtigungen (und damit in jedes Backup); ein Backup ohne ihn bekommt 6 Stunden, Unsinn wird begrenzt."""
+    """
+    Der Abstand gehört zu den Benachrichtigungen (und damit in jedes Backup); ein Backup ohne ihn bekommt 6 Stunden und 1 Stunde, Unsinn wird
+    begrenzt. Seit 1.67.0 in Minuten; gespeicherte Einstellungen und Backups bis 1.66.x tragen Stunden: sie werden übernommen (mal 60).
+    """
     from custom_components.alarmageddon.settings import valid_notify
 
-    assert valid_notify({})["selftest_hours"] == 6
-    assert valid_notify({"selftest_hours": 12})["selftest_hours"] == 12
-    assert valid_notify({"selftest_hours": 0})["selftest_hours"] == 1
-    assert valid_notify({"selftest_hours": 99})["selftest_hours"] == 24
-    assert valid_notify({"selftest_hours": True})["selftest_hours"] == 6
-    assert valid_notify({})["selftest_hours_armed"] == 1
-    assert valid_notify({"selftest_hours_armed": 3})["selftest_hours_armed"] == 3
-    assert valid_notify({"selftest_hours_armed": 99})["selftest_hours_armed"] == 24
+    assert (valid_notify({})["selftest_minutes"], valid_notify({})["selftest_minutes_armed"]) == (360, 60)
+    assert valid_notify({"selftest_minutes": 5})["selftest_minutes"] == 5
+    assert valid_notify({"selftest_minutes": 0})["selftest_minutes"] == 5
+    assert valid_notify({"selftest_minutes": 9999})["selftest_minutes"] == 1440
+    assert valid_notify({"selftest_minutes": True})["selftest_minutes"] == 360
+    assert valid_notify({"selftest_minutes_armed": 15})["selftest_minutes_armed"] == 15
+    # Bis 1.66.x: Stunden
+    old = valid_notify({"selftest_hours": 12, "selftest_hours_armed": 2})
+    assert (old["selftest_minutes"], old["selftest_minutes_armed"]) == (720, 120) and "selftest_hours" not in old and "selftest_hours_armed" not in old
+    assert valid_notify({"selftest_hours": 99})["selftest_minutes"] == 1440
+    assert valid_notify({"selftest_hours": True})["selftest_minutes"] == 360
+    assert valid_notify({"selftest_hours": 12, "selftest_minutes": 30})["selftest_minutes"] == 30, "der Wert in Minuten geht vor"
     assert valid_notify({"types": {"selftest": {"enabled": False}}})["types"]["selftest"]["enabled"] is False
     assert valid_notify({})["types"]["selftest"] == {"enabled": True, "critical": False, "volume": 0.8, "persistent": False, "targets": []}

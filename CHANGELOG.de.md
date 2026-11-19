@@ -7,6 +7,23 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.67.0] - 2026-11-19
+
+### Hinzugefügt
+
+- **Selbsttest alle paar Minuten:** "Selbsttest alle" unter Konfiguration › Anlage › HealthCheck nimmt für beide Abstände (nicht scharf, scharf) Minuten oder Stunden, von 5 Minuten bis 24 Stunden, etwa alle 5 Minuten, solange eine Anlage scharf ist. Der Standard bleibt 6 Stunden und 1 Stunde; in Stunden gespeicherte Abstände werden übernommen. Alarmageddon schaut jetzt jede Minute, ob eine Prüfung fällig ist (vorher alle 5 Minuten).
+- **Was sind HealthCheck-Dienste?** Das Fenster der Dienste hat unter der Liste eine Erklärung zum Aufklappen, wie beim Selbsttest: was diese Dienste tun, wie der Fehler-Zusatz wirkt und wie man einen Check einrichtet, mit Healthchecks.io, Cronitor, Better Stack und Uptime Kuma als Beispielen.
+
+### Geändert
+
+- **Fenstertitel mit dem Symbol ihres Kapitels:** Routinen, Eigene Töne, Codes pro Person, HealthCheck-Dienste, Selbsttest, Geprüft und Backups, dazu ihre Formulare, zeigen im Titel dasselbe getönte Symbol wie ihre Zeile unter Konfiguration › Anlage, etwas grösser.
+- **Abstände des Selbsttests untereinander:** "Nicht scharf" und "Scharf" stehen auch am Computer unter dem Text, wie auf dem Handy, je mit Feld und Einheit.
+- **Formulare so breit wie die anderen Fenster:** Hinzufügen oder Bearbeiten eines HealthCheck-Dienstes oder eines Codes und Erstellen oder Wiederherstellen eines Backups haben am Computer die Standardbreite der Fenster (vorher schmaler als die Liste dahinter). Rückfragen wie "Entfernen?" bleiben schmal; auf dem Handy bleibt alles ganzer Bildschirm.
+
+### Behoben
+
+- **Sensoransicht, "seit" in der Kachel "Verlauf":** Nach einem Neustart von Home Assistant stand dort die Zeit des Neustarts ("in Ordnung seit 13:23", "ruhig seit 13:23"), weil Home Assistant dann die Zeit der letzten Änderung neu setzt. Jetzt steht dort die letzte echte Änderung zwischen offen und zu (bei Bewegung das Ende der letzten Bewegung, bei Rauch, Wasser und Ähnlichem das Ende der letzten Auslösung), für alle Sensorarten. "Nicht verfügbar" und "unbekannt" dazwischen (Neustart, Verbindungsabbruch) zählen nicht mehr. Ist der Sensor nicht erreichbar, gilt der Beginn des Ausfalls, auch über einen Neustart hinweg. Ist keine echte Änderung bekannt (ein Rauchmelder, der nie ausgelöst hat), steht nur der Zustand da, ohne Zeit.
+
 ## [1.66.1] - 2026-11-19
 
 ### Geändert
@@ -1962,6 +1979,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.67.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.67.0
 [1.66.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.1
 [1.66.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.0
 [1.65.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.65.0

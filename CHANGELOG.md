@@ -7,6 +7,23 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.67.0] - 2026-11-19
+
+### Added
+
+- **Self-test every few minutes:** "Self-test every" under Configuration › Alarm system › HealthCheck now takes minutes or hours for both intervals (not armed, armed), from 5 minutes to 24 hours, for example every 5 minutes while an alarm system is armed. The defaults stay 6 hours and 1 hour; intervals saved in hours are taken over. Alarmageddon now looks every minute whether a check is due (before every 5 minutes).
+- **What are HealthCheck services?** The window of the services has an unfolding explanation below the list, like the self-test: what these services do, how the failure suffix works and how to set up a check, with Healthchecks.io, Cronitor, Better Stack and Uptime Kuma as examples.
+
+### Changed
+
+- **Window titles with the symbol of their chapter:** Routines, Your own sounds, Codes per person, HealthCheck services, Self-test, Checked and Backups, and their forms, show the same tinted symbol in the title as their row under Configuration › Alarm system, a little larger.
+- **Self-test intervals one below the other:** "Not armed" and "Armed" stand below the text on the computer too, as on the phone, each with its field and unit.
+- **Forms as wide as the other windows:** adding or editing a HealthCheck service or a code and creating or restoring a backup use the standard width of the windows on the computer (before narrower than the list behind them). Questions such as "Remove?" stay narrow; on the phone everything stays full screen.
+
+### Fixed
+
+- **Sensor view, "since" in the tile "History":** after a restart of Home Assistant it showed the time of the restart ("ok since 13:23", "clear since 13:23"), because Home Assistant resets the time of the last change then. Now it shows the last real change between open and closed (for motion the end of the last motion, for smoke, water and similar the end of the last alert), for all kinds of sensors. "Unavailable" and "unknown" in between (restart, lost connection) no longer count. If the sensor is unreachable, the time is the start of the outage, also across a restart. If no real change is known (a smoke detector that never went off), only the state is shown, without a time.
+
 ## [1.66.1] - 2026-11-19
 
 ### Changed
@@ -1962,6 +1979,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.67.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.67.0
 [1.66.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.1
 [1.66.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.0
 [1.65.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.65.0

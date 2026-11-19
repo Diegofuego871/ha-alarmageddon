@@ -3,7 +3,7 @@
 // wie möglich), dazu "Öffnen" (springt an die Stelle) und bei Befunden der Laufzeit "Erledigt". "Jetzt prüfen" prüft sofort.
 // Die Befunde kommen vom Server (selftest.py) nur als Kennungen und Namen; die Texte stehen hier (strings.js), wie überall im Panel.
 const V = new URL(import.meta.url).search;
-const { ic, esc, errText, MODE_KEY, matchQuery, searchField } = await import(`./common.js${V}`);
+const { ic, esc, errText, iconTitle, MODE_KEY, matchQuery, searchField } = await import(`./common.js${V}`);
 
 // Liste "Geprüft" (Wunsch des Nutzers 2026-11-19): Gruppen in dieser Reihenfolge; Entitäten nach ihrer Rolle, dazu Aktionen und Empfänger
 const CHECKED_GROUPS = [["entity", "sensor"], ["entity", "watch"], ["entity", "output"], ["entity", "player"], ["entity", "trigger"], ["service", ""], ["recipient", ""]];
@@ -40,6 +40,13 @@ export class SelfTestUi {
     return this.data?.problems || [];
   }
 
+  // Farbe des Symbols wie in der Zeile unter Konfiguration › Anlage: grün ohne Befund, gelb mit Befunden, rot, wenn einer einen Alarm verhindern
+  // kann; grau vor der ersten Prüfung
+  tone() {
+    const n = this.problems().length;
+    return n ? (this.problems().some((p) => this._red(p)) ? "err" : "warn") : this.data?.last ? "ok" : "";
+  }
+
   // ----- Statuskachel -----
 
   // Zeile der Statuskachel: immer da, mit der Zeit der letzten Prüfung. Mit Befunden gelb (rot, wenn einer einen Alarm verhindern kann).
@@ -72,20 +79,23 @@ export class SelfTestUi {
     const d = this.data;
     const list = this.problems();
     const meta = !d?.last ? this._t("stNever")
-      : [this._t("stLast", { time: this._when(d.last) }), d.next ? this._t("stNext", { time: this._when(d.next) }) : "", `${this._every(d.hours)}${d.armed ? ` (${this._t("stArmedNow")})` : ""}`].filter(Boolean).join(" · ");
+      : [this._t("stLast", { time: this._when(d.last) }), d.next ? this._t("stNext", { time: this._when(d.next) }) : "", `${this._every(d.minutes)}${d.armed ? ` (${this._t("stArmedNow")})` : ""}`].filter(Boolean).join(" · ");
     // Runder Pfeil zur Liste "Geprüft" (Wunsch des Nutzers 2026-11-19): ohne Befunde in der Karte "Keine Probleme", mit Befunden als eigene Karte
     const go = d?.last ? `<button type="button" class="ag-cbtn ag-st-checkedgo" data-st="checked-open" aria-label="${esc(this._t("stCheckedOpen"))}" title="${esc(this._t("stCheckedOpen"))}">${ic("chevRight", 16)}</button>` : "";
     const okCard = `<div class="ag-card ag-st-ok"><span class="ag-mini ok">${ic("check", 18)}</span><div class="ag-grow"><b>${esc(this._t("stOkTitle"))}</b><small class="ag-t2 ag-block">${esc(this._t("stOkText"))}</small>${d?.checked ? `<small class="ag-t2 ag-block">${esc(this._t("stCheckedRow", { count: d.checked }))}</small>` : ""}</div>${go}</div>`;
     const checkedCard = d?.last ? `<div class="ag-card ag-st-ok ag-st-checkedrow"><span class="ag-mini">${ic("check", 18)}</span><div class="ag-grow"><b>${esc(this._t("stCheckedRow", { count: d.checked || 0 }))}</b><small class="ag-t2 ag-block">${esc(this._t("stCheckedHint"))}</small></div>${go}</div>` : "";
     const body = list.length ? `${this._groups(list)}${checkedCard}` : okCard;
-    const about = `<details class="ag-st-about"><summary>${ic("info", 16)}<span>${esc(this._t("stAbout"))}</span></summary>${this._lines(this._t("stAboutText"))}<p class="ag-t2 ag-small">${esc(this._t("stWhen", { every: this._every(d?.hours_disarmed || d?.hours || 6), armed: this._every(d?.hours_armed || 1) }))}</p></details>`;
-    this.host._setHtml(dlg, `<div class="ag-dlg-body ag-st-pop"><div class="ag-pop-head"><h3>${ic("stethoscope", 20)}<span>${esc(this._t("stTitle"))}</span></h3><div class="ag-t2 ag-small ag-st-meta">${esc(meta)}</div></div>
+    const about = `<details class="ag-st-about"><summary>${ic("info", 16)}<span>${esc(this._t("stAbout"))}</span></summary>${this._lines(this._t("stAboutText"))}<p class="ag-t2 ag-small">${esc(this._t("stWhen", { every: this._every(d?.minutes_disarmed || d?.minutes || 360), armed: this._every(d?.minutes_armed || 60) }))}</p></details>`;
+    this.host._setHtml(dlg, `<div class="ag-dlg-body ag-st-pop"><div class="ag-pop-head">${iconTitle("stethoscope", `ag-st-av ${this.tone()}`, this._t("stTitle"))}<div class="ag-t2 ag-small ag-st-meta">${esc(meta)}</div></div>
       <div class="ag-st-list">${body}${about}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-st="close">${esc(this._t("close"))}</button><button class="ag-btn primary" data-st="run" ${this.busy ? "disabled" : ""}>${ic("refresh", 18)}${esc(this._t("stRun"))}</button></div></div>`);
   }
 
-  _every(hours) {
-    return hours === 1 ? this._t("stEvery1") : this._t("stEvery", { hours: hours || 6 });
+  // Abstand in Worten (seit 1.67.0 in Minuten): ganze Stunden als Stunden, sonst Minuten
+  _every(minutes) {
+    const m = Number.isInteger(minutes) && minutes > 0 ? minutes : 360;
+    if (m % 60) return this._t("stEveryMin", { minutes: m });
+    return m === 60 ? this._t("stEvery1") : this._t("stEvery", { hours: m / 60 });
   }
 
   // Datum und Zeit in der Sprache des Panels (heute nur die Zeit)
@@ -279,7 +289,7 @@ export class SelfTestUi {
     const meta = c?.last ? this._t("stCheckedMeta", { time: this._when(c.last), count: c.items.length }) : "";
     const okCount = c?.items?.filter((i) => i.ok).length ?? 0;
     const sum = c?.items?.length ? `<div class="ag-t2 ag-small">${esc(this._t("stCheckedSum", { ok: okCount, count: c.items.length }))}</div>` : "";
-    this.host._setHtml(dlg, `<div class="ag-dlg-body ag-st-chkpop"><div class="ag-pop-head"><h3>${esc(this._t("stCheckedTitle"))}</h3>
+    this.host._setHtml(dlg, `<div class="ag-dlg-body ag-st-chkpop"><div class="ag-pop-head">${iconTitle("stethoscope", `ag-st-av ${this.tone()}`, this._t("stCheckedTitle"))}
       ${meta ? `<div class="ag-t2 ag-small">${esc(meta)}</div>` : ""}
       <div class="ag-tools ag-pop-tools" ${c?.items?.length ? "" : "hidden"}>${searchField("data-st", "checked-search", this.checkedQ, this._t("stCheckedSearch"), this._t("clearSearch"))}</div></div>
       <div class="ag-st-chkbody">${sum}${this._checkedRows()}</div>

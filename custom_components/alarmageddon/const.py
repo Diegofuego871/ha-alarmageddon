@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 231  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 232  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -213,14 +213,18 @@ DEFAULT_NOTIFY: Final = {
     # Wartung (0.5.0): Batterie schwach unter dieser Schwelle (%), nicht erreichbar ab so vielen Minuten
     "battery_threshold": 20,
     "offline_minutes": 60,
-    # Selbsttest (1.65.0): alle so viele Stunden prüfen (Wunsch des Nutzers: mindestens viermal am Tag, einstellbar); solange eine Anlage scharf
-    # ist, im eigenen, meist kürzeren Abstand (Wunsch des Nutzers 2026-11-19: zwei Zeiten, gleiche Spanne)
-    "selftest_hours": 6,
-    "selftest_hours_armed": 1,
+    # Selbsttest (1.65.0): alle so viele Minuten prüfen (Wunsch des Nutzers: mindestens viermal am Tag, einstellbar); solange eine Anlage scharf
+    # ist, im eigenen, meist kürzeren Abstand (Wunsch des Nutzers 2026-11-19: zwei Zeiten, gleiche Spanne). Seit 1.67.0 in Minuten (Wunsch des
+    # Nutzers 2026-11-19: etwa alle 5 Minuten bei scharfer Anlage); bis 1.66.x in Stunden ("selftest_hours", "selftest_hours_armed"), beim Laden
+    # und beim Zurückholen eines Backups übernommen (settings.valid_notify)
+    "selftest_minutes": 360,
+    "selftest_minutes_armed": 60,
 }
 BATTERY_THRESHOLD_RANGE: Final = (5, 50)
 OFFLINE_MINUTES_RANGE: Final = (5, 1440)
-SELFTEST_HOURS_RANGE: Final = (1, 24)
+SELFTEST_MINUTES_RANGE: Final = (5, 1440)
+# Frühere Schlüssel in Stunden (bis 1.66.x) und ihre Nachfolger in Minuten
+SELFTEST_HOURS_KEYS: Final = (("selftest_hours", "selftest_minutes"), ("selftest_hours_armed", "selftest_minutes_armed"))
 # Wartung: Prüfung alle 15 Minuten, die erste 5 Minuten nach dem Start (Geräte verbinden sich erst)
 MAINTENANCE_STORE_KEY: Final = f"{DOMAIN}.maintenance"
 DATA_MAINTENANCE: Final = f"{DOMAIN}_maintenance"
@@ -230,14 +234,15 @@ MAINTENANCE_START_DELAY: Final = 5 * 60
 BATTERY_HYSTERESIS: Final = 5
 # Selbsttest (1.65.0, Wunsch des Nutzers 2026-11-18, selftest.py): prüft, ob alles, was die Anlagen brauchen, noch da ist und funktioniert.
 # Eine Instanz für alle Anlagen. Prüfung nach dem Start (die Geräte verbinden sich erst), nach jedem Speichern (kurz danach, gesammelt), alle
-# "selftest_hours" Stunden, solange eine Anlage scharf ist alle "selftest_hours_armed" Stunden (ein Takt schaut alle SELFTEST_TICK Sekunden, ob es
+# "selftest_minutes" Minuten, solange eine Anlage scharf ist alle "selftest_minutes_armed" Minuten (ein Takt schaut alle SELFTEST_TICK Sekunden, ob es
 # Zeit ist; nach dem Scharfschalten prüft er also spätestens nach SELFTEST_TICK, wenn die letzte Prüfung länger zurückliegt) und auf Knopfdruck. Ein Gerät gilt erst als nicht
 # erreichbar, wenn es das seit SELFTEST_GRACE Sekunden ist (kein Befund bei einem kurzen Funkabriss).
 SELFTEST_STORE_KEY: Final = f"{DOMAIN}.selftest"
 DATA_SELFTEST: Final = f"{DOMAIN}_selftest"
 DATA_SELFTEST_LOCK: Final = f"{DOMAIN}_selftest_lock"
 SIGNAL_SELFTEST: Final = f"{DOMAIN}_selftest_updated"
-SELFTEST_TICK: Final = 5 * 60
+# Seit 1.67.0 jede Minute (vorher 5): der kürzeste Abstand ist 5 Minuten und soll nicht zu 10 werden; der Takt schaut nur, ob es Zeit ist
+SELFTEST_TICK: Final = 60
 SELFTEST_START_DELAY: Final = 5 * 60
 SELFTEST_SOON: Final = 15
 SELFTEST_GRACE: Final = 5 * 60

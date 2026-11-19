@@ -37,7 +37,8 @@ from .const import (
     AUTO_BACKUP_KEEP_MAX,
     MAX_BACKUPS,
     OFFLINE_MINUTES_RANGE,
-    SELFTEST_HOURS_RANGE,
+    SELFTEST_HOURS_KEYS,
+    SELFTEST_MINUTES_RANGE,
     CODE_PATTERN,
     CONF_CODE_ACK_REQUIRED,
     CONF_CODE_ARM_REQUIRED,
@@ -838,8 +839,11 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             vol.Optional("arm_force_action"): bool,
             vol.Optional("battery_threshold"): vol.All(vol.Coerce(int), vol.Range(min=BATTERY_THRESHOLD_RANGE[0], max=BATTERY_THRESHOLD_RANGE[1])),
             vol.Optional("offline_minutes"): vol.All(vol.Coerce(int), vol.Range(min=OFFLINE_MINUTES_RANGE[0], max=OFFLINE_MINUTES_RANGE[1])),
-            vol.Optional("selftest_hours"): vol.All(vol.Coerce(int), vol.Range(min=SELFTEST_HOURS_RANGE[0], max=SELFTEST_HOURS_RANGE[1])),
-            vol.Optional("selftest_hours_armed"): vol.All(vol.Coerce(int), vol.Range(min=SELFTEST_HOURS_RANGE[0], max=SELFTEST_HOURS_RANGE[1])),
+            vol.Optional("selftest_minutes"): vol.All(vol.Coerce(int), vol.Range(min=SELFTEST_MINUTES_RANGE[0], max=SELFTEST_MINUTES_RANGE[1])),
+            vol.Optional("selftest_minutes_armed"): vol.All(vol.Coerce(int), vol.Range(min=SELFTEST_MINUTES_RANGE[0], max=SELFTEST_MINUTES_RANGE[1])),
+            # Bis 1.66.x in Stunden: ein Panel, das noch offen ist, sendet sie so (als Minuten übernommen)
+            vol.Optional("selftest_hours"): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
+            vol.Optional("selftest_hours_armed"): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
         },
     }
 )
@@ -848,9 +852,13 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
 async def ws_save_notify(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """Benachrichtigungen, für alle Anlagen gleich."""
     settings = await async_get_settings(hass)
-    merged = {**settings.notify, **msg["notify"]}
+    incoming = dict(msg["notify"])
+    for old, new in SELFTEST_HOURS_KEYS:
+        if (hours := incoming.pop(old, None)) is not None and new not in incoming:
+            incoming[new] = hours * 60
+    merged = {**settings.notify, **incoming}
     # Arten einzeln zusammenführen: eine Meldung mit nur einer Art lässt die anderen unberührt
-    merged["types"] = {kind: {**current, **msg["notify"].get("types", {}).get(kind, {})} for kind, current in settings.notify["types"].items()}
+    merged["types"] = {kind: {**current, **incoming.get("types", {}).get(kind, {})} for kind, current in settings.notify["types"].items()}
     await settings.async_set_notify(merged)
     # Selbsttest (1.65.0): Empfänger geändert, kurz danach neu prüfen
     if loaded_selftest(hass) is not None:
@@ -1670,7 +1678,9 @@ async def ws_sensor_history(hass: HomeAssistant, connection, msg: dict[str, Any]
         # Zustand der Anlage ("scharf in …") aus der gewählten Anlage, sonst aus der ersten, die den Sensor überwacht
         entry = next((e for e in entries if e.entry_id == msg.get("entry_id")), entries[0])
         rt = entry.runtime_data
-        result = await async_state_history(hass, await async_get_stats(hass), entity_id, hours, rt.events.events, list(rt.recorder.recordings) if rt.recorder else [])
+        known = (await async_get_settings(hass)).last_changes.get(entity_id)
+        result = await async_state_history(hass, await async_get_stats(hass), entity_id, hours, rt.events.events, list(rt.recorder.recordings) if rt.recorder else [],
+                                           known)
         result["entry_id"] = entry.entry_id
     else:
         reg = er.async_get(hass).async_get(entity_id)

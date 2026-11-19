@@ -18,7 +18,7 @@ const GROUPS = {
 const MODE_KINDS = [["sensor_offline", "alert"]];
 const ALL_MODES = ["home", "away", "night"];
 const TARGET_KEY = { alarm: "alarm_targets", maintenance: "maintenance_targets" };
-// Die Abstände des Selbsttests (selftest_hours, selftest_hours_armed) stehen seit der dritten Fassung von 1.65.0 im Kapitel HealthCheck (Konfiguration › Anlage) und werden
+// Die Abstände des Selbsttests (selftest_minutes, selftest_minutes_armed; bis 1.66.x selftest_hours, selftest_hours_armed) stehen seit der dritten Fassung von 1.65.0 im Kapitel HealthCheck (Konfiguration › Anlage) und werden
 // dort gespeichert; dieser Entwurf sendet sie nie mit (sonst überschriebe ein älterer Entwurf die neuen Werte)
 const RANGES = { battery_threshold: [5, 50], offline_minutes: [5, 1440] };
 const ARM_BUTTONS = ["arm_retry_action", "arm_force_action"];
@@ -44,7 +44,7 @@ export class NotifyUi {
 
   get base() {
     const types = Object.fromEntries(KINDS.map((k) => [k, { enabled: true, critical: false, volume: 0.8 }]));
-    return (this.host._data?.notify || { alarm_targets: [], maintenance_targets: [], types, battery_threshold: 20, offline_minutes: 60, selftest_hours: 6 });
+    return (this.host._data?.notify || { alarm_targets: [], maintenance_targets: [], types, battery_threshold: 20, offline_minutes: 60, selftest_minutes: 360 });
   }
 
   // Knopf der Meldung "Scharfschalten nicht möglich": "retry" oder "force"; ohne gespeicherten Wert an
@@ -289,7 +289,7 @@ export class NotifyUi {
     this.saving = true;
     this.renderFoot();
     try {
-      const { selftest_hours: _hours, selftest_hours_armed: _armed, ...notify } = this.draft;
+      const { selftest_minutes: _off, selftest_minutes_armed: _on, selftest_hours: _hours, selftest_hours_armed: _armed, ...notify } = this.draft;
       const result = await h._hass.callWS({ type: "alarmageddon/save_notify", notify });
       if (h._data) h._data.notify = result?.notify || JSON.parse(JSON.stringify(this.draft));
       this._empty().clear();

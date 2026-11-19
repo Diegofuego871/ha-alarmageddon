@@ -160,7 +160,7 @@
   const entities = {};
   window.__presets = { door: ["arm_on_close"], window: [], motion: ["open_ok"], environment: ["always"], tamper: ["offline_alarm"], other: [] };
   const T = (enabled, critical) => ({ enabled, critical, volume: 0.8 });
-  window.__notify = { alarm_targets: ["notify.mobile_app_diego"], maintenance_targets: [], disarm_action: false, open_action: true, silence_action: false, battery_threshold: 20, offline_minutes: 60, selftest_hours: 6, selftest_hours_armed: 1,
+  window.__notify = { alarm_targets: ["notify.mobile_app_diego"], maintenance_targets: [], disarm_action: false, open_action: true, silence_action: false, battery_threshold: 20, offline_minutes: 60, selftest_minutes: 360, selftest_minutes_armed: 60,
     types: { triggered: T(true, true), pending: T(false, false), armed: T(false, false), disarmed: T(false, false), arm_failed: T(true, false), sensor_offline: T(true, true),
       sensor_report: T(true, true), battery_low: T(true, false), sensor_unavailable: T(true, false), selftest: T(true, false) } };
   // Selbsttest (1.65.0) wie der Server (selftest.py payload): ?selftest=problems füllt Befunde (Konfiguration, Laufzeit, für alle Anlagen),
@@ -179,8 +179,8 @@
       { key: "*|recipient_missing|notify.mobile_app_altes_handy", kind: "config", code: "recipient_missing", entry_id: null, subject: "notify.mobile_app_altes_handy", service: "notify.mobile_app_altes_handy",
         places: [{ area: "notify", group: "maintenance" }] },
     ] : [];
-    // "armed", "hours" und "next" rechnet selftestPayload() bei jeder Antwort aus dem Zustand der Anlagen aus
-    const ivs = { hours_disarmed: 6, hours_armed: 1, checked: 0 };
+    // "armed", "minutes" und "next" rechnet selftestPayload() bei jeder Antwort aus dem Zustand der Anlagen aus (seit 1.67.0 in Minuten)
+    const ivs = { minutes_disarmed: 360, minutes_armed: 60, checked: 0 };
     window.__selftest = params.get("selftest") === "none" ? { last: null, ...ivs, problems: [] } : { last, ...ivs, problems };
     // Liste "Geprüft" der letzten Prüfung (selftest_checked): Sensoren der Anlagen, Geräte, Lautsprecher, Aktionen, Empfänger
     const E = (id, name, role, ok = true, entries = ["e_haus"]) => ({ type: "entity", id, name, role, ok, entries });
@@ -200,8 +200,8 @@
   const selftestPayload = () => {
     const s = window.__selftest;
     const armed = window.__systems.some((x) => { const st = states[x.entity_id]?.state; return Boolean(st) && st !== "disarmed"; });
-    const hours = armed ? s.hours_armed : s.hours_disarmed;
-    return JSON.parse(JSON.stringify({ ...s, armed, hours, next: s.last ? new Date(new Date(s.last).getTime() + hours * 3600e3).toISOString() : null }));
+    const minutes = armed ? s.minutes_armed : s.minutes_disarmed;
+    return JSON.parse(JSON.stringify({ ...s, armed, minutes, next: s.last ? new Date(new Date(s.last).getTime() + minutes * 60e3).toISOString() : null }));
   };
   // HealthCheck (1.65.0, Namen seit 1.66.0) wie der Server (healthcheck.py listing): ?hc=sample füllt drei Dienste mit erfundenen Adressen (nie echte Ping-URLs),
   // ?hc=full fünf (Höchstzahl). window.__hcResult: Ergebnis des nächsten Lebenszeichens ("ok", "http", "timeout", "error").
@@ -244,9 +244,9 @@
     const el = panel();
     if (el && el.hass && !REAL_HASS) el.hass = window.hass;
   }
-  window.__setState = (id, state, attrs = {}) => {
+  window.__setState = (id, state, attrs = {}, changed = Date.now()) => {
     const old = states[id] || { attributes: {} };
-    set(id, state, { ...old.attributes, ...attrs }, Date.now());
+    set(id, state, { ...old.attributes, ...attrs }, changed);
     publish();
   };
 
@@ -455,8 +455,14 @@
           if (c) buckets.push([at(t), c, c * 60]);
         }
         const count = buckets.reduce((n, b) => n + b[1], 0);
+        // Seit wann (1.66.2) wie der Server (last_change.state_since): die Zustände im Nachbau tragen alle die Zeit des Ladens als `last_changed`, wie
+        // nach einem Neustart von Home Assistant; die letzte echte Änderung ist das Ende der neuesten Öffnung, ein offener Sensor gilt seit seinem Wechsel
+        const cur = states[msg.entity_id], gone = !cur || cur.state === "unavailable" || cur.state === "unknown";
+        const lastOn = all.find((e) => e.kind === "on" && e.end)?.end ?? null;
+        const realT = cur?.state === "on" ? cur.last_changed : lastOn;
+        const since = gone ? { state: "gone", t: cur?.last_changed ?? null, real: "off", real_t: lastOn } : { state: cur.state, t: realT, real: cur.state, real_t: realT };
         return { kind: "state", hours: msg.hours, now: at(now), start: at(start), entry_id: window.__systems[0].entry_id, buckets, events, truncated: all.length > 300, events_total: all.length,
-          events_from: at(Math.max(start, now - 240 * H)),
+          events_from: at(Math.max(start, now - 240 * H)), since,
           armed: [{ from: at(Math.max(start, now - 30 * H)), to: at(now - 21 * H), mode: "away" }, { from: at(Math.max(start, now - 7 * H)), to: at(now - 2 * H), mode: "away" }].filter((a) => new Date(a.to) > new Date(a.from)),
           summary: { count, seconds: count * 60, longest: 120, last: events[0]?.start ?? null, busiest_hour: 18, per_day: msg.hours >= 24 ? Math.round((count / (msg.hours / 24)) * 10) / 10 : null,
             gone_count: events.filter((e) => e.kind === "gone").length, gone_seconds: 2400, available: 99.4, alarms: events.filter((e) => e.alarm).length } };
@@ -569,10 +575,12 @@
     }
     if (msg.type === "alarmageddon/save_notify") {
       const incoming = JSON.parse(JSON.stringify(msg.notify));
-      if (incoming.selftest_hours !== undefined && (!Number.isInteger(incoming.selftest_hours) || incoming.selftest_hours < 1 || incoming.selftest_hours > 24)) throw { code: "invalid_format", message: "selftest_hours" };
-      if (incoming.selftest_hours_armed !== undefined && (!Number.isInteger(incoming.selftest_hours_armed) || incoming.selftest_hours_armed < 1 || incoming.selftest_hours_armed > 24)) throw { code: "invalid_format", message: "selftest_hours_armed" };
-      if (incoming.selftest_hours) window.__selftest = { ...window.__selftest, hours_disarmed: incoming.selftest_hours };
-      if (incoming.selftest_hours_armed) window.__selftest = { ...window.__selftest, hours_armed: incoming.selftest_hours_armed };
+      // Abstände des Selbsttests wie der Server: Minuten, 5 bis 1440 (seit 1.67.0)
+      for (const key of ["selftest_minutes", "selftest_minutes_armed"]) {
+        if (incoming[key] !== undefined && (!Number.isInteger(incoming[key]) || incoming[key] < 5 || incoming[key] > 1440)) throw { code: "invalid_format", message: key };
+      }
+      if (incoming.selftest_minutes) window.__selftest = { ...window.__selftest, minutes_disarmed: incoming.selftest_minutes };
+      if (incoming.selftest_minutes_armed) window.__selftest = { ...window.__selftest, minutes_armed: incoming.selftest_minutes_armed };
       const types = Object.fromEntries(Object.entries(window.__notify.types).map(([k, v]) => [k, { ...v, ...(incoming.types?.[k] || {}) }]));
       window.__notify = { ...window.__notify, ...incoming, types, modes: incoming.modes ?? window.__notify.modes ?? {}, per_mode: incoming.per_mode ?? window.__notify.per_mode ?? false };
       return { notify: window.__notify };

@@ -164,14 +164,14 @@ for (const lang of ["de", "en"]) {
     await s.ev("r.host.openPlace('notify'); return 1");
     await s.waitFor("return !!r.querySelector('.ag-nt [data-kind=\"selftest\"]')");
     check(`${tag}: Meldungsart "${t.kind}" unter den Wartungsmeldungen (an, wie die anderen)`, await s.ev(`return [...r.querySelectorAll('.ag-mt')].some((m) => m.querySelector('.ag-settx b')?.textContent === ${JSON.stringify(t.kind)} && m.querySelector('[data-nt="enabled"][data-kind="selftest"]')?.getAttribute('aria-checked') === 'true')`));
-    check(`${tag}: Benachrichtigungen ohne Abstand und ohne "${t.run}" (beides im Kapitel ${t.chapter})`, await s.ev("return !r.querySelector('.ag-nt [data-key=\"selftest_hours\"]') && !r.querySelector('.ag-nt [data-st=\"run\"]')"));
+    check(`${tag}: Benachrichtigungen ohne Abstand und ohne "${t.run}" (beides im Kapitel ${t.chapter})`, await s.ev("return !r.querySelector('.ag-nt [data-sys=\"st-value\"]') && !r.querySelector('.ag-nt [data-key^=\"selftest_\"]') && !r.querySelector('.ag-nt [data-st=\"run\"]')"));
     // Ein Entwurf der Benachrichtigungen sendet den Abstand nie mit (sonst überschriebe er einen neueren Wert)
     await s.tap('[data-nt="enabled"][data-kind="selftest"]');
-    await s.sim("window.__notify.selftest_hours = 9; return 1");
+    await s.sim("window.__notify.selftest_minutes = 540; return 1");
     await s.tap('[data-nt="save"]');
     check(`${tag}: Speichern der Benachrichtigungen lässt den Abstand unberührt`, await s.waitFor("return /Gespeichert|Saved/.test(r.querySelector('.ag-foot').innerText)", 8000)
-      && (await s.sim("const c = window.__calls.filter((m) => m.type === 'alarmageddon/save_notify').pop(); return window.__notify.selftest_hours === 9 && c && !('selftest_hours' in c.notify) && !('selftest_hours_armed' in c.notify)")));
-    await s.sim("window.__notify.selftest_hours = 6; window.__notify.types.selftest.enabled = true; return 1");
+      && (await s.sim("const c = window.__calls.filter((m) => m.type === 'alarmageddon/save_notify').pop(); return window.__notify.selftest_minutes === 540 && c && !Object.keys(c.notify).some((k) => k.startsWith('selftest_'))")));
+    await s.sim("window.__notify.selftest_minutes = 360; window.__notify.types.selftest.enabled = true; return 1");
     await s.ev("return r.host._fetch().then(() => 1)");
 
     // Kapitel HealthCheck (Konfiguration › Anlage): Selbsttest mit "Jetzt prüfen", Abstand als Entwurf der Seite
@@ -179,21 +179,38 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !!r.querySelector('.ag-health')");
     const chap = await s.ev("const c=r.querySelector('.ag-health').closest('.ag-chap'); return { title: c.querySelector('.ag-chap-t').textContent, text: c.innerText }");
     check(`${tag}: Kapitel "${t.chapter}" mit "${t.every}" und "${t.run}"`, chap.title === t.chapter && chap.text.includes(t.every) && chap.text.includes(t.run), JSON.stringify(chap).slice(0, 200));
-    const hours = await s.el('[data-sys="st-hours"]');
-    check(`${tag}: zwei Abstände: nicht scharf 6, scharf 1, je 1 bis 24`, await s.ev("const i=r.querySelector('[data-sys=\"st-hours\"]'); const a=r.querySelector('[data-sys=\"st-hours-armed\"]'); return i.value === '6' && i.min === '1' && i.max === '24' && a.value === '1' && a.min === '1' && a.max === '24'"));
-    if (mobile) check(`${tag}: Handy: beide Felder untereinander, bündig`, await s.ev("const i=r.querySelector('[data-sys=\"st-hours\"]').getBoundingClientRect(); const a=r.querySelector('[data-sys=\"st-hours-armed\"]').getBoundingClientRect(); return Math.abs(i.left - a.left) <= 1 && a.top > i.bottom"));
-    await (await s.el('[data-sys="st-hours-armed"]')).fill("25");
-    check(`${tag}: scharf 25 ist ungültig: rot, "Speichern" gesperrt`, await s.waitFor("return r.querySelector('[data-sys=\"st-hours-armed\"]').closest('.ag-num').classList.contains('bad') && r.querySelector('[data-sys=\"save\"]').disabled"));
-    await (await s.el('[data-sys="st-hours-armed"]')).fill("2");
-    await hours.fill("25");
-    check(`${tag}: 25 ist ungültig: rot, "Speichern" gesperrt, Hinweis in der Fusszeile`, await s.waitFor("return r.querySelector('[data-sys=\"st-hours\"]').closest('.ag-num').classList.contains('bad') && r.querySelector('[data-sys=\"save\"]').disabled && !!r.querySelector('.ag-foot .ag-err')"));
-    await (await s.el('[data-sys="st-hours"]')).fill("12");
-    check(`${tag}: 12 und 2: zwei Änderungen, "Speichern" frei`, await s.waitFor("return !r.querySelector('[data-sys=\"save\"]').disabled && /2/.test(r.querySelector('.ag-foot').innerText)"));
+    // Zwei Abstände (seit 1.67.0, Wunsch des Nutzers 2026-11-19): auf Computer und Handy untereinander unter dem Text, je Zahl und Einheit (Minuten
+    // oder Stunden); Standard 6 Stunden und 1 Stunde; 5 Minuten bis 24 Stunden; gespeichert in Minuten
+    const OFF = '[data-sys="st-value"][data-st-which="stOff"]', ON = '[data-sys="st-value"][data-st-which="stOn"]';
+    const UOFF = '[data-sys="st-unit"][data-st-which="stOff"]', UON = '[data-sys="st-unit"][data-st-which="stOn"]';
+    const fields = () => s.ev(`const q=(x) => r.querySelector(x); return { off: [q(${JSON.stringify(OFF)}).value, q(${JSON.stringify(UOFF)}).value, q(${JSON.stringify(OFF)}).max], on: [q(${JSON.stringify(ON)}).value, q(${JSON.stringify(UON)}).value, q(${JSON.stringify(ON)}).max] }`);
+    let fv = await fields();
+    check(`${tag}: zwei Abstände: nicht scharf 6 Stunden, scharf 1 Stunde`, JSON.stringify(fv) === JSON.stringify({ off: ["6", "h", "24"], on: ["1", "h", "24"] }), JSON.stringify(fv));
+    const lay = await s.ev(`const b=(x) => r.querySelector(x).getBoundingClientRect(); const i=b(${JSON.stringify(OFF)}), a=b(${JSON.stringify(ON)}), ui=b(${JSON.stringify(UOFF)}), ua=b(${JSON.stringify(UON)}), tx=r.querySelector('.ag-sthours .ag-settx').getBoundingClientRect(), card=r.querySelector('.ag-health').getBoundingClientRect();
+      return { aligned: Math.abs(i.left - a.left) <= 1 && Math.abs(ui.left - ua.left) <= 1, stacked: a.top > i.bottom, belowText: i.top >= tx.bottom - 1, unitRight: ui.left > i.right && Math.abs((ui.top + ui.bottom) / 2 - (i.top + i.bottom) / 2) <= 2, inside: ua.right <= card.right + 1 && ui.right <= card.right + 1 }`);
+    check(`${tag}: beide Abstände untereinander unter dem Text (auch am Computer), bündig, Einheit rechts neben dem Feld, in der Karte`, lay.aligned && lay.stacked && lay.belowText && lay.unitRight && lay.inside, JSON.stringify(lay));
+    // Einheit wechseln rechnet um, wo es aufgeht (1 Stunde -> 60 Minuten)
+    await s.ev(`const u=r.querySelector(${JSON.stringify(UON)}); u.value='min'; u.dispatchEvent(new Event('input', { bubbles: true })); u.dispatchEvent(new Event('change', { bubbles: true })); return 1`);
+    fv = await fields();
+    check(`${tag}: scharf auf Minuten: 1 Stunde wird 60 Minuten (bis 1440), keine Änderung (gleicher Abstand)`, JSON.stringify(fv.on) === JSON.stringify(["60", "min", "1440"]) && /^(Keine Änderungen|No changes)/.test(await s.ev("return r.querySelector('.ag-foot').innerText.trim()")), JSON.stringify(fv));
+    await (await s.el(ON)).fill("4");
+    check(`${tag}: scharf 4 Minuten ist zu kurz: rot, "Speichern" gesperrt, Hinweis "5 Minuten bis 24 Stunden"`, await s.waitFor(`return r.querySelector(${JSON.stringify(ON)}).closest('.ag-num').classList.contains('bad') && r.querySelector('[data-sys="save"]').disabled && /(5 Minuten bis 24 Stunden|5 minutes to 24 hours)/.test(r.querySelector('.ag-foot .ag-err')?.textContent || '')`));
+    await (await s.el(ON)).fill("5");
+    await (await s.el(OFF)).fill("25");
+    check(`${tag}: nicht scharf 25 Stunden ist zu lang: rot, "Speichern" gesperrt`, await s.waitFor(`return r.querySelector(${JSON.stringify(OFF)}).closest('.ag-num').classList.contains('bad') && r.querySelector('[data-sys="save"]').disabled && !!r.querySelector('.ag-foot .ag-err')`));
+    await (await s.el(OFF)).fill("12");
+    check(`${tag}: 12 Stunden und 5 Minuten: zwei Änderungen, "Speichern" frei`, await s.waitFor("return !r.querySelector('[data-sys=\"save\"]').disabled && /2/.test(r.querySelector('.ag-foot').innerText)"));
     await s.tap('[data-sys="save"]');
-    check(`${tag}: 12 und 2 gespeichert (nur diese Werte der Benachrichtigungen)`, await s.waitFor("return /Gespeichert|Saved/.test(r.querySelector('.ag-foot').innerText)", 8000)
-      && (await s.sim("const c = window.__calls.filter((m) => m.type === 'alarmageddon/save_notify').pop(); return window.__notify.selftest_hours === 12 && window.__notify.selftest_hours_armed === 2 && JSON.stringify(Object.keys(c.notify).sort()) === '[\"selftest_hours\",\"selftest_hours_armed\"]'")));
-    // Speichern lädt die Anlage neu (Ladeanzeige); danach zeigt die Zeile die nächste Prüfung nach dem neuen Abstand (scharf: 2 Stunden)
-    check(`${tag}: nach dem Neuladen gilt der neue Abstand bei scharfer Anlage (2 Stunden, "Haus" ist scharf)`, await s.waitFor("const d=r.host._data?.selftest; return !r.querySelector('.ag-root.ag-ldwrap') && d?.armed === true && d?.hours === 2 && new Date(d.next) - new Date(d.last) === 2 * 3600e3", 8000));
+    check(`${tag}: gespeichert in Minuten (720 und 5, nur diese Werte der Benachrichtigungen)`, await s.waitFor("return /Gespeichert|Saved/.test(r.querySelector('.ag-foot').innerText)", 8000)
+      && (await s.sim("const c = window.__calls.filter((m) => m.type === 'alarmageddon/save_notify').pop(); return window.__notify.selftest_minutes === 720 && window.__notify.selftest_minutes_armed === 5 && JSON.stringify(Object.keys(c.notify).sort()) === '[\"selftest_minutes\",\"selftest_minutes_armed\"]'")));
+    // Speichern lädt die Anlage neu (Ladeanzeige); danach zeigt die Zeile die nächste Prüfung nach dem neuen Abstand (scharf: 5 Minuten)
+    check(`${tag}: nach dem Neuladen gilt der neue Abstand bei scharfer Anlage (5 Minuten, "Haus" ist scharf)`, await s.waitFor("const d=r.host._data?.selftest; return !r.querySelector('.ag-root.ag-ldwrap') && d?.armed === true && d?.minutes === 5 && new Date(d.next) - new Date(d.last) === 5 * 60e3", 8000));
+    await s.waitFor(`return r.querySelector(${JSON.stringify(ON)})?.value === '5'`);
+    fv = await fields();
+    check(`${tag}: danach: nicht scharf 12 Stunden, scharf 5 Minuten`, JSON.stringify(fv) === JSON.stringify({ off: ["12", "h", "24"], on: ["5", "min", "1440"] }), JSON.stringify(fv));
+    await s.tap('.ag-stsum [data-st="open"]');
+    check(`${tag}: Fenster des Selbsttests: "${lang === "de" ? "alle 5 Minuten" : "every 5 minutes"}"`, await s.waitFor(`return (r.querySelector('.ag-st-meta')?.textContent || '').includes(${JSON.stringify(lang === "de" ? "alle 5 Minuten" : "every 5 minutes")})`));
+    await s.ev("r.getElementById('ag-selftest').close(); return 1");
     const runs = await s.sim("return window.__selftestRuns || 0");
     await s.tap('.ag-health [data-st="run"]');
     const ran = await s.page.waitForFunction((n) => (window.__selftestRuns || 0) === n + 1, runs, { timeout: 5000 }).then(() => true, () => false);

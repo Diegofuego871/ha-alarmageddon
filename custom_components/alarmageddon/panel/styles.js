@@ -1293,6 +1293,11 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-dlg-body > .ag-pop-head + * { margin-top: -14px; }
 .ag-pop-head > h3 { margin: 0; padding-right: 54px; min-height: 42px; display: flex; align-items: center; }
 .ag-dlg .ag-pop-head > h3 { font-size: 21px; font-weight: 400; }
+/* Titel mit dem Symbol des Kapitels (1.66.2, Wunsch des Nutzers 2026-11-19): getönte Kachel wie in der Zeile, etwas grösser */
+h3.ag-ttl { display: flex; align-items: center; gap: 12px; }
+h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.ag-ttl-av { --ag-tile: 42px; border-radius: 12px; }
+:host([narrow]) .ag-ttl-av { --ag-tile: 38px; }
 .ag-rtrows > .ag-codes, .ag-pop-tools + .ag-codes { margin-top: 0; }
 .ag-pop-tools[hidden] { display: none; }
 .ag-dlg-body .ag-pop-tools .list-search { flex: 1 1 0; min-width: 0; }
@@ -1419,7 +1424,6 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 /* Selbsttest (1.65.0): Zeile der Statuskachel, Fenster mit den Befunden (je Befund eine aufklappbare Karte mit Hilfe), Zeile im Reiter Benachrichtigungen */
 .ag-st-row { padding-left: 2px; padding-right: 2px; }
 .ag-status.ok > .ag-rows { margin-top: 12px; }
-.ag-st-pop .ag-pop-head > h3 { gap: 10px; }
 .ag-st-meta { margin-top: -8px; }
 .ag-st-list { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
 .ag-st-group { display: flex; align-items: center; gap: 8px; margin: 8px 2px 0; font-weight: 600; font-size: 14px; color: var(--ag-text2); }
@@ -1447,6 +1451,9 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-st-about p { margin: 8px 0 0; }
 /* Backup: "Was ist im Backup?" über der Karte, sonst wie beim Selbsttest */
 .ag-bk-about { margin: 0 0 10px; }
+.ag-hc-about { margin-top: 14px; }
+.ag-hc-about .ag-hc-exh { margin: 10px 0 4px; font-weight: 500; }
+.ag-hc-about a { color: var(--ag-primary); }
 :host([narrow]) .ag-st-body { padding-left: 14px; }
 :host([narrow]) .ag-st-foot { flex-direction: column; align-items: stretch; }
 /* Kapitel HealthCheck (1.65.0): Selbsttest, Abstand, Zeile der Lebenszeichen wie Töne und Codes */
@@ -1454,11 +1461,14 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-st-av.warn { background: var(--ag-warning-soft); color: var(--ag-warning-text); }
 .ag-st-av.err { background: var(--ag-error-soft); color: var(--ag-error); }
 .ag-sthours { flex-wrap: wrap; row-gap: 10px; }
-.ag-sthours .ag-settx { flex: 1 1 18em; min-width: 0; }
-.ag-sthours .ag-num { flex: none; }
-:host([narrow]) .ag-sthours .ag-settx { flex: 1 1 100%; }
-:host([narrow]) .ag-sthfs { margin-left: 0; display: grid; grid-template-columns: max-content auto; align-items: center; gap: 10px 12px; }
-:host([narrow]) .ag-sthf { display: contents; }
+/* Abstände des Selbsttests (seit 1.67.0, Wunsch des Nutzers 2026-11-19): auf Computer und Handy untereinander unter dem Text, je Zahl und Einheit */
+.ag-sthours .ag-settx { flex: 1 1 100%; min-width: 0; }
+.ag-sthours .ag-num { flex-wrap: wrap; min-width: 0; row-gap: 6px; }
+.ag-sthours .ag-num .ag-unit { margin-left: 0; min-width: 9em; max-width: 100%; }
+:host([narrow]) .ag-sthours .ag-num .ag-unit { min-width: 0; }
+/* Sehr schmal (320 px): die Einheit rückt unter das Feld, nie aus der Karte */
+.ag-sthfs { margin-left: 0; display: grid; grid-template-columns: max-content minmax(0, auto); justify-content: start; align-items: center; gap: 10px 16px; }
+.ag-sthf { display: contents; }
 /* Liste der Lebenszeichen: Tabelle wie die Backups; die URL steht ganz da und bricht an jeder Stelle um (sie hat keine Leerzeichen) */
 .ag-hctable td { vertical-align: middle; }
 .ag-hc-pop .ag-hctable th, :host([narrow]) .ag-hc-pop .ag-hctable th { top: calc(var(--ag-pophead, 22px) - 22px); }
@@ -1525,7 +1535,5 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-st-chk small { overflow-wrap: anywhere; }
 .ag-st-chkbody > .ag-st-group { margin-top: 8px; }
 /* Selbsttest alle N Std.: nicht scharf und scharf nebeneinander, auf dem Handy untereinander */
-.ag-sthfs { display: flex; gap: 10px 18px; flex-wrap: wrap; margin-left: auto; }
-.ag-sthf { display: inline-flex; align-items: center; gap: 8px; }
 .ag-sthf-l { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ag-text2); }
 `;

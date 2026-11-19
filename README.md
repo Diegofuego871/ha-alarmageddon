@@ -35,7 +35,7 @@
 - **Push notifications by themselves.** Alarm, armed, disarmed, sensor unreachable, battery low: you only choose the recipients. The alarm notification brings its buttons along ("Acknowledge", "Disarm"), critical if you like.
 - **Sensors under observation.** Battery with a forecast, signal, last change and the history of every sensor over 30 days. If a sensor drops out while armed, you are told.
 - **More than burglary.** Monitoring rules for the fridge, the cellar or the air report when a value leaves its limits, separate from the alarm and never with the siren.
-- **Watches itself.** A self-test checks every few hours whether everything the alarm systems use is still there and reachable. A HealthCheck service outside (Healthchecks.io, Cronitor, Better Stack …) gets a regular life sign and alerts you when Home Assistant falls silent.
+- **Watches itself.** A self-test checks regularly (every few hours by default, as often as every 5 minutes if you like) whether everything the alarm systems use is still there and reachable. A HealthCheck service outside (Healthchecks.io, Cronitor, Better Stack …) gets a regular life sign and alerts you when Home Assistant falls silent.
 - **Traceable.** Every alarm is recorded with a timeline: which sensor, which steps, which notifications, who acknowledged.
 - **When in doubt, alarm.** State, delays and alarms survive a restart and a crash, no device holds up the siren, a watchdog supervises the flow.
 - **Stays at home.** No cloud, no account. Each alarm system is an ordinary `alarm_control_panel` entity; any sensor of Home Assistant works (Zigbee, Z-Wave, Thread/Matter, Wi-Fi, Bluetooth).
@@ -74,7 +74,7 @@ Next to the alarm, off by default: rules for what has nothing to do with burglar
 
 ### Self-test
 
-Alarmageddon checks itself every few hours (more often while armed) and after every save: are all sirens, speakers, actions and recipients that the alarm systems use still there and reachable, and did a step, a notification or a life sign fail? The status tile shows the result; a window explains every problem with its causes and how to fix it, with a jump to the right place, and lists everything that was checked, green when in order. Each alarm system has a "Self-test" entity, and Home Assistant lists the problems under Repairs. The self-test only reads: it never switches anything and never holds up an alarm.
+Alarmageddon checks itself every few hours (more often while armed; both adjustable from 5 minutes to 24 hours) and after every save: are all sirens, speakers, actions and recipients that the alarm systems use still there and reachable, and did a step, a notification or a life sign fail? The status tile shows the result; a window explains every problem with its causes and how to fix it, with a jump to the right place, and lists everything that was checked, green when in order. Each alarm system has a "Self-test" entity, and Home Assistant lists the problems under Repairs. The self-test only reads: it never switches anything and never holds up an alarm.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/selftest-en.png" alt="Self-test window with a missing siren, the explanation, causes and how to fix it" width="100%"></p>
 

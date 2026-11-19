@@ -88,6 +88,57 @@ async def test_state_history_from_recorder_event_log_and_recordings(recorder_moc
     assert [e["kind"] for e in capped["events"]] == ["gone", "on"]
 
 
+async def test_since_skips_a_restart_and_follows_the_live_state(recorder_mock, hass: HomeAssistant, hass_ws_client, freezer, monkeypatch) -> None:
+    """
+    Seit wann (1.66.2, Wunsch des Nutzers 2026-11-19): Bewegung bis Minute 12, Neustart in Minute 30 ("nicht verfügbar", dann wieder "zu"):
+    die Antwort nennt Minute 12, nicht den Neustart. Ein Wechsel, den der Recorder noch nicht geschrieben hat, gilt mit der Zeit von Home Assistant.
+    """
+    client = await hass_ws_client(hass)
+    start = dt_util.utcnow().replace(minute=0, second=0, microsecond=0) - timedelta(hours=6)
+    freezer.move_to(start)
+    hass.states.async_set(MOTION, "off")
+    await setup_alarm(hass)
+    await async_wait_recording_done(hass)
+
+    async def step(minutes: float, value: str) -> None:
+        freezer.move_to(start + timedelta(minutes=minutes))
+        hass.states.async_set(MOTION, value)
+        await hass.async_block_till_done()
+        await async_wait_recording_done(hass)
+
+    await step(10, "on")
+    await step(12, "off")
+    await step(30, "unavailable")
+    await step(30.5, "unknown")
+    await step(31, "off")
+    freezer.move_to(start + timedelta(hours=4))
+    since = (await _ask(client, 1, entity_id=MOTION, hours=24))["result"]["since"]
+    assert hass.states.get(MOTION).last_changed == start + timedelta(minutes=31)  # Home Assistant nennt den Neustart
+    assert (since["state"], dt_util.parse_datetime(since["t"])) == ("off", start + timedelta(minutes=12))
+    # Zeitraum ohne den Wechsel (3 Stunden, Minute 60 bis 240): die gemerkte letzte echte Änderung (der Zustandsautomat schrieb sie mit)
+    short = (await _ask(client, 2, entity_id=MOTION, hours=3))["result"]["since"]
+    assert (short["state"], dt_util.parse_datetime(short["t"])) == ("off", start + timedelta(minutes=12))
+    # Nicht erreichbar seit Minute 250, über einen weiteren Neustart hinweg
+    await step(250, "unavailable")
+    await step(255, "unknown")
+    gone = (await _ask(client, 3, entity_id=MOTION, hours=24))["result"]["since"]
+    assert (gone["state"], dt_util.parse_datetime(gone["t"]), gone["real"], dt_util.parse_datetime(gone["real_t"])) == (
+        "gone", start + timedelta(minutes=250), "off", start + timedelta(minutes=12))
+    # Der Recorder hinkt nach: der jetzige Zustand von Home Assistant kommt dazu
+    await step(260, "off")
+    freezer.move_to(start + timedelta(minutes=270))
+    hass.states.async_set(MOTION, "on")
+    await hass.async_block_till_done()
+    real_states = sensor_history.async_states
+
+    async def lagging(hass_, entity_id, begin):
+        return [item for item in await real_states(hass_, entity_id, begin) if item[0] < start + timedelta(minutes=270)]
+
+    monkeypatch.setattr(sensor_history, "async_states", lagging)
+    live = (await _ask(client, 4, entity_id=MOTION, hours=24))["result"]["since"]
+    assert (live["state"], dt_util.parse_datetime(live["t"])) == ("on", start + timedelta(minutes=270))
+
+
 async def test_only_monitored_sensors_and_fitting_periods(recorder_mock, hass: HomeAssistant, hass_ws_client) -> None:
     """Der Befehl gibt nur den Verlauf überwachter Sensoren heraus und nur Zeiträume, die zur Art passen."""
     hass.states.async_set("binary_sensor.fremd", "off")

@@ -5,10 +5,12 @@
 // Dieselben Regeln wie routines.check_routines und schemas.py: der Server prüft alles noch einmal.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur, MODE_KEY, MODE_ICON, chapter, matchQuery, searchField } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, MODE_KEY, MODE_ICON, chapter, iconTitle, matchQuery, searchField } = await import(`./common.js${V}`);
 const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
+// Tönung der Zeile im Kapitel Routinen, auch im Titel der Fenster (1.66.2)
+const RT_TINT = "ag-tint ag-tint-routines on";
 const CLOCK_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MAX_ROUTINES = 20;
 const MAX_TIMES = 8;
@@ -207,7 +209,7 @@ export class RoutinesUi {
     const body = rows
       ? `<div class="ag-rtrows">${this._rowsHtml()}</div><p class="ag-chap-h ag-rtfoot">${esc(this._t("rtFootHint"))}</p>`
       : `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(this._t("rtEmpty"))}</span>${add("primary")}</div>`;
-    return `<div class="ag-dlg-body ag-rt-pop"><div class="ag-pop-head"><h3>${esc(this._t("rtTitle"))}</h3>${tools}</div>${body}
+    return `<div class="ag-dlg-body ag-rt-pop"><div class="ag-pop-head">${iconTitle("flash", RT_TINT, this._t("rtTitle"))}${tools}</div>${body}
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-close">${esc(this._t("close"))}</button>${rows ? add("primary") : ""}</div></div>`;
   }
 
@@ -217,7 +219,7 @@ export class RoutinesUi {
     const r = this.draft.routines[index];
     const on = r.enabled !== false;
     const tags = [...(on ? [] : [["none", this._t("rtViewOff")]]), ...this._tags(r, this._modes || [])];
-    return `<div class="ag-dlg-body ag-rt-pop ag-rt-view" data-view="${index}"><h3>${esc(r.name)}</h3>
+    return `<div class="ag-dlg-body ag-rt-pop ag-rt-view" data-view="${index}">${iconTitle("flash", RT_TINT, r.name)}
       <div class="ag-rttags">${tags.map(([cls, text, warn]) => `<span class="ag-tag ${cls}">${warn ? ic("alert", 13) : ""}${esc(text)}</span>`).join("")}</div>
       ${chapter(this._t("rtFlowTitle"), this.flowHtml(this._formOf(index)))}
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-view-close">${esc(this._t("close"))}</button>
@@ -588,7 +590,7 @@ export class RoutinesUi {
       : bad.has("armedModes") ? this._t("rtErrArmedModes") : bad.has("unsafe") ? this._t("rtErrUnsafe") : "";
     const nameField = `<input class="ag-input ag-rtname ${bad.has("name") || bad.has("nameTaken") ? "bad" : ""}" data-sys="rt-name" maxlength="${NAME_MAX}" value="${esc(f.name)}" placeholder="${esc(this._t("rtNamePh"))}" aria-label="${esc(this._t("rtName"))}">`;
     const when = f.trigger.type === "schedule" ? chapter(this._t("rtWhenTitle"), this._timesHtml(bad)) : chapter(this._t("rtIfTitle"), this._treeHtml(bad));
-    return `<div class="ag-dlg-body ag-rt-ed"><h3>${esc(this._t(this.index >= 0 ? "rtEditTitle" : "rtNewTitle"))}</h3>
+    return `<div class="ag-dlg-body ag-rt-ed">${iconTitle("flash", RT_TINT, this._t(this.index >= 0 ? "rtEditTitle" : "rtNewTitle"))}
       ${chapter(this._t("rtName"), nameField)}
       ${chapter(this._t("rtTrigger"), this._seg("trigger", [["schedule", this._t("rtTrigSchedule"), "clock"], ["device", this._t("rtTrigDevice"), "sensor"]], f.trigger.type))}
       ${when}

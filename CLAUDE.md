@@ -257,6 +257,11 @@ Umsetzung:
   etwas an den Server schicken, nehmen bis zur Antwort keinen zweiten Druck an (`system.js _sendOnce`, Suite `codereview-e2e.mjs`).
 - Sensoransicht (seit 1.60.0): ein Messwert hat Werteverlauf, Batterie und Empfang, ein Binärsensor Verlauf, Batterie und Empfang
   (`ws_sensor_history`; bis 1.59.0 waren Batterie und Empfang für Messwerte abgelehnt). Test `test_measure_history.py -k battery_and_signal`.
+  **"Seit" der Kachel "Verlauf" (seit 1.66.2, Wunsch des Nutzers 2026-11-19):** nie `last_changed` von Home Assistant (springt bei jedem
+  Neustart und jeder Neuverbindung), sondern `since` aus der Antwort (`last_change.state_since`: letzte echte Änderung zu <-> offen, "nicht
+  verfügbar" und "unbekannt" übersprungen; nicht erreichbar: Beginn der Unterbrechung; ohne Wechsel im Verlauf die gemerkte `last_changes`;
+  der jetzige Zustand von HA kommt dazu, wenn der Recorder nachhinkt). Unbekannt: nur der Zustand, keine Zeit (`sensorview.js _since`).
+  Gilt für jede neue Zeitangabe "seit" eines Sensors. Tests `test_sensor_since.py`, `test_sensor_history_recorder.py -k since`, Suite `sensor-e2e.mjs`.
 - Sensoransicht der Überwachung (seit 1.65.0, Entscheide des Nutzers vom 2026-11-18): jeder Messwert und jeder Sensor, der in einer Regel
   der Überwachung vorkommt, hat über der Liste die Reiter "Ereignisse" und "Regeln", je mit Suche (`matchQuery`) und Sortierung nach jeder
   Spalte; die Leiste scrollt mit, der Tabellenkopf bleibt stehen; beim Tippen nur die Zeilen neu (`sensorview.js _renderRows`). Der Pfeil führt
@@ -267,8 +272,11 @@ Umsetzung:
   Messwert), die Liste höchstens `EVENTS_MAX` (300) neueste mit Hinweis `svListTruncated` ("neueste N von M"). **Benennung (Entscheid des Nutzers, 19:47):** die Einträge der Überwachung heissen überall "Regeln" (Sensoransicht,
   Konfiguration › Aktionen › Überwachung, Einstellungen), nie "Aktionen" oder "Überwachungsaktionen".
 - Selbsttest (seit 1.65.0, `selftest.py`, Entscheide des Nutzers vom 2026-11-18): prüft nach dem Start (`SELFTEST_START_DELAY`), kurz nach jedem
-  Speichern (Neuladen einer Anlage, `save_notify`), alle `selftest_hours` Stunden, solange eine Anlage nicht deaktiviert ist alle `selftest_hours_armed`
-  Stunden (Standard 6 und 1, je 1 bis 24; zweiter Abstand seit 1.66.0, Wunsch des Nutzers 2026-11-19; `selftest.any_armed`), eingestellt im Kapitel
+  Speichern (Neuladen einer Anlage, `save_notify`), alle `selftest_minutes` Minuten, solange eine Anlage nicht deaktiviert ist alle `selftest_minutes_armed`
+  Minuten (Standard 360 und 60, je `SELFTEST_MINUTES_RANGE` 5 bis 1440; zweiter Abstand seit 1.66.0, Minuten seit 1.67.0, Wünsche des Nutzers
+  2026-11-19; bis 1.66.x `selftest_hours*` in Stunden, beim Laden, in Backups und von einem alten Panel übernommen: `SELFTEST_HOURS_KEYS`,
+  `settings.valid_notify`, `ws_save_notify`; Takt `SELFTEST_TICK` 60 s; `selftest.any_armed`; im Panel je Zahl und Einheit untereinander,
+  `system.js stField`, `stMinutes`), eingestellt im Kapitel
   HealthCheck unter Konfiguration › Anlage, **immer sichtbar**, auch wenn die Meldung aus ist; der Entwurf der Benachrichtigungen sendet die Werte nie mit) und mit
   "Jetzt prüfen". **Er liest nur**: nie einen Dienst aufrufen, nie einen Ton, nie eine
   Probemeldung (Test `-k reads_only`). Befunde der Konfiguration (Geräte, Lautsprecher, Aktionen, Empfänger, Töne, Adresse, Sensoren, Routinen,
@@ -297,7 +305,9 @@ Umsetzung:
   Verbindung kommt nie ins Log (sie enthält oft die URL). Ein Lebenszeichen ist eine Hintergrundaufgabe mit `HEALTHCHECK_TIMEOUT`, hält nie etwas
   auf; ein Wechsel des Selbsttests geht höchstens alle `HEALTHCHECK_MIN_GAP` Sekunden hinaus. Tests in `tests/test_healthcheck.py`, Zeilen
   "HealthCheck" in `scripts/mutation_check.py`, Suite `healthcheck-e2e.mjs`. Nie die echte Ping-URL eines Nutzers (Bildschirmfoto) in Code, Tests
-  oder Bildern verwenden; der Nachbau hat erfundene Adressen (`?hc=sample`).
+  oder Bildern verwenden; der Nachbau hat erfundene Adressen (`?hc=sample`). Das Fenster der Dienste erklärt sie unter der Liste zum Aufklappen
+  ("Was sind HealthCheck-Dienste?", seit 1.67.0, Wunsch des Nutzers; Name bleibt "HealthCheck-Dienste", Entscheid des Nutzers 2026-11-19) mit den
+  Beispielen `EXAMPLES` in `healthcheck.js` (Links in neuem Fenster, dieselben Anbieter wie `KNOWN`).
 - Neustart und Absturz (seit 1.58.0, Code-Review): Der Zustand steht in einer eigenen Ablage (`controller._save_state`, `STATE_STORE_KEY`), sofort bei jedem
   Wechsel geschrieben; beim Start gilt der neuere von eigener Ablage und Restore-Stand von HA (`controller.newer_state`). Was beim Wiederherstellen
   auslösen muss (abgelaufene Eingangsverzögerung), löst erst in `controller.async_finish_restore()` aus, wenn alle Zuhörer angemeldet sind

@@ -35,7 +35,7 @@
 - **Push-Meldungen von selbst.** Alarm, scharf, deaktiviert, Sensor nicht erreichbar, Batterie schwach: Du wählst nur die Empfänger. Die Alarmmeldung bringt ihre Knöpfe mit ("Quittieren", "Deaktivieren"), auf Wunsch kritisch.
 - **Sensoren unter Beobachtung.** Batterie mit Prognose, Empfang, letzte Änderung und der Verlauf jedes Sensors über 30 Tage. Fällt ein Sensor im scharfen Zustand aus, erfährst du es.
 - **Mehr als Einbruch.** Regeln der Überwachung für Kühlschrank, Keller oder Luft melden, wenn ein Wert seine Grenzen verlässt, getrennt vom Alarm und nie mit der Sirene.
-- **Behält sich selbst im Blick.** Ein Selbsttest prüft alle paar Stunden, ob alles, was die Anlagen brauchen, noch da und erreichbar ist. Ein HealthCheck-Dienst draussen (Healthchecks.io, Cronitor, Better Stack …) bekommt regelmässig ein Lebenszeichen und meldet sich, wenn Home Assistant verstummt.
+- **Behält sich selbst im Blick.** Ein Selbsttest prüft regelmässig (standardmässig alle paar Stunden, auf Wunsch bis alle 5 Minuten), ob alles, was die Anlagen brauchen, noch da und erreichbar ist. Ein HealthCheck-Dienst draussen (Healthchecks.io, Cronitor, Better Stack …) bekommt regelmässig ein Lebenszeichen und meldet sich, wenn Home Assistant verstummt.
 - **Nachvollziehbar.** Jeder Alarm wird mit Zeitachse aufgezeichnet: welcher Sensor, welche Schritte, welche Meldungen, wer quittiert hat.
 - **Im Zweifel alarmieren.** Zustand, Verzögerungen und Alarme überstehen Neustart und Absturz, kein Gerät hält die Sirene auf, ein Wächter beaufsichtigt den Ablauf.
 - **Bleibt zu Hause.** Keine Cloud, kein Konto. Jede Anlage ist eine gewöhnliche `alarm_control_panel`-Entität; jeder Sensor von Home Assistant funktioniert (Zigbee, Z-Wave, Thread/Matter, WLAN, Bluetooth).
@@ -74,7 +74,7 @@ Neben dem Alarm, standardmässig aus: Regeln für das, was nichts mit Einbrecher
 
 ### Selbsttest
 
-Alarmageddon prüft sich alle paar Stunden (scharf öfter) und nach jedem Speichern selbst: Gibt es alle Sirenen, Lautsprecher, Aktionen und Empfänger noch, die die Anlagen verwenden, sind sie erreichbar, und ist ein Schritt, eine Meldung oder ein Lebenszeichen gescheitert? Die Statuskachel zeigt das Ergebnis; ein Fenster erklärt jedes Problem mit Ursachen und wie man es behebt, mit einem Sprung an die richtige Stelle, und listet alles Geprüfte auf, grün, wenn in Ordnung. Jede Anlage hat eine Entität "Selbsttest", und Home Assistant führt die Probleme unter Reparaturen auf. Der Selbsttest liest nur: er schaltet nie etwas und hält nie einen Alarm auf.
+Alarmageddon prüft sich alle paar Stunden (scharf öfter; beides von 5 Minuten bis 24 Stunden einstellbar) und nach jedem Speichern selbst: Gibt es alle Sirenen, Lautsprecher, Aktionen und Empfänger noch, die die Anlagen verwenden, sind sie erreichbar, und ist ein Schritt, eine Meldung oder ein Lebenszeichen gescheitert? Die Statuskachel zeigt das Ergebnis; ein Fenster erklärt jedes Problem mit Ursachen und wie man es behebt, mit einem Sprung an die richtige Stelle, und listet alles Geprüfte auf, grün, wenn in Ordnung. Jede Anlage hat eine Entität "Selbsttest", und Home Assistant führt die Probleme unter Reparaturen auf. Der Selbsttest liest nur: er schaltet nie etwas und hält nie einen Alarm auf.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/selftest-de.png" alt="Fenster des Selbsttests mit einer fehlenden Sirene, der Erklärung, den Ursachen und der Behebung" width="100%"></p>
 

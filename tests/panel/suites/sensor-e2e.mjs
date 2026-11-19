@@ -49,6 +49,36 @@ for (const lang of ["de", "en"]) {
     const tiles = () => dlg("return [...d.querySelectorAll('.ag-sv-tile')].map((b) => b.querySelector('small').textContent + (b.classList.contains('on') ? '*' : ''))");
     check(`${tag}: Tür mit Batterie und Empfang: vier Kacheln, "Verlauf" gewählt`, JSON.stringify(await tiles()) === JSON.stringify([`${t.tabs[0]}*`, t.tabs[1], t.tabs[2], t.tabs[3]]), JSON.stringify(await tiles()));
     check(`${tag}: Kacheln zeigen ihren aktuellen Wert`, await dlg("const v=[...d.querySelectorAll('.ag-sv-tile b')].map((b) => b.textContent); return /72/.test(v[1]) && /-58|−58/.test(v[2]) && v[0].length > 2"));
+    // ----- Seit wann (1.66.2, Wunsch des Nutzers 2026-11-19): nie die Zeit eines Neustarts von Home Assistant -----
+    // Im Nachbau tragen alle Zustände die Zeit des Ladens als last_changed, wie nach einem Neustart; die letzte echte Änderung ist das Ende der
+    // neuesten Öffnung (wie last_change.state_since auf dem Server)
+    const tileText = () => dlg("return d.querySelector('.ag-sv-tile b').textContent");
+    const since = await dlg(`const h=r.host, sv=h.sensorView, st=h._state('${DOOR}'); return { tile: d.querySelector('.ag-sv-tile b').textContent, want: h._fmtTime(sv.since.t), restart: h._fmtTime(st.last_changed), state: sv.since.state }`);
+    check(`${tag}: Kachel "Verlauf": "seit" ist das Ende der letzten Öffnung, nicht der Neustart von Home Assistant`, since.state === "off" && since.tile.endsWith(` ${since.want}`) && since.want !== since.restart, JSON.stringify(since));
+    // Ohne bekannte echte Änderung (etwa ein Rauchmelder, der nie ausgelöst hat): nur der Zustand, keine Zeit
+    const calm = await dlg(`const h=r.host, sv=h.sensorView; sv.since = { id: '${DOOR}', state: 'off', t: null, real: 'off', real_t: null }; sv.render(); return [d.querySelector('.ag-sv-tile b').textContent, sv._stateText()[0]]`);
+    check(`${tag}: ohne bekannte Änderung nur der Zustand ("${calm[1]}"), keine Zeit des Neustarts`, calm[0] === calm[1], JSON.stringify(calm));
+    // Nach der Antwort geöffnet: Home Assistant kennt diesen Wechsel genau
+    const t0 = Date.now() - 4 * 3600e3, t1 = Date.now() - 3 * 3600e3;
+    await dlg(`const sv=r.host.sensorView; sv.since = { id: '${DOOR}', state: 'off', t: new Date(${t0}).toISOString(), real: 'off', real_t: new Date(${t0}).toISOString() }; return 1`);
+    await s.sim(`window.__setState("${DOOR}", "on", {}, ${t1}); return 1`);
+    const opened = await dlg(`const h=r.host; h.sensorView.render(); return [d.querySelector('.ag-sv-tile b').textContent, h._fmtTime(new Date(${t1}).toISOString())]`);
+    check(`${tag}: nach der Antwort geöffnet: "seit" ist die Zeit der Öffnung`, opened[0].endsWith(` ${opened[1]}`) && opened[0].startsWith(await dlg("return r.host.sensorView._stateText()[0]")), JSON.stringify(opened));
+    // Nicht erreichbar: seit Beginn der Unterbrechung (vom Server, über einen Neustart hinweg); kehrt der Sensor im alten Zustand zurück, gilt
+    // wieder die Zeit davor, nicht die der Rückkehr
+    await s.sim(`window.__setState("${DOOR}", "unavailable"); return 1`);
+    const gone = await dlg(`const h=r.host, sv=h.sensorView; sv.since = { id: '${DOOR}', state: 'gone', t: new Date(${t1}).toISOString(), real: 'off', real_t: new Date(${t0}).toISOString() }; sv.render(); return [d.querySelector('.ag-sv-tile b').textContent, h._fmtTime(new Date(${t1}).toISOString()), sv._stateText()[0]]`);
+    check(`${tag}: nicht erreichbar: "${gone[2]}" seit Beginn der Unterbrechung`, gone[0] === `${gone[2]} ${(await dlg("return r.host._t('since', { time: 'X' })")).replace("X", gone[1])}`, JSON.stringify(gone));
+    await s.sim(`window.__setState("${DOOR}", "off"); return 1`);
+    const back = await dlg(`const h=r.host; h.sensorView.render(); return [d.querySelector('.ag-sv-tile b').textContent, h._fmtTime(new Date(${t0}).toISOString()), h._fmtTime(h._state('${DOOR}').last_changed)]`);
+    check(`${tag}: zurück im alten Zustand: "seit" bleibt die Zeit vor der Unterbrechung, nicht die der Rückkehr`, back[0].endsWith(` ${back[1]}`) && back[1] !== back[2], JSON.stringify(back));
+    // Vor der ersten Antwort: die gemerkte letzte echte Änderung (wie die Liste), nie last_changed
+    const before = await dlg(`const h=r.host, sv=h.sensorView; sv.since = null; sv.render(); return [d.querySelector('.ag-sv-tile b').textContent, h._fmtTime(h._data.last_changes['${DOOR}'])]`);
+    check(`${tag}: vor der ersten Antwort: die letzte echte Änderung der Liste`, before[0].endsWith(` ${before[1]}`), JSON.stringify(before));
+    // Zurück auf den Stand des Nachbaus für die folgenden Prüfungen
+    await dlg("d.querySelector('.ag-sv-range [data-hours=\"24\"]').click(); return 1");
+    await s.waitFor("const sv=r.host.sensorView; return !!sv.since && !sv.loading");
+    check(`${tag}: neue Antwort: wieder "seit" der letzten Öffnung`, (await tileText()).endsWith(` ${await dlg("const h=r.host; return h._fmtTime(h.sensorView.since.t)")}`));
     await s.page.waitForTimeout(450); // die Kapsel ist angekommen
     // Reiter oben wie alle Schieber-Tabs: eine Leiste (.ag-seg) mit gleitender Kapsel unter dem gewählten, ohne blauen Rahmen
     check(`${tag}: Reiter Verlauf/Gerät sind eine gemeinsame Reiterleiste mit Kapsel unter dem gewählten (kein blauer Rahmen)`, await dlg("const bar=d.querySelector('.ag-sv-tiles'); const on=bar.querySelector('.ag-sv-tile.on'); const pill=bar.querySelector(':scope > .ag-pill'); if (!bar.classList.contains('ag-seg') || !pill || !on) return false; const p=pill.getBoundingClientRect(), o=on.getBoundingClientRect(); const bw=parseFloat(getComputedStyle(on).borderTopWidth); return JSON.stringify({ dl: Math.round(p.left - o.left), dw: Math.round(p.width - o.width), bw, bg: getComputedStyle(on).backgroundColor }) && Math.abs(p.left - o.left) < 6 && Math.abs(p.width - o.width) < 6 && bw === 0 && getComputedStyle(on).backgroundColor === 'rgba(0, 0, 0, 0)'"));

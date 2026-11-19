@@ -27,7 +27,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .forecast import forecast_days
-from .last_change import _item
+from .last_change import _item, state_since
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -280,8 +280,11 @@ def _iso(when: datetime | None) -> str | None:
 
 
 async def async_state_history(hass: HomeAssistant, stats: SensorStats, entity_id: str, hours: int,
-                              events: list[dict[str, Any]], recordings: list[dict[str, Any]]) -> dict[str, Any]:
-    """Antwort der Sensoransicht für den Reiter "Verlauf": Stundenwerte, Ereignisse, Zustand der Anlage, Kennzahlen."""
+                              events: list[dict[str, Any]], recordings: list[dict[str, Any]], known: str | None = None) -> dict[str, Any]:
+    """
+    Antwort der Sensoransicht für den Reiter "Verlauf": Stundenwerte, Ereignisse, Zustand der Anlage, Kennzahlen und seit wann der jetzige
+    Zustand gilt (`since`; `known` ist die gemerkte letzte echte Änderung aus den Einstellungen).
+    """
     now = dt_util.utcnow()
     start = now - timedelta(hours=hours)
     # Für die Stundenwerte einmal 30 Tage Verlauf nachtragen (so weit Home Assistant ihn hat)
@@ -296,6 +299,12 @@ async def async_state_history(hass: HomeAssistant, stats: SensorStats, entity_id
     else:
         items = await async_states(hass, entity_id, start)
     found = periods(items, start)
+    # Seit wann (1.66.2): ohne Neustart und Neuverbindung. Der Recorder schreibt mit Verzögerung: der jetzige Zustand von Home Assistant kommt
+    # dazu, wenn er neuer ist als der letzte Eintrag (sonst stünde ein eben geöffnetes Fenster mit der Zeit des letzten Schliessens da)
+    tail = list(items)
+    if (current := hass.states.get(entity_id)) is not None and (not tail or current.last_changed > tail[-1][0]):
+        tail.append((current.last_changed, current.state))
+    since = state_since(tail, dt_util.parse_datetime(known) if known else None)
     armed = armed_intervals(events, start, now)
     alarms = [(when, r["id"]) for r in recordings if r.get("sensor") == entity_id and (when := dt_util.parse_datetime(str(r.get("start") or ""))) is not None and when >= start]
     rows: list[dict[str, Any]] = []
@@ -324,6 +333,7 @@ async def async_state_history(hass: HomeAssistant, stats: SensorStats, entity_id
         # 2026-11-19: die Zahl über der Liste entspricht immer dem Zeitraum, nie einer Obergrenze oder dem Total)
         "events": list(reversed(rows))[:EVENTS_MAX], "truncated": len(rows) > EVENTS_MAX, "events_total": len(rows),
         "events_from": _iso(items[0][0]) if items else None,
+        "since": since,
         "armed": [{"from": _iso(i["from"]), "to": _iso(i["to"]), "mode": i["mode"]} for i in armed],
         "summary": {
             "count": count, "seconds": seconds,

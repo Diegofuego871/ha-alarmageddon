@@ -8,8 +8,10 @@
 // prüft dann öfter, und findet er etwas, geht der Fehler sofort hinaus). Knöpfe der Zeile in Kreisen wie bei Routinen und Tönen (`.ag-wf-btns`), auf dem Handy in einer
 // eigenen Zeile unter dem Eintrag (Wunsch des Nutzers 2026-11-19).
 const V = new URL(import.meta.url).search;
-const { ic, esc, errText, fmtDur, matchQuery, searchField } = await import(`./common.js${V}`);
+const { ic, esc, errText, fmtDur, iconTitle, matchQuery, searchField } = await import(`./common.js${V}`);
 
+// Tönung der Zeile im Kapitel HealthCheck, auch im Titel der Fenster (1.66.2)
+const HC_TINT = "ag-tint ag-tint-health on";
 const MIN = 60;
 const MAX = 86400;
 // Schnellwahl des Abstands (Wunsch des Nutzers: "schlaue" Eingabe); dazu Zahl und Einheit für jeden anderen Wert von 1 Minute bis 24 Stunden
@@ -25,6 +27,11 @@ const KNOWN = [
   { name: "Cronitor", suffix: "?state=fail", test: (u) => u.hostname === "cronitor.link" },
   { name: "Uptime Kuma", suffix: "?status=down", test: (u) => u.pathname.includes("/api/push/") },
 ];
+
+// Beispiele im Fenster (Wunsch des Nutzers 2026-11-19: drei, vier Anbieter zum Aufklappen); dieselben, für die KNOWN den Fehler-Zusatz vorschlägt.
+// Seiten geprüft am 2026-11-19. Uptime Kuma läuft beim Nutzer selbst: sinnvoll nur ausserhalb von Home Assistant.
+const EXAMPLES = [["Healthchecks.io", "https://healthchecks.io"], ["Cronitor", "https://cronitor.io"], ["Better Stack", "https://betterstack.com"],
+  ["Uptime Kuma", "https://github.com/louislam/uptime-kuma", "hcAboutKuma"]];
 
 export function suggest(url) {
   let u;
@@ -138,11 +145,21 @@ export class HealthCheckUi {
       return;
     }
     const n = this.items.length;
-    this.host._setHtml(dlg, `<div class="ag-dlg-body ag-hc-pop"><div class="ag-pop-head"><h3>${esc(this._t("hcListTitle"))}</h3>
+    this.host._setHtml(dlg, `<div class="ag-dlg-body ag-hc-pop"><div class="ag-pop-head">${iconTitle("heartPulse", HC_TINT, this._t("hcListTitle"))}
       <div class="ag-tools ag-pop-tools ag-hctools" ${n ? "" : "hidden"}>${searchField("data-hc", "search", this.q, this._t("hcFilter"), this._t("clearSearch"))}</div></div>
-      <div class="ag-hcbody">${this._body()}</div>
+      <div class="ag-hcbody">${this._body()}</div>${this._about()}
       <div class="ag-dlg-btns">${this._foot()}</div></div>`);
     this._stickHead(dlg);
+  }
+
+  // Was diese Dienste sind, mit Beispielen (Wunsch des Nutzers 2026-11-19, wie "Was prüft der Selbsttest?"): zum Aufklappen unter der Liste. Offen
+  // bleibt es, auch wenn das Fenster neu gezeichnet wird (aboutOpen, gesetzt beim Klick auf die Zeile; der Browser klappt selbst um)
+  _about() {
+    const t = (k) => this._t(k);
+    const lines = t("hcAboutText").split("\n").filter(Boolean).map((line) => `<li>${esc(line)}</li>`).join("");
+    const links = EXAMPLES.map(([name, url, note]) => `<li><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(name)}</a> <span class="ag-t2">${esc(url.replace(/^https:\/\//, ""))}${note ? ` · ${esc(t(note))}` : ""}</span></li>`).join("");
+    return `<details class="ag-st-about ag-hc-about" ${this.aboutOpen ? "open" : ""}><summary data-hc="about">${ic("info", 16)}<span>${esc(t("hcAbout"))}</span></summary>
+      <ul class="ag-st-ul">${lines}</ul><p class="ag-hc-exh">${esc(t("hcAboutExamples"))}</p><ul class="ag-st-ul ag-hc-ex">${links}</ul></details>`;
   }
 
   // "Schliessen" und "Dienst hinzufügen" nebeneinander rechts, wie in allen Fenstern mit Liste (Wunsch des Nutzers 2026-11-19)
@@ -275,7 +292,7 @@ export class HealthCheckUi {
     const t = (k, v) => this._t(k, v);
     const p = this._parts();
     const bad = this._formProblems();
-    this.host._setHtml(dlg, `<form class="ag-dlg-body ag-hcform" data-form="hc" novalidate><h3>${esc(t(f.id ? "hcEditTitle" : "hcAddTitle"))}</h3>
+    this.host._setHtml(dlg, `<form class="ag-dlg-body ag-hcform" data-form="hc" novalidate>${iconTitle("heartPulse", HC_TINT, t(f.id ? "hcEditTitle" : "hcAddTitle"))}
       <div class="ag-t2 ag-small">${esc(t("hcFormHint"))}</div>
       <label class="ag-hcfield"><span class="ag-hclabel">${esc(t("hcName"))}</span>
         <input class="ag-input" type="text" data-hc="f-name" value="${esc(f.name)}" placeholder="${esc(t("hcNamePh"))}" autocomplete="off" maxlength="60" required>
@@ -385,6 +402,11 @@ export class HealthCheckUi {
   onClick(el) {
     const act = el?.dataset.hc;
     if (!act) return false;
+    // "Was sind HealthCheck-Dienste?": der Browser klappt auf oder zu, hier nur merken (der Klick kommt vor dem Umschalten)
+    if (act === "about") {
+      this.aboutOpen = !el.closest("details")?.open;
+      return true;
+    }
     if (act === "open") this.openList();
     else if (act === "close") this.listDlg?.close();
     else if (act === "add") this.openForm();

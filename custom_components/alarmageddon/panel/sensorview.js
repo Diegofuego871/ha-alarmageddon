@@ -15,6 +15,7 @@ const RANGE_LABEL = { 3: "svR3h", 12: "svR12h", 24: "svR1d", 168: "svR7d", 720: 
 const TAB_ICON = { state: "history", value: "history", battery: "battery", signal: "signal", device: "chip" };
 const MODES = ["home", "away", "night"];
 const HOUR = 3600000;
+const GONE = new Set(["unavailable", "unknown"]);
 // Reiter unter der Grafik (1.65.0): Standard-Sortierung je Reiter; Zustand einer Regel der Überwachung in dieser Reihenfolge
 const SORT_DEFAULT = { events: { key: "time", dir: "desc" }, rules: { key: "name", dir: "asc" } };
 const STATE_ORDER = { out: 0, on: 1, off: 2 };
@@ -27,6 +28,7 @@ export class SensorView {
     this.tab = "state";
     this.hours = { state: 24, value: 24, signal: 168, battery: 2160 };
     this.data = null;
+    this.since = null;
     this.loading = false;
     this.error = null;
     this.seq = 0;
@@ -87,7 +89,10 @@ export class SensorView {
   }
 
   open(id) {
-    if (id !== this.id) this.resetList();
+    if (id !== this.id) {
+      this.resetList();
+      this.since = null;
+    }
     this.id = id;
     this.tab = this.measure ? "value" : "state";
     this.data = null;
@@ -121,6 +126,8 @@ export class SensorView {
       const res = await this.host._hass.callWS({ type: "alarmageddon/sensor_history", entity_id: this.id, kind: this.tab, hours: this.hours[this.tab] });
       if (seq !== this.seq) return;
       this.data = res;
+      // Bleibt beim Wechsel auf Batterie oder Empfang erhalten: die Kachel "Verlauf" steht über allen Reitern
+      if (res?.since) this.since = { id: this.id, ...res.since };
     } catch (err) {
       if (seq !== this.seq) return;
       this.data = null;
@@ -238,7 +245,10 @@ export class SensorView {
     const st = this.host._state(this.id);
     const tileValue = {
       value: () => stateText,
-      state: () => `${stateText}${st?.last_changed ? ` ${this._t("since", { time: this.host._fmtTime(st.last_changed) })}` : ""}`,
+      state: () => {
+        const since = this._since(st);
+        return `${stateText}${since ? ` ${this._t("since", { time: this.host._fmtTime(since) })}` : ""}`;
+      },
       battery: () => this._entityValue(info.battery, "%"),
       signal: () => (info.signal_live ? this._liveValue(info.signal_live) : this._entityValue(info.signal, "")),
       device: () => [info.manufacturer, info.model].filter(Boolean).join(" ") || this._t("svDeviceNone"),
@@ -259,6 +269,23 @@ export class SensorView {
     if (body.busy) loaderStart(this.host._root, this.host);
     // Die Reiter oben sind eine gewöhnliche Reiterleiste mit gleitender Kapsel wie im ganzen Panel: das Panel setzt die Kapsel
     this.host._placePills?.();
+  }
+
+  // Seit wann der jetzige Zustand gilt (1.66.2, Wunsch des Nutzers 2026-11-19): nie die Zeit eines Neustarts oder einer Neuverbindung, auf die
+  // Home Assistant `last_changed` setzt ("in Ordnung seit 13:23", "ruhig seit 13:23"), sondern die letzte echte Änderung (zu <-> offen: Ende der
+  // letzten Bewegung, der letzten Auslösung) oder, wenn der Sensor nicht erreichbar ist, der Beginn der Unterbrechung. Der Server rechnet das aus
+  // dem Verlauf (`since`, last_change.state_since); ist es nicht bekannt, steht nur der Zustand da.
+  _since(st) {
+    if (!st) return null;
+    const cur = GONE.has(st.state) ? "gone" : st.state;
+    const s = this.since?.id === this.id ? this.since : null;
+    // Vor der ersten Antwort: die gemerkte letzte echte Änderung (dieselbe wie in der Liste, "Letzte Änderung")
+    if (!s) return cur === "gone" ? null : this.host._data?.last_changes?.[this.id] || null;
+    if (s.state === cur) return s.t;
+    // Nach der Antwort geändert (die Ansicht zeichnet erst beim nächsten Tipp neu): Home Assistant kennt diesen Wechsel genau, ausser der Sensor
+    // ist nach einer Unterbrechung im alten Zustand zurück
+    if (s.state === "gone" && cur === s.real) return s.real_t;
+    return st.last_changed;
   }
 
   // Empfang von ZHA oder Bluetooth: der Wert kommt vom Server (1.41.0)

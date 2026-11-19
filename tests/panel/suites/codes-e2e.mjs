@@ -106,6 +106,9 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   // ----- Bearbeiten: Name und Benutzer drin, Codefelder leer, leer = bisheriger Code -----
   await s.tap('#ag-codelist [data-sys="code-edit"][data-id="c_bert"]');
   check(`${tag}: Stift öffnet "${t.edit}" über der Liste`, await s.waitFor("return r.getElementById('ag-codes').open && r.getElementById('ag-codelist').open"));
+  // Breite (1.67.0, Wunsch des Nutzers 2026-11-19): das Formular so breit wie die Liste dahinter (Standardbreite aller Fenster); Handy: ganzer Bildschirm
+  const widths = await s.ev("const w=(id) => Math.round(r.getElementById(id).getBoundingClientRect().width); return { form: w('ag-codes'), list: w('ag-codelist'), vw: innerWidth }");
+  check(`${tag}: "${t.edit}" so breit wie die Liste${mobile ? " (ganzer Bildschirm)" : ""}`, widths.form === widths.list && (!mobile || widths.form === widths.vw), JSON.stringify(widths));
   const form = await s.ev(`const d=r.getElementById('ag-codes'); const v=(k) => d.querySelector('[data-key="' + k + '"]'); return { title: d.querySelector('h3').innerText.trim(), user: v('user_id').value, name: v('name').value,
     code: v('code').value, code2: v('code2').value, types: [v('code').type, v('code2').type].join(), keep: d.innerText.includes(${JSON.stringify(t.keep)}), dirty: r.host._dlgDirty(d),
     other: [...v('user_id').options].some((o) => o.value === 'u_anna') }`);

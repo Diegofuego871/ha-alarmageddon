@@ -48,6 +48,9 @@ for (const lang of ["de", "en"]) {
     // ----- Hinzufügen: Erkennung schlägt vor, der Nutzer entscheidet -----
     await s.tap('#ag-hclist .ag-rtempty [data-hc="add"]');
     check(`${tag}: Formular offen, Fokus im Namen (Pflichtfeld, ganz oben)`, await s.waitFor("return r.getElementById('ag-hcform').open && r.activeElement?.dataset.hc === 'f-name' && r.querySelector('#ag-hcform .ag-hcfield input')?.dataset.hc === 'f-name'"));
+    // Breite (1.67.0, Wunsch des Nutzers 2026-11-19): so breit wie die Liste dahinter (Standardbreite aller Fenster); Handy: ganzer Bildschirm
+    const widths = await s.ev("const w=(id) => Math.round(r.getElementById(id).getBoundingClientRect().width); return { form: w('ag-hcform'), list: w('ag-hclist'), vw: innerWidth }");
+    check(`${tag}: Formular so breit wie die Liste${mobile ? " (ganzer Bildschirm)" : " (Standardbreite)"}`, widths.form === widths.list && (mobile ? widths.form === widths.vw : widths.form > 600), JSON.stringify(widths));
     const form = () => s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { suffix: q('[data-hc=\"f-suffix\"]').value, known: q('[data-hcp=\"known\"]').innerText, offer: q('[data-hcp=\"offer\"]').innerText, prev: q('[data-hcp=\"prev\"]').innerText, err: [...d.querySelectorAll('.ag-err')].map((e) => e.textContent).join(' | '), value: q('[data-hc=\"f-value\"]').value, unit: q('[data-hc=\"f-unit\"]').value, on: [...d.querySelectorAll('[data-hc=\"f-preset\"].on')].map((b) => b.dataset.sec), values: d.querySelectorAll('[data-hc=\"f-value\"]').length }");
     await (await s.el('[data-hc="f-url"]')).type(HC);
     let f = await form();
@@ -134,6 +137,23 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: keine Treffer: "${t.noMatch}"`, await s.waitFor(`return r.getElementById('ag-hclist').innerText.includes(${JSON.stringify(t.noMatch)})`));
     await s.tap('#ag-hclist [data-hc="search-clear"]');
     check(`${tag}: X leert die Suche, beide Zeilen wieder da`, await s.waitFor("return r.querySelectorAll('#ag-hclist [data-hc-row]').length === 2 && r.querySelector('#ag-hclist input[type=search]').value === ''"));
+    // "Was sind HealthCheck-Dienste?" (1.67.0, Wunsch des Nutzers 2026-11-19): zum Aufklappen unter der Liste, wie "Was prüft der Selbsttest?",
+    // mit vier Beispielen als Links in einem neuen Fenster; bleibt offen, wenn das Fenster neu gezeichnet wird
+    const about = () => s.ev("const d=r.querySelector('#ag-hclist details.ag-hc-about'); if (!d) return null; const b=d.getBoundingClientRect(), t=r.querySelector('#ag-hclist .ag-hcbody').getBoundingClientRect(); return { open: d.open, summary: d.querySelector('summary').textContent.trim(), below: b.top >= t.bottom - 1, info: !!d.querySelector('summary svg'), lines: d.querySelectorAll('.ag-st-ul:not(.ag-hc-ex) li').length, links: [...d.querySelectorAll('.ag-hc-ex a')].map((a) => [a.textContent, a.getAttribute('href'), a.target, a.rel]) }");
+    const a0 = await about();
+    check(`${tag}: "${lang === "de" ? "Was sind HealthCheck-Dienste?" : "What are HealthCheck services?"}" unter der Liste, zugeklappt, mit Info-Symbol`, !!a0 && !a0.open && a0.below && a0.info && a0.summary === (lang === "de" ? "Was sind HealthCheck-Dienste?" : "What are HealthCheck services?"), JSON.stringify(a0));
+    await s.tap("#ag-hclist .ag-hc-about summary");
+    const a1 = await about();
+    check(`${tag}: aufgeklappt: vier Absätze und vier Beispiele (Healthchecks.io, Cronitor, Better Stack, Uptime Kuma) als https-Links in neuem Fenster`, a1.open && a1.lines === 4
+      && JSON.stringify(a1.links.map((l) => l[0])) === JSON.stringify(["Healthchecks.io", "Cronitor", "Better Stack", "Uptime Kuma"]) && a1.links.every((l) => l[1].startsWith("https://") && l[2] === "_blank" && l[3].includes("noopener")), JSON.stringify(a1));
+    await s.ev("r.host.healthcheck.renderList(true); return 1");
+    check(`${tag}: neu gezeichnet: bleibt aufgeklappt`, (await about())?.open === true);
+    await s.tap('#ag-hclist [data-hc="close"]');
+    await s.tap('.ag-hcsum [data-hc="open"]');
+    await s.waitFor("return r.getElementById('ag-hclist').open");
+    check(`${tag}: nach Schliessen und Öffnen des Fensters bleibt es aufgeklappt`, (await about())?.open === true);
+    await s.tap("#ag-hclist .ag-hc-about summary");
+    check(`${tag}: zugeklappt bleibt es zu`, (await about())?.open === false);
     // Sortieren nach Intervall (nur auf dem Desktop als Spalte; auf dem Handy über die URL)
     const order = () => s.ev("return [...r.querySelectorAll('#ag-hclist [data-hc-row]')].map((x) => x.dataset.hcRow)");
     if (!mobile) {

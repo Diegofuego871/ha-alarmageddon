@@ -25,7 +25,8 @@ from .const import (
     BATTERY_THRESHOLD_RANGE,
     DEFAULT_NOTIFY,
     OFFLINE_MINUTES_RANGE,
-    SELFTEST_HOURS_RANGE,
+    SELFTEST_HOURS_KEYS,
+    SELFTEST_MINUTES_RANGE,
     HEALTHCHECK_DEFAULT_INTERVAL,
     HEALTHCHECK_INTERVAL_RANGE,
     HEALTHCHECK_NAME_MAX,
@@ -90,8 +91,14 @@ def valid_notify(value: Any) -> dict[str, Any]:
     for key in ("disarm_action", "open_action", "silence_action", "acknowledge_action", "arm_retry_action", "arm_force_action"):
         if isinstance(value.get(key), bool):
             out[key] = value[key]
-    for key, (low, high) in (("battery_threshold", BATTERY_THRESHOLD_RANGE), ("offline_minutes", OFFLINE_MINUTES_RANGE), ("selftest_hours", SELFTEST_HOURS_RANGE),
-                              ("selftest_hours_armed", SELFTEST_HOURS_RANGE)):
+    # Abstände des Selbsttests bis 1.66.x in Stunden: übernommen, wenn der Wert in Minuten fehlt (gespeicherte Einstellungen, ältere Backups)
+    value = dict(value)
+    for old, new in SELFTEST_HOURS_KEYS:
+        hours = value.pop(old, None)
+        if new not in value and isinstance(hours, (int, float)) and not isinstance(hours, bool):
+            value[new] = int(hours) * 60
+    for key, (low, high) in (("battery_threshold", BATTERY_THRESHOLD_RANGE), ("offline_minutes", OFFLINE_MINUTES_RANGE), ("selftest_minutes", SELFTEST_MINUTES_RANGE),
+                              ("selftest_minutes_armed", SELFTEST_MINUTES_RANGE)):
         if isinstance(value.get(key), (int, float)) and not isinstance(value.get(key), bool):
             out[key] = max(low, min(high, int(value[key])))
     # Alte Form zuerst, die neue überschreibt sie

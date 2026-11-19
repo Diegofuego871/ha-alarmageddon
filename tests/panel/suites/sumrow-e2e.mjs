@@ -52,6 +52,46 @@ for (const [lang, mobile, width] of cases) {
   check(`${tag}: jeder Knopf "anzeigen" (Routinen, Töne, Codes, Backups) hat ein eigenes Symbol, keines ist das Plus`,
     same.show.every((p) => p) && new Set(same.show).size === 4 && !same.show.includes(same.plus[0]), JSON.stringify(same.show.map((p) => p.slice(0, 40))));
   if (mobile) check(`${tag}: nebeneinander stehende Knöpfe einer Zeile sind gleich breit`, same.rows.every((x) => !x.sideBySide || Math.abs(x.w[0] - x.w[1]) <= 2), JSON.stringify(same.rows));
+  // Fenster mit dem Symbol ihres Kapitels im Titel (1.66.2, Wunsch des Nutzers 2026-11-19): dieselbe getönte Kachel wie die Zeile unter
+  // Konfiguration › Anlage, etwas grösser (Computer 42 px, Handy 38 px), links vom Titel und mittig dazu; ebenso die Formulare dieser Kapitel
+  if (!width) {
+    const WINDOWS = [["Routinen", '.ag-rtsum:has([data-sys="rt-open"])', '[data-sys="rt-open"]', "ag-rtlist", '#ag-rtlist [data-sys="rt-add"]'],
+      ["Eigene Töne", '.ag-rtsum:has([data-sys="cs-open"])', '[data-sys="cs-open"]', "ag-cslist", null],
+      ["Codes", ".ag-codesum", '[data-sys="code-open"]', "ag-codelist", '#ag-codelist [data-sys="code-add"]'],
+      ["HealthCheck", ".ag-hcsum", '.ag-hcsum [data-hc="open"]', "ag-hclist", '#ag-hclist [data-hc="add"]'],
+      ["Selbsttest", ".ag-stsum", '.ag-stsum [data-st="open"]', "ag-selftest", null],
+      ["Backups", ".ag-bklast", '[data-sys="bk-open"]', "ag-bklist", null]];
+    const TITLE = `const [rowSel, h]=arg; const row=r.querySelector(rowSel).querySelector('.ag-oav'), t=h.querySelector('.ag-ttl-av');
+      if (!t) return { none: true, text: h.textContent };
+      const cls=(e) => [...e.classList].filter((c) => c.startsWith('ag-tint-') || ['ok', 'warn', 'err', 'ag-st-av'].includes(c)).sort().join(' ');
+      const g=document.createElement('span'); g.className='ag-oav'; r.querySelector('.ag-view').appendChild(g); const grey=getComputedStyle(g).color; g.remove();
+      const tb=t.getBoundingClientRect(), sp=h.querySelector(':scope > span:last-child').getBoundingClientRect();
+      return { text: h.textContent, same: row.querySelector('svg').innerHTML === t.querySelector('svg').innerHTML, cls: [cls(row), cls(t)], w: Math.round(tb.width), rowW: Math.round(row.getBoundingClientRect().width),
+        left: tb.right <= sp.left, mid: Math.abs((tb.top + tb.bottom) / 2 - (sp.top + sp.bottom) / 2) <= 2, colored: cls(t).includes('ag-st-av') || getComputedStyle(t).color !== grey }`;
+    const good = (m) => !m.none && m.same && m.cls[0] === m.cls[1] && m.w === (mobile ? 38 : 42) && m.w > m.rowW && m.left && m.mid && m.colored;
+    for (const [name, rowSel, openSel, id, addSel] of WINDOWS) {
+      await s.ev(`r.querySelector(${JSON.stringify(openSel)}).click(); return 1`);
+      await s.waitFor(`return r.getElementById('${id}').open && !!r.querySelector('#${id} .ag-pop-head > h3')`);
+      const m = await s.ev(`arg=[arg, r.querySelector('#${id} .ag-pop-head > h3')]; ${TITLE}`, rowSel);
+      check(`${tag}: Fenster "${m.text}": im Titel das Symbol der Zeile ${name}, gleich getönt, grösser (${mobile ? 38 : 42} px), links und mittig`, good(m), JSON.stringify(m));
+      if (addSel) {
+        await s.ev(`r.querySelector(${JSON.stringify(addSel)}).click(); return 1`);
+        await s.page.waitForTimeout(400);
+        const f = await s.ev(`const d=[...r.querySelectorAll('dialog')].filter((x) => x.open && x.id !== '${id}').pop() || r.getElementById('${id}');
+          const hh=d.querySelector('.ag-dlg-body > h3, form > h3'); if (!hh) return { none: true }; arg=[arg, hh]; ${TITLE}`, rowSel);
+        check(`${tag}: Formular "${f.text}": dasselbe Symbol im Titel`, good(f), JSON.stringify(f));
+      }
+      await s.ev("for (const d of r.querySelectorAll('dialog')) if (d.open) d.close(); return 1");
+      await s.page.waitForTimeout(200);
+    }
+    if (!mobile) {
+      await s.ev(`r.querySelector('[data-sys="rt-open"]').click(); return 1`);
+      await s.waitFor("return r.getElementById('ag-rtlist').open");
+      await s.page.waitForTimeout(300);
+      await (await s.el("#ag-rtlist .ag-pop-head")).screenshot({ path: `${outDir}sumrow-title-routines-${lang}.png` });
+      await s.ev("for (const d of r.querySelectorAll('dialog')) if (d.open) d.close(); return 1");
+    }
+  }
   // Mit dem Hinweis "noch nicht gespeichert" (Bildschirmfoto des Nutzers): auch er steht neben dem Symbol, nicht unter den Knöpfen
   await s.tap('[data-sys="rt-open"]');
   await s.waitFor("return r.getElementById('ag-rtlist').open");
