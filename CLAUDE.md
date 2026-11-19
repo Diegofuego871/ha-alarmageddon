@@ -308,6 +308,38 @@ Umsetzung:
   oder Bildern verwenden; der Nachbau hat erfundene Adressen (`?hc=sample`). Das Fenster der Dienste erklärt sie unter der Liste zum Aufklappen
   ("Was sind HealthCheck-Dienste?", seit 1.67.0, Wunsch des Nutzers; Name bleibt "HealthCheck-Dienste", Entscheid des Nutzers 2026-11-19) mit den
   Beispielen `EXAMPLES` in `healthcheck.js` (Links in neuem Fenster, dieselben Anbieter wie `KNOWN`).
+- Protokoll der HealthCheck-Dienste (seit 1.68.0, `healthcheck_log.py`, `panel/healthlog.js`; Wunsch und Entscheide des Nutzers vom 2026-11-19,
+  17:06 bis 17:48, Mockups `healthcheck-protokoll-v1`/`-v2`): je Aufruf Zeit, Art (`ok`, `report`, `fail`, `test`), Ergebnis, HTTP-Status,
+  Antwortzeit und Auslöser; **nie die URL und nie der Text einer Ausnahme** (Test in `test_security.py`). Aufbewahrt: einzelne Aufrufe
+  `HEALTHLOG_CALL_HOURS`, Stundenwerte `HEALTHLOG_HOUR_DAYS`, Tageswerte `HEALTHLOG_DAY_DAYS` (Ortszeit von HA, mit Sekunden ohne Daten, gezählt in
+  `record` über `last` und `interval`), Ereignisse `HEALTHLOG_EVENT_DAYS` und höchstens `HEALTHLOG_EVENT_MAX` je Dienst (Entscheide "ältere nur
+  zusammengefasst", "passt", 18:35 "einverstanden" für 90 Tage und 1 Jahr); eigene Ablage `HEALTHLOG_STORE_KEY`, geschrieben spätestens
+  `HEALTHLOG_SAVE_DELAY` nach dem ersten ungeschriebenen Aufruf (eigener Zeitgeber, **nie** `Store.async_delay_save` mit fester Verzögerung: das
+  verschiebt bei jedem Aufruf und schriebe erst beim Beenden) und bei `EVENT_HOMEASSISTANT_FINAL_WRITE`; Laufzeit, nicht im Backup; ein entfernter Dienst nimmt sein Protokoll mit. **Das Protokoll hält nie ein Lebenszeichen auf**
+  (`healthcheck._send`: `record` im `try`, nach dem Setzen des Zustands). Abruf nur auf Anfrage (`alarmageddon/healthcheck_history`, nur
+  Administratoren, Zeiträume `HEALTHLOG_RANGES` bis 1 Jahr), nie in `data` (dort nur `log` = Zustand und seit wann je Dienst). **Zahl und Liste
+  folgen genau dem gewählten Zeitraum** (Vorgabe des Nutzers, auch für die einzelnen Aufrufe): `events_total`, `calls_total`, höchstens 300 Zeilen
+  mit Hinweis; ab 90 Tagen ganze Tage (Beginn Mitternacht des ersten Tages).
+  Ansicht mit den Bausteinen der Sensoransicht (`HealthLogView extends SensorView`, Fenster `#ag-hclog`, Weiche in `_onClick`/`_onInput` vor der
+  Sensoransicht); Grafik bis 1 Tag Herzschlag mit Band, 7 Tage Zeitleiste, 30 Tage Raster (Entscheid "Vorschlag 1"), 90 Tage und 1 Jahr Raster
+  Monat × Tag (Mockup v3 "B", Lücke ab `HEALTHLOG_GAP_DAY_MINUTES`); Antwortzeit mit Zonen 300 ms und 1 s. Statuskachel: sind Dienste eingerichtet,
+  ist die Zeile des Selbsttests geteilt (`selftest.js tileHalf`, `healthcheck.js tileHalf`, gleich hoch), ohne Dienste wie bisher und ohne Einladung.
+- Meldungen der HealthCheck-Dienste (seit 1.68.0, Wunsch des Nutzers vom 2026-11-19, 18:42/18:43): `notify["healthcheck"]` = `fails`
+  (`HEALTHCHECK_NOTIFY_FAILS_RANGE`, Standard 2) und je Meldung `hc_down`, `hc_up` eine feste Meldung (`HC_NOTICE_SCHEMA`: wie `EVENT_NOTICE_SCHEMA`,
+  Klickziel `healthcheck` = `?view=healthcheck`). `healthcheck._notify` nach jedem Aufruf **ohne** Testknopf: "antwortet nicht" einmal je Ausfall nach
+  `fails` gescheiterten hintereinander, "antwortet wieder" nur nach einem "antwortet nicht"; `_fails`, `_fail_since`, `_down` in der Ablage (ein
+  Neustart meldet nicht noch einmal); im `try` (hält nie ein Lebenszeichen auf). Gesendet über `notify.async_send_healthcheck` (Platzhalter `HC_TOKENS`,
+  **nie die URL**, Empfänger leer = Wartung). Der Selbsttest meldet `ping_failed` nicht mehr (`selftest._report`), der Befund bleibt. Panel: Kapitel im
+  Reiter Benachrichtigungen (`notify.js _hcHtml`, immer da), Fenster der festen Meldungen (`actions.js openHcNoticeEditor`, `form.hc`, Weiche in
+  `_onClick`/`_onInput` für `#ag-step`). Standardtexte in `strings.js` gleich `notify.TEXTS` (Test). Tests `tests/test_healthcheck_notify.py`, Suiten
+  `hcnotify-e2e.mjs`, `play-e2e.mjs`, Zeilen "Meldung HealthCheck" in `scripts/mutation_check.py`. Tests `tests/test_healthcheck_log.py`, Suite `hclog-e2e.mjs`, Zeilen "Protokoll HealthCheck" in `scripts/mutation_check.py`. Der Nachbau
+  rechnet wie der Server (`__hcLogHistory`, `?hclog=empty`).
+- Batterie schwach (Wartung, `maintenance.py`; seit 1.68.0, Wunsch des Nutzers vom 2026-11-19, 19:38, nach einer Meldung "Batterie 1 %" bei 61 %):
+  die Meldung geht erst hinaus, wenn die Batterie bei `battery_checks` Prüfungen hintereinander (`BATTERY_CHECKS_RANGE`, Standard 3, Prüfung alle
+  `MAINTENANCE_INTERVAL`) unter der Schwelle liegt; ein Wert über der Schwelle beginnt neu, ein Batteriesensor ohne Wert zählt nicht und beginnt
+  nicht neu. Die Zählung (`Maintenance._low`) lebt nur im Speicher: ein Neustart verzögert höchstens. Statusentität und Übersicht zeigen den
+  aktuellen Wert sofort. Tests `tests/test_maintenance.py` (ältere Tests mit `_setup(checks=1)`), Suite `hardening-e2e.mjs`, Zeilen "Batterie
+  schwach" in `scripts/mutation_check.py`.
 - Neustart und Absturz (seit 1.58.0, Code-Review): Der Zustand steht in einer eigenen Ablage (`controller._save_state`, `STATE_STORE_KEY`), sofort bei jedem
   Wechsel geschrieben; beim Start gilt der neuere von eigener Ablage und Restore-Stand von HA (`controller.newer_state`). Was beim Wiederherstellen
   auslösen muss (abgelaufene Eingangsverzögerung), löst erst in `controller.async_finish_restore()` aus, wenn alle Zuhörer angemeldet sind

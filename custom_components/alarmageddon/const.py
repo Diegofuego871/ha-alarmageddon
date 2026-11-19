@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 232  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 233  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -213,14 +213,25 @@ DEFAULT_NOTIFY: Final = {
     # Wartung (0.5.0): Batterie schwach unter dieser Schwelle (%), nicht erreichbar ab so vielen Minuten
     "battery_threshold": 20,
     "offline_minutes": 60,
+    # Batterie schwach erst, wenn sie bei so vielen Prüfungen der Wartung hintereinander unter der Schwelle liegt (1.68.0, Wunsch des Nutzers
+    # 2026-11-19, 19:38: eine Meldung "Batterie 1 %" bei 61 %, ein einzelner falscher Wert des Geräts). Ein Wert über der Schwelle beginnt neu.
+    "battery_checks": 3,
     # Selbsttest (1.65.0): alle so viele Minuten prüfen (Wunsch des Nutzers: mindestens viermal am Tag, einstellbar); solange eine Anlage scharf
     # ist, im eigenen, meist kürzeren Abstand (Wunsch des Nutzers 2026-11-19: zwei Zeiten, gleiche Spanne). Seit 1.67.0 in Minuten (Wunsch des
     # Nutzers 2026-11-19: etwa alle 5 Minuten bei scharfer Anlage); bis 1.66.x in Stunden ("selftest_hours", "selftest_hours_armed"), beim Laden
     # und beim Zurückholen eines Backups übernommen (settings.valid_notify)
     "selftest_minutes": 360,
     "selftest_minutes_armed": 60,
+    # HealthCheck-Dienste (1.68.0, Wunsch des Nutzers 2026-11-19, 18:42/18:43): "Dienst antwortet nicht" nach so vielen gescheiterten Aufrufen
+    # hintereinander (jeder automatische Aufruf, nie der Testknopf), "Dienst antwortet wieder" beim ersten, der danach klappt; je eine feste Meldung wie unter
+    # Aktionen (Text, Empfänger, Kritisch, Lautstärke, stehen lassen, Klickziel). Leere Empfänger: die Empfänger der Wartung.
+    "healthcheck": {"fails": 2, **{kind: {"enabled": True, "title": "", "message": "", "critical": False, "volume": 0.8, "persistent": False,
+                                          "click": "healthcheck", "click_path": "", "targets": []} for kind in ("hc_down", "hc_up")}},
 }
+HEALTHCHECK_NOTIFY_FAILS_RANGE: Final = (1, 10)
+HC_NOTICE_KINDS: Final = ("hc_down", "hc_up")
 BATTERY_THRESHOLD_RANGE: Final = (5, 50)
+BATTERY_CHECKS_RANGE: Final = (1, 10)
 OFFLINE_MINUTES_RANGE: Final = (5, 1440)
 SELFTEST_MINUTES_RANGE: Final = (5, 1440)
 # Frühere Schlüssel in Stunden (bis 1.66.x) und ihre Nachfolger in Minuten
@@ -269,6 +280,19 @@ HEALTHCHECK_MIN_GAP: Final = 60
 HEALTHCHECK_TICK: Final = 10
 HEALTHCHECK_START_DELAY: Final = 30  # erstes Lebenszeichen nach dem Start
 HEALTHCHECK_STORE_KEY: Final = f"{DOMAIN}.healthcheck"
+# Protokoll je Dienst (1.68.0, Wunsch und Entscheide des Nutzers 2026-11-19, healthcheck_log.py): einzelne Aufrufe HEALTHLOG_CALL_HOURS Stunden,
+# Stundenwerte für die Grafik HEALTHLOG_HOUR_DAYS Tage, Tageswerte HEALTHLOG_DAY_DAYS Tage (90 Tage und 1 Jahr, Entscheid 18:35), Ereignisse
+# HEALTHLOG_EVENT_DAYS Tage und höchstens HEALTHLOG_EVENT_MAX je Dienst. Bei 5 Minuten Abstand üblich rund 60 KB je Dienst, höchstens rund 160 KB.
+# Geschrieben gesammelt (HEALTHLOG_SAVE_DELAY), nie bei jedem Aufruf. Ein Tag gilt in der Grafik als Lücke ab HEALTHLOG_GAP_DAY_MINUTES ohne Daten.
+HEALTHLOG_STORE_KEY: Final = f"{DOMAIN}.healthcheck_log"
+HEALTHLOG_CALL_HOURS: Final = 24
+HEALTHLOG_HOUR_DAYS: Final = 30
+HEALTHLOG_DAY_DAYS: Final = 366
+HEALTHLOG_EVENT_DAYS: Final = 366
+HEALTHLOG_EVENT_MAX: Final = 1000
+HEALTHLOG_SAVE_DELAY: Final = 600
+HEALTHLOG_GAP_DAY_MINUTES: Final = 30
+HEALTHLOG_RANGES: Final = (3, 12, 24, 168, 720, 2160, 8760)
 DATA_HEALTHCHECK: Final = f"{DOMAIN}_healthcheck"
 PUSH_ACTION_DISARM: Final = "ALARMAGEDDON_DISARM_"  # + entry_id
 PUSH_ACTION_OPEN: Final = "ALARMAGEDDON_OPEN"

@@ -204,6 +204,10 @@ export class SensorView {
     return new Date(iso).toLocaleTimeString(this._locale(), { hour: "2-digit", minute: "2-digit" });
   }
 
+  _clockSec(iso) {
+    return new Date(iso).toLocaleTimeString(this._locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
   _dur(seconds) {
     const s = Math.max(0, Math.round(seconds));
     if (s < 60) return `${s} s`;
@@ -484,7 +488,9 @@ export class SensorView {
         day = date.toDateString();
         body += `<tr class="day"><td colspan="${cols.length}">${esc(this._dayLabel(date))}</td></tr>`;
       }
-      const time = spec.byTime === false ? "" : byDay ? this._clock(date) : `${this._shortDay(date)}, ${this._clock(date)}`;
+      // Mit Sekunden, wo mehrere Zeilen in derselben Minute liegen können (Protokoll der HealthCheck-Dienste, 1.68.0), nicht auf dem Handy
+      const clock = spec.seconds && !this.narrow ? this._clockSec(date) : this._clock(date);
+      const time = spec.byTime === false ? "" : byDay ? clock : `${this._shortDay(date)}, ${clock}`;
       body += (this.narrow ? r.narrow : r.wide)(time);
     }
     const th = ([key, label, cls]) => {
@@ -771,7 +777,8 @@ export class SensorView {
     for (let i = rows.length - 1; i >= 0; i--) {
       const [date, v] = rows[i];
       const diff = i ? v - rows[i - 1][1] : null;
-      const sign = diff === null ? "–" : `${diff > 0 ? "+" : diff < 0 ? "−" : "±"}${Math.abs(Math.round(diff * 10) / 10)}${d.unit ? ` ${d.unit}` : ""}`;
+      // Zahl in der Schreibweise der Sprache (1.68.0: Deutsch "0,8", vorher "0.8", Bildschirmfoto des Nutzers 2026-11-19)
+      const sign = diff === null ? "–" : `${diff > 0 ? "+" : diff < 0 ? "−" : "±"}${Math.abs(Math.round(diff * 10) / 10).toLocaleString(this._locale())}${d.unit ? ` ${d.unit}` : ""}`;
       const mark = changes.has(date.toDateString()) ? `<span class="ag-sv-tag ok">${ic("restore", 12)}${esc(this._t("svBatteryChanged"))}</span>` : "";
       body += `<tr><td>${esc(byHour ? this._clock(date) : date.toLocaleDateString(this._locale(), { weekday: "short", day: "numeric", month: "short" }))}</td><td>${esc(fmt(v))}${this.narrow ? mark : ""}</td><td class="${this.narrow ? "r" : ""}">${esc(sign)}</td>${this.narrow ? "" : `<td>${mark}</td>`}</tr>`;
     }

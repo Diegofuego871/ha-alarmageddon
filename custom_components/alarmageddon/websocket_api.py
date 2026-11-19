@@ -10,6 +10,7 @@ Texte liefert der Server keine: Fehler kommen als Schlüssel
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 import re
 import secrets
 from typing import Any
@@ -26,12 +27,13 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integrations
-from homeassistant.util import slugify
+from homeassistant.util import dt as dt_util, slugify
 
 from . import backup, custom_sounds, last_change, reception
 from .code import hash_code, match_code
 from .systems import async_create_system, new_system_name
 from .const import (
+    BATTERY_CHECKS_RANGE,
     BATTERY_THRESHOLD_RANGE,
     AUTO_BACKUP_DAYS,
     AUTO_BACKUP_KEEP_MAX,
@@ -95,6 +97,9 @@ from .const import (
     DATA_SELFTEST,
     DOMAIN,
     HEALTHCHECK_INTERVAL_RANGE,
+    HEALTHLOG_RANGES,
+    HC_NOTICE_KINDS,
+    HEALTHCHECK_NOTIFY_FAILS_RANGE,
     HEALTHCHECK_NAME_MAX,
     HEALTHCHECK_SUFFIX_MAX,
     HEALTHCHECK_URL_MAX,
@@ -112,9 +117,9 @@ from .const import (
 from .devices import battery_of, device_field, device_sensors, display_name, free_entity_id, main_device, system_device
 from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
-from .schemas import step_list, END_NOTIFY_SCHEMA, EVENT_NOTICE_SCHEMA, valid_event_notify, valid_report_step, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
+from .schemas import step_list, END_NOTIFY_SCHEMA, EVENT_NOTICE_SCHEMA, HC_NOTICE_SCHEMA, valid_event_notify, valid_report_step, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
 from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_battery_forecasts, async_get_stats, async_measure_history, async_numeric_history, async_state_history
-from .healthcheck import async_get_healthcheck
+from .healthcheck import async_get_healthcheck, host_of
 from .selftest import async_get_selftest
 from .settings import async_get_settings, sensor_type, valid_fail_suffix, valid_healthcheck_name, valid_healthcheck_url
 
@@ -154,6 +159,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_monitor_entities)
     websocket_api.async_register_command(hass, ws_sensor_candidates)
     websocket_api.async_register_command(hass, ws_test_event_notify)
+    websocket_api.async_register_command(hass, ws_test_healthcheck_notify)
     websocket_api.async_register_command(hass, ws_save_monitors)
     websocket_api.async_register_command(hass, ws_test_monitor_step)
     websocket_api.async_register_command(hass, ws_battery_forecast)
@@ -176,6 +182,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_healthcheck_save)
     websocket_api.async_register_command(hass, ws_healthcheck_delete)
     websocket_api.async_register_command(hass, ws_healthcheck_ping)
+    websocket_api.async_register_command(hass, ws_healthcheck_history)
 
 
 def _entry(hass: HomeAssistant, connection, msg: dict[str, Any]) -> ConfigEntry | None:
@@ -838,12 +845,19 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             vol.Optional("arm_retry_action"): bool,
             vol.Optional("arm_force_action"): bool,
             vol.Optional("battery_threshold"): vol.All(vol.Coerce(int), vol.Range(min=BATTERY_THRESHOLD_RANGE[0], max=BATTERY_THRESHOLD_RANGE[1])),
+            vol.Optional("battery_checks"): vol.All(vol.Coerce(int), vol.Range(min=BATTERY_CHECKS_RANGE[0], max=BATTERY_CHECKS_RANGE[1])),
             vol.Optional("offline_minutes"): vol.All(vol.Coerce(int), vol.Range(min=OFFLINE_MINUTES_RANGE[0], max=OFFLINE_MINUTES_RANGE[1])),
             vol.Optional("selftest_minutes"): vol.All(vol.Coerce(int), vol.Range(min=SELFTEST_MINUTES_RANGE[0], max=SELFTEST_MINUTES_RANGE[1])),
             vol.Optional("selftest_minutes_armed"): vol.All(vol.Coerce(int), vol.Range(min=SELFTEST_MINUTES_RANGE[0], max=SELFTEST_MINUTES_RANGE[1])),
             # Bis 1.66.x in Stunden: ein Panel, das noch offen ist, sendet sie so (als Minuten übernommen)
             vol.Optional("selftest_hours"): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
             vol.Optional("selftest_hours_armed"): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
+            # Meldungen der HealthCheck-Dienste (1.68.0): streng geprüft (ein ungültiger Wert ist ein Fehler, nie still der Standard)
+            vol.Optional("healthcheck"): {
+                vol.Required("fails"): vol.All(vol.Coerce(int), vol.Range(min=HEALTHCHECK_NOTIFY_FAILS_RANGE[0], max=HEALTHCHECK_NOTIFY_FAILS_RANGE[1])),
+                vol.Required("hc_down"): vol.All(dict, HC_NOTICE_SCHEMA),
+                vol.Required("hc_up"): vol.All(dict, HC_NOTICE_SCHEMA),
+            },
         },
     }
 )
@@ -992,6 +1006,37 @@ def loaded_healthcheck(hass: HomeAssistant) -> Any:
 
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): f"{DOMAIN}/test_healthcheck_notify",
+        vol.Required("kind"): vol.In(HC_NOTICE_KINDS),
+        vol.Required("notice"): vol.All(dict, HC_NOTICE_SCHEMA),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_test_healthcheck_notify(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Testmeldung "antwortet nicht" oder "antwortet wieder" (1.68.0) mit den (auch ungespeicherten) Werten aus dem Fenster; Beispielwerte vom ersten
+    Dienst (Name und Rechner, nie die URL), ohne Dienst erfundene.
+    """
+    from .notify import async_send_healthcheck, text  # noqa: PLC0415
+
+    if (healthcheck := loaded_healthcheck(hass)) is None:
+        connection.send_error(msg["id"], "not_found", "No alarm system")
+        return
+    settings = await async_get_settings(hass)
+    item = next(iter(healthcheck.items()), None)
+    values = {"name": str(item.get("name") or host_of(item["url"])) if item else "Healthchecks.io", "host": host_of(item["url"]) if item else "hc-ping.com",
+              "reason": text(hass, "hc_reason_timeout") if msg["kind"] == "hc_down" else "", "count": str(settings.notify["healthcheck"]["fails"]),
+              "since": dt_util.as_local(dt_util.utcnow() - timedelta(minutes=10)).strftime(text(hass, "time_format"))}
+    targets = async_send_healthcheck(hass, settings.notify, msg["kind"], values, notice={**msg["notice"], "enabled": True}, test=True, tag="alarmageddon_hc_test")
+    if not targets and not msg["notice"].get("persistent"):
+        connection.send_error(msg["id"], "no_targets", "No recipients configured")
+        return
+    connection.send_result(msg["id"], {"ok": True, "targets": targets})
+
+
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): f"{DOMAIN}/healthcheck_save",
         vol.Optional("check_id"): vol.All(str, vol.Length(min=1, max=16)),
         vol.Required("name"): vol.All(str, vol.Length(max=HEALTHCHECK_NAME_MAX * 2)),
@@ -1077,6 +1122,22 @@ async def ws_healthcheck_ping(hass: HomeAssistant, connection, msg: dict[str, An
         return
     status = await task
     connection.send_result(msg["id"], {"status": status, "healthchecks": healthcheck.listing()})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/healthcheck_history", vol.Required("check_id"): vol.All(str, vol.Length(min=1, max=16)), vol.Required("hours"): vol.In(HEALTHLOG_RANGES)}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_healthcheck_history(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Protokoll eines Dienstes im gewählten Zeitraum (1.68.0, Wunsch des Nutzers 2026-11-19): auf Abruf, nie in `data` (das alle 30 Sekunden
+    läuft). Nur Administratoren, nur ein bestehender Dienst; die Antwort enthält nie die URL (die steht nur in der Liste der Dienste).
+    """
+    if (healthcheck := loaded_healthcheck(hass)) is None or (item := healthcheck.item(msg["check_id"])) is None:
+        connection.send_error(msg["id"], "not_found", "No such health check")
+        return
+    connection.send_result(msg["id"], healthcheck.log.history(item["id"], msg["hours"], int(item["interval"])))
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/save_auto_backup", vol.Required("enabled"): bool, vol.Required("every"): vol.In(list(AUTO_BACKUP_DAYS)), vol.Optional("keep"): vol.All(int, vol.Range(min=1, max=AUTO_BACKUP_KEEP_MAX))})

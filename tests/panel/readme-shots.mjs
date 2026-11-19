@@ -216,6 +216,12 @@ for (const lang of ["en", "de"]) {
   };
   await shot(lang, "healthcheck", { tab: "config", height: 720, query: "&hc=sample", prepare: hcPrepare(false) });
   await shot(lang, "healthcheck-list", { tab: "config", height: 760, query: "&hc=sample", prepare: hcPrepare(true) });
+  // Protokoll eines Dienstes (1.68.0): über der Liste, "1 Tag" mit Herzschlag, Band und Ereignissen (erfundener Verlauf des Nachbaus)
+  await shot(lang, "healthcheck-log", { tab: "config", height: 860, query: "&hc=sample", prepare: async (ctx) => {
+    await hcPrepare(true)(ctx);
+    await click('#ag-hclist [data-hc-row="a1b2c3d4e5f6"] [data-hc="log"]')(ctx);
+    await ctx.page.waitForTimeout(900);
+  } });
   // Alarm auf dem Handy: rotes Band, Kachel mit Auslöser und "scharf seit … von …" (1.11.0)
   await shot(lang, "alarm", { mobile: true, prepare: async ({ page }) => {
     await page.evaluate(() => window.__setState("alarm_control_panel.haus", "triggered", { arm_mode: "away", changed_by: "Marco", armed_by: "Marco", armed_at: new Date(Date.now() - 95 * 60e3).toISOString(), triggered_by: "binary_sensor.haustuer", deadline: null }));

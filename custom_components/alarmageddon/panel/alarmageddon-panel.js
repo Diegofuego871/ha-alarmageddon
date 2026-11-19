@@ -10,8 +10,8 @@ const V = new URL(import.meta.url).search;
 const [
   { pickLang, translate }, { CSS },
   { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, SOFT_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY, copyBtn, copyValue },
-  { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart }, { filePicked }, { SelfTestUi }, { HealthCheckUi },
-] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader", "customsounds", "selftest", "healthcheck"].map((name) => import(`./${name}.js${V}`)));
+  { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart }, { filePicked }, { SelfTestUi }, { HealthCheckUi }, { HealthLogView },
+] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader", "customsounds", "selftest", "healthcheck", "healthlog"].map((name) => import(`./${name}.js${V}`)));
 /** Nach so langer Abwesenheit startet das Panel wieder auf der Übersicht (Merkzettel für Reiter und Unterreiter) */
 const AWAY_MS = 30 * 60 * 1000;
 const SUBS = ["sensors", "actions", "notify", "system"];
@@ -43,6 +43,7 @@ class AlarmageddonPanel extends HTMLElement {
     this.sensorView = new SensorView(this);
     this.selftest = new SelfTestUi(this);
     this.healthcheck = new HealthCheckUi(this);
+    this.hcLog = new HealthLogView(this); // Protokoll der HealthCheck-Dienste (1.68.0)
   }
 
   // Ansicht des gewählten Reiters unter Konfiguration
@@ -96,7 +97,7 @@ class AlarmageddonPanel extends HTMLElement {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
       <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-wide" id="ag-codelist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
-      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog></div>`;
+      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
     if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => this._stickySync()).observe(this._content);
     this._initSeg(this._root);
@@ -343,6 +344,8 @@ class AlarmageddonPanel extends HTMLElement {
       const view = new URLSearchParams(w.location.search).get("view");
       if (!view) return;
       w.history.replaceState(w.history.state, "", w.location.pathname);
+      // Meldung eines HealthCheck-Dienstes (1.68.0): die Liste der Dienste
+      if (view === "healthcheck" && this._systems().length) return this.openPlace("healthcheck");
       if (view === "log" && this._systems().length) {
         this.log.touched = false;
         this.log.expandFirst = true; // der neueste Alarm ist aufgeklappt, auch wenn er inzwischen beendet ist
@@ -984,16 +987,20 @@ class AlarmageddonPanel extends HTMLElement {
       ...(offline ? [`<button class="ag-row ag-rowbtn" data-list="filter" data-filter="offline"><span class="ag-mini err">${ic("offline", 16)}</span><span class="ag-grow">${esc(this._t("warnOffline", { count: offline }))}</span><span class="ag-cbtn">${ic("chevRight", 16)}</span></button>`] : []),
       ...(low ? [`<button class="ag-row ag-rowbtn" data-list="filter" data-filter="battery"><span class="ag-mini warn">${ic("battery", 16)}</span><span class="ag-grow">${esc(this._t("warnBattery", { count: low }))}</span><span class="ag-cbtn">${ic("chevRight", 16)}</span></button>`] : []),
     ];
-    // Selbsttest (1.65.0, Wunsch des Nutzers): die Zeile steht immer da, mit der Zeit der letzten Prüfung; Befunde zählen mit ("N brauchen Aufmerksamkeit")
-    const st = this.selftest.tileRow();
+    // Selbsttest (1.65.0, Wunsch des Nutzers): die Zeile steht immer da, mit der Zeit der letzten Prüfung; Befunde zählen mit ("N brauchen Aufmerksamkeit").
+    // Sind HealthCheck-Dienste eingerichtet (1.68.0, Wunsch des Nutzers 2026-11-19, 18:36), ist sie in der Mitte geteilt: links der Selbsttest, rechts
+    // die Dienste, je mit farbigem Symbol, gleich hoch wie bisher. Ohne Dienste wie bisher, ohne Einladung, einen einzurichten.
+    const hcHalf = this.healthcheck.tileHalf();
+    const stHalf = hcHalf ? this.selftest.tileHalf() : "";
+    const st = hcHalf && stHalf ? `<div class="ag-row ag-split">${stHalf}${hcHalf}</div>` : this.selftest.tileRow();
     const stCount = this.selftest.problems().length;
-    if (stCount) items.push(st);
-    if (!items.length) {
+    const count = items.length + (stCount ? 1 : 0);
+    if (!count) {
       return `<div class="ag-card ag-sys ag-status ok"><div class="ag-sys-top"><div class="ag-shield" style="background:var(--ag-success-soft);color:var(--ag-success)">${ic("check", 28)}</div>
         <div><div class="ag-label">${esc(this._t("statusTitle"))}</div><h2>${esc(this._t("statusOk"))}</h2><div class="ag-sys-sub">${esc(this._t("statusOkText"))}</div></div></div>${st ? `<div class="ag-rows">${st}</div>` : ""}</div>`;
     }
     return `<div class="ag-card ag-sys ag-status warn"><div class="ag-sys-top"><div class="ag-shield" style="background:var(--ag-warning-soft);color:var(--ag-warning-text)">${ic("alert", 28)}</div>
-      <div><div class="ag-label">${esc(this._t("statusTitle"))}</div><h2>${esc(this._t("warnTitle", { count: items.length }))}</h2></div></div><div class="ag-rows">${items.join("")}${stCount ? "" : st}</div></div>`;
+      <div><div class="ag-label">${esc(this._t("statusTitle"))}</div><h2>${esc(this._t("warnTitle", { count }))}</h2></div></div><div class="ag-rows">${items.join("")}${st}</div></div>`;
   }
 
   _alarmBand(s) {
@@ -1629,6 +1636,11 @@ class AlarmageddonPanel extends HTMLElement {
   // ----- Ereignisse -----
 
   _onClick(ev) {
+    // Protokoll der HealthCheck-Dienste (1.68.0): Bausteine der Sensoransicht in eigenem Fenster. Ein Tipp neben die offene Auswahl der Dienste
+    // schliesst sie und tut trotzdem, was er soll (Kachel, Zeitraum, X)
+    if (this.hcLog.menu && !ev.target.closest(".ag-hl-menu, #ag-hclog [data-sv='menu']")) this.hcLog.setMenu(false);
+    const hl = ev.target.closest("#ag-hclog [data-sv]");
+    if (hl && this.hcLog.onClick(hl)) return;
     const sv = ev.target.closest("[data-sv]");
     if (sv && this.sensorView.onClick(sv)) return;
     // Selbsttest (1.65.0): Zeile der Statuskachel, Fenster, "Jetzt prüfen" (auch im Reiter Benachrichtigungen)
@@ -1647,6 +1659,8 @@ class AlarmageddonPanel extends HTMLElement {
         return;
       }
     }
+    // Fenster einer Meldung der HealthCheck-Dienste (1.68.0): das Fenster der festen Meldungen, geöffnet aus Konfiguration › Meldungen
+    if (this.actions.edit?.form?.hc && ev.target.closest("#ag-step") && this.actions.onClick(ev.target.closest("[data-wf]"))) return;
     if (this._tab === "config" && this._sub === "sensors" && this.sensors.onClick(ev.target.closest("[data-sen]"), ev)) return;
     if (this._tab === "config" && this._sub === "system" && this.systemUi.onClick(ev.target.closest("[data-sys], [data-scope]"))) return;
     if (this._tab === "config" && this._sub === "actions" && this.actions.onClick(ev.target.closest("[data-wf], [data-trigger]"))) return;
@@ -1754,6 +1768,7 @@ class AlarmageddonPanel extends HTMLElement {
 
   _onInput(ev) {
     const el = ev.target;
+    if (el.dataset?.sv && el.closest("#ag-hclog") && this.hcLog.onInput(el)) return;
     if (el.dataset?.sv && this.sensorView.onInput(el)) return;
     if (el.dataset?.hc && this.healthcheck.onInput(el)) return;
     if (el.dataset?.st && this.selftest.onInput(el)) return;
@@ -1766,6 +1781,7 @@ class AlarmageddonPanel extends HTMLElement {
       return;
     }
     if (this.list.onInput(el)) return;
+    if (this.actions.edit?.form?.hc && el.closest?.("#ag-step")) return void this.actions.onInput(el);
     if (this._tab === "config" && this._sub === "sensors" && this.sensors.onInput(el)) return;
     if (this._tab === "config" && this._sub === "system") this.systemUi.onInput(el);
     if (this._tab === "config" && this._sub === "actions") this.actions.onInput(el);

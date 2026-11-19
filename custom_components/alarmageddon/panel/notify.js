@@ -4,6 +4,10 @@
 
 const V = new URL(import.meta.url).search;
 const { ic, esc, errText, chapter, MODE_KEY, MODE_ICON, onceBtn, paintOnce, runOnce } = await import(`./common.js${V}`);
+const { HC_NOTICE_KINDS, normHcNotice } = await import(`./actions.js${V}`);
+// Meldungen der HealthCheck-Dienste (1.68.0, Wunsch des Nutzers 2026-11-19, 18:42/18:43): Anzahl gescheiterter Aufrufe 1 bis 10 (Standard 2)
+const HC_FAILS = [1, 10];
+const hcBlock = (value) => ({ fails: Number.isInteger(value?.fails) ? value.fails : 2, ...Object.fromEntries(HC_NOTICE_KINDS.map((k) => [k, normHcNotice(value?.[k])])) });
 
 // Arten je Gruppe in der Reihenfolge der Anzeige, mit Symbol
 const GROUPS = {
@@ -20,10 +24,14 @@ const ALL_MODES = ["home", "away", "night"];
 const TARGET_KEY = { alarm: "alarm_targets", maintenance: "maintenance_targets" };
 // Die Abstände des Selbsttests (selftest_minutes, selftest_minutes_armed; bis 1.66.x selftest_hours, selftest_hours_armed) stehen seit der dritten Fassung von 1.65.0 im Kapitel HealthCheck (Konfiguration › Anlage) und werden
 // dort gespeichert; dieser Entwurf sendet sie nie mit (sonst überschriebe ein älterer Entwurf die neuen Werte)
-const RANGES = { battery_threshold: [5, 50], offline_minutes: [5, 1440] };
+const RANGES = { battery_threshold: [5, 50], battery_checks: [1, 10], offline_minutes: [5, 1440] };
 const ARM_BUTTONS = ["arm_retry_action", "arm_force_action"];
-// Arten mit einem Zahlenfeld: Schlüssel, Beschriftung, Einheit
-const NUMBERS = { battery_low: ["battery_threshold", "ntThreshold", "%"], sensor_unavailable: ["offline_minutes", "ntOfflineAfter", "minutes"] };
+// Arten mit Zahlenfeldern: je Feld Schlüssel, Beschriftung, Einheit (Text oder Schlüssel), Hinweis. "Meldung nach … Prüfungen" seit 1.68.0 (Wunsch
+// des Nutzers 2026-11-19, 19:38: eine Meldung "Batterie 1 %" bei 61 %, ein einzelner falscher Wert des Geräts)
+const NUMBERS = {
+  battery_low: [["battery_threshold", "ntThreshold", "%"], ["battery_checks", "ntBatteryChecks", "ntBatteryChecksUnit", "ntBatteryChecksHint"]],
+  sensor_unavailable: [["offline_minutes", "ntOfflineAfter", "minutes"]],
+};
 const GROUP_OF = Object.fromEntries(Object.entries(GROUPS).flatMap(([g, list]) => list.map(([k]) => [k, g])));
 const KINDS = [...GROUPS.alarm, ...GROUPS.maintenance].map(([k]) => k);
 
@@ -44,7 +52,7 @@ export class NotifyUi {
 
   get base() {
     const types = Object.fromEntries(KINDS.map((k) => [k, { enabled: true, critical: false, volume: 0.8 }]));
-    return (this.host._data?.notify || { alarm_targets: [], maintenance_targets: [], types, battery_threshold: 20, offline_minutes: 60, selftest_minutes: 360 });
+    return (this.host._data?.notify || { alarm_targets: [], maintenance_targets: [], types, battery_threshold: 20, battery_checks: 3, offline_minutes: 60, selftest_minutes: 360 });
   }
 
   // Knopf der Meldung "Scharfschalten nicht möglich": "retry" oder "force"; ohne gespeicherten Wert an
@@ -54,6 +62,7 @@ export class NotifyUi {
 
   ensureDraft() {
     if (!this.draft) this.draft = JSON.parse(JSON.stringify(this.base));
+    this.draft.healthcheck = this.draft.healthcheck && typeof this.draft.healthcheck.fails !== "undefined" ? this.draft.healthcheck : hcBlock(this.draft.healthcheck);
     this.draft.modes ||= {};
     this.draft.per_mode = Boolean(this.draft.per_mode);
     return this.draft;
@@ -94,12 +103,21 @@ export class NotifyUi {
     if (Boolean(a.per_mode) !== Boolean(d.per_mode)) n += 1; // der Schalter zählt als eigene Änderung
     // Eigene Werte je Modus: jeder Modus mit Änderung zählt einmal
     for (const m of ALL_MODES) if (JSON.stringify(a.modes?.[m] || {}) !== JSON.stringify(d.modes?.[m] || {})) n += 1;
+    // HealthCheck-Dienste (1.68.0): die Zahl und jede der zwei Meldungen zählen einzeln
+    const ha = hcBlock(a.healthcheck);
+    const hd = hcBlock(d.healthcheck);
+    if (ha.fails !== hd.fails) n += 1;
+    for (const k of HC_NOTICE_KINDS) if (JSON.stringify(ha[k]) !== JSON.stringify(hd[k])) n += 1;
     return n;
   }
 
   invalid() {
     const d = this.draft;
-    return d ? Object.entries(RANGES).filter(([k, [lo, hi]]) => !Number.isInteger(d[k]) || d[k] < lo || d[k] > hi).map(([k]) => k) : [];
+    if (!d) return [];
+    const bad = Object.entries(RANGES).filter(([k, [lo, hi]]) => !Number.isInteger(d[k]) || d[k] < lo || d[k] > hi).map(([k]) => k);
+    const fails = d.healthcheck?.fails;
+    if (!Number.isInteger(fails) || fails < HC_FAILS[0] || fails > HC_FAILS[1]) bad.push("hc_fails");
+    return bad;
   }
 
   html() {
@@ -206,7 +224,7 @@ export class NotifyUi {
     }
     let body = "";
     if (s.enabled) {
-      const num = NUMBERS[kind];
+      const nums = NUMBERS[kind] || [];
       const bad = new Set(this.invalid());
       body = `<div class="ag-mt-body">
         ${this._typeRecipients(kind, mode, name)}
@@ -215,7 +233,7 @@ export class NotifyUi {
           <input type="range" min="0" max="100" step="5" data-nt="volume" data-kind="${kind}"${md} value="${pct}" class="ag-range" aria-label="${esc(`${name}: ${this._t("ntVolumeShort")}`)}"></div>` : ""}
         <div class="ag-mt-opt sw">${toggle(`data-nt="persistent" data-kind="${kind}"${md}`, s.persistent, `${name}: ${this._t("ntPersistent")}`)}<span>${esc(this._t("ntPersistent"))}<small class="ag-t2 ag-block">${esc(this._t("ntPersistentHint"))}</small></span></div>
         ${kind === "arm_failed" ? ["retry", "force"].map((key) => `<div class="ag-mt-opt sw">${toggle(`data-nt="armbtn" data-key="${key}"`, this._armButton(key), `${name}: ${this._t(`ntArm_${key}`)}`)}<span>${esc(this._t(`ntArm_${key}`))}<small class="ag-t2 ag-block">${esc(this._t(`ntArmHint_${key}`))}</small></span></div>`).join("") : ""}
-        ${num ? `<div class="ag-mt-opt"><span>${esc(this._t(num[1]))}</span><span class="ag-num ${bad.has(num[0]) ? "bad" : ""}"><input type="number" min="${RANGES[num[0]][0]}" max="${RANGES[num[0]][1]}" step="1" inputmode="numeric" data-nt="num" data-key="${num[0]}" value="${esc(d[num[0]])}" aria-label="${esc(this._t(num[1]))}"><span class="ag-t2">${esc(num[2] === "minutes" ? this._t("minutes") : num[2])}</span></span></div>` : ""}
+        ${nums.map(([key, label, unit, hint]) => `<div class="ag-mt-opt" data-num="${key}"><span>${esc(this._t(label))}${hint ? `<small>${esc(this._t(hint))}</small>` : ""}</span><span class="ag-num ${bad.has(key) ? "bad" : ""}"><input type="number" min="${RANGES[key][0]}" max="${RANGES[key][1]}" step="1" inputmode="numeric" data-nt="num" data-key="${key}" value="${esc(Number.isFinite(d[key]) ? d[key] : "")}" aria-label="${esc(this._t(label))}"><span class="ag-t2">${esc(unit === "%" ? unit : this._t(unit))}</span></span></div>`).join("")}
         <div class="ag-mt-opt"><span class="ag-t2 ag-small">${esc(this._t("ntTestHint"))}</span>
           ${onceBtn(`nt:${kind}:${mode || ""}`, `data-nt="test" data-kind="${kind}"${md}`, { running: this.onceKey === `nt:${kind}:${mode || ""}`, label: this._t("ntTestType"), stopLabel: this._t("playStop"), text: this._t("ntTestType"), size: 16, cls: "ag-btn", disabled: dirty, title: dirty ? this._t("wfSaveFirst") : this._t("ntTestType") })}</div></div>`;
     }
@@ -247,10 +265,55 @@ export class NotifyUi {
       : `<div class="ag-card ag-mtlist">${list("alarm")}</div>`;
     const html = chapter(this._t("ntChapRecipients"), card(this._recipients("alarm") + this._recipients("maintenance")), this._t("ntChapRecipientsHint"))
       + chapter(this._t("ntChapAlarm"), `<div class="ag-pmgroup ${d.per_mode ? "on" : ""}">${sw}${alarmBody}</div><p class="ag-chap-h ag-nt-moved">${ic("info", 14)} ${esc(this._t("ntMovedHint"))}</p>`, this._t("ntChapAlarmHint"))
-      + chapter(this._t("ntChapMaint"), `<div class="ag-card ag-mtlist">${list("maintenance")}</div>`, this._t("ntChapMaintHint"));
+      + chapter(this._t("ntChapMaint"), `<div class="ag-card ag-mtlist">${list("maintenance")}</div>`, this._t("ntChapMaintHint"))
+      + chapter(this._t("ntChapHc"), this._hcHtml(), this._t("ntChapHcHint"));
     h._setHtml(box, html);
     h._placePills();
     this.renderFoot();
+  }
+
+  // Kapitel "HealthCheck-Dienste" (1.68.0): immer da, auch ohne eingerichteten Dienst (Wunsch des Nutzers 18:42). Die Zahl gescheiterter Aufrufe
+  // und die zwei Meldungen als Karten wie die festen Meldungen unter Aktionen: Schalter, Play (Testmeldung mit den Werten der Karte, auch
+  // ungespeichert) und Stift (dasselbe Fenster, Empfänger standardmässig die der Wartung).
+  _hcHtml() {
+    const d = this.draft;
+    const hc = d.healthcheck;
+    const bad = this.invalid().includes("hc_fails");
+    const maint = d.maintenance_targets || [];
+    const fails = `<div class="ag-setrow ag-hcfails"><div class="ag-settx"><b>${esc(this._t("ntHcFails"))}</b><small>${esc(this._t("ntHcFailsHint"))}</small></div>
+      <span class="ag-num ${bad ? "bad" : ""}"><input type="number" min="${HC_FAILS[0]}" max="${HC_FAILS[1]}" step="1" inputmode="numeric" data-nt="hc-fails" value="${esc(Number.isFinite(hc.fails) ? hc.fails : "")}" aria-label="${esc(this._t("ntHcFails"))}"><span class="ag-t2">${esc(this._t("ntHcFailsUnit"))}</span></span></div>`;
+    const card = (kind) => {
+      const n = normHcNotice(hc[kind]);
+      const label = this._t(`ntc_${kind}`);
+      const to = n.targets.length ? n.targets.map(short).join(", ") : maint.length ? this._t("ntcToMaint") : this._t("ntcToNone");
+      const parts = n.enabled ? [to, n.critical ? this._t("ntcCritical", { volume: Math.round(n.volume * 100) }) : "", n.persistent ? this._t("ntcPersistent") : "", n.title || n.message ? this._t("ntcOwnText") : ""].filter(Boolean) : [this._t("ntcOff")];
+      const play = onceBtn(`hc:${kind}`, `data-nt="hc-play" data-kind="${kind}"`, { running: this.onceKey === `hc:${kind}`, label: this._t("ntcTest"), stopLabel: this._t("playStop"), disabled: !n.enabled, title: n.enabled ? this._t("ntcTest") : this._t("ntcTestOff") });
+      return `<div class="ag-card ag-wf-endcard ag-wf-notice ag-hcnotice ${n.enabled ? "" : "off"}" data-hc-notice="${kind}">
+        <button class="ag-toggle ${n.enabled ? "on" : ""}" data-nt="hc-on" data-kind="${kind}" role="switch" aria-checked="${n.enabled}" aria-label="${esc(label)}"></button>
+        <span class="ag-wf-icon k-notify">${ic(kind === "hc_down" ? "heartPulse" : "check", 20)}</span><div class="ag-wf-text"><b>${esc(label)}</b><small class="ag-t2 ag-small ${n.enabled && !n.targets.length && !maint.length ? "ag-warntext" : ""}">${esc(parts.join(" · "))}</small></div>
+        <div class="ag-wf-btns">${play}<button class="ag-iconbtn" data-nt="hc-edit" data-kind="${kind}" aria-label="${esc(this._t("ntcEdit", { name: label }))}" title="${esc(this._t("wfEndEdit"))}">${ic("pencil", 18)}</button></div></div>`;
+    };
+    return `<div class="ag-card ag-setlist">${fails}</div><div class="ag-hcnotices">${HC_NOTICE_KINDS.map(card).join("")}</div>`;
+  }
+
+  // Testmeldung einer Meldung der HealthCheck-Dienste mit den Werten der Karte (auch ungespeichert), an ihre Empfänger
+  async hcTest(kind) {
+    const h = this.host;
+    const key = `hc:${kind}`;
+    const paint = () => paintOnce([h._view], this.onceKey);
+    if (this.onceKey === key) {
+      this.onceKey = null;
+      return paint();
+    }
+    const notice = normHcNotice(this.ensureDraft().healthcheck[kind]);
+    await runOnce(this, key, async () => {
+      try {
+        await h._hass.callWS({ type: "alarmageddon/test_healthcheck_notify", kind, notice: { ...notice, enabled: true } });
+        h._toast(this._t("wfEndTested"));
+      } catch (err) {
+        h._toast(err?.code === "no_targets" ? this._t("ntTestNone") : this._t("errGeneric", { message: errText(err) }));
+      }
+    }, paint);
   }
 
   renderFoot() {
@@ -363,6 +426,19 @@ export class NotifyUi {
       else delete d.modes[mode];
     } else if (act === "cancel") { this._empty().clear(); this.draft = null; }
     else if (act === "save") return this.save(), true;
+    else if (act === "hc-on") {
+      const n = normHcNotice(d.healthcheck[el.dataset.kind]);
+      d.healthcheck = { ...d.healthcheck, [el.dataset.kind]: { ...n, enabled: !n.enabled } };
+    } else if (act === "hc-edit") {
+      const kind = el.dataset.kind;
+      this.host.actions.openHcNoticeEditor(kind, d.healthcheck[kind], (notice) => {
+        const dr = this.ensureDraft();
+        dr.healthcheck = { ...dr.healthcheck, [kind]: notice };
+        this.saveState = null;
+        this.render();
+      });
+      return true;
+    } else if (act === "hc-play") return this.hcTest(el.dataset.kind), true;
     else if (act === "test") return this.test(el.dataset.kind, el.dataset.mode), true;
     else return false;
     this.saveState = null;
@@ -389,6 +465,14 @@ export class NotifyUi {
       if (!cur.includes(el.value)) this._setTargets(kind, mode || null, [...cur, el.value]);
       this.saveState = null;
       this.render();
+      return true;
+    }
+    if (act === "hc-fails") {
+      const d = this.ensureDraft();
+      d.healthcheck = { ...d.healthcheck, fails: el.value === "" ? NaN : Number(el.value) };
+      this.saveState = null;
+      el.closest(".ag-num")?.classList.toggle("bad", this.invalid().includes("hc_fails"));
+      this.renderFoot();
       return true;
     }
     if (act === "num") {

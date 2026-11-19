@@ -7,6 +7,30 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.68.0] - 2026-11-19
+
+### Added
+
+- **Log of the HealthCheck services:** a new round button "Log" as the first button in every row of the HealthCheck services opens the log of that service, built like the sensor view. At the top the name as a dropdown to switch between the services (each with the colour of its state and since when), the state and "Edit". Three tiles: **History**, **Response time** and **Service**; the period runs from 3 hours to 1 year.
+  - **History:** up to 1 day a "heartbeat" with one bar per call or section (height: response time, colour: life sign, failure reported, failed, test; grey where there is no data because Home Assistant was off) and a band below that shows the state without a break. 7 days show a time line per day, 30 days a grid of days and hours like motion sensors, 90 days and 1 year a grid of months and days (one cell per day, grey for a gap of more than 30 minutes) with the number of days with a failure, a failure report or a gap. Figures: successful in percent, life signs, failed, failures reported, mean response time.
+  - **Response time:** a line with the zones fast (up to 300 ms), slow and very slow (over 1 s) and a dashed red mark for every failed call; figures now, on average, slowest call, without answer.
+  - **Service:** name, recognized service, the full ping URL, failure suffix, call on failure, interval, state, last call and since when the log records, each with a copy button.
+  - **Lists "Events" and "All calls":** events are failed (consecutive failures as one event with their number), failure reported because of the self-test (with the number of problems), test, OK again and the first life sign after a start; all calls show result, response time and trigger. Both follow exactly the period chosen above, and the number on the tab is the number of the list. Single calls are kept for 24 hours; from 7 days on the list says that it shows the last 24 hours. Search and sorting by every column.
+  - Kept: single calls 24 hours, hourly values 30 days, daily values and events one year (at most 1000 events per service); usually about 60 KB per service at a 5-minute interval, at most about 160 KB. Written at most 10 minutes after a call and when Home Assistant stops. The log never contains the URL, is not part of backups and is removed with the service. It starts with this update.
+- **Status tile with the HealthCheck services:** once services are set up, the self-test row at the bottom of the status tile is split in the middle, without making the tile taller: on the left the self-test, on the right the services, each with a coloured symbol (green all OK, orange failure reported, red failed); a tap opens the self-test or the list of services. Without services the tile stays as before.
+- **Messages of the HealthCheck services:** a new chapter "HealthCheck services" under Configuration › Notifications, always shown: "Message after … failed calls" (1 to 10 in a row, default 2; every automatic call counts (interval, after saving, change of the self-test), never the test button) and the messages "Service is not answering" (once per outage, also across a restart) and "Service answers again" (only after "not answering" went out). Each is set up like the fixed messages in the Actions tab: switch, test message, own title and text with {name}, {host}, {reason}, {count} and {since} (never the URL), recipients (default: the maintenance recipients), critical with volume, "stays in Home Assistant" and the target of a tap (default: the list of the services).
+
+### Changed
+
+- **Low battery only after several checks:** the message "Low battery" goes out only when the battery is below the threshold at several checks of the maintenance in a row ("Message after … checks", 1 to 10, default 3; maintenance checks every 15 minutes, so at least 30 minutes by default). A value above the threshold starts again. A single wrong value of a device, such as "Battery 1 %" for a battery at 61 %, no longer sends a message. The status entity and the overview still show the current value at once.
+- **Self-test message:** a failed life sign of a HealthCheck service no longer goes out via the message "Self-test" (it has its own messages now); it stays a problem of the self-test and counts in the status tile.
+- **Window of the HealthCheck services:** the column of the buttons is wider, so that all five round buttons keep their full size on the computer.
+- **What is in a backup?** names the log of the HealthCheck services among what is not included.
+
+### Fixed
+
+- **Sensor view, battery and signal:** the column "Change" of the list showed decimals with a point in German ("+0.8 %"); it now uses the notation of the language ("+0,8 %").
+
 ## [1.67.0] - 2026-11-19
 
 ### Added
@@ -1979,6 +2003,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.68.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.68.0
 [1.67.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.67.0
 [1.66.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.1
 [1.66.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.0

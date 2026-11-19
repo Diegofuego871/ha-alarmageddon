@@ -133,6 +133,10 @@ Breite der Fenster (seit 1.67.0, Wunsch des Nutzers 2026-11-19): Listen und Form
 - Statuskachel der Übersicht: eine Zeile "Selbsttest" steht immer da (auch bei "Alles in Ordnung"), mit "geprüft vor …" darunter und dem Pfeil wie
   die anderen Zeilen. Symbol Stethoskop (`stethoscope`), grün ohne Befund, gelb mit Befunden, rot, wenn ein Befund einen Alarm verhindern oder stumm
   machen kann. Mit Befunden zählt die Zeile bei "N brauchen Aufmerksamkeit" mit (eine Zeile, wie "Nicht erreichbar" und "Batterie schwach").
+  Seit 1.68.0 (Wunsch des Nutzers 2026-11-19, 18:36, ohne Mockup): sind HealthCheck-Dienste eingerichtet, ist diese Zeile in der Mitte geteilt
+  (`.ag-row.ag-split`, zwei `.ag-half`, Linie dazwischen, gleich hoch wie vorher): links "Selbsttest" mit Stethoskop und Zustand ("keine Probleme",
+  "1 Problem"), rechts "HealthCheck" mit Herz (grün alle in Ordnung, orange Fehler gemeldet, rot gescheitert, grau noch nichts gesendet), die Zeit
+  der Prüfung im Tooltip; auf dem Handy ohne Pfeil (die ganze Hälfte ist der Knopf). Ohne Dienste wie bisher, ohne Einladung, einen einzurichten.
 - Fenster `#ag-selftest` (breit, auf dem Handy ganzer Bildschirm): Kopf mit letzter und nächster Prüfung und dem Abstand; je Anlage eine
   Überschrift, die gemeinsamen Befunde unter "Alle Anlagen". Je Befund eine Karte mit farbigem Rand links (gelb, rot), zugeklappt Titel und Art
   ("Einrichtung", "Im Betrieb"); aufgeklappt die Abschnitte "Was ist los?", "Wo" (Fundstellen als Wege wie im Panel, je mit "Öffnen"), "Was das
@@ -171,3 +175,39 @@ Breite der Fenster (seit 1.67.0, Wunsch des Nutzers 2026-11-19): Listen und Form
   Intervall mit Zahl und Einheit (Minuten, Stunden) und Schnellwahl als Chips (1 min, 5 min, 15 min, 1 h, 6 h, 24 h); kein eigenes Intervall
   bei scharfer Anlage (Entscheid des Nutzers 2026-11-19). Beim Tippen werden nur
   Hinweise, Vorschau und Fehler neu gezeichnet, nie das Feld. Fehler erst nach dem ersten "Speichern" oder bei Inhalt im Feld.
+
+## Meldungen der HealthCheck-Dienste (seit 1.68.0, Wunsch des Nutzers vom 2026-11-19, 18:42/18:43, ohne Mockup)
+
+- Konfiguration › Benachrichtigungen, Kapitel "HealthCheck-Dienste" nach "Wartungsmeldungen", immer da: eine Karte mit "Meldung nach" (Zahl 1 bis 10
+  und "gescheiterten Aufrufen", ungültig rot), darunter die Karten "Dienst antwortet nicht" (Herz) und "Dienst antwortet wieder" (Haken) wie die
+  festen Meldungen unter Aktionen (`.ag-wf-endcard.ag-wf-notice`: Schalter links, Symbol, Name und eine Zeile "an wen, wie", Play und Stift rund;
+  aus = blass). Der Stift öffnet dasselbe Fenster wie die festen Meldungen mit den Platzhaltern {name} (Dienst), {host}, {reason}, {count}, {since},
+  der Vorschau mit dem ersten Dienst, Empfänger standardmässig die der Wartung, Klickziel "Liste der HealthCheck-Dienste".
+
+## Protokoll der HealthCheck-Dienste (seit 1.68.0, Wunsch und Entscheide des Nutzers vom 2026-11-19, 17:06 bis 17:48)
+
+- Öffnen: runder Knopf "Protokoll" (Symbol `history`) als erster in `.ag-wf-btns.ag-hcbtns` jeder Zeile (Wunsch: links von "Fehler senden");
+  die Spalte der Knöpfe ist 284 px breit, die Knöpfe schrumpfen nie (`flex: none`). Das Fenster `#ag-hclog` (`ag-svdlg`) liegt über der Liste.
+- "Das Design soll wirklich genau gleich sein, als würde ich auf ein Gerät gehen": Aufbau der Sensoransicht (`healthlog.js`, Unterklasse von
+  `SensorView`). Kopf: getöntes Herz (`.ag-oav.ag-tint-health`, 44 px), der Name als Auswahl (`.ag-hl-pick` mit kleinem Pfeil, Menü
+  `.ag-hl-menu` je Dienst mit Punkt in der Farbe des Zustands und "in Ordnung seit …"; ein Tipp daneben schliesst es und tut trotzdem, was er
+  soll), darunter Rechner, erkannter Dienst (nur Computer) und "alle 5 min"; rechts der Zustand als Pille (grün, orange Fehler gemeldet, rot
+  gescheitert `.ag-sv-pill.err`, grau ohne Protokoll) und "Bearbeiten" (Stift) an der Stelle von "In HA öffnen".
+- Kacheln Verlauf (`history`, "in Ordnung seit …"), Antwortzeit (`timer`, letzter Wert), Dienst (`heartPulse`, Anbieter); auf dem Handy wie
+  Verlauf/Empfang/Gerät der Sensoren (Wort, Wert, Wort). Zeitraum 3 Std. bis 1 Jahr (sieben Tasten, seit dem Wunsch des Nutzers 18:24 mit 90 Tagen und
+  1 Jahr), gemeinsam für Verlauf und Antwortzeit; auf dem Handy in einer Zeile mit 12,5 px, bis 360 px Breite in zwei Zeilen (4 + 3).
+- Verlauf: bis 1 Tag "Herzschlag" (Balken `hl-b` je Abschnitt, am Computer 5 Minuten, auf dem Handy 5, 10 oder 15 Minuten; Höhe die mittlere
+  Antwortzeit, gescheitert ganz hoch; Lücke `hl-gap` grau), darunter das Band `hl-lane` ohne Unterbruch (zwischen zwei Aufrufen gilt der letzte,
+  ein Test ändert nichts) mit breiteren Marken je Fehler und Test; 7 Tage Zeitleiste je Tag (`hl-band`, Marken aus `marks`); 30 Tage Raster
+  24 × 30 (`hl-cell`, schlechtestes Ergebnis der Stunde, mehr als eine halbe Stunde Lücke grau); 90 Tage und 1 Jahr Raster Monat × Tag (Entscheid
+  18:35, Mockup v3 "B": Zeile je Monat mit Kurzname, beim ersten und beim Januar mit Jahr, Zelle je Tag, Tage ausserhalb blass, Test als blauer Punkt
+  nur am Computer, darunter `.ag-hl-sum` mit der Zahl der Tage mit Ausfall, Fehlermeldung und Lücke). Farben: grün Lebenszeichen, orange Fehler
+  gemeldet, rot gescheitert, blau Test, grau keine Daten. Kennzahlen erfolgreich, Lebenszeichen, gescheitert (Handy: diese drei), Fehler
+  gemeldet, Antwortzeit im Mittel.
+- Antwortzeit (Mockup v1, "genau so umsetzen"): Linie mit Fläche, Zonen schnell bis 300 ms, langsam, sehr langsam ab 1 s (Beschriftung links,
+  rechts liegt der letzte Wert), gestrichelte rote Marke `hl-failmark` je gescheitertem Aufruf; über eine Lücke läuft die Linie nicht.
+- Dienst: Angaben wie die Kachel "Gerät", je mit Kopieren; URL und Zusatz in Monospace; darunter "Protokoll" (Zustand, letzter Aufruf,
+  aufgezeichnet seit) und der Hinweis zur Aufbewahrung.
+- Liste: Reiter "Ereignisse" (Standard, Symbol `alert`) und "Alle Aufrufe" (`history`) mit der Zahl des Zeitraums, Suche, Sortierung je Spalte
+  (Zeit, Ereignis, Ergebnis, Antwortzeit, Auslöser; Handy: Zeit, Ereignis mit Ergebnis klein darunter, Auslöser), Zeit am Computer mit
+  Sekunden. Hinweis "Einzelne Aufrufe bleiben 24 Stunden …" über der Liste bei 7 und 30 Tagen. Test: `hclog-e2e.mjs`.

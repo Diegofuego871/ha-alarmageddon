@@ -285,7 +285,7 @@ async def test_save_edit_delete_and_limits(hass: HomeAssistant, freezer, hass_ws
     too_many = await add(client)
     assert too_many["success"] is False and too_many["error"]["code"] == "too_many"
     edited = await add(client, check_id=ids[0], url=BS, fail_suffix="/fail", interval=86400)
-    first = {k: v for k, v in edited["result"]["healthchecks"][0].items() if k != "status"}
+    first = {k: v for k, v in edited["result"]["healthchecks"][0].items() if k not in ("status", "log")}
     assert edited["success"] and first == {"id": ids[0], "name": "Haus", "url": BS, "fail_suffix": "/fail", "interval": 86400}
     # Name ist Pflicht (Wunsch des Nutzers 2026-11-19)
     for bad_name in ("", "   ", "x" * 61):

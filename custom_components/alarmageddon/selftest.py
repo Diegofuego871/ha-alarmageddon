@@ -729,7 +729,9 @@ class SelfTest:
             changed = True
         cfg = self._settings.notify
         setting = cfg["types"].get("selftest") or {}
-        new = [p for p in problems if p["key"] not in self.reported]
+        # Ein gescheitertes Lebenszeichen meldet seit 1.68.0 die eigene Meldung "HealthCheck-Dienst antwortet nicht" (nach der eingestellten Zahl
+        # gescheiterter Aufrufe, mit "antwortet wieder"); hier nicht noch einmal. Im Selbsttest und in der Statuskachel bleibt es ein Problem.
+        new = [p for p in problems if p["key"] not in self.reported and p.get("code") != "ping_failed"]
         if new and setting.get("enabled"):
             targets = list(setting.get("targets") or cfg["maintenance_targets"])
             if targets or setting.get("persistent"):

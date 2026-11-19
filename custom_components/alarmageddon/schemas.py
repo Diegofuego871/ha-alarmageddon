@@ -272,6 +272,10 @@ EVENT_NOTICE_SCHEMA = vol.Schema({
 })
 
 
+# Meldungen der HealthCheck-Dienste (1.68.0): wie eine feste Meldung, dazu das Klickziel "healthcheck" (öffnet die Liste der Dienste, Standard)
+HC_NOTICE_SCHEMA = EVENT_NOTICE_SCHEMA.extend({vol.Optional("click", default="healthcheck"): vol.In(("healthcheck", "log", "overview", "custom"))})
+
+
 def valid_event_notify(value: Any) -> dict[str, dict[str, Any]]:
     """
     Feste Meldungen je Auslöser: {auslöser: {art: Meldung}}. Unbekannter Auslöser, unbekannte Art oder eine Art, die es für den Auslöser

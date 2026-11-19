@@ -7,10 +7,10 @@ import { check, done, launch, open, outDir } from "../lib.mjs";
 
 const T = {
   de: { armed: "Meldung: Scharf geschaltet", disarmed: "Meldung: Deaktiviert", pending: "Meldung: Eingangsverzögerung", report: "Meldung: Stiller Alarm", off: "Aus", standard: "Standard-Empfänger",
-    critical: "kritisch, 80 %", own: "eigener Text", chapReport: "Bei einem stillen Alarm", point: "Stiller Alarm", recipients: "Standard-Empfänger", faults: "Störungsmeldungen", maint: "Wartungsmeldungen", end: "Meldung: Abschlussmeldung", moved: "Konfiguration › Aktionen",
+    critical: "kritisch, 80 %", own: "eigener Text", chapReport: "Bei einem stillen Alarm", point: "Stiller Alarm", recipients: "Standard-Empfänger", faults: "Störungsmeldungen", maint: "Wartungsmeldungen", hc: "HealthCheck-Dienste", end: "Meldung: Abschlussmeldung", moved: "Konfiguration › Aktionen",
     close: "Schliessen", edit: "Bearbeiten", preview: "Vorschau", offTag: "Ausgeschaltet" },
   en: { armed: "Message: armed", disarmed: "Message: disarmed", pending: "Message: entry delay", report: "Message: silent alarm", off: "Off", standard: "Standard recipients",
-    critical: "critical, 80 %", own: "own text", chapReport: "On a silent alarm", point: "Silent alarm", recipients: "Standard recipients", faults: "Fault messages", maint: "Maintenance messages", end: "Message: closing message", moved: "Configuration › Actions",
+    critical: "critical, 80 %", own: "own text", chapReport: "On a silent alarm", point: "Silent alarm", recipients: "Standard recipients", faults: "Fault messages", maint: "Maintenance messages", hc: "HealthCheck services", end: "Message: closing message", moved: "Configuration › Actions",
     close: "Close", edit: "Edit", preview: "Preview", offTag: "Switched off" },
 };
 const WAIT = { type: "wait", seconds: 2 };
@@ -240,7 +240,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Benachrichtigungen: das Kapitel der Empfänger heisst "${t.recipients}"`, await s.ev(`return [...r.querySelectorAll('.ag-nt h3, .ag-nt .ag-chap-t, .ag-nt .ag-chapter h3')].some((h) => h.textContent.trim() === ${JSON.stringify(t.recipients)})`),
       await s.ev("return [...r.querySelectorAll('.ag-nt h3')].map((h) => h.textContent.trim()).join(' | ')"));
     const chaps = await s.ev("return [...r.querySelectorAll('.ag-nt .ag-chap > h3, .ag-nt h3')].map((h) => h.textContent.trim()).filter((x, i, a) => a.indexOf(x) === i)");
-    check(`${tag}: Benachrichtigungen: drei Kapitel "${t.recipients}", "${t.faults}", "${t.maint}" (1.62.1: "Meldungen" heisst "${t.faults}")`, JSON.stringify(chaps) === JSON.stringify([t.recipients, t.faults, t.maint]), JSON.stringify(chaps));
+    check(`${tag}: Benachrichtigungen: vier Kapitel "${t.recipients}", "${t.faults}", "${t.maint}", "${t.hc}" (1.62.1: "Meldungen" heisst "${t.faults}"; 1.68.0: Kapitel der HealthCheck-Dienste)`, JSON.stringify(chaps) === JSON.stringify([t.recipients, t.faults, t.maint, t.hc]), JSON.stringify(chaps));
     check(`${tag}: Benachrichtigungen: die vier Meldungen des Ablaufs stehen nicht mehr hier; ein Hinweis nennt "${t.moved}"`, await s.ev(`return ['sensor_report','pending','armed','disarmed'].every((k) => !r.querySelector('.ag-nt [data-kind="' + k + '"]'))
       && r.querySelector('.ag-nt .ag-nt-moved').textContent.includes(${JSON.stringify(t.moved)})`));
     const gaps = await s.ev("const h=r.querySelector('.ag-nt .ag-nt-moved'); const card=h.previousElementSibling.getBoundingClientRect(); const hb=h.getBoundingClientRect(); const next=h.closest('.ag-chap').nextElementSibling.querySelector('.ag-chap-t').getBoundingClientRect(); return { above: Math.round(hb.top - card.bottom), below: Math.round(next.top - hb.bottom) }");

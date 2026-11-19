@@ -1193,6 +1193,56 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) button.ag-sv-tag.alarm { margin: 4px 0 0; display: flex; width: max-content; }
 :host([narrow]) .ag-sv-note { margin: 12px 16px 16px; }
 :host([narrow]) .ag-sv-device { padding: 6px 16px 24px; }
+/* Protokoll der HealthCheck-Dienste (1.68.0, healthlog.js): Bausteine der Sensoransicht. Im Kopf das getönte Herz und der Name als Auswahl der Dienste,
+   die Grafiken in den Farben der Ergebnisse (Lebenszeichen grün, Fehler gemeldet orange, gescheitert rot, Test blau, keine Daten grau) */
+.ag-hl .ag-sv-head { position: relative; }
+.ag-hl .ag-sv-head > .ag-oav { width: 44px; height: 44px; border-radius: 13px; flex: none; }
+.ag-hl .ag-sv-ttl > small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-hl-pick { display: flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; min-height: 28px; padding: 0 8px 0 0; margin: 0; border: 0; background: none; color: var(--ag-text); font: inherit; cursor: pointer; text-align: left; }
+.ag-hl-pick b { min-width: 0; }
+.ag-hl-pick > svg { flex: none; color: var(--ag-text2); transition: transform .15s; }
+.ag-hl-pick[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.ag-hl-pick:focus-visible { outline: 2px solid var(--ag-primary); outline-offset: 2px; border-radius: 6px; }
+.ag-hl-menu { position: absolute; z-index: 30; top: 52px; left: 56px; width: min(400px, calc(100% - 56px)); max-height: 60vh; overflow: auto; box-sizing: border-box; padding: 6px; border-radius: 16px; background: var(--ag-card); border: 1px solid var(--ag-divider); box-shadow: var(--ag-shadow); }
+.ag-hl-menu[hidden] { display: none; }
+.ag-hl-mi { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 12px; border: 0; border-radius: 11px; background: none; color: var(--ag-text); font: inherit; text-align: left; cursor: pointer; }
+.ag-hl-mi:hover { background: var(--ag-subtle); }
+.ag-hl-mi.on { background: var(--ag-primary-soft); }
+.ag-hl-mi .ag-sv-dot { width: 10px; height: 10px; }
+.ag-hl-mt { flex: 1; min-width: 0; }
+.ag-hl-mt b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-hl-mt small { display: block; font-size: 12.5px; color: var(--ag-text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-hl-mi > svg { flex: none; color: var(--ag-primary); }
+:host([narrow]) .ag-hl-menu { left: 0; width: 100%; top: 50px; }
+.ag-sv-pill.err { background: var(--ag-error-soft); color: var(--ag-error); }
+.hl-b.ok, .hl-band.ok { fill: var(--ag-success); } .hl-b.fail { fill: var(--ag-error); } .hl-b.report { fill: var(--ag-warning); } .hl-b.test { fill: var(--ag-primary); }
+.hl-gap { fill: var(--ag-text3); opacity: .28; } .hl-band.gap { fill: var(--ag-text3); opacity: .35; }
+.hl-cell.ok { fill: var(--ag-success); opacity: .5; } .hl-cell.gap { fill: var(--ag-text3); opacity: .35; }
+.hl-lane.ok { fill: var(--ag-success); opacity: .45; } .hl-lane.fail { fill: var(--ag-error); } .hl-lane.report { fill: var(--ag-warning); } .hl-lane.test { fill: var(--ag-primary); }
+.hl-lane.gap { fill: var(--ag-text3); opacity: .35; }
+.hl-failmark { stroke: var(--ag-error); stroke-width: 2; stroke-dasharray: 3 3; }
+.hl-i.ok { background: var(--ag-success); } .hl-i.fail { background: var(--ag-error); } .hl-i.report { background: var(--ag-warning); } .hl-i.test { background: var(--ag-primary); }
+.hl-i.gap { background: var(--ag-text3); opacity: .45; }
+.ag-sv-legend i.hl-i-failmark { width: 0; height: 12px; border-radius: 0; border-left: 2px dashed var(--ag-error); margin: 0 7px 0 4px; vertical-align: -2px; }
+.ag-sv-dot.ok, .ag-sv-dot.back { background: var(--ag-success); } .ag-sv-dot.fail { background: var(--ag-error); } .ag-sv-dot.report { background: var(--ag-warning); }
+.ag-sv-dot.test { background: var(--ag-primary); } .ag-sv-dot.start, .ag-sv-dot.none { background: var(--ag-text3); }
+.ag-sv-table .c5 { width: 110px; } .ag-sv-table .c6 { width: 130px; }
+.ag-hl .ag-sv-drow > .ag-t2 { flex-shrink: 0; max-width: 42%; }
+.hl-dot.test { fill: var(--ag-primary); } .hl-out { opacity: .4; }
+.ag-sv-legend i.hl-i.dot { border-radius: 50%; }
+.ag-hl-sum { display: flex; gap: 6px 16px; flex-wrap: wrap; margin-top: 6px; font-size: 12.5px; color: var(--ag-text2); }
+.ag-hl-sum b { color: var(--ag-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Sieben Zeiträume (seit 90 Tagen und 1 Jahr, Entscheid des Nutzers 2026-11-19): auf dem Handy in einer Zeile mit etwas kleinerer Schrift, auf sehr
+   schmalen Handys (bis 360 px) in zwei Zeilen */
+:host([narrow]) .ag-hl .ag-sv-range button { padding: 0 1px; font-size: 12.5px; letter-spacing: -.1px; }
+@media (max-width: 360px) { :host([narrow]) .ag-hl .ag-sv-range { grid-auto-flow: row; grid-template-columns: repeat(4, 1fr); } }
+.ag-hl-mono b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; font-weight: 400; }
+.ag-sv-note.ag-hl-lead { margin: 0 24px 10px; }
+.ag-hl-keep { margin: 4px 0 0; }
+:host([narrow]) .ag-sv-note.ag-hl-lead { margin: 0 16px 10px; }
+:host([narrow]) .ag-hl .ag-sv-tile[data-tab="history"] .ag-sv-tx b, :host([narrow]) .ag-hl .ag-sv-tile[data-tab="service"] .ag-sv-tx b { display: none; }
+:host([narrow]) .ag-hl .ag-sv-tile[data-tab="latency"] .ag-sv-tx small { display: none; }
+:host([narrow]) .ag-hl .ag-sv-tile[data-tab="history"] .ag-sv-tx small, :host([narrow]) .ag-hl .ag-sv-tile[data-tab="service"] .ag-sv-tx small { font-weight: 600; color: inherit; }
 /* Ansicht: Schalter für die Namen der Sensoren (gilt für alle Geräte und die Meldungen, darum mit eigenem Hinweis darunter) */
 .ag-namesrow { align-items: center; gap: 12px; }
 .ag-namesrow .ag-settx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -1423,6 +1473,16 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 /* 1.58.0: unsichtbarer Platzhalter, der seinen Platz behält (Reiterzeile der Aktionen springt beim Wechsel auf "Überwachung" nicht) */
 /* Selbsttest (1.65.0): Zeile der Statuskachel, Fenster mit den Befunden (je Befund eine aufklappbare Karte mit Hilfe), Zeile im Reiter Benachrichtigungen */
 .ag-st-row { padding-left: 2px; padding-right: 2px; }
+/* Untere Zeile der Statuskachel mit HealthCheck-Diensten (1.68.0): zwei gleich breite Hälften in derselben Höhe, getrennt durch eine Linie */
+.ag-row.ag-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; padding: 0; }
+.ag-split > .ag-half { border-bottom: 0; padding: 10px 6px 10px 2px; gap: 8px; }
+.ag-split > .ag-half + .ag-half { border-left: 1px solid var(--ag-divider); padding-left: 10px; }
+.ag-half .ag-grow { overflow: hidden; }
+.ag-half-t { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-half small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-half .ag-cbtn { flex: none; }
+/* Handy: die halbe Breite reicht nicht für Pfeil und "HealthCheck"; die ganze Hälfte ist der Knopf */
+:host([narrow]) .ag-half .ag-cbtn { display: none; }
 .ag-status.ok > .ag-rows { margin-top: 12px; }
 .ag-st-meta { margin-top: -8px; }
 .ag-st-list { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
@@ -1476,8 +1536,9 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-hctable { table-layout: fixed; }
 .ag-hctable th.ag-hclast { width: 96px; }
 .ag-hctable th.ag-hcint { width: 110px; }
-.ag-hctable th.ag-hcst { width: 190px; }
-.ag-hctable th.ag-hcacts { width: 232px; }
+.ag-hctable th.ag-hcst { width: 180px; }
+/* Seit 1.68.0 fünf Knöpfe ("Protokoll" zuerst): die Spalte hat Platz für alle in voller Grösse, sie schrumpfen nie */
+.ag-hctable th.ag-hcacts { width: 284px; }
 .ag-hctable td.ag-hcurl { min-width: 0; }
 .ag-hcname { display: block; font-weight: 600; overflow-wrap: anywhere; }
 .ag-hcaddr { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; color: var(--ag-text2); margin-top: 2px; }
@@ -1485,6 +1546,7 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-hctable td.ag-hclast, .ag-hctable td.ag-hcint { white-space: nowrap; font-size: 13px; }
 .ag-hctable td.ag-acts { padding-right: 12px; }
 .ag-hcbtns { justify-content: flex-end; gap: 8px; }
+.ag-hcbtns .ag-iconbtn { flex: none; }
 .ag-hcbtns .ag-iconbtn:disabled { opacity: .3; cursor: default; }
 .ag-hcstate { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 .ag-hcstate::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ag-text3); flex: none; }

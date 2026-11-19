@@ -60,6 +60,20 @@ export class SelfTestUi {
     return `<button class="ag-row ag-rowbtn ag-st-row" data-st="open"><span class="ag-mini ${tone}">${ic("stethoscope", 16)}</span><span class="ag-grow">${esc(label)}${ago ? `<small class="ag-t2 ag-block">${esc(ago)}</small>` : ""}</span><span class="ag-cbtn">${ic("chevRight", 16)}</span></button>`;
   }
 
+  // Hälfte der unteren Zeile der Statuskachel, wenn HealthCheck-Dienste eingerichtet sind (1.68.0, Wunsch des Nutzers 2026-11-19, 18:36): links der
+  // Selbsttest, rechts die Dienste, je mit farbigem Symbol; die Kachel wird dadurch nicht höher. Die Zeit der Prüfung steht im Tooltip.
+  tileHalf() {
+    const d = this.data;
+    if (!d) return "";
+    const n = this.problems().length;
+    const state = !d.last && !n ? this._t("stHalfNone") : n === 0 ? this._t("stHalfOk") : n === 1 ? this._t("stHalfProblem1") : this._t("stHalfProblems", { count: n });
+    const full = !d.last && !n ? this._t("stRowNone") : n === 0 ? this._t("stRowOk") : n === 1 ? this._t("stRowProblem1") : this._t("stRowProblems", { count: n });
+    const ago = d.last ? this._t("stRowAgo", { ago: this.host._fmtAgo(d.last) }) : "";
+    const tone = n ? (this.problems().some((p) => this._red(p)) ? "err" : "warn") : d.last ? "ok" : "";
+    return `<button class="ag-row ag-rowbtn ag-st-row ag-half" data-st="open" data-half="selftest" title="${esc([full, ago].filter(Boolean).join(" · "))}"><span class="ag-mini ${tone}">${ic("stethoscope", 16)}</span>
+      <span class="ag-grow"><span class="ag-half-t">${esc(this._t("stHalfTitle"))}</span><small class="ag-t2 ag-block">${esc(state)}</small></span><span class="ag-cbtn">${ic("chevRight", 16)}</span></button>`;
+  }
+
   // ----- Fenster -----
 
   open() {

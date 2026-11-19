@@ -7,6 +7,30 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.68.0] - 2026-11-19
+
+### Hinzugefügt
+
+- **Protokoll der HealthCheck-Dienste:** Ein neuer runder Knopf "Protokoll" als erster Knopf in jeder Zeile der HealthCheck-Dienste öffnet das Protokoll dieses Dienstes, aufgebaut wie die Sensoransicht. Oben der Name als Auswahl zum Wechseln zwischen den Diensten (je in der Farbe seines Zustands und seit wann), der Zustand und "Bearbeiten". Drei Kacheln: **Verlauf**, **Antwortzeit** und **Dienst**; der Zeitraum reicht von 3 Stunden bis 1 Jahr.
+  - **Verlauf:** bis 1 Tag ein "Herzschlag" mit einem Balken je Aufruf oder Abschnitt (Höhe: Antwortzeit, Farbe: Lebenszeichen, Fehler gemeldet, gescheitert, Test; grau, wo es keine Daten gibt, weil Home Assistant aus war) und darunter ein Band, das den Zustand ohne Unterbruch zeigt. 7 Tage zeigen eine Zeitleiste je Tag, 30 Tage ein Raster aus Tagen und Stunden wie bei den Bewegungsmeldern, 90 Tage und 1 Jahr ein Raster aus Monaten und Tagen (eine Zelle je Tag, grau bei einer Lücke von mehr als 30 Minuten) mit der Zahl der Tage mit Ausfall, mit Fehlermeldung und mit Lücke. Kennzahlen: erfolgreich in Prozent, Lebenszeichen, gescheitert, Fehler gemeldet, Antwortzeit im Mittel.
+  - **Antwortzeit:** eine Linie mit den Zonen schnell (bis 300 ms), langsam und sehr langsam (über 1 s) und eine gestrichelte rote Marke bei jedem gescheiterten Aufruf; Kennzahlen aktuell, im Mittel, langsamster Aufruf, ohne Antwort.
+  - **Dienst:** Name, erkannter Dienst, die ganze Ping-URL, Fehler-Zusatz, Aufruf bei Fehler, Intervall, Zustand, letzter Aufruf und seit wann das Protokoll aufzeichnet, je mit Knopf zum Kopieren.
+  - **Listen "Ereignisse" und "Alle Aufrufe":** Ereignisse sind gescheitert (aufeinanderfolgende Fehler als ein Ereignis mit ihrer Anzahl), Fehler gemeldet wegen des Selbsttests (mit der Zahl der Probleme), Test, wieder in Ordnung und das erste Lebenszeichen nach einem Start; alle Aufrufe zeigen Ergebnis, Antwortzeit und Auslöser. Beide folgen genau dem oben gewählten Zeitraum, und die Zahl am Reiter ist die Zahl der Liste. Einzelne Aufrufe bleiben 24 Stunden; ab 7 Tagen sagt die Liste, dass sie die letzten 24 Stunden zeigt. Suche und Sortierung nach jeder Spalte.
+  - Aufbewahrt: einzelne Aufrufe 24 Stunden, Stundenwerte 30 Tage, Tageswerte und Ereignisse ein Jahr (höchstens 1000 Ereignisse je Dienst); bei 5 Minuten Intervall üblich rund 60 KB je Dienst, höchstens rund 160 KB. Geschrieben spätestens 10 Minuten nach einem Aufruf und beim Beenden von Home Assistant. Das Protokoll enthält nie die URL, ist nicht im Backup und verschwindet mit dem Dienst. Es beginnt mit diesem Update.
+- **Statuskachel mit den HealthCheck-Diensten:** Sind Dienste eingerichtet, ist die Zeile des Selbsttests unten in der Statuskachel in der Mitte geteilt, ohne dass die Kachel höher wird: links der Selbsttest, rechts die Dienste, je mit farbigem Symbol (grün alle in Ordnung, orange Fehler gemeldet, rot gescheitert); ein Tipp öffnet den Selbsttest oder die Liste der Dienste. Ohne Dienste bleibt die Kachel wie bisher.
+- **Meldungen der HealthCheck-Dienste:** Ein neues Kapitel "HealthCheck-Dienste" unter Konfiguration › Benachrichtigungen, immer da: "Meldung nach … gescheiterten Aufrufen" (1 bis 10 hintereinander, Standard 2; es zählt jeder automatische Aufruf (Intervall, nach dem Speichern, Wechsel des Selbsttests), nie der Testknopf) und die Meldungen "Dienst antwortet nicht" (einmal je Ausfall, auch über einen Neustart) und "Dienst antwortet wieder" (nur, wenn "antwortet nicht" hinausging). Jede wird eingestellt wie die festen Meldungen im Reiter Aktionen: Schalter, Testmeldung, eigener Titel und Text mit {name}, {host}, {reason}, {count} und {since} (nie die URL), Empfänger (Standard: die der Wartung), Kritisch mit Lautstärke, "bleibt in Home Assistant stehen" und das Ziel eines Tipps (Standard: die Liste der Dienste).
+
+### Geändert
+
+- **Batterie schwach erst nach mehreren Prüfungen:** Die Meldung "Batterie schwach" geht erst hinaus, wenn die Batterie bei mehreren Prüfungen der Wartung hintereinander unter der Schwelle liegt ("Meldung nach … Prüfungen", 1 bis 10, Standard 3; die Wartung prüft alle 15 Minuten, standardmässig also frühestens nach 30 Minuten). Ein Wert über der Schwelle beginnt neu. Ein einzelner falscher Wert eines Geräts, etwa "Batterie 1 %" bei einer Batterie mit 61 %, löst keine Meldung mehr aus. Die Statusentität und die Übersicht zeigen weiterhin sofort den aktuellen Wert.
+- **Meldung des Selbsttests:** Ein gescheitertes Lebenszeichen eines HealthCheck-Dienstes geht nicht mehr über die Meldung "Selbsttest" hinaus (es hat jetzt eigene Meldungen); es bleibt ein Problem des Selbsttests und zählt in der Statuskachel mit.
+- **Fenster der HealthCheck-Dienste:** Die Spalte der Knöpfe ist breiter, damit alle fünf runden Knöpfe auf dem Computer ihre volle Grösse behalten.
+- **Was ist im Backup?** nennt das Protokoll der HealthCheck-Dienste bei dem, was nicht enthalten ist.
+
+### Behoben
+
+- **Sensoransicht, Batterie und Empfang:** Die Spalte "Änderung" der Liste zeigte Dezimalzahlen auf Deutsch mit Punkt ("+0.8 %"); jetzt in der Schreibweise der Sprache ("+0,8 %").
+
 ## [1.67.0] - 2026-11-19
 
 ### Hinzugefügt
@@ -1979,6 +2003,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.68.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.68.0
 [1.67.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.67.0
 [1.66.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.1
 [1.66.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.0

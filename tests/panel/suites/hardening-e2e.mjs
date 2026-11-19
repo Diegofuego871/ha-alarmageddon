@@ -175,13 +175,24 @@ for (const lang of ["de", "en"]) {
     await thr.fill("80");
     check(`${tag}: Schwelle zu hoch abgelehnt`, await s.waitFor("return r.querySelector('[data-nt=\"save\"]').disabled && !!r.querySelector('.ag-foot .ag-err')"));
     await thr.fill("25");
+    // 1.68.0: "Meldung nach … Prüfungen in Folge" (Wunsch des Nutzers 2026-11-19, 19:38: ein einzelner falscher Wert eines Geräts meldet nichts)
+    const checksRow = await s.ev(`const row=r.querySelector('[data-num="battery_checks"]'); return row && { unit: row.querySelector('.ag-num .ag-t2').textContent, unitLines: Math.round(row.querySelector('.ag-num .ag-t2').getBoundingClientRect().height / 14), value: row.querySelector('input').value,
+      sameCard: !!row.closest('.ag-mt')?.querySelector('[data-nt="enabled"][data-kind="battery_low"]'), hint: row.querySelector('small')?.textContent || '',
+      inside: row.getBoundingClientRect().right <= row.closest('.ag-mt').getBoundingClientRect().right + 1 }`);
+    const checksText = lang === "de" ? "Prüfungen" : "checks";
+    check(`${tag}: Batterie schwach: "… 3 ${checksText}" (eine Zeile) in derselben Karte, mit Hinweis auf die 15 Minuten der Wartung, passt in die Breite`,
+      !!checksRow && checksRow.value === "3" && checksRow.sameCard && checksRow.unit === checksText && checksRow.unitLines <= 1 && checksRow.hint.includes("15") && checksRow.inside, JSON.stringify(checksRow));
+    const checksField = await s.el('[data-nt="num"][data-key="battery_checks"]');
+    await checksField.fill("0");
+    check(`${tag}: 0 Prüfungen abgelehnt (Feld rot, "Speichern" gesperrt)`, await s.waitFor("return r.querySelector('[data-nt=\"save\"]').disabled && r.querySelector('[data-num=\"battery_checks\"] .ag-num').classList.contains('bad')"));
+    await checksField.fill("4");
     await (await s.el('[data-nt="num"][data-key="offline_minutes"]')).fill("120");
     await s.tap('[data-nt="enabled"][data-kind="sensor_unavailable"]');
     check(`${tag}: Art aus blendet ihre Einstellungen aus`, await s.waitFor("return !r.querySelector('[data-nt=\"num\"][data-key=\"offline_minutes\"]')"));
     await s.tap('[data-nt="save"]');
     check(`${tag}: Wartung gespeichert`, await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`));
     const nt = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_notify').at(-1)?.notify");
-    check(`${tag}: Wartungswerte gesendet`, nt?.battery_threshold === 25 && nt?.offline_minutes === 120 && nt?.types?.sensor_unavailable?.enabled === false && nt?.types?.battery_low?.enabled === true, JSON.stringify(nt));
+    check(`${tag}: Wartungswerte gesendet`, nt?.battery_threshold === 25 && nt?.battery_checks === 4 && nt?.offline_minutes === 120 && nt?.types?.sensor_unavailable?.enabled === false && nt?.types?.battery_low?.enabled === true, JSON.stringify(nt));
     check(`${tag}: kein Überlauf`, await s.ev("return document.documentElement.scrollWidth <= window.innerWidth"));
     check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();

@@ -3,6 +3,46 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
+- 1.68.0 (Basis: `main` @ `321ff98` = Tag `v1.67.0`, vom Nutzer am 2026-11-19 getaggt, Baum gleich der Lieferung von 1.67.0; Wünsche des Nutzers vom
+  2026-11-19, 17:06 bis 18:43, Entscheide 17:31, 17:48 und 18:35 nach den Mockups `docs/mockups/healthcheck-protokoll-v1/`, `-v2/` und `-v3/`).
+  Protokoll: `docs/UEBERGABE-1.68.0.md`. `PANEL_VERSION` 233.
+  - **Protokoll der HealthCheck-Dienste:** Server `healthcheck_log.py` (`HealthLog`: `record`, `history`, `gaps`, `brief`, `remove`; Ablage
+    `alarmageddon.healthcheck_log` als kompakte Zeilen), eingehängt in `healthcheck._send` (Antwortzeit mit `time.monotonic`, Auslöser `by`:
+    tick, selftest, test, start, save; `record` im `try`), WS `alarmageddon/healthcheck_history` (Zeiträume `HEALTHLOG_RANGES`), `listing()` mit
+    `log` (Zustand seit wann). Panel `healthlog.js` (`HealthLogView extends SensorView`, Fenster `#ag-hclog`, Knopf `data-hc="log"`), `sensorview.js`
+    nur `_clockSec` und `spec.seconds`. Nachbau: `__hcLogHistory`, `__hcLogBrief`, `?hclog=empty`, `__hcLogDelay`, `__hcHistory`.
+  - **90 Tage und 1 Jahr (18:24, Entscheid 18:35 "mit allen 4 Vorschlägen einverstanden", Mockup v3 "B"):** Tageswerte je Dienst
+    (`HEALTHLOG_DAY_DAYS` 366, Ortszeit, Zeile `date,ok,report,fail,test,sum,n,max,noans,gapsec`; Sekunden ohne Daten in `record` über `last` und
+    `interval`, `gap_limit`), Ereignisse 1 Jahr und höchstens 1000 (`HEALTHLOG_EVENT_DAYS`, `HEALTHLOG_EVENT_MAX`); `history()` ab 90 Tagen mit
+    `daily` (Beginn Mitternacht des ersten Tages), Lücke eines Tages ab `HEALTHLOG_GAP_DAY_MINUTES` (30). Panel `healthlog.js _monthRaster`, sieben
+    Tasten auf dem Handy in einer Zeile (12,5 px), bei 320 px zwei Zeilen.
+  - **Speicher (Frage des Nutzers 17:48):** bei 5 Minuten üblich rund 60 KB je Dienst, höchstens rund 160 KB (1000 Ereignisse); Empfehlung der
+    Prüfstelle: kein Schalter zum Abschalten je Dienst, solange der Nutzer ihn nicht verlangt (Antwort steht aus).
+  - **Statuskachel (18:36, ohne Mockup):** sind Dienste eingerichtet, ist die untere Zeile geteilt: links Selbsttest (`selftest.js tileHalf`), rechts
+    Dienste (`healthcheck.js tileHalf`: grün alle in Ordnung, orange Fehler gemeldet, rot gescheitert), gleich hoch (`.ag-row.ag-split`, `.ag-half`;
+    auf dem Handy ohne Pfeile). Ohne Dienste wie bisher, ohne Einladung. Tipp: Selbsttest bzw. Liste der Dienste.
+  - **Meldungen (18:42/18:43):** Kapitel "HealthCheck-Dienste" im Reiter Benachrichtigungen, immer da (`notify.js _hcHtml`): Zahl gescheiterter
+    Aufrufe (`notify.healthcheck.fails`, 1 bis 10, Standard 2) und die festen Meldungen `hc_down`, `hc_up` (`HC_NOTICE_SCHEMA`, Fenster
+    `actions.js openHcNoticeEditor`, WS `alarmageddon/test_healthcheck_notify`). Server `healthcheck._notify` (jeder automatische Aufruf, nie
+    der Testknopf; `_fails`, `_fail_since`, `_down` in der Ablage), `notify.async_send_healthcheck` (Platzhalter `HC_TOKENS`, nie die URL, Empfänger
+    leer = Wartung). Der Selbsttest meldet `ping_failed` nicht mehr (`selftest._report`). Die fünf Rückfragen der Prüfstelle (Selbsttest-Meldung,
+    Standard 2 und Zählweise, "wieder" nur nach "nicht", Standardwerte, ein Wert für alle Dienste) hat der Nutzer um 19:41 bestätigt ("1 bis 5
+    passt alles so").
+  - **Batterie schwach erst nach mehreren Prüfungen (19:38, mit Bildschirmfoto "Batterie 1 %" bei 61 %):** `notify.battery_checks`
+    (`BATTERY_CHECKS_RANGE` 1 bis 10, Standard 3), `Maintenance._low` zählt Prüfungen hintereinander unter der Schwelle (nur im Speicher), ein Wert
+    darüber beginnt neu, ohne Wert weder zählen noch neu beginnen. Panel `notify.js NUMBERS` (je Art mehrere Felder, `data-num`), Texte
+    `ntBatteryChecks*`. Statusentität und Übersicht unverändert (aktueller Wert). Tests `test_maintenance.py` (sieben neue, ältere mit
+    `_setup(checks=1)`), `hardening-e2e.mjs`, drei Zeilen "Batterie schwach" in `mutation_check.py`.
+  - **Dezimalzeichen (Bildschirmfoto 19:38):** Spalte "Änderung" der Batterie- und Empfangsliste der Sensoransicht mit `toLocaleString`
+    (Deutsch "0,8"). Test `sensor-e2e.mjs`.
+  - **Nicht geändert, gesehen:** In der Batterieansicht rechnet "je Tag" aus Anfang und Ende seit dem letzten Wechsel, "bis zur Warnung" aus der
+    Regressionsgeraden (`battery_summary`, `forecast_days`); beide können sichtbar auseinanderliegen (Bildschirmfoto: −0,22 % je Tag, "~5 Monate"
+    bei 61 % und Schwelle 20 %). Dem Nutzer gemeldet, nicht geändert.
+  - **Tests:** `tests/test_healthcheck_log.py` und `tests/test_healthcheck_notify.py` (neu), `test_security.py` (zwei Befehle, URL nie im
+    Protokoll), `test_healthcheck.py` (Liste mit `log`), Suiten `hclog-e2e.mjs` und `hcnotify-e2e.mjs` (neu), `healthcheck-e2e.mjs` (fünf Knöpfe),
+    `play-e2e.mjs` (Play der beiden Meldungen), `notices-e2e.mjs` und `actions-e2e.mjs` (vier Kapitel unter Benachrichtigungen); Zeilen "Protokoll
+    HealthCheck" (14) und "Meldung HealthCheck" (7) in `scripts/mutation_check.py`.
+  - **Offen:** Ein Schalter "Protokoll aus" je Dienst (nur auf Wunsch). Das Protokoll beginnt mit dem Update; davor gibt es nichts.
 - 1.67.0 (Basis: `main` @ `f63e406` = Tag `v1.66.1`, vom Nutzer am 2026-11-19 getaggt, Baum gleich der Lieferung von 11:53; Wünsche des Nutzers vom 2026-11-19, 13:29 bis 13:55, mit Bildschirmfotos). Protokoll: `docs/UEBERGABE-1.67.0.md`. `PANEL_VERSION` 232. Begonnen als 1.66.2 (nur die Korrektur "seit"); mit den Minuten des Selbsttests (neue Funktion) 1.67.0, 1.66.2 wurde nie geliefert.
   - **Selbsttest in Minuten:** `selftest_minutes`, `selftest_minutes_armed` (Standard 360, 60; `SELFTEST_MINUTES_RANGE` 5 bis 1440) statt `selftest_hours*`; Übernahme der Stunden (`SELFTEST_HOURS_KEYS`) in `settings.valid_notify` (Ablage, Backups) und `ws_save_notify` (ein offenes Panel bis 1.66.x); `SelfTest.minutes`, Antwort `minutes`, `minutes_disarmed`, `minutes_armed`; `SELFTEST_TICK` 60 s (vorher 300). Panel: je Zahl und Einheit (`system.js stField`, `stMinutes`, `st-value`, `st-unit`), untereinander auch am Computer, Einheit wechseln rechnet um, wo es aufgeht; Fenster "alle 5 Minuten" (`stEveryMin`).
   - **Titel mit Symbol:** `common.js iconTitle`, Listen, Vorschau und Formulare der Kapitel unter Anlage; Selbsttest nach Ergebnis (`SelfTestUi.tone`). Test `sumrow-e2e.mjs`.

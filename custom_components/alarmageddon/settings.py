@@ -15,6 +15,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
+import voluptuous as vol
 
 from .const import (
     AUTO_BACKUP_DAYS,
@@ -22,13 +23,16 @@ from .const import (
     AUTO_BACKUP_KEEP_MAX,
     DATA_SETTINGS,
     DATA_SETTINGS_LOCK,
+    BATTERY_CHECKS_RANGE,
     BATTERY_THRESHOLD_RANGE,
     DEFAULT_NOTIFY,
     OFFLINE_MINUTES_RANGE,
     SELFTEST_HOURS_KEYS,
     SELFTEST_MINUTES_RANGE,
+    HC_NOTICE_KINDS,
     HEALTHCHECK_DEFAULT_INTERVAL,
     HEALTHCHECK_INTERVAL_RANGE,
+    HEALTHCHECK_NOTIFY_FAILS_RANGE,
     HEALTHCHECK_NAME_MAX,
     HEALTHCHECK_SUFFIX_MAX,
     HEALTHCHECK_URL_MAX,
@@ -97,7 +101,7 @@ def valid_notify(value: Any) -> dict[str, Any]:
         hours = value.pop(old, None)
         if new not in value and isinstance(hours, (int, float)) and not isinstance(hours, bool):
             value[new] = int(hours) * 60
-    for key, (low, high) in (("battery_threshold", BATTERY_THRESHOLD_RANGE), ("offline_minutes", OFFLINE_MINUTES_RANGE), ("selftest_minutes", SELFTEST_MINUTES_RANGE),
+    for key, (low, high) in (("battery_threshold", BATTERY_THRESHOLD_RANGE), ("battery_checks", BATTERY_CHECKS_RANGE), ("offline_minutes", OFFLINE_MINUTES_RANGE), ("selftest_minutes", SELFTEST_MINUTES_RANGE),
                               ("selftest_minutes_armed", SELFTEST_MINUTES_RANGE)):
         if isinstance(value.get(key), (int, float)) and not isinstance(value.get(key), bool):
             out[key] = max(low, min(high, int(value[key])))
@@ -148,6 +152,23 @@ def valid_notify(value: Any) -> dict[str, Any]:
                     own["targets"] = targets
                 if own:
                     out["modes"].setdefault(mode, {})[kind] = own
+    # Meldungen der HealthCheck-Dienste (1.68.0): Anzahl gescheiterter Aufrufe und je Meldung alle Felder einer festen Meldung; ein ungültiger
+    # Wert fällt auf den Standard zurück (nie eine Meldung, die still ausbleibt, weil ein Feld kaputt war)
+    hc = value.get("healthcheck")
+    if isinstance(hc, dict):
+        from .schemas import HC_NOTICE_SCHEMA  # noqa: PLC0415 - schemas zieht viel nach, hier nur bei Bedarf
+
+        fails = hc.get("fails")
+        if isinstance(fails, (int, float)) and not isinstance(fails, bool):
+            out["healthcheck"]["fails"] = max(HEALTHCHECK_NOTIFY_FAILS_RANGE[0], min(HEALTHCHECK_NOTIFY_FAILS_RANGE[1], int(fails)))
+        for kind in HC_NOTICE_KINDS:
+            if isinstance(hc.get(kind), dict):
+                try:
+                    notice = HC_NOTICE_SCHEMA(dict(hc[kind]))
+                except vol.Invalid:
+                    continue
+                notice["targets"] = _valid_targets(notice.get("targets"))
+                out["healthcheck"][kind] = notice
     return out
 
 

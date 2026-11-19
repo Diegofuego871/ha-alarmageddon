@@ -14,6 +14,8 @@ Alarmageddon selbst nicht melden.
   denselben Weg ohnehin nicht melden.
 - Scheitert ein Lebenszeichen (Fehler, keine Antwort in HEALTHCHECK_TIMEOUT Sekunden, Antwort ausserhalb 2xx), hält der Selbsttest das fest
   (`ping_failed`); das nächste, das klappt, hebt es auf.
+- Protokoll je Dienst (1.68.0, healthcheck_log.py): jeder Aufruf mit Art, Ergebnis, Antwortzeit und Auslöser; Mitschreiben ist Zusatz und hält nie
+  ein Lebenszeichen auf (im `try`).
 
 Sicherheitsregeln: Ein Lebenszeichen ist ein GET ohne Daten aus der Anlage. Es läuft als eigene Aufgabe mit Zeitgrenze und hält nie etwas auf
 (keinen Alarm, keinen Selbsttest, kein Speichern). Die URL ist ein Geheimnis des Dienstes (wer sie kennt, kann einen Ausfall verdecken): Panel
@@ -26,6 +28,7 @@ import asyncio
 from datetime import timedelta
 from functools import partial
 import logging
+import time
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -46,6 +49,7 @@ from .const import (
     HEALTHCHECK_TIMEOUT,
     SIGNAL_SELFTEST,
 )
+from .healthcheck_log import HealthLog
 from .selftest import async_note, async_resolve
 from .settings import apply_fail_suffix
 
@@ -95,13 +99,29 @@ class HealthCheck:
         self._last_auto: dict[str, float] = {}  # letztes Lebenszeichen ohne Testknopf
         self._failing: bool | None = None
         self._unsubs: list[CALLBACK_TYPE] = []
+        self._fresh: set[str] = set()  # Einträge ohne Lebenszeichen seit dem Start (Auslöser "start" im Protokoll)
+        # Meldungen "antwortet nicht" und "antwortet wieder" (1.68.0): gescheiterte Aufrufe hintereinander (ohne Testknopf), seit wann, und für
+        # welche Dienste "antwortet nicht" hinausging. Gespeichert: ein Neustart mitten im Ausfall meldet nicht noch einmal.
+        self._fails: dict[str, int] = {}
+        self._fail_since: dict[str, float] = {}
+        self._down: set[str] = set()
+        self.log = HealthLog(hass)
         self.started = False
 
     async def async_load(self) -> None:
+        await self.log.async_load()
         stored = await self._store.async_load()
         for hid, value in (stored.get("status") or {}).items() if isinstance(stored, dict) and isinstance(stored.get("status"), dict) else ():
             if isinstance(hid, str) and (clean := _clean_status(value)) is not None:
                 self.status[hid] = clean
+        if isinstance(stored, dict):
+            for hid, value in (stored.get("fails") or {}).items() if isinstance(stored.get("fails"), dict) else ():
+                if isinstance(hid, str) and isinstance(value, int) and not isinstance(value, bool) and value > 0:
+                    self._fails[hid] = value
+            for hid, value in (stored.get("fail_since") or {}).items() if isinstance(stored.get("fail_since"), dict) else ():
+                if isinstance(hid, str) and isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+                    self._fail_since[hid] = float(value)
+            self._down = {hid for hid in stored.get("down") or [] if isinstance(hid, str)} if isinstance(stored.get("down"), list) else set()
 
     @callback
     def async_start(self) -> None:
@@ -109,6 +129,7 @@ class HealthCheck:
             return
         self.started = True
         self._failing = self.failing()
+        self._fresh = {i["id"] for i in self.items()}
         self._hold_until = dt_util.utcnow().timestamp() + HEALTHCHECK_START_DELAY
         self._unsubs.append(async_dispatcher_connect(self.hass, SIGNAL_SELFTEST, self._on_selftest))
         self._unsubs.append(async_track_time_interval(self.hass, self._tick, timedelta(seconds=HEALTHCHECK_TICK)))
@@ -122,7 +143,11 @@ class HealthCheck:
         self._later.clear()
         self._config.clear()
         self.started = False
-        await self._store.async_save({"status": self.status})
+        await self._store.async_save(self._stored())
+        await self.log.async_save()
+
+    def _stored(self) -> dict[str, Any]:
+        return {"status": self.status, "fails": dict(self._fails), "fail_since": dict(self._fail_since), "down": sorted(self._down)}
 
     def items(self) -> list[dict[str, Any]]:
         return list(self._settings.healthchecks)
@@ -131,8 +156,16 @@ class HealthCheck:
         return next((i for i in self.items() if i["id"] == hid), None)
 
     def listing(self) -> list[dict[str, Any]]:
-        """Einträge für das Panel: die gespeicherten Werte (mit der URL, Entscheid des Nutzers) und das letzte Lebenszeichen."""
-        return [{**item, "status": self.status.get(item["id"])} for item in self.items()]
+        """Einträge für das Panel: die gespeicherten Werte (mit der URL, Entscheid des Nutzers), das letzte Lebenszeichen und seit wann der Zustand gilt."""
+        return [{**item, "status": self.status.get(item["id"]), "log": self.log.brief(item["id"])} for item in self.items()]
+
+    def problem_count(self) -> int:
+        """Zahl der Probleme des Selbsttests ohne gescheiterte Lebenszeichen (für das Protokoll: "Fehler gemeldet, 2 Probleme")."""
+        selftest = self.hass.data.get(DATA_SELFTEST)
+        try:
+            return sum(1 for p in selftest.problems() if p.get("code") != "ping_failed") if selftest is not None else 0
+        except Exception:  # noqa: BLE001 - nur eine Angabe im Protokoll
+            return 0
 
     def failing(self) -> bool:
         """Hat der Selbsttest Probleme (ohne gescheiterte Lebenszeichen: die lassen sich auf demselben Weg nicht melden)?"""
@@ -159,6 +192,11 @@ class HealthCheck:
             if hid not in current:
                 self.status.pop(hid, None)
                 self._last_try.pop(hid, None)
+                self._fresh.discard(hid)
+                self._fails.pop(hid, None)
+                self._fail_since.pop(hid, None)
+                self._down.discard(hid)
+                self.log.remove(hid)
                 async_resolve(self.hass, None, "ping_failed", hid)
         fresh = [hid for hid in current if hid not in self._config]
         for hid in fresh:
@@ -167,7 +205,7 @@ class HealthCheck:
         # Neue und geänderte senden gleich (nach dem Start erst nach HEALTHCHECK_START_DELAY, über den Takt)
         if not first:
             for hid in fresh:
-                self.async_ping(hid)
+                self.async_ping(hid, by="save")
 
     @callback
     def _tick(self, _now: Any = None) -> None:
@@ -177,7 +215,7 @@ class HealthCheck:
             return
         for item in self.items():
             if now - self._last_auto.get(item["id"], 0.0) >= int(item["interval"]):
-                self.async_ping(item["id"])
+                self.async_ping(item["id"], by="start" if item["id"] in self._fresh else "tick")
 
     @callback
     def _on_selftest(self) -> None:
@@ -187,20 +225,21 @@ class HealthCheck:
             return
         self._failing = failing
         for item in self.items():
-            self.async_ping(item["id"], respect_gap=True)
+            self.async_ping(item["id"], respect_gap=True, by="selftest")
 
     @callback
-    def async_ping(self, hid: str, respect_gap: bool = False, test: str | None = None) -> asyncio.Task | None:
+    def async_ping(self, hid: str, respect_gap: bool = False, test: str | None = None, by: str = "tick") -> asyncio.Task | None:
         """
         Ein Lebenszeichen als eigene Aufgabe (nie abwarten). `respect_gap`: höchstens alle HEALTHCHECK_MIN_GAP Sekunden, sonst danach. `test`: Knopf
-        im Panel, "ok" oder "fail" sendet genau das (ohne den Selbsttest zu fragen); "fail" ohne Fehler-Zusatz gibt es nicht (None).
+        im Panel, "ok" oder "fail" sendet genau das (ohne den Selbsttest zu fragen); "fail" ohne Fehler-Zusatz gibt es nicht (None). `by`: der
+        Auslöser für das Protokoll ("tick", "selftest", "start", "save"; mit `test` immer "test").
         """
         item = self.item(hid)
         if item is None or (test == "fail" and fail_url(item) is None):
             return None
         if test:
             self._last_try[hid] = dt_util.utcnow().timestamp()
-            return self.hass.async_create_background_task(self._send(item, test), f"alarmageddon health check test {hid}")
+            return self.hass.async_create_background_task(self._send(item, test, "test"), f"alarmageddon health check test {hid}")
         if respect_gap:
             wait = HEALTHCHECK_MIN_GAP - (dt_util.utcnow().timestamp() - self._last_try.get(hid, 0.0))
             if wait > 0:
@@ -209,26 +248,33 @@ class HealthCheck:
                 self._later[hid] = async_call_later(self.hass, wait, partial(self._ping_later, hid))
                 return None
         self._last_try[hid] = self._last_auto[hid] = dt_util.utcnow().timestamp()
+        if hid in self._fresh:
+            self._fresh.discard(hid)
+            by = "start" if by == "tick" else by
         # Ein aufgeschobenes Lebenszeichen (Wechsel des Selbsttests) entfällt: dieses zeigt schon den aktuellen Stand
         if (later := self._later.pop(hid, None)) is not None:
             later()
-        return self.hass.async_create_background_task(self._send(item), f"alarmageddon health check {hid}")
+        return self.hass.async_create_background_task(self._send(item, None, by), f"alarmageddon health check {hid}")
 
     @callback
     def _ping_later(self, hid: str, _now: Any = None) -> None:
         self._later.pop(hid, None)
-        self.async_ping(hid)
+        self.async_ping(hid, by="selftest")
 
-    async def _send(self, item: dict[str, Any], test: str | None = None) -> dict[str, Any]:
+    async def _send(self, item: dict[str, Any], test: str | None = None, by: str = "tick") -> dict[str, Any]:
         hid = item["id"]
         failing = test == "fail" if test else self.failing()
         bad = fail_url(item) if failing else None
         url = bad or item["url"]
         code: int | None = None
+        ms: int | None = None
+        began = time.monotonic()
         try:
             async with asyncio.timeout(HEALTHCHECK_TIMEOUT):
                 async with async_get_clientsession(self.hass).get(url, allow_redirects=True) as response:
                     code = response.status
+            # Antwortzeit bis zur Antwort des Dienstes (1.68.0, Kachel "Antwortzeit" im Protokoll)
+            ms = round((time.monotonic() - began) * 1000)
             result = "ok" if 200 <= code < 300 else "http"
         except TimeoutError:
             result = "timeout"
@@ -236,9 +282,20 @@ class HealthCheck:
             raise
         except Exception:  # noqa: BLE001 - jeder Fehler der Verbindung; die Meldung des Fehlers enthielte oft die URL (Geheimnis), darum nicht ins Log
             result = "error"
-        status = {"at": dt_util.utcnow().isoformat(), "sent": "fail" if bad else "ok", "result": result, "code": code, "test": bool(test)}
+        now = dt_util.utcnow()
+        status = {"at": now.isoformat(), "sent": "fail" if bad else "ok", "result": result, "code": code, "test": bool(test)}
         if self.item(hid) is not None:  # inzwischen gelöscht: nichts mehr festhalten
             self.status[hid] = status
+            if not test:
+                try:
+                    self._notify(item, result, code, now)
+                except Exception:  # noqa: BLE001 - die Meldung ist Zusatz, ein Fehler darin hält kein Lebenszeichen auf
+                    _LOGGER.exception("The health check could not send its notification")
+            try:
+                self.log.record(hid, at=now, sent=status["sent"], result=result, code=code, ms=ms, by="test" if test else by,
+                                problems=self.problem_count() if bad and not test else None, interval=int(item["interval"]))
+            except Exception:  # noqa: BLE001 - das Protokoll ist Zusatz, ein Fehler darin hält kein Lebenszeichen auf
+                _LOGGER.exception("The health check log could not record a call")
             if result == "ok":
                 async_resolve(self.hass, None, "ping_failed", hid)
             else:
@@ -251,7 +308,43 @@ class HealthCheck:
 
     @callback
     def _save(self) -> None:
-        self._store.async_delay_save(lambda: {"status": self.status}, 5)
+        self._store.async_delay_save(self._stored, 5)
+
+    # -- Meldungen "antwortet nicht" und "antwortet wieder" (1.68.0) --
+
+    @callback
+    def _notify(self, item: dict[str, Any], result: str, code: int | None, at: Any) -> None:
+        """
+        Nach jedem automatischen Aufruf (Takt, Start, Speichern, Wechsel des Selbsttests; nie beim Testknopf): nach `fails` gescheiterten hintereinander einmal "antwortet nicht", beim ersten, der danach
+        klappt, "antwortet wieder" (nur, wenn "antwortet nicht" hinausging). Werte ohne URL: Name, Rechner, Grund, Anzahl, seit wann.
+        """
+        from .notify import async_send_healthcheck  # noqa: PLC0415 - notify zieht die Anlagen nach
+
+        hid = item["id"]
+        cfg = self._settings.notify
+        if result == "ok":
+            count = self._fails.pop(hid, 0)
+            since = self._fail_since.pop(hid, None)
+            if hid in self._down:
+                self._down.discard(hid)
+                async_send_healthcheck(self.hass, cfg, "hc_up", self._values(item, count, since, None, None), tag=f"alarmageddon_hc_{hid}")
+            return
+        self._fails[hid] = self._fails.get(hid, 0) + 1
+        self._fail_since.setdefault(hid, at.timestamp())
+        if self._fails[hid] >= int(cfg["healthcheck"]["fails"]) and hid not in self._down and cfg["healthcheck"]["hc_down"].get("enabled"):
+            self._down.add(hid)
+            async_send_healthcheck(self.hass, cfg, "hc_down", self._values(item, self._fails[hid], self._fail_since[hid], result, code), tag=f"alarmageddon_hc_{hid}")
+
+    def _values(self, item: dict[str, Any], count: int, since: float | None, result: str | None, code: int | None) -> dict[str, str]:
+        from .notify import text  # noqa: PLC0415
+
+        reason = ""
+        if result == "http":
+            reason = text(self.hass, "hc_reason_http", code=code if code is not None else "?")
+        elif result in ("timeout", "error"):
+            reason = text(self.hass, f"hc_reason_{result}")
+        when = dt_util.as_local(dt_util.utc_from_timestamp(since)).strftime(text(self.hass, "time_format")) if since else ""
+        return {"name": str(item.get("name") or host_of(item["url"])), "host": host_of(item["url"]), "reason": reason, "count": str(count), "since": when}
 
 
 async def async_get_healthcheck(hass: HomeAssistant, settings: Any) -> HealthCheck:

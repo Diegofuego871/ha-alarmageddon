@@ -6,7 +6,8 @@
 // Seit 1.66.0 hat jeder Eintrag einen Namen (Pflichtfeld, Wunsch des Nutzers 2026-11-19); in der Liste steht der Name, die URL darunter gekürzt
 // (ganz im Tooltip und im Formular). Ein Intervall je Eintrag, kein eigenes bei scharfer Anlage (Entscheid des Nutzers 2026-11-19: der Selbsttest
 // prüft dann öfter, und findet er etwas, geht der Fehler sofort hinaus). Knöpfe der Zeile in Kreisen wie bei Routinen und Tönen (`.ag-wf-btns`), auf dem Handy in einer
-// eigenen Zeile unter dem Eintrag (Wunsch des Nutzers 2026-11-19).
+// eigenen Zeile unter dem Eintrag (Wunsch des Nutzers 2026-11-19). Seit 1.68.0 als erster Knopf "Protokoll" (healthlog.js, Wunsch des Nutzers: an der
+// eingekreisten Stelle links von "Fehler senden").
 const V = new URL(import.meta.url).search;
 const { ic, esc, errText, fmtDur, iconTitle, matchQuery, searchField } = await import(`./common.js${V}`);
 
@@ -120,6 +121,25 @@ export class HealthCheckUi {
         <button class="ag-btn" data-hc="open">${ic("heartPulse", 18)}${esc(this._t("hcShow"))}</button></div></div>`;
   }
 
+  // Rechte Hälfte der unteren Zeile der Statuskachel (1.68.0, Wunsch des Nutzers 2026-11-19, 18:36): nur, wenn Dienste eingerichtet sind (sonst bleibt
+  // die Kachel wie bisher und lädt zu nichts ein). Grün, wenn alle in Ordnung sind; rot, sobald einer gescheitert ist; orange, solange ein Fehler
+  // gemeldet ist (der Selbsttest hat Probleme). Öffnet die Liste der Dienste.
+  tileHalf() {
+    const items = this.items;
+    if (!items.length) return "";
+    const state = (i) => i.log?.state || (i.status ? (i.status.result !== "ok" ? "fail" : i.status.sent === "fail" && !i.status.test ? "report" : "ok") : null);
+    const states = items.map(state);
+    const fail = states.filter((x) => x === "fail").length;
+    const report = states.filter((x) => x === "report").length;
+    const none = states.every((x) => !x);
+    const tone = fail ? "err" : report ? "warn" : none ? "" : "ok";
+    const text = fail ? this._t(fail === 1 ? "hcHalfFail1" : "hcHalfFail", { count: fail }) : report ? this._t("hcHalfReport") : none ? this._t("hcHalfNone")
+      : this._t(items.length === 1 ? "hcHalfOk1" : "hcHalfOk");
+    const title = `${this._t("hcListTitle")}: ${text}`;
+    return `<button class="ag-row ag-rowbtn ag-half" data-hc="open" data-half="healthcheck" title="${esc(title)}"><span class="ag-mini ${tone}">${ic("heartPulse", 16)}</span>
+      <span class="ag-grow"><span class="ag-half-t">${esc(this._t("hcTitle"))}</span><small class="ag-t2 ag-block">${esc(text)}</small></span><span class="ag-cbtn">${ic("chevRight", 16)}</span></button>`;
+  }
+
   // ----- Fenster mit der Liste -----
 
   openList() {
@@ -212,7 +232,8 @@ export class HealthCheckUi {
     const val = { name: (i) => (i.name || i.url).toLowerCase(), last: (i) => i.status?.at || "", interval: (i) => i.interval, status: (i) => this._statusText(i.status) }[sort.key];
     const cmp = (a, b) => (typeof a === "number" ? a - b : String(a).localeCompare(String(b), this.host._lang || "en", { numeric: true }));
     const list = [...shown].sort((a, b) => cmp(val(a), val(b)) * (sort.dir === "desc" ? -1 : 1) || cmp(a.name || "", b.name || "") || cmp(a.url, b.url));
-    const btn = (act, icon, label, id, off = false) => `<button class="ag-iconbtn" data-hc="${act}" data-id="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}" ${off || this.busy.has(`${id}|${act === "test-fail" ? "fail" : "ok"}`) ? "disabled" : ""}>${ic(icon, 18)}</button>`;
+    const testing = (act, id) => (act === "test-fail" || act === "test-ok") && this.busy.has(`${id}|${act === "test-fail" ? "fail" : "ok"}`);
+    const btn = (act, icon, label, id, off = false) => `<button class="ag-iconbtn" data-hc="${act}" data-id="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}" ${off || testing(act, id) ? "disabled" : ""}>${ic(icon, 18)}</button>`;
     const rows = list.map((i) => {
       const known = suggest(i.url);
       return `<tr data-hc-row="${esc(i.id)}"><td class="ag-hcurl"><b class="ag-hcname">${esc(i.name || i.url)}</b><span class="ag-mono ag-hcaddr" title="${esc(i.url)}">${esc(i.url)}</span>
@@ -222,7 +243,7 @@ export class HealthCheckUi {
         <td class="ag-t2 ag-hclast">${esc(i.status ? this._when(i.status.at) : "–")}</td>
         <td class="ag-t2 ag-hcint">${esc(fmtDur(i.interval))}</td>
         <td class="ag-hcst"><span class="ag-hcstate ${this._statusTone(i.status)}">${esc(this._statusText(i.status))}</span></td>
-        <td class="ag-acts"><div class="ag-wf-btns ag-hcbtns">${btn("test-fail", "alert", t(i.fail_suffix ? "hcTestFail" : "hcTestFailNone"), i.id, !i.fail_suffix)}${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
+        <td class="ag-acts"><div class="ag-wf-btns ag-hcbtns">${btn("log", "history", t("hlOpen"), i.id)}${btn("test-fail", "alert", t(i.fail_suffix ? "hcTestFail" : "hcTestFailNone"), i.id, !i.fail_suffix)}${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
     }).join("");
     const th = (k, label, cls = "") => {
       const on = sort.key === k;
@@ -354,6 +375,7 @@ export class HealthCheckUi {
       this.formDlg.close();
       h._toast(this._t("hcSaved"));
       this.renderList();
+      h.hcLog?.afterSave(res.id); // "Bearbeiten" im Protokoll: dort gleich mit den neuen Werten
       if (h._tab === "config" && h._sub === "system") h.systemUi.render();
     } catch (err) {
       f.saving = false;
@@ -372,6 +394,7 @@ export class HealthCheckUi {
     try {
       const res = await h._hass.callWS({ type: "alarmageddon/healthcheck_delete", check_id: id });
       if (h._data) h._data.healthchecks = res.healthchecks;
+      h.hcLog?.afterRemove(id);
     } catch (err) {
       h._toast(this._t("errGeneric", { message: errText(err) }));
     }
@@ -408,6 +431,7 @@ export class HealthCheckUi {
       return true;
     }
     if (act === "open") this.openList();
+    else if (act === "log") this.host.hcLog.open(el.dataset.id); // Protokoll des Dienstes (1.68.0), über der Liste
     else if (act === "close") this.listDlg?.close();
     else if (act === "add") this.openForm();
     else if (act === "edit") this.openForm(el.dataset.id);

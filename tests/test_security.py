@@ -31,7 +31,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 from custom_components.alarmageddon import websocket_api as ws_module
 from custom_components.alarmageddon import workflow as workflow_module
 from custom_components.alarmageddon.code import hash_code
-from custom_components.alarmageddon.const import CODE_LOCKOUT_SECONDS, CODE_MAX_ATTEMPTS, DATA_HEALTHCHECK, DATA_SELFTEST, DOMAIN, HEALTHCHECK_STORE_KEY, MAX_STEPS
+from custom_components.alarmageddon.const import CODE_LOCKOUT_SECONDS, CODE_MAX_ATTEMPTS, DATA_HEALTHCHECK, DATA_SELFTEST, DOMAIN, HEALTHCHECK_STORE_KEY, HEALTHLOG_STORE_KEY, MAX_STEPS
 
 from .conftest import ALARM, FRONT_DOOR, MOTION, WINDOW, options, setup_alarm
 from .test_actions import PHONE, PLAYER, SIREN, _notify_settings, _phone, _setup_workflow
@@ -94,6 +94,8 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "healthcheck_save": {"name": "Test", "url": "https://hc-ping.com/x", "fail_suffix": "/fail", "interval": 300},
     "healthcheck_delete": {"check_id": "x"},
     "healthcheck_ping": {"check_id": "x", "kind": "ok"},
+    "healthcheck_history": {"check_id": "x", "hours": 24},
+    "test_healthcheck_notify": {"kind": "hc_down", "notice": {"enabled": True, "critical": False}},
 }
 
 
@@ -247,8 +249,14 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
     answers["healthcheck_ping"] = (await ws(client, type=f"{DOMAIN}/healthcheck_ping", check_id=saved["result"]["id"], kind="ok"))["result"]
     answers["export_healthcheck"] = (await ws(client, type=f"{DOMAIN}/export"))["result"]
     assert answers["healthcheck_ping"]["status"]["result"] == "ok" and ping in json.dumps(answers["export_healthcheck"])
+    # Protokoll (1.68.0): Antwort und Ablage tragen nie die Ping-URL (nur Art, Ergebnis, Antwortzeit, Auslöser)
+    answers["healthcheck_history"] = (await ws(client, type=f"{DOMAIN}/healthcheck_history", check_id=saved["result"]["id"], hours=24))["result"]
+    assert answers["healthcheck_history"]["calls_total"] >= 1, "das Protokoll muss geprüft werden"
     healthcheck = hass.data[DATA_HEALTHCHECK]
     await healthcheck._store.async_save({"status": healthcheck.status})
+    await healthcheck.log.async_save()
+    for text in (json.dumps(answers["healthcheck_history"]), json.dumps(hass_storage[HEALTHLOG_STORE_KEY])):
+        assert "00000000-1111-2222-3333-444444444444" not in text and "hc-ping.com" not in text
     alarm = hass.states.get(ALARM)
     answers["state"] = {"state": alarm.state, "attributes": dict(alarm.attributes)}
     answers["entities"] = {s.entity_id: {"state": s.state, "attributes": dict(s.attributes)} for s in hass.states.async_all() if s.entity_id.split(".")[1].startswith("haus")}
@@ -258,7 +266,7 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
     await entry.runtime_data.recorder.async_stop()
     # Ablagen der Integration; die Optionen des Config Entry (dort liegt der Hash, nie der Code) sind nicht darunter
     answers["storage"] = {key: value for key, value in hass_storage.items() if key.startswith(DOMAIN)}
-    assert answers["storage"] and HEALTHCHECK_STORE_KEY in answers["storage"], "die Ablagen der Integration müssen geprüft werden"
+    assert answers["storage"] and HEALTHCHECK_STORE_KEY in answers["storage"] and HEALTHLOG_STORE_KEY in answers["storage"], "die Ablagen der Integration müssen geprüft werden"
     for name, answer in answers.items():
         text = json.dumps(answer, default=str)
         for secret in secrets:

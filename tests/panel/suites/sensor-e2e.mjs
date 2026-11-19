@@ -127,6 +127,9 @@ for (const lang of ["de", "en"]) {
     await loaded(".ag-sv-chart .sv-line");
     check(`${tag}: Kachel Batterie: Zeiträume 30 Tage, 90 Tage, 1 Jahr; Abfrage über 90 Tage`, JSON.stringify(await seg()) === JSON.stringify(t.bat.map((v, i) => (i === 1 ? `${v}*` : v))) && JSON.stringify((await calls()).at(-1)) === JSON.stringify([MOTION, "battery", 2160]), JSON.stringify(await seg()));
     check(`${tag}: Batterie: Linie mit Schwelle, Batteriewechsel und Prognose`, await dlg("const c=d.querySelector('.ag-sv-chart svg'); return !!c.querySelector('.sv-thr') && !!c.querySelector('.sv-mark') && !!c.querySelector('.sv-line.dash') && d.querySelectorAll('.ag-sv-kpi').length >= 3 && d.querySelectorAll('.ag-sv-table tbody tr').length > 5"));
+    // 1.68.0: Änderung je Tag in der Schreibweise der Sprache (Deutsch "−0,6 %", Englisch "−0.6 %"; vorher überall "0.6")
+    const changes = await dlg("return [...d.querySelectorAll('.ag-sv-table tbody tr')].map((tr) => tr.cells[2].textContent)");
+    check(`${tag}: Batterie: Spalte "Änderung" mit Dezimalzeichen der Sprache`, changes.some((c) => /\d[.,]\d/.test(c)) && changes.every((c) => !(lang === "de" ? /\d\.\d/ : /\d,\d/).test(c)), JSON.stringify(changes.slice(0, 6)));
     await s.page.screenshot({ path: `${outDir}sensor-battery-${lang}-${mobile ? "mobile" : "desktop"}.png` });
     await dlg("d.querySelector('[data-sv=\"tab\"][data-tab=\"signal\"]').click(); return 1");
     await loaded(".ag-sv-chart .sv-zone");

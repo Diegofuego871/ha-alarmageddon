@@ -8,6 +8,13 @@ meldet. Eine Batterie gilt erst wieder als gut, wenn sie deutlich über der
 Schwelle liegt (gewechselt), ein Sensor, sobald er wieder antwortet. Neue
 Probleme einer Prüfung kommen gesammelt in einer Meldung.
 
+Eine Batterie gilt erst als schwach, wenn sie bei "battery_checks" Prüfungen
+hintereinander unter der Schwelle liegt (1.68.0): ein einzelner falscher Wert
+des Geräts ("Batterie 1 %" bei 61 %) meldet nichts. Ein Wert über der Schwelle
+beginnt neu; ein Batteriesensor ohne Wert (nicht verfügbar) zählt nicht mit
+und beginnt nicht neu. Die Zählung lebt nur im Speicher: ein Neustart
+verzögert eine Meldung höchstens, er löst nie eine aus.
+
 Eine Instanz für alle Anlagen: ein Sensor in zwei Anlagen wird nur einmal
 gemeldet.
 """
@@ -55,6 +62,8 @@ class Maintenance:
         self._store = Store(hass, 1, MAINTENANCE_STORE_KEY)
         # Bereits gemeldet: {"battery": {sensor: Zeit}, "offline": {sensor: Zeit}}
         self.reported: dict[str, dict[str, str]] = {"battery": {}, "offline": {}}
+        # Prüfungen hintereinander unter der Schwelle je Sensor (noch nicht gemeldet)
+        self._low: dict[str, int] = {}
         self._unsubs: list[CALLBACK_TYPE] = []
 
     async def async_start(self) -> None:
@@ -89,6 +98,7 @@ class Maintenance:
         cfg = self._settings.notify
         types = cfg["types"]
         threshold = cfg["battery_threshold"]
+        checks = int(cfg["battery_checks"])
         offline_after = timedelta(minutes=cfg["offline_minutes"])
         now = dt_util.utcnow()
         sensors = self.sensors()
@@ -101,9 +111,14 @@ class Maintenance:
             if value is None:
                 continue
             if value < threshold:
-                if sensor not in self.reported["battery"] and types["battery_low"]["enabled"]:
-                    found.append(("battery", sensor, round(value)))
-            elif value >= threshold + BATTERY_HYSTERESIS and self.reported["battery"].pop(sensor, None):
+                if sensor not in self.reported["battery"]:
+                    self._low[sensor] = self._low.get(sensor, 0) + 1
+                    if self._low[sensor] >= checks and types["battery_low"]["enabled"]:
+                        found.append(("battery", sensor, round(value)))
+                continue
+            # Über der Schwelle: ein schwacher Wert davor war ein Ausreisser, die Zählung beginnt neu
+            self._low.pop(sensor, None)
+            if value >= threshold + BATTERY_HYSTERESIS and self.reported["battery"].pop(sensor, None):
                 changed = True
 
         for sensor in sensors:
@@ -117,6 +132,8 @@ class Maintenance:
                 changed = True
 
         # Nicht mehr überwachte Sensoren vergessen
+        for sensor in set(self._low) - sensors:
+            del self._low[sensor]
         for key in ("battery", "offline"):
             for sensor in set(self.reported[key]) - sensors:
                 del self.reported[key][sensor]
@@ -132,6 +149,8 @@ class Maintenance:
             delivered = [item for targets, items in groups.items() if self._send(items, list(targets)) for item in items]
             for kind, sensor, _value in delivered:
                 self.reported["battery" if kind == "battery" else "offline"][sensor] = now.isoformat()
+                if kind == "battery":
+                    self._low.pop(sensor, None)
             changed = changed or bool(delivered)
             found = delivered
         if changed:

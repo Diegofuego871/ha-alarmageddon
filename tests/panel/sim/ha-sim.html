@@ -160,9 +160,12 @@
   const entities = {};
   window.__presets = { door: ["arm_on_close"], window: [], motion: ["open_ok"], environment: ["always"], tamper: ["offline_alarm"], other: [] };
   const T = (enabled, critical) => ({ enabled, critical, volume: 0.8 });
-  window.__notify = { alarm_targets: ["notify.mobile_app_diego"], maintenance_targets: [], disarm_action: false, open_action: true, silence_action: false, battery_threshold: 20, offline_minutes: 60, selftest_minutes: 360, selftest_minutes_armed: 60,
+  window.__notify = { alarm_targets: ["notify.mobile_app_diego"], maintenance_targets: [], disarm_action: false, open_action: true, silence_action: false, battery_threshold: 20, battery_checks: 3, offline_minutes: 60, selftest_minutes: 360, selftest_minutes_armed: 60,
     types: { triggered: T(true, true), pending: T(false, false), armed: T(false, false), disarmed: T(false, false), arm_failed: T(true, false), sensor_offline: T(true, true),
-      sensor_report: T(true, true), battery_low: T(true, false), sensor_unavailable: T(true, false), selftest: T(true, false) } };
+      sensor_report: T(true, true), battery_low: T(true, false), sensor_unavailable: T(true, false), selftest: T(true, false) },
+    // Meldungen der HealthCheck-Dienste (1.68.0) wie der Server (const.py DEFAULT_NOTIFY)
+    healthcheck: { fails: 2, ...Object.fromEntries(["hc_down", "hc_up"].map((k) => [k, { enabled: true, title: "", message: "", critical: false, volume: 0.8, persistent: false, click: "healthcheck", click_path: "", targets: [] }])) } };
+  window.__hcNoticeCalls = [];
   // Selbsttest (1.65.0) wie der Server (selftest.py payload): ?selftest=problems füllt Befunde (Konfiguration, Laufzeit, für alle Anlagen),
   // ?selftest=none: noch nie geprüft. Tests setzen window.__selftest auch direkt; window.__selftestAfterRun: Befunde nach "Jetzt prüfen".
   {
@@ -218,6 +221,182 @@
     ];
     window.__healthchecks = params.get("hc") === "sample" ? sample : params.get("hc") === "full" ? [...sample, ...extra] : [];
     window.__hcCalls = [];
+  }
+  // Protokoll der HealthCheck-Dienste (1.68.0) wie der Server (healthcheck_log.py: record, history, gaps): je Dienst mit einem Lebenszeichen ein
+  // erfundener Verlauf im Abstand des Dienstes, seit 340 Tagen (davor nichts), mit Lücken (Home Assistant aus), Ausfällen, gemeldeten Fehlern und
+  // Tests, alles relativ zu jetzt. Ein Dienst, dessen letztes Lebenszeichen scheiterte, ist seit 20 Minuten gescheitert. Aufbewahrt wie der Server:
+  // Aufrufe 24 Stunden, Stundenwerte 30 Tage, Tageswerte und Ereignisse ein Jahr (höchstens 1000). ?hclog=empty: noch kein Protokoll.
+  // window.__hcLogDelay: Antwortzeit der Abfrage in ms; window.__hcHistory: alle Abfragen.
+  {
+    const H = 3600e3;
+    const D = 24 * H;
+    const KINDS = ["ok", "report", "fail", "test"];
+    const toIso = (t) => new Date(Math.floor(t / 1000) * 1000).toISOString();
+    const pad = (n) => String(n).padStart(2, "0");
+    const dayKey = (t) => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+    const nextMidnight = (t) => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(); };
+    const cache = new Map();
+    window.__hcHistory = [];
+    const build = (item, nowMs) => {
+      if (!item.status || params.get("hclog") === "empty") return null;
+      const ckey = `${item.id}|${item.interval}|${item.status.result}|${Math.floor(nowMs / 60e3)}`;
+      if (cache.has(ckey)) return cache.get(ckey);
+      const step = item.interval * 1000;
+      const limit = Math.max(2 * item.interval, item.interval + 120) * 1000;
+      let seed = [...item.id].reduce((a, c) => a + c.charCodeAt(0), 7);
+      const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+      const special = [[9.4 * H, 40 * 60e3, "gap"], [5.5 * H, 12 * 60e3, "fail"], [4.6 * H, 25 * 60e3, "report"], [2.8 * D, 16 * 60e3, "fail"], [4.3 * D, 50 * 60e3, "report"],
+        [5.6 * D, 50 * 60e3, "gap"], [11.1 * D, 60e3, "fail"], [18.4 * D, 40 * 60e3, "gap"], [37.3 * D, 45 * 60e3, "fail"], [52.6 * D, 20 * 60e3, "report"],
+        [61.2 * D, 34 * H, "gap"], [118.4 * D, 2.5 * H, "fail"], [166.5 * D, H, "report"], [214.1 * D, 2.3 * D, "gap"], [301.7 * D, 25 * 60e3, "fail"],
+        ...(item.status.result !== "ok" ? [[20 * 60e3, 20 * 60e3, "fail"]] : [])]
+        .map(([ago, len, kind]) => [nowMs - ago, nowMs - ago + len, kind]);
+      const kindAt = (t) => special.find(([a, b]) => t >= a && t < b)?.[2] || "ok";
+      const raw = [];
+      let fresh = true;
+      for (let t = nowMs - 340 * D + ((item.id.charCodeAt(0) * 7919) % step); t <= nowMs; t += step) {
+        const k = kindAt(t);
+        if (k === "gap") { fresh = true; continue; }
+        const result = k === "fail" ? (rnd() < 0.5 ? "timeout" : "error") : "ok";
+        raw.push({ t, sent: k === "report" ? "fail" : "ok", result, code: result === "ok" ? 200 : null, ms: result === "ok" ? 85 + Math.round(rnd() * 95) + (rnd() < 0.012 ? 220 + Math.round(rnd() * 420) : 0) : null, by: fresh ? "start" : "tick" });
+        fresh = false;
+      }
+      raw.push({ t: nowMs - 50 * 60e3, sent: "fail", result: "ok", code: 200, ms: 140, by: "test" }, { t: nowMs - 49 * 60e3, sent: "ok", result: "ok", code: 200, ms: 96, by: "test" },
+        { t: nowMs - 23.2 * D, sent: "ok", result: "ok", code: 200, ms: 120, by: "test" }, { t: nowMs - 95.4 * D, sent: "ok", result: "ok", code: 200, ms: 110, by: "test" });
+      raw.sort((a, b) => a.t - b.t);
+      const L = { calls: [], hours: new Map(), days: new Map(), events: [], state: null, since: null, last: null };
+      const dayRow = (t) => { const k = dayKey(t); if (!L.days.has(k)) L.days.set(k, [0, 0, 0, 0, 0, 0, 0, 0, 0]); return L.days.get(k); };
+      const addGap = (a, b, days = L.days) => {
+        for (let t = a; t < b;) {
+          const e = Math.min(b, nextMidnight(t));
+          const k = dayKey(t);
+          if (!days.has(k)) days.set(k, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
+          days.get(k)[8] += Math.floor((e - t) / 1000);
+          t = e;
+        }
+      };
+      L.addGap = addGap;
+      let openEv = null;
+      for (const c of raw) {
+        const kind = c.result !== "ok" ? "fail" : c.by === "test" ? "test" : c.sent === "fail" ? "report" : "ok";
+        L.since ??= c.t;
+        if (L.last !== null && c.t - L.last > limit) addGap(L.last + step, c.t);
+        L.last = Math.max(c.t, L.last ?? 0);
+        L.calls.push({ ...c, kind });
+        const hour = Math.floor(c.t / H) * H;
+        if (!L.hours.has(hour)) L.hours.set(hour, [0, 0, 0, 0, 0, 0, 0, 0]);
+        for (const b of [L.hours.get(hour), dayRow(c.t)]) {
+          b[KINDS.indexOf(kind)]++;
+          if (c.ms !== null && c.result === "ok") { b[4] += c.ms; b[5]++; b[6] = Math.max(b[6], c.ms); }
+          if (c.result === "timeout" || c.result === "error") b[7]++;
+        }
+        const state = L.state?.[0];
+        const base = { t: c.t, result: c.result, by: c.by, ...(c.code !== null ? { code: c.code } : {}), ...(c.ms !== null ? { ms: c.ms } : {}) };
+        if (kind === "test") { L.events.push({ ...base, k: "test", sent: c.sent }); continue; }
+        // Die offene Folge (gescheitert oder Fehler gemeldet) als Zeiger statt Suche in der Liste: ein Jahr hat rund 100 000 Aufrufe
+        if (c.by === "start") openEv = null;
+        if (kind === "fail" || kind === "report") {
+          if (openEv && openEv.k === kind && state === kind && c.by !== "start") { openEv.n = (openEv.n || 1) + 1; openEv.end = c.t; }
+          else { openEv = { ...base, k: kind, n: 1, end: c.t, ...(kind === "report" ? { problems: 1 } : {}) }; L.events.push(openEv); }
+        } else {
+          openEv = null;
+          if (state === "fail" || state === "report") L.events.push({ ...base, k: "back", from: state });
+          else if (c.by === "start") L.events.push({ ...base, k: "start" });
+        }
+        if (kind !== state) L.state = [kind, c.t];
+      }
+      // Wie die Ablage: einzelne Aufrufe 24 Stunden, Stundenwerte 30 Tage, Ereignisse ein Jahr (höchstens 1000)
+      L.calls = L.calls.filter((c) => c.t > nowMs - 24 * H);
+      for (const h of [...L.hours.keys()]) if (h + H <= nowMs - 30 * D) L.hours.delete(h);
+      L.events = L.events.filter((e) => (e.end ?? e.t) > nowMs - 366 * D).slice(-1000);
+      L.item = item;
+      if (cache.size > 20) cache.clear();
+      cache.set(ckey, L);
+      return L;
+    };
+    window.__hcLogBrief = (item) => {
+      const L = build(item, Date.now());
+      return L?.state ? { state: L.state[0], since: toIso(L.state[1]) } : null;
+    };
+    const gaps = (L, start, nowMs, interval, hours) => {
+      const limit = Math.max(2 * interval, interval + 120) * 1000;
+      const low = Math.max(start, L.since);
+      const out = [];
+      if (hours <= 24) {
+        let prev = null;
+        for (const t of [...L.calls.map((c) => c.t), nowMs]) {
+          if (prev !== null && t - prev > limit) { const a = Math.max(low, prev + interval * 1000); const b = Math.min(nowMs, t); if (b > a) out.push([a, b]); }
+          prev = t;
+        }
+        return out;
+      }
+      const busy = new Set([...L.hours].filter(([, v]) => v[0] + v[1] + v[2] + v[3]).map(([h]) => h));
+      let run = null;
+      for (let hour = Math.floor(low / H) * H; hour <= nowMs; hour += H) {
+        if (busy.has(hour)) { if (run !== null && hour - run > limit) out.push([Math.max(low, run), hour]); run = null; }
+        else if (run === null) run = hour;
+      }
+      if (run !== null && nowMs - run > limit) out.push([Math.max(low, run), nowMs]);
+      return out;
+    };
+    window.__hcLogHistory = (item, hours) => {
+      const nowMs = Date.now();
+      const L = build(item, nowMs);
+      const daily = hours > 720;
+      const today = new Date(nowMs);
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (Math.floor(hours / 24) - 1));
+      const start = daily ? firstDay.getTime() : nowMs - hours * H;
+      const empty = { id: item.id, hours, now: toIso(nowMs), start: toIso(start), interval: item.interval, gap_day: 30, since: null, state: { state: null, since: null }, last: null,
+        summary: { ok: 0, report: 0, fail: 0, test: 0, total: 0, rate: null, ms_mean: null, ms_max: null, no_answer: 0 }, points: [], hourly: [], daily: [], gaps: [], marks: [],
+        events: [], events_total: 0, calls: [], calls_total: 0, calls_from: null };
+      if (!L) return empty;
+      const day = hours <= 24;
+      const calls = L.calls.filter((c) => c.t > start && c.t <= nowMs);
+      let table = [];
+      let dailyRows = [];
+      if (daily) {
+        const rows = new Map([...L.days].filter(([k]) => k >= dayKey(start) && k <= dayKey(nowMs)).map(([k, v]) => [k, [...v]]));
+        if (L.last !== null && nowMs - L.last > Math.max(2 * item.interval, item.interval + 120) * 1000) L.addGap(Math.max(L.last + item.interval * 1000, start), nowMs, rows);
+        table = [...rows.values()];
+        dailyRows = [...rows].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, v]) => [k, v[0], v[1], v[2], v[3], v[5] ? Math.round(v[4] / v[5]) : null, v[5] ? v[6] : null, v[7], Math.round(v[8] / 60)]);
+      } else if (!day) {
+        table = [...L.hours].filter(([h]) => h + H > start && h <= nowMs).sort((a, b) => a[0] - b[0]);
+      }
+      const vals = daily ? table : table.map(([, v]) => v);
+      let counts;
+      let msSum;
+      let msN;
+      let msMax;
+      if (day) {
+        counts = Object.fromEntries(KINDS.map((k) => [k, calls.filter((c) => c.kind === k).length]));
+        const times = calls.filter((c) => c.ms !== null && c.result === "ok").map((c) => c.ms);
+        [msSum, msN, msMax] = [times.reduce((a, b) => a + b, 0), times.length, times.length ? Math.max(...times) : null];
+      } else {
+        counts = Object.fromEntries(KINDS.map((k, i) => [k, vals.reduce((a, v) => a + v[i], 0)]));
+        msSum = vals.reduce((a, v) => a + v[4], 0);
+        msN = vals.reduce((a, v) => a + v[5], 0);
+        const withMs = vals.filter((v) => v[5]);
+        msMax = withMs.length ? Math.max(...withMs.map((v) => v[6])) : null;
+      }
+      const total = counts.ok + counts.report + counts.fail + counts.test;
+      const events = L.events.filter((e) => (e.end ?? e.t) > start && e.t <= nowMs);
+      const last = L.calls.at(-1);
+      const out = (e) => { const { k, t, end, ...rest } = e; return { ...rest, kind: k, t: toIso(t), end: (e.n || 1) > 1 ? toIso(end) : null }; };
+      const digits = daily ? 100 : 10;
+      return JSON.parse(JSON.stringify({
+        ...empty, since: toIso(L.since), state: L.state ? { state: L.state[0], since: toIso(L.state[1]) } : empty.state,
+        last: last ? { t: toIso(last.t), kind: last.kind, result: last.result, code: last.code, ms: last.ms } : null,
+        summary: { ...counts, total, rate: total ? Math.round((100 * digits * (total - counts.fail)) / total) / digits : null, ms_mean: msN ? Math.round(msSum / msN) : null, ms_max: msMax,
+          no_answer: day ? calls.filter((c) => c.result === "timeout" || c.result === "error").length : vals.reduce((a, v) => a + v[7], 0) },
+        points: day ? calls.map((c) => [toIso(c.t), c.kind, c.ms]) : [],
+        hourly: day || daily ? [] : table.map(([h, v]) => [toIso(h), v[0], v[1], v[2], v[3], v[5] ? Math.round(v[4] / v[5]) : null, v[5] ? v[6] : null]),
+        daily: dailyRows,
+        gaps: daily ? [] : gaps(L, start, nowMs, item.interval, hours).map(([a, b]) => [toIso(a), toIso(b)]),
+        marks: day ? [] : events.filter((e) => ["fail", "report", "test"].includes(e.k)).map((e) => [toIso(e.t), (e.n || 1) > 1 && e.end ? toIso(e.end) : null, e.k]),
+        events: [...events].reverse().map(out).slice(0, 300), events_total: events.length,
+        calls: [...calls].reverse().map((c) => ({ t: toIso(c.t), kind: c.kind, result: c.result, code: c.code, ms: c.ms, by: c.by, sent: c.sent })).slice(0, 300), calls_total: calls.length,
+        calls_from: L.calls.length ? toIso(L.calls[0].t) : null,
+      }));
+    };
   }
   window.__calls = [];
   window.__services = [];
@@ -286,6 +465,14 @@
       return [kind, { enabled: !!legacy.enabled, title: "", message: "", critical: !!legacy.critical, volume: legacy.volume ?? 0.8, persistent: !!legacy.persistent, click: "overview", click_path: "", targets: [...(legacy.targets || [])] }];
     }))]));
     if (msg.type === "alarmageddon/test_end_notify") return { ok: true }; // wie der Server: sendet an die Empfänger, ohne sie zu nennen
+    // Testmeldung einer Meldung der HealthCheck-Dienste (1.68.0): Empfänger der Meldung, sonst die der Wartung, wie der Server
+    if (msg.type === "alarmageddon/test_healthcheck_notify") {
+      if (!["hc_down", "hc_up"].includes(msg.kind)) throw { code: "invalid_format", message: "kind" };
+      window.__hcNoticeCalls.push(JSON.parse(JSON.stringify(msg)));
+      const targets = msg.notice?.targets?.length ? msg.notice.targets : window.__notify.maintenance_targets;
+      if (!targets.length && !msg.notice?.persistent) throw { code: "no_targets", message: "No recipients configured" };
+      return { ok: true, targets };
+    }
     if (msg.type === "alarmageddon/test_event_notify") {
       const targets = msg.notice?.targets?.length ? msg.notice.targets : window.__notify.alarm_targets;
       if (!targets.length) throw { code: "no_targets", message: "No recipients configured" };
@@ -311,7 +498,7 @@
         systems: window.__systems.filter((s) => !(window.__reload && window.__reload.id === s.entry_id && Date.now() < window.__reload.until)).map(({ code, pcodes, instance, event_notify_own, ...s }) => ({ ...s, instance: instance || "i0", event_notify: eventNotify(event_notify_own) })), sensors,
         users: [{ id: "u_anna", name: "Anna" }, { id: "u_diego", name: "Diego" }, { id: "u_gast", name: "Gast" }], presets: window.__presets, notify: window.__notify, display: { names_with_device: window.__namesWithDevice !== false }, auto_backup: window.__autoBackup || { enabled: true, every: "weekly" },
         selftest: window.__systems.length ? selftestPayload() : null,
-        healthchecks: window.__systems.length ? window.__healthchecks : [], healthcheck_max: 5,
+        healthchecks: window.__systems.length ? window.__healthchecks.map((i) => ({ ...i, log: window.__hcLogBrief(i) })) : [], healthcheck_max: 5,
         // Letzte echte Änderung (offen <-> zu) vom Server; die meisten Sensoren haben (noch) keine
         last_changes: { "binary_sensor.haustuer": iso(5 * 86400e3), "binary_sensor.fenster_kueche": iso(2 * 3600e3) },
         notify_services: ["notify.mobile_app_diego", "notify.mobile_app_partnerin", "notify.mobile_app_tablet"],
@@ -527,11 +714,20 @@
       window.__selftest = { ...window.__selftest, problems: window.__selftest.problems.filter((p) => p !== found) };
       return { selftest: selftestPayload() };
     }
+    // Protokoll eines Dienstes (1.68.0): nur bestehende Dienste und die Zeiträume der Ansicht, wie der Server
+    if (msg.type === "alarmageddon/healthcheck_history") {
+      window.__hcHistory.push(JSON.parse(JSON.stringify(msg)));
+      const item = window.__healthchecks.find((x) => x.id === msg.check_id);
+      if (!item) throw { code: "not_found", message: "No such health check" };
+      if (![3, 12, 24, 168, 720, 2160, 8760].includes(msg.hours)) throw { code: "invalid_format", message: "hours" };
+      if (window.__hcLogDelay) await new Promise((r) => setTimeout(r, window.__hcLogDelay));
+      return window.__hcLogHistory(item, msg.hours);
+    }
     // HealthCheck (1.65.0): Prüfungen wie der Server (settings.valid_healthcheck_url, valid_fail_suffix, Grenzen)
     if (msg.type === "alarmageddon/healthcheck_save" || msg.type === "alarmageddon/healthcheck_delete" || msg.type === "alarmageddon/healthcheck_ping") {
       window.__hcCalls.push(JSON.parse(JSON.stringify(msg)));
       const list = window.__healthchecks;
-      const out = () => JSON.parse(JSON.stringify(list));
+      const out = () => JSON.parse(JSON.stringify(list.map((i) => ({ ...i, log: window.__hcLogBrief(i) }))));
       if (msg.type === "alarmageddon/healthcheck_save") {
         const name = String(msg.name ?? "").trim().split(/\s+/).join(" ");
         if (!name || name.length > 60) throw { code: "invalid_name", message: "A name is required" };
@@ -578,6 +774,18 @@
       // Abstände des Selbsttests wie der Server: Minuten, 5 bis 1440 (seit 1.67.0)
       for (const key of ["selftest_minutes", "selftest_minutes_armed"]) {
         if (incoming[key] !== undefined && (!Number.isInteger(incoming[key]) || incoming[key] < 5 || incoming[key] > 1440)) throw { code: "invalid_format", message: key };
+      }
+      // Batterie schwach nach so vielen Prüfungen hintereinander (1.68.0): 1 bis 10 wie der Server
+      if (incoming.battery_checks !== undefined && (!Number.isInteger(incoming.battery_checks) || incoming.battery_checks < 1 || incoming.battery_checks > 10)) throw { code: "invalid_format", message: "battery_checks" };
+      // HealthCheck-Dienste (1.68.0): wie das Schema des Servers, streng
+      if (incoming.healthcheck !== undefined) {
+        const hc = incoming.healthcheck;
+        const keys = ["enabled", "title", "message", "critical", "volume", "persistent", "click", "click_path", "targets"];
+        if (!Number.isInteger(hc.fails) || hc.fails < 1 || hc.fails > 10) throw { code: "invalid_format", message: "fails" };
+        for (const k of ["hc_down", "hc_up"]) {
+          const n = hc[k];
+          if (!n || typeof n.enabled !== "boolean" || typeof n.critical !== "boolean" || Object.keys(n).some((x) => !keys.includes(x)) || !["healthcheck", "log", "overview", "custom"].includes(n.click ?? "healthcheck")) throw { code: "invalid_format", message: k };
+        }
       }
       if (incoming.selftest_minutes) window.__selftest = { ...window.__selftest, minutes_disarmed: incoming.selftest_minutes };
       if (incoming.selftest_minutes_armed) window.__selftest = { ...window.__selftest, minutes_armed: incoming.selftest_minutes_armed };

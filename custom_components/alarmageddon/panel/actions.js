@@ -142,6 +142,17 @@ export const NOTICE_TOKENS = {
   pending: ["{name}", "{sensor}", "{type}", "{area}", "{delay}", "{mode}", "{time}"],
   sensor_report: ["{name}", "{sensor}", "{type}", "{area}", "{mode}", "{time}"],
 };
+// Meldungen der HealthCheck-Dienste (1.68.0, Konfiguration › Meldungen, Kapitel "HealthCheck-Dienste"): dasselbe Fenster wie die festen Meldungen,
+// eigene Platzhalter und das Klickziel "Liste der Dienste" (Standard). Standard an und nicht kritisch wie auf dem Server (const.py DEFAULT_NOTIFY).
+export const HC_NOTICE_KINDS = ["hc_down", "hc_up"];
+export const HC_TOKENS = ["{name}", "{host}", "{reason}", "{count}", "{since}"];
+export function normHcNotice(value) {
+  const v = value && typeof value === "object" ? value : {};
+  const n = normNotice("", { ...v, enabled: typeof v.enabled === "boolean" ? v.enabled : true, click: v.click === "healthcheck" ? "log" : v.click });
+  const click = ["healthcheck", "log", "overview", "custom"].includes(v.click) ? v.click : "healthcheck";
+  return { ...n, click, click_path: click === "custom" ? n.click_path : "" };
+}
+
 export function normNotice(kind, value) {
   const v = value && typeof value === "object" ? value : {};
   const [on, critical] = NOTICE_DEFAULT[kind] || [false, false];
@@ -806,6 +817,16 @@ export class ActionsUi {
     this._dlg().showModal();
   }
 
+  // Aus Konfiguration › Meldungen (1.68.0): `onApply` bekommt die Meldung, wie sie im Entwurf der Meldungen gespeichert wird
+  openHcNoticeEditor(kind, value, onApply) {
+    const n = normHcNotice(value);
+    const form = { ...blank(), kind: "notice", hc: true, nKind: kind, nEnabled: n.enabled, ntTitle: n.title, ntMessage: n.message, ntCritical: n.critical, ntVolume: n.volume,
+      ntPersistent: n.persistent, ntClick: n.click, ntClickPath: n.click_path, ntTargets: n.targets.length ? [...n.targets] : null };
+    this.edit = { index: null, insert: null, notice: true, hcApply: onApply, form, q: "", error: "", open: false };
+    this.renderEditor();
+    this._dlg().showModal();
+  }
+
   _noticeFields(f) {
     const send = this._sec("ntcSend", `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("ntcSend"))}</b><small>${esc(this._t(`ntcHint_${f.nKind}`))}</small></div>${this._toggle('data-wf="notice-enabled"', f.nEnabled, "ntcSend")}</div>`);
     return send + (f.nEnabled ? `${this._notifyFields(f)}<div>${this._onceEditorBtn(`notice:${f.nKind}`, `data-wf="notice-test" data-kind="${f.nKind}"`)}</div>` : "");
@@ -813,6 +834,8 @@ export class ActionsUi {
 
   // Die Meldung, wie sie gespeichert und getestet wird
   _noticeOf(f) {
+    if (f.hc) return normHcNotice({ enabled: f.nEnabled, title: f.ntTitle, message: f.ntMessage, critical: f.ntCritical, volume: f.ntVolume, persistent: f.ntPersistent, click: f.ntClick || "healthcheck",
+      click_path: f.ntClickPath, targets: f.ntTargets || [] });
     return normNotice(f.nKind, { enabled: f.nEnabled, title: f.ntTitle, message: f.ntMessage, critical: f.ntCritical, volume: f.ntVolume, persistent: f.ntPersistent, click: f.ntClick || "overview",
       click_path: f.ntClickPath, targets: f.ntTargets || [] });
   }
@@ -820,6 +843,15 @@ export class ActionsUi {
   _noticeApply() {
     const f = this.edit.form;
     if (f.nEnabled && f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
+    if (f.hc) {
+      // Meldung der HealthCheck-Dienste: zurück in den Entwurf der Meldungen, nie in den der Aktionen
+      const apply = this.edit.hcApply;
+      const notice = this._noticeOf(f);
+      this.edit = null;
+      this._dlg().close();
+      apply?.(notice);
+      return;
+    }
     const d = this.ensureDraft();
     d.notices = { ...(d.notices || {}), [this.trigger]: { ...(d.notices?.[this.trigger] || {}), [f.nKind]: this._noticeOf(f) } };
     this.saveState = null;
@@ -839,6 +871,13 @@ export class ActionsUi {
       if (f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
       kind = f.nKind;
       notice = this._noticeOf(f);
+      if (f.hc) {
+        await this._once(`notice:${kind}`, async () => {
+          await this.host._hass.callWS({ type: "alarmageddon/test_healthcheck_notify", kind, notice: { ...notice, enabled: true } });
+          this.host._toast(this._t("wfEndTested"));
+        });
+        return;
+      }
     }
     await this._once(`notice:${kind}`, async () => {
       await this.host._hass.callWS({ type: "alarmageddon/test_event_notify", entry_id: this.system.entry_id, kind, trigger: this.trigger, notice: { ...notice, enabled: true } });
@@ -1276,11 +1315,12 @@ export class ActionsUi {
   _notifyFields(f) {
     const [dt, dm] = this._ntDefaults(f);
     const notice = f.kind === "notice";
-    const chips = (notice ? NOTICE_TOKENS[f.nKind] : NOTIFY_TOKENS).map((tok) => `<button type="button" class="ag-chip" data-wf="ins" data-token="${esc(tok)}">${esc(tok)}<small>${esc(this._t(`ntTok_${tok.slice(1, -1)}`))}</small></button>`).join("");
+    const tokens = f.hc ? HC_TOKENS : notice ? NOTICE_TOKENS[f.nKind] : NOTIFY_TOKENS;
+    const chips = tokens.map((tok) => `<button type="button" class="ag-chip" data-wf="ins" data-token="${esc(tok)}">${esc(tok)}<small>${esc(this._t(`${f.hc ? "ntTokHc_" : "ntTok_"}${tok.slice(1, -1)}`))}</small></button>`).join("");
     return `${notice || f.kind === "end" ? "" : `<div class="ag-t2">${esc(this._t("stepNotifyHint"))}</div>`}
       ${this._sec("chapNtContent", `${this._ef("fldNtTitle", `<input class="ag-input" data-wf="f" data-key="ntTitle" maxlength="100" value="${esc(f.ntTitle || dt)}" aria-label="${esc(this._t("fldNtTitle"))}">`, f.kind === "end" || notice ? "" : "fldNtTitleHint")}
       ${this._ef("fldNtMessage", `<textarea class="ag-input" rows="3" data-wf="f" data-key="ntMessage" maxlength="300" aria-label="${esc(this._t("fldNtMessage"))}">${esc(f.ntMessage || dm)}</textarea>`)}
-      ${this._ef("fldNtTokens", `<div class="ag-zline">${chips}</div>`, notice ? "ntcTokensHint" : "fldNtTokensHint")}
+      ${this._ef("fldNtTokens", `<div class="ag-zline">${chips}</div>`, f.hc ? "ntcTokensHintHc" : notice ? "ntcTokensHint" : "fldNtTokensHint")}
       ${this._ef("fldNtPreview", `<div class="ag-ntprev" id="ag-ntprev">${this._ntPreview(f)}</div>
         <div><button type="button" class="ag-btn" data-wf="nt-default">${ic("undo", 16)}${esc(this._t("fldNtDefault"))}</button></div>`)}`)}
       ${this._ntDelivery(f)}`;
@@ -1303,13 +1343,14 @@ export class ActionsUi {
     const short = (x) => x.replace(/^notify\.(mobile_app_)?/, "");
     const data = this.host._data || {};
     const services = data.notify_services || [];
-    const globalTargets = data.notify?.alarm_targets || [];
+    // Meldungen der HealthCheck-Dienste: Standard sind die Empfänger der Wartung
+    const globalTargets = (f.hc ? data.notify?.maintenance_targets : data.notify?.alarm_targets) || [];
     const own = Array.isArray(f.ntTargets);
     const pill = (x, removable) => `<span class="ag-rpill ${services.includes(x) ? "" : "gone"}">${ic("bell", 14)}<span>${esc(short(x))}</span>${removable ? `<button type="button" class="ag-rx" data-wf="nt-tgt-del" data-target="${esc(x)}" aria-label="${esc(this._t("ntRemove", { name: short(x) }))}">${ic("close", 14)}</button>` : ""}</span>`;
     let body;
     if (!own) {
       body = globalTargets.length
-        ? `<small>${esc(this._t("fldNtTargetsDefault"))}</small><div class="ag-rpills">${globalTargets.map((x) => pill(x, false)).join("")}</div>`
+        ? `<small>${esc(this._t(f.hc ? "fldNtTargetsDefaultMaint" : "fldNtTargetsDefault"))}</small><div class="ag-rpills">${globalTargets.map((x) => pill(x, false)).join("")}</div>`
         : `<small class="ag-warntext">${ic("alert", 14)} ${esc(this._t("ntNoneChosen"))}</small>`;
     } else {
       const free = services.filter((x) => !f.ntTargets.includes(x));
@@ -1334,13 +1375,14 @@ export class ActionsUi {
       + this._sec("fldNtDelivery", `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("ntCriticalShort"))}</b><small>${esc(this._t("fldNtCriticalHint"))}</small></div>${this._toggle('data-wf="nt-crit"', critical, "ntCriticalShort")}</div>
         ${critical ? this._rangeRow('data-wf="nt-vol"', this._t("ntVolumeShort"), volume, 0, 100, 5, `${volume} %`) : ""}
         ${notice ? `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t("ntPersistent"))}</b><small>${esc(this._t("ntPersistentHint"))}</small></div>${this._toggle('data-wf="notice-persist"', f.ntPersistent, "ntPersistent")}</div>` : ""}`)
-      + this._sec("fldNtClick", `<select class="ag-input" data-wf="nt-click" aria-label="${esc(this._t("fldNtClick"))}">${["log", "overview", "custom"].map((k) => `<option value="${k}" ${(f.ntClick || (notice ? "overview" : "log")) === k ? "selected" : ""}>${esc(this._t(`ntClick_${k}`))}</option>`).join("")}</select>
+      + this._sec("fldNtClick", `<select class="ag-input" data-wf="nt-click" aria-label="${esc(this._t("fldNtClick"))}">${(f.hc ? ["healthcheck", "log", "overview", "custom"] : ["log", "overview", "custom"]).map((k) => `<option value="${k}" ${(f.ntClick || (f.hc ? "healthcheck" : notice ? "overview" : "log")) === k ? "selected" : ""}>${esc(this._t(`ntClick_${k}`))}</option>`).join("")}</select>
         ${f.ntClick === "custom" ? `<input class="ag-input ag-mono" data-wf="f" data-key="ntClickPath" value="${esc(f.ntClickPath || "")}" placeholder="/lovelace/alarm" aria-label="${esc(this._t("ntClick_custom"))}" autocapitalize="off" autocomplete="off" spellcheck="false">` : ""}`, "fldNtClickHint")
       + (end ? "" : this._sec("fldNtButtons", `${btn("open", "ntOpenAction", "ntOpenActionHint", false)}${btn("silence", "ntSilenceAction", "ntSilenceActionHint", true)}${btn("acknowledge", "ntAckAction", "ntAckActionHint", true)}${btn("disarm", "ntDisarmAction", "ntDisarmActionHint", true)}`));
   }
 
   // Vorschau mit echten Namen der Anlage und eines Sensors, so wie die Meldung aussähe
   _ntPreview(f) {
+    if (f.hc) return this._hcPreview(f);
     const s = this.system;
     const sensorId = Object.values(s?.zones || {}).flat()[0];
     // Art und Bereich des ersten Sensors; unbekannte Klassen bleiben leer (wie auf dem Server), die Alarmart fällt auf "Alarm" zurück
@@ -1366,6 +1408,28 @@ export class ActionsUi {
     const title = fill(f.ntTitle || dt).trim();
     const message = fill(f.ntMessage || dm).trim();
     return `<b>${esc(title)}</b><div>${esc(message)}</div>`;
+  }
+
+  // Vorschau einer Meldung der HealthCheck-Dienste mit dem ersten Dienst (Name und Rechner, nie die URL), wie der Server sie füllt
+  _hcPreview(f) {
+    const item = this.host._data?.healthchecks?.[0];
+    let host = "hc-ping.com";
+    try {
+      if (item) host = new URL(item.url).hostname;
+    } catch {
+      /* bleibt das Beispiel */
+    }
+    const locale = this.host._hass?.locale?.language || this.host._lang;
+    const values = {
+      "{name}": item?.name || "Healthchecks.io",
+      "{host}": host,
+      "{reason}": f.nKind === "hc_down" ? this._t("hcStTimeout") : "",
+      "{count}": String(this.host.notify?.draft?.healthcheck?.fails ?? this.host._data?.notify?.healthcheck?.fails ?? 2),
+      "{since}": new Date(Date.now() - 10 * 60e3).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
+    };
+    const fill = (text) => text.replace(/\{(?:name|host|reason|count|since)\}/g, (token) => values[token]);
+    const [dt, dm] = this._ntDefaults(f);
+    return `<b>${esc(fill(f.ntTitle || dt).trim())}</b><div>${esc(fill(f.ntMessage || dm).trim())}</div>`;
   }
 
   // Fenster der Aktions-Gruppe (1.59.0): Name, wie lange wiederholt wird (Reiterleiste), der Wert dazu und "Warten, bis ... beendet ist"
