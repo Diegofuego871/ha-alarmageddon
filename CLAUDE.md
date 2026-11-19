@@ -248,8 +248,8 @@ Umsetzung:
   `.ag-bkbody`): das Feld behält den Fokus, ein offenes Formular seinen Inhalt. Gefilterte Zeilen behalten ihre Stelle im Entwurf (`data-index`).
   Suite `popsearch-e2e.mjs`. Ein neues Fenster mit einer Liste bekommt dasselbe Suchfeld. Seit 1.63.0 (Wunsch des Nutzers) stehen Titel und Suchfeld in
   einem klebenden Kopf (`.ag-pop-head`, gleicher Hintergrund wie das Fenster, Abstand zur Liste immer der untere Rand des Kopfs); Suite `popsticky-e2e.mjs`.
-- Codes pro Person (seit 1.63.0, Wunsch des Nutzers): Liste im Fenster `#ag-codelist` (Tabelle Name, Benutzer, Code als fester Platzhalter "••••••",
-  Stift, Papierkorb; Suche; "Code hinzufügen" in der Fusszeile). Ein gespeicherter Code wird nie angezeigt (es gibt ihn nur als Hash); das Auge in den
+- Codes pro Person (seit 1.63.0, Wunsch des Nutzers): Liste im Fenster `#ag-codelist` (Tabelle Name, Benutzer, Stift, Papierkorb in Kreisen;
+  seit 1.66.1 ohne Spalte "Code", die nur einen Platzhalter zeigte; Suche; "Code hinzufügen" in der Fusszeile). Ein gespeicherter Code wird nie angezeigt (es gibt ihn nur als Hash); das Auge in den
   Codefeldern zeigt nur den gerade getippten Code. Bearbeiten über `update_code`: leeres Codefeld = bisheriger Hash bleibt. Warnung bei einfachen Codes
   (`system.js codeWeakness`) nur als Hinweis, Speichern bleibt möglich; die Regel 4 bis 8 Ziffern prüft der Server. Suite `codes-e2e.mjs`.
   Hinzufügen, Bearbeiten und Entfernen laufen je Anlage unter `websocket_api._codes_lock` (zwischen Prüfen und Schreiben liegt das Hashen im
@@ -262,7 +262,9 @@ Umsetzung:
   Spalte; die Leiste scrollt mit, der Tabellenkopf bleibt stehen; beim Tippen nur die Zeilen neu (`sensorview.js _renderRows`). Der Pfeil führt
   zur Regel (`openMonitorRule`: andere Anlage nur über `_guard`, Suche der Liste leer, aufgeklappt, unter den festen Leisten, `ag-flash`).
   **Jede Grenze ist in der Grafik zu sehen** (`_valueLine`), nie eine still weggelassene. Andere Sensoren bleiben ohne Reiter. Suite
-  `svrules-e2e.mjs`. **Benennung (Entscheid des Nutzers, 19:47):** die Einträge der Überwachung heissen überall "Regeln" (Sensoransicht,
+  `svrules-e2e.mjs`. **Zahl der Ereignisse (seit 1.66.1, Vorgabe des Nutzers 2026-11-19):** die Zahl auf dem Reiter "Ereignisse" ist nie
+  ein Total, sondern immer die Zahl des oben gewählten Zeitraums, gleich wie die Liste; der Server liefert `events_total` (Zustand und
+  Messwert), die Liste höchstens `EVENTS_MAX` (300) neueste mit Hinweis `svListTruncated` ("neueste N von M"). **Benennung (Entscheid des Nutzers, 19:47):** die Einträge der Überwachung heissen überall "Regeln" (Sensoransicht,
   Konfiguration › Aktionen › Überwachung, Einstellungen), nie "Aktionen" oder "Überwachungsaktionen".
 - Selbsttest (seit 1.65.0, `selftest.py`, Entscheide des Nutzers vom 2026-11-18): prüft nach dem Start (`SELFTEST_START_DELAY`), kurz nach jedem
   Speichern (Neuladen einer Anlage, `save_notify`), alle `selftest_hours` Stunden, solange eine Anlage nicht deaktiviert ist alle `selftest_hours_armed`
@@ -380,6 +382,10 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
 - **Pfeile:** Jeder Pfeil, der eine Zeile, Kachel oder einen Abschnitt öffnet
   oder weiterspringt, ist derselbe runde Pfeil-Knopf (24 px, Pfeil 16 px).
   Ausnahmen: Dropdowns und Auswahlfelder behalten ihren kleinen Pfeil.
+  Die Zeilen der Sensortabelle (Konfiguration › Sensoren) haben seit 1.66.1
+  (Wunsch des Nutzers 2026-11-19) statt des Pfeils einen runden Stift
+  (`.ag-wf-btns.ag-senbtns`, `data-sen="detail"`), am Computer davor den
+  runden Papierkorb (`data-sen="remove"`), auf dem Handy nur den Stift.
 - **Ladeanzeige bei Grafiken:** Reiter wechselt sofort, danach lädt es. Die
   alte Grafik bleibt gedimmt, darüber drei sich drehende Punkte in der Farbe
   der Grafik. Überholte Antworten verwerfen, geholte Zeiträume kurz

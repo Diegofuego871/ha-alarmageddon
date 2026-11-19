@@ -1,6 +1,6 @@
 // 1.63.0 (Wunsch des Nutzers, 2026-11-17): "Codes pro Person" im Fenster. Die Seite zeigt nur die Zusammenfassung mit "Codes anzeigen", den
-// Hauptcode und "Quittieren verlangt den Code". Im Fenster: klebender Kopf mit Suche, Tabelle Name, Benutzer, Code (fester Platzhalter, nie der
-// Code: gespeichert ist nur ein Hash), Bearbeiten, Entfernen; sortierbar nach Name und Benutzer; "Code hinzufügen" in der Fusszeile. Bearbeiten
+// Hauptcode und "Quittieren verlangt den Code". Im Fenster: klebender Kopf mit Suche, Tabelle Name, Benutzer, Bearbeiten, Entfernen (seit 1.66.1
+// ohne Spalte "Code", die nur einen Platzhalter zeigte: gespeichert ist ein Hash; Knöpfe rund wie überall); sortierbar nach Name und Benutzer; "Code hinzufügen" in der Fusszeile. Bearbeiten
 // öffnet dasselbe Fenster wie Hinzufügen, Name und Benutzer stehen drin, die Codefelder sind leer (leer = bisheriger Code). Das Auge blendet nur
 // den getippten Code ein. Warnung bei einfachen Codes (rot, fett, Achtung-Zeichen), Speichern bleibt möglich. Je Sprache, Desktop und Handy,
 // dazu ein schmales Handy (320 px).
@@ -62,14 +62,14 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   await s.tap('[data-sys="code-open"]');
   check(`${tag}: "Codes anzeigen" öffnet das Fenster`, await s.waitFor("return r.getElementById('ag-codelist').open"));
   const win = await s.ev(`const d=r.getElementById('ag-codelist'); const head=d.querySelector('.ag-dlg-body > .ag-pop-head'); const ths=[...d.querySelectorAll('.ag-codetable tr:first-child th')];
-    const foot=[...d.querySelectorAll('.ag-dlg-btns button')]; const dots=[...d.querySelectorAll('tr[data-code] .ag-codecol')].map((x) => x.innerText.trim());
+    const foot=[...d.querySelectorAll('.ag-dlg-btns button')]; const b0=d.querySelector('tr[data-code] .ag-wf-btns .ag-iconbtn'); const round={ w: b0 ? Math.round(b0.getBoundingClientRect().width) : 0, border: b0 ? getComputedStyle(b0).borderTopStyle : '' };
     return { title: head?.querySelector('h3')?.innerText.trim(), search: !!head?.querySelector('[data-sys="code-search"]'), sort: ths.map((x) => x.querySelector('[data-sys="code-sort"]')?.dataset.key || ''),
-      codeTh: ths[2]?.innerText.trim(), rows: d.querySelectorAll('tr[data-code]').length, dots, digits: /\\d{4}/.test(d.innerText),
+      cols: ths.length, lastTh: ths[ths.length - 1]?.innerText.trim(), rows: d.querySelectorAll('tr[data-code]').length, round, dots: /•/.test(d.innerText), digits: /\\d{4}/.test(d.innerText),
       acts: [...d.querySelectorAll('tr[data-code]')].every((x) => x.querySelector('[data-sys="code-edit"]') && x.querySelector('[data-sys="code-del"]')),
       foot: foot.map((b) => b.dataset.sys + (b.classList.contains('primary') ? '*' : '')).join() }`);
   check(`${tag}: Fenster: Titel "${t.title}" und Suchfeld im klebenden Kopf`, win.title === t.title && win.search, JSON.stringify(win));
-  check(`${tag}: Fenster: Spalten Name und Benutzer sortierbar, Code nicht`, win.sort.join() === "name,user,," && /code/i.test(win.codeTh), JSON.stringify(win));
-  check(`${tag}: Fenster: fünf Zeilen, je Stift und Papierkorb, der Code nur als Platzhalter (keine Ziffern im Fenster)`, win.rows === 5 && win.acts && win.dots.every((x) => x === "••••••") && !win.digits, JSON.stringify(win));
+  check(`${tag}: Fenster: Spalten Name und Benutzer (sortierbar), dazu nur die Knöpfe; keine Spalte "Code"`, win.sort.join() === "name,user," && win.cols === 3 && win.lastTh === "", JSON.stringify(win));
+  check(`${tag}: Fenster: fünf Zeilen, je Stift und Papierkorb in Kreisen (44 px, mit Rand), kein Platzhalter und keine Ziffern im Fenster`, win.rows === 5 && win.acts && win.round.w === 44 && win.round.border === "solid" && !win.dots && !win.digits, JSON.stringify(win));
   check(`${tag}: Fenster: Fusszeile "Schliessen" und "${t.add}" (blau)`, win.foot === "code-list-close,code-add*", win.foot);
 
   // Darstellung: kein seitliches Scrollen, Handy: ganzer Bildschirm, X oben rechts, Fusszeile unten
@@ -78,8 +78,6 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
     return { wide: b.scrollWidth <= b.clientWidth + 1 && tb.right <= bb.right + 1, full: Math.round(db.width) >= innerWidth - 1 && Math.round(db.height) >= innerHeight - 1,
       x: x.right >= db.right - 30 && x.top <= db.top + 30, foot: foot.bottom >= db.bottom - 2, rowsOk: [...d.querySelectorAll('tr[data-code]')].every((tr) => tr.getBoundingClientRect().height < 90) }`);
   check(`${tag}: Fenster: nichts ragt seitlich hinaus, jede Zeile bleibt niedrig`, lay.wide && lay.rowsOk, JSON.stringify(lay));
-  const codeCol = await s.ev("return getComputedStyle(r.querySelector('#ag-codelist tr[data-code] .ag-codecol')).display !== 'none'");
-  check(`${tag}: Spalte Code ${width ? "fällt unter 360 px weg (nur ein Platzhalter)" : "ist sichtbar"}`, codeCol === !width);
   if (mobile) check(`${tag}: Fenster: ganzer Bildschirm, X oben rechts, Fusszeile unten`, lay.full && lay.x && lay.foot, JSON.stringify(lay));
   if (!width) await s.page.screenshot({ path: `${outDir}codes-list-${lang}-${mobile ? "mobile" : "desktop"}.png` });
 

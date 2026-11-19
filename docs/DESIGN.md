@@ -95,6 +95,17 @@ Jede Reiterleiste, die zwischen den Modi wechselt ("Einstellungen pro Modus"), t
 
 Kapitel mit einer Liste in eigenem Fenster (Routinen, eigene Töne, Codes pro Person, Backup) haben dieselbe Zeile `.ag-setrow.ag-rtsum` als erste Zeile der Karte: Symbol und Zusammenfassung, dahinter zwei Knöpfe: zuerst "… hinzufügen" mit dem Plus (öffnet direkt das Formular; beim Backup "Backup erstellen"), dann "… anzeigen" mit eigenem Symbol. Weitere Einstellungen des Kapitels folgen darunter, der Hinweis steht über der Karte (`chapter(..., hint)`). Das Plus ist überall gleich; jedes "Anzeigen" hat sein Symbol: Routinen `groups`, eigene Töne `speaker`, Codes `key`, HealthCheck `heartPulse`, Backups `archive`. Auf dem Handy sind beide Knöpfe gleich breit, wenn sie nebeneinander passen. Test: `tests/panel/suites/sumrow-e2e.mjs`.
 
+Knöpfe in Fenstern mit Liste (seit 1.66.1, Wunsch des Nutzers 2026-11-19: "ein Konzept, das überall gleich ist"): je Zeile runde Knöpfe
+`.ag-wf-btns` (44 px, Rand) wie bei Routinen, Regeln und Schritten, nie nackte Symbole: Routinen, HealthCheck-Dienste, Codes pro Person, eigene
+Töne, Backups. Auf dem Handy in einer eigenen Zeile unter dem Eintrag, wenn sie neben Name und Angaben keinen Platz haben (HealthCheck, Töne,
+Routinen, Backups; bei den Codes reichen zwei Knöpfe daneben). Fusszeile: "Schliessen" weiss (`ag-btn`), die Hauptaktion blau rechts daneben;
+ohne Hauptaktion steht "Schliessen" allein rechts, ebenfalls weiss. Spalten, die nichts zeigen (etwa ein Platzhalter für einen Code, der nur
+als Hash existiert), gibt es nicht. Tests: `codes-e2e.mjs`, `customsounds-e2e.mjs`, `hardening-e2e.mjs`, `healthcheck-e2e.mjs`.
+
+Sensortabelle unter Konfiguration › Sensoren (seit 1.66.1, Wunsch des Nutzers 2026-11-19): am Ende jeder Zeile dieselben runden Knöpfe
+`.ag-wf-btns.ag-senbtns`: am Computer Papierkorb und Stift (Stift ganz rechts), auf dem Handy nur der Stift. Der Stift öffnet die
+Einstellungen des Sensors und ersetzt den Pfeil. Tests: `layout-e2e.mjs`, `pick-e2e.mjs` (Computer und Handy).
+
 Farbe der Kapitel (seit 1.66.0, Wunsch des Nutzers 2026-11-19): das Symbol (`.ag-oav`) jedes Kapitels unter Konfiguration › Anlage hat eine
 eigene, leichte Farbe, damit sich die Kapitel abheben; sonst ändert sich nichts. Klasse `ag-tint ag-tint-<kapitel>` mit `--ag-tint`, Grund 15 %
 der Farbe, nur im Zustand `on` (ein leeres Kapitel bleibt grau): Routinen violett `#7e57c2`, Codes pro Person türkis `#00897b`, eigene Töne

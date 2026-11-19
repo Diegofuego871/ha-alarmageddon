@@ -341,7 +341,9 @@ export class SensorView {
     const from = d.events_from ? new Date(d.events_from).getTime() : null;
     const notes = [];
     if (from !== null && from - start > HOUR) notes.push(this._t("svListFrom", { date: new Date(from).toLocaleDateString(this._locale(), { day: "numeric", month: "long" }) }));
-    if (d.truncated) notes.push(this._t("svListTruncated"));
+    // Zahl des Zeitraums (1.66.1): auch wenn die Liste nur die neuesten zeigt, gilt über der Liste immer die Zahl des gewählten Zeitraums
+    const total = Number.isInteger(d.events_total) ? d.events_total : d.events.length;
+    if (d.truncated) notes.push(this._t("svListTruncated", { shown: d.events.length, total }));
     const what = (e) => (e.kind === "gone" ? this._t("svGoneEvent") : this._t(flavor === "open" ? "svEvOpened" : flavor === "motion" ? "svEvMotion" : "svEvTrig"));
     const len = (e) => (e.end === null ? this._t("svOngoing") : e.kind === "on" && flavor === "open" ? this._t("svDurOpen", { time: this._dur(e.seconds) }) : this._dur(e.seconds));
     const tagText = (e) => (e.mode ? this._t(MODE_KEY[e.mode] || "armed") : this._t("svDisarmed"));
@@ -360,6 +362,7 @@ export class SensorView {
     });
     return {
       rows,
+      total,
       notes,
       cols: [["time", "svColTime", "c1"], ["event", "svColEvent", ""], ["duration", "svColDuration", "c3"], ["system", "svColSystem", "c4"]],
       ncols: [["time", "svColTime", ""], ["event", "svColEvent", ""], ["system", "svColSystem", "r"]],
@@ -476,7 +479,7 @@ export class SensorView {
     const pane = this.pane;
     const btn = (key, label, icon, n) => `<button role="tab" data-sv="pane" data-pane="${key}" class="${pane === key ? "on" : ""}" aria-selected="${pane === key}">${ic(icon, 20)}<span>${esc(this._t(label))}<span class="ag-sv-n">${n}</span></span></button>`;
     const shown = pane === "rules" ? this._rulesSpec(rules) : spec;
-    return `<div class="ag-sv-lbar"><div class="ag-seg small ag-sv-panes" role="tablist" data-seg="sv-panes">${btn("events", "svPaneEvents", "history", spec.rows.length)}${btn("rules", "svPaneRules", "eye", rules.length)}</div>
+    return `<div class="ag-sv-lbar"><div class="ag-seg small ag-sv-panes" role="tablist" data-seg="sv-panes">${btn("events", "svPaneEvents", "history", spec.total ?? spec.rows.length)}${btn("rules", "svPaneRules", "eye", rules.length)}</div>
       ${searchField("data-sv", "lq", this.lq[pane], this._t(pane === "rules" ? "svSearchRules" : "svSearchEvents"), this._t("clearSearch"))}</div>
       <div class="ag-sv-rows">${this._rowsHtml(shown, true)}</div>${pane === "events" ? tail : ""}`;
   }
@@ -829,9 +832,11 @@ export class SensorView {
         narrow: (time) => `<tr data-kind="${e.kind}"><td>${esc(time)}</td><td><span class="ag-sv-ev">${dot}<span>${esc(what(e))}<small>${esc(val(e))}</small></span></span></td><td class="r">${tag(e)}</td></tr>`,
       };
     });
+    const total = Number.isInteger(d.events_total) ? d.events_total : rows.length;
     return {
       rows,
-      notes: [],
+      total,
+      notes: d.truncated ? [this._t("svListTruncated", { shown: rows.length, total })] : [],
       cols: [["time", "svColTime", "c1"], ["event", "svColEvent", ""], ["value", "svColValue", "c3"], ["rule", "svColRule", "c4"]],
       ncols: [["time", "svColTime", ""], ["event", "svColEvent", ""], ["rule", "svColRule", "r"]],
       empty: `<div class="ag-sv-msg ag-t2">${esc(this._t("svNoMonEvents"))}</div>`,

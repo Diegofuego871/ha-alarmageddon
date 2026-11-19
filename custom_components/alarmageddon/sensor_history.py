@@ -320,7 +320,9 @@ async def async_state_history(hass: HomeAssistant, stats: SensorStats, entity_id
     return {
         "kind": "state", "hours": hours, "now": now.isoformat(), "start": start.isoformat(),
         "buckets": buckets,
-        "events": list(reversed(rows))[:EVENTS_MAX], "truncated": len(rows) > EVENTS_MAX,
+        # Die Zahl der Ereignisse im gewählten Zeitraum, auch wenn die Liste nur die neuesten EVENTS_MAX zeigt (1.66.1, Vorgabe des Nutzers
+        # 2026-11-19: die Zahl über der Liste entspricht immer dem Zeitraum, nie einer Obergrenze oder dem Total)
+        "events": list(reversed(rows))[:EVENTS_MAX], "truncated": len(rows) > EVENTS_MAX, "events_total": len(rows),
         "events_from": _iso(items[0][0]) if items else None,
         "armed": [{"from": _iso(i["from"]), "to": _iso(i["to"]), "mode": i["mode"]} for i in armed],
         "summary": {
@@ -460,7 +462,7 @@ async def async_battery_forecasts(hass: HomeAssistant, batteries: list[str], thr
 def monitor_events(entries: list[Any], entity_id: str, start: datetime) -> list[dict[str, Any]]:
     """
     Ereignisse der Überwachung zu einem Messwert-Sensor (Reiter "Verlauf" der Sensoransicht, 1.54.0): nur "ausserhalb der Grenzen" und "wieder in
-    Ordnung", nie die Messwerte selbst (Entscheid des Nutzers, 2026-11-16: sonst unübersichtlich). Neueste zuerst.
+    Ordnung", nie die Messwerte selbst (Entscheid des Nutzers, 2026-11-16: sonst unübersichtlich). Neueste zuerst, alle im Zeitraum (die Obergrenze der Liste setzt `async_measure_history`, die Zahl bleibt die des Zeitraums).
     """
     out: list[dict[str, Any]] = []
     for entry in entries:
@@ -473,7 +475,7 @@ def monitor_events(entries: list[Any], entity_id: str, start: datetime) -> list[
             out.append({"t": event["t"], "kind": "out" if event["kind"] == "monitor_out" else "ok", "rule": event.get("monitor") or "", "system": entry.title,
                         "entry_id": entry.entry_id, "value": event.get("value") or "", "unit": event.get("unit") or ""})
     out.sort(key=lambda e: e["t"], reverse=True)
-    return out[:EVENTS_MAX]
+    return out
 
 
 def monitor_limits(entries: list[Any], entity_id: str) -> list[dict[str, Any]]:
@@ -496,6 +498,7 @@ async def async_measure_history(hass: HomeAssistant, entries: list[Any], entity_
     """Antwort der Sensoransicht für einen Messwert-Sensor (Temperatur, Luftfeuchtigkeit, CO2): Werteverlauf, Kennzahlen, Ereignisse der Überwachung, Grenzen."""
     result = await async_numeric_history(hass, entity_id, "value", hours, 0.0)
     start = dt_util.parse_datetime(result["start"]) or dt_util.utcnow() - timedelta(hours=hours)
-    result["events"] = monitor_events(entries, entity_id, start)
+    events = monitor_events(entries, entity_id, start)
+    result["events"], result["truncated"], result["events_total"] = events[:EVENTS_MAX], len(events) > EVENTS_MAX, len(events)
     result["limits"] = monitor_limits(entries, entity_id)
     return result

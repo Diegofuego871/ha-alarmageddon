@@ -1007,6 +1007,10 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 :host([narrow]) .ag-table .ag-nm > div { min-width: 0; overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.25; }
 :host([narrow]) .ag-table .ag-nm small { display: block; font-size: 11px; line-height: 1.3; }
 :host([narrow]) .ag-table td.ag-acts { padding-right: 8px; }
+/* Tabelle der Sensoren (Konfiguration › Sensoren, seit 1.66.1, Wunsch des Nutzers 2026-11-19): Papierkorb (nur Computer) und Stift zum
+   Bearbeiten als runde Knöpfe wie überall; der Stift ersetzt den Pfeil, auf dem Handy steht nur er */
+.ag-senbtns { justify-content: flex-end; gap: 8px; }
+:host([narrow]) .ag-senbtns { width: auto; gap: 8px; margin-top: 0; }
 :host([narrow]) .ag-table tr.grp td { padding: 6px 12px; }
 .ag-bkname { display: block; font-weight: 500; }
 .ag-bkdate { display: block; font-size: 12px; }
@@ -1313,6 +1317,9 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-cs-pop .ag-csrow { flex-wrap: wrap; }
 :host([narrow]) .ag-cs-pop .ag-csrow .ag-settx { flex: 1 1 0; min-width: 0; }
 :host([narrow]) .ag-cs-pop .ag-csrow .ag-btnrow { flex: 0 0 100%; justify-content: flex-end; margin-top: 2px; }
+/* Knöpfe der Töne in Kreisen wie bei Routinen (seit 1.66.1, Wunsch des Nutzers 2026-11-19); auf dem Handy in einer eigenen Zeile darunter */
+.ag-csbtns { justify-content: flex-end; gap: 8px; }
+:host([narrow]) .ag-cs-pop .ag-csrow .ag-csbtns { flex: 0 0 100%; justify-content: flex-end; gap: 14px; margin-top: 2px; }
 .ag-bklast { align-items: center; } .ag-bklast-tx { flex: 1; min-width: 0; } .ag-bklast-tx b { font-weight: 500; } .ag-bklast-v { color: var(--ag-text2); font-size: 13px; }
 .ag-bktable td.ag-bkdate { display: table-cell; font-size: 13px; white-space: nowrap; }
 .ag-bktable .ag-bkname { display: inline; }
@@ -1336,32 +1343,43 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-bktable td.ag-bkdate { white-space: normal; font-size: 12px; min-width: 0; }
 :host([narrow]) .ag-bkwrap .ag-sortbtn { padding: 14px 6px; font-size: 10.5px; letter-spacing: 0; }
 :host([narrow]) .ag-bkwrap .ag-table th { top: -16px; }
-:host([narrow]) .ag-bktable .ag-iconbtn { width: 34px; height: 34px; }
-:host([narrow]) .ag-bktable .ag-actrow { gap: 2px; }
+/* Knöpfe der Backups in Kreisen wie überall (seit 1.66.1, Wunsch des Nutzers 2026-11-19). Handy wie die Liste der HealthCheck-Dienste: je
+   Backup Name (mit den Anlagen) und Datum oben, die Knöpfe in einer eigenen Zeile darunter; die Zeilen werden Flex-Zeilen, der Kopf klebt
+   als ganze erste Zeile (eine Zelle einer Flex-Zeile kann nicht kleben) */
+.ag-bkbtns { justify-content: flex-end; gap: 8px; }
+.ag-bktable td.ag-acts { padding-right: 12px; }
+:host([narrow]) .ag-bktable, :host([narrow]) .ag-bktable tbody { display: block; width: 100%; }
+:host([narrow]) .ag-bktable tr { display: flex; flex-wrap: wrap; align-items: center; }
+:host([narrow]) .ag-bkwrap .ag-bktable tr:first-child { position: sticky; top: -16px; z-index: 2; background: var(--ag-card); box-shadow: 0 1px 0 var(--ag-divider); }
+:host([narrow]) .ag-bkwrap .ag-bktable tr:first-child th { position: static; box-shadow: none; }
+:host([narrow]) .ag-bktable th:first-child, :host([narrow]) .ag-bktable tr[data-bk] > td:first-child { flex: 1 1 0; min-width: 0; }
+:host([narrow]) .ag-bktable th:nth-child(2), :host([narrow]) .ag-bktable td.ag-bkdate { flex: 0 0 128px; }
+:host([narrow]) .ag-bktable th:last-child { display: none; }
+:host([narrow]) .ag-bktable td { height: auto; border-bottom: 0; }
+:host([narrow]) .ag-bktable tr[data-bk] > td:first-child { padding: 12px 6px 6px 12px; }
+:host([narrow]) .ag-bktable td.ag-bkdate { padding: 12px 12px 6px 6px; }
+:host([narrow]) .ag-bktable td.ag-acts { flex: 0 0 100%; width: auto; padding: 0 12px 12px; border-bottom: 1px solid var(--ag-divider); }
+:host([narrow]) .ag-bktable tr:last-child td.ag-acts { border-bottom: 0; }
+:host([narrow]) .ag-bkbtns { width: 100%; justify-content: flex-end; gap: 14px; margin-top: 0; }
 .ag-bksys-m { display: none; }
 :host([narrow]) .ag-bktable .ag-bksys { display: none; }
 :host([narrow]) .ag-bktable .ag-bksys-m { display: block; font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
-/* Fenster "Codes pro Person" (1.63.0): Tabelle wie die Sicherungen; der Code steht nur als fester Platzhalter da (gespeichert ist ein Hash) */
+/* Fenster "Codes pro Person" (1.63.0): Tabelle wie die Sicherungen; seit 1.66.1 ohne Spalte "Code" (gespeichert ist nur ein Hash), Knöpfe rund */
 .ag-codewrap { overflow: hidden; } /* der Tabellenkopf folgt den runden Ecken der Karte */
 .ag-codetable th { padding: 0; height: 46px; background: var(--ag-card); box-shadow: 0 1px 0 var(--ag-divider); }
 .ag-codetable td { height: 52px; }
 .ag-codetable .ag-sortbtn { padding: 14px; }
 .ag-codetable .ag-codename b { font-weight: 500; overflow-wrap: anywhere; }
 .ag-codetable .ag-codeuser { overflow-wrap: anywhere; }
-.ag-codetable .ag-codecol { width: 1%; white-space: nowrap; }
-.ag-codeth { display: inline-block; padding: 14px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; font-size: 12px; color: var(--ag-text2); }
-.ag-codedots { letter-spacing: .12em; color: var(--ag-text2); }
+.ag-codetable th.ag-codeacts { width: 1%; }
+.ag-codetable td.ag-acts { padding-right: 12px; }
+.ag-codebtns { justify-content: flex-end; gap: 8px; }
 :host([narrow]) .ag-codetable td { padding-left: 6px; padding-right: 6px; }
 :host([narrow]) .ag-codetable td:first-child { padding-left: 12px; }
 :host([narrow]) .ag-codetable th { padding: 0; }
 :host([narrow]) .ag-codetable .ag-sortbtn { padding: 14px 6px; font-size: 10.5px; letter-spacing: 0; }
 :host([narrow]) .ag-codetable th:first-child .ag-sortbtn { padding-left: 12px; }
-:host([narrow]) .ag-codetable .ag-iconbtn { width: 34px; height: 34px; }
-:host([narrow]) .ag-codetable .ag-actrow { gap: 2px; }
-/* Sehr schmale Handys (unter 360 px): die Spalte Code (nur ein Platzhalter) fällt weg, damit Name und Benutzer Platz haben */
-@media (max-width: 359px) { :host([narrow]) .ag-codetable .ag-codecol { display: none; } }
-:host([narrow]) .ag-codeth { padding: 14px 6px; font-size: 10.5px; letter-spacing: 0; }
-:host([narrow]) .ag-codedots { letter-spacing: .04em; font-size: 12px; }
+:host([narrow]) .ag-codebtns { width: auto; gap: 8px; margin-top: 0; }
 :host([narrow]) .ag-mon-head { position: relative; }
 :host([narrow]) .ag-mon-head .ag-mon-fold { position: absolute; top: 2px; right: 0; }
 :host([narrow]) .ag-mon-head .ag-settx { padding-right: 34px; }

@@ -7,6 +7,18 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.66.1] - 2026-11-19
+
+### Changed
+
+- **The same buttons in every list window:** Codes per person, Your own sounds and Backups now have round buttons per row like routines and the HealthCheck services; on the phone the buttons of the backups get a row of their own below name and date. The "Close" button of the backups window is white like in every other window.
+- **Codes per person:** the column "Code" is gone. It only showed "••••••"; a code is stored as a hash and can never be shown.
+- **Sensor table (Configuration › Sensors):** a round pencil at the end of each row opens the settings of the sensor (before: an arrow), on the computer the round bin next to it removes the sensor. On the phone only the pencil is shown, as before without the bin.
+
+### Fixed
+
+- **Sensor view, number of events:** the number on the tab "Events" always counts the events of the period chosen above, the same as the list. With more than 300 events in the period it showed 300 (the length of the list); now it shows the real number, and the note below the list says "The newest 300 of N events in this period are shown".
+
 ## [1.66.0] - 2026-11-19
 
 ### Added
@@ -1950,6 +1962,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.66.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.1
 [1.66.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.0
 [1.65.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.65.0
 [1.63.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.63.0

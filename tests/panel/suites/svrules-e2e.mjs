@@ -136,8 +136,29 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Grenze 40 °C (Werte um 5 °C): die Linie steht in der Grafik, beschriftet "${t.limit}"`, chart.thr === 1 && chart.y >= chart.top - 1 && chart.y <= chart.bottom && chart.label === t.limit, JSON.stringify(chart));
     await s.sim("window.__systems[0].monitors[0].tree.items[0].limit = 8; return 1");
     check(`${tag}: kein seitliches Scrollen im Fenster`, await dlg("return d.scrollWidth <= d.clientWidth + 1"));
+    // ----- Zahl der Ereignisse folgt dem Zeitraum (Vorgabe des Nutzers 2026-11-19: nie das Total, immer der gewählte Zeitraum) -----
+    await openView(GATE);
+    const countAndRows = () => dlg("return { n: Number(d.querySelector('[data-pane=\"events\"] .ag-sv-n').textContent), rows: d.querySelectorAll('.ag-sv-rows tbody tr:not(.day)').length, note: [...d.querySelectorAll('.ag-sv-note')].map((x) => x.innerText).join(' ') }");
+    const range = async (h) => { await s.tap(`#ag-sensor .ag-sv-range [data-hours="${h}"]`); return s.waitFor(`const d=r.getElementById("ag-sensor"); return r.host.sensorView.data?.hours === ${h} && !d.querySelector('.ag-sv[data-busy]')`, 8000); };
+    await range(3);
+    const short = await countAndRows();
+    await range(168);
+    const week = await countAndRows();
+    check(`${tag}: Zahl über der Liste = Ereignisse im Zeitraum (3 Std. ${short.n}, 7 Tage ${week.n}), gleich viele Zeilen`, short.n === short.rows && week.n === week.rows && week.n > short.n && short.n >= 1, JSON.stringify({ short, week }));
     check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
+
+    // Mehr Ereignisse, als die Liste zeigt (300): die Zahl bleibt die des Zeitraums, ein Hinweis nennt beide Zahlen
+    const m = await open(browser, { mobile, lang, query: "&monitor=1&svmany=1" });
+    await m.waitFor(`return !!r.querySelector('[data-act="more"][data-entity="${TEMP}"]')`);
+    await m.ev(`r.host.sensorView.open(${JSON.stringify(GATE)}); return 1`);
+    await m.waitFor(`const d=r.getElementById("ag-sensor"); return d.open && !!d.querySelector('.ag-sv-chart svg') && !d.querySelector('.ag-sv[data-busy]')`, 8000);
+    await m.tap('#ag-sensor .ag-sv-range [data-hours="720"]');
+    await m.waitFor(`const d=r.getElementById("ag-sensor"); return r.host.sensorView.data?.hours === 720 && !d.querySelector('.ag-sv[data-busy]')`, 8000);
+    const many = await m.ev("const d=r.getElementById('ag-sensor'); return { n: Number(d.querySelector('[data-pane=\"events\"] .ag-sv-n').textContent), rows: d.querySelectorAll('.ag-sv-rows tbody tr:not(.day)').length, total: r.host.sensorView.data.events_total, note: [...d.querySelectorAll('.ag-sv-note')].map((x) => x.innerText).join(' ') }");
+    check(`${tag}: 30 Tage mit ${many.total} Ereignissen: Zahl ${many.total} (nicht 300), Liste die neuesten 300, Hinweis mit beiden Zahlen`, many.total > 300 && many.n === many.total && many.rows === 300 && many.note.includes("300") && many.note.includes(String(many.total)), JSON.stringify(many));
+    check(`${tag}: keine Fehler im Browser (viele Ereignisse)`, m.errors.length === 0, m.errors.join(" | "));
+    await m.ctx.close();
   }
 }
 await browser.close();

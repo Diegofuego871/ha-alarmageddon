@@ -267,8 +267,9 @@ export class SystemUi {
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="code-list-close">${esc(t("close"))}</button>${codes.length ? add("primary") : ""}</div></div>`;
   }
 
-  // Tabelle der Codes: Name, Benutzer, Code (fester Platzhalter: gespeichert ist nur ein Hash, der Code selbst ist nirgends mehr bekannt),
-  // Bearbeiten, Entfernen. Sortierbar nach Name und Benutzer (ohne Benutzer immer unten), Suche nach Name und Benutzer.
+  // Tabelle der Codes: Name, Benutzer, Bearbeiten, Entfernen. Keine Spalte "Code" (seit 1.66.1, Wunsch des Nutzers 2026-11-19): gespeichert ist
+  // nur ein Hash, ein Platzhalter "••••••" sagte nichts. Knöpfe in Kreisen wie bei Routinen, Tönen und HealthCheck (`.ag-wf-btns`).
+  // Sortierbar nach Name und Benutzer (ohne Benutzer immer unten), Suche nach Name und Benutzer.
   _codeTable() {
     const t = (k, v) => this._t(k, v);
     const codes = this.system?.codes || [];
@@ -283,13 +284,12 @@ export class SystemUi {
     });
     const btn = (act, icon, label, id) => `<button class="ag-iconbtn" data-sys="${act}" data-id="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}">${ic(icon, 18)}</button>`;
     const rows = list.map((c) => `<tr data-code="${esc(c.id)}"><td class="ag-codename"><b>${esc(c.name)}</b></td><td class="ag-t2 ag-codeuser">${esc(this._codeUser(c) || "–")}</td>
-        <td class="ag-codecol"><span class="ag-codedots" role="img" aria-label="${esc(t("codeHidden"))}">••••••</span></td>
-        <td class="ag-acts"><div class="ag-actrow">${btn("code-edit", "pencil", `${t("codeEdit")}: ${c.name}`, c.id)}${btn("code-del", "trash", `${t("remove")}: ${c.name}`, c.id)}</div></td></tr>`).join("");
+        <td class="ag-acts"><div class="ag-wf-btns ag-codebtns">${btn("code-edit", "pencil", `${t("codeEdit")}: ${c.name}`, c.id)}${btn("code-del", "trash", `${t("remove")}: ${c.name}`, c.id)}</div></td></tr>`).join("");
     const th = (k, label) => {
       const on = sort.key === k;
       return `<th aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sortbtn ${on ? "on" : ""}" data-sys="code-sort" data-key="${k}" title="${esc(t("sortBy", { column: label }))}">${esc(label)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;
     };
-    return `<div class="ag-card ag-codewrap"><table class="ag-table ag-codetable"><tr>${th("name", t("codeColName"))}${th("user", t("codeColUser"))}<th class="ag-codecol"><span class="ag-codeth">${esc(t("codeColCode"))}</span></th><th></th></tr>${rows}</table></div>`;
+    return `<div class="ag-card ag-codewrap"><table class="ag-table ag-codetable"><tr>${th("name", t("codeColName"))}${th("user", t("codeColUser"))}<th class="ag-codeacts"></th></tr>${rows}</table></div>`;
   }
 
   openCodeList() {
@@ -401,7 +401,7 @@ export class SystemUi {
       }
       const playing = this.cs.playing === s.url;
       return `<div class="ag-setrow ag-csrow" data-sound="${esc(s.id)}">${soundBadge(s.id, playing)}<div class="ag-settx"><b>${esc(s.name)}</b><small>${esc(soundInfo(s))} · ${esc(used)}</small></div>
-        <div class="ag-btnrow"><button class="ag-iconbtn ${playing ? "ag-running" : ""}" data-sys="${playing ? "cs-stop" : "cs-play"}" data-url="${esc(s.url)}" aria-label="${esc(t(playing ? "pvStop" : "pvPlay"))}" title="${esc(t(playing ? "pvStop" : "pvPlay"))}">${ic(playing ? "stop" : "play", 18)}</button>
+        <div class="ag-wf-btns ag-csbtns"><button class="ag-iconbtn ${playing ? "ag-running" : ""}" data-sys="${playing ? "cs-stop" : "cs-play"}" data-url="${esc(s.url)}" aria-label="${esc(t(playing ? "pvStop" : "pvPlay"))}" title="${esc(t(playing ? "pvStop" : "pvPlay"))}">${ic(playing ? "stop" : "play", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-rename" data-id="${esc(s.id)}" aria-label="${esc(t("csRename"))}" title="${esc(t("csRename"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-sys="cs-delete" data-id="${esc(s.id)}" aria-label="${esc(t("csDelete"))}" title="${esc(t("csDelete"))}">${ic("trash", 18)}</button></div></div>`;
     }).join("");
@@ -541,7 +541,7 @@ export class SystemUi {
       <div class="ag-bkbody">${this._bkBody()}</div>
       <div class="ag-dlg-btns ag-bkfoot"><button class="ag-btn" data-sys="export">${ic("arrowDown", 18)}${esc(this._t("bkExport"))}</button>
         <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden>
-        <span class="ag-grow"></span><button class="ag-btn primary" data-sys="bk-close">${esc(this._t("close"))}</button></div></div>`;
+        <span class="ag-grow"></span><button class="ag-btn" data-sys="bk-close">${esc(this._t("close"))}</button></div></div>`;
     if (!dlg.open) dlg.showModal();
   }
 
@@ -569,7 +569,7 @@ export class SystemUi {
     const shown = this.backups.filter((b) => (!this.bkAutoOnly || b.auto) && matchQuery(this.bkQ, b.name, b.auto ? this._t("bkAutoTag") : "", date(b.created), b.systems));
     const list = shown.sort((x, y) => (val(x) < val(y) ? -1 : val(x) > val(y) ? 1 : 0) * (sort.dir === "desc" ? -1 : 1) || (x.created < y.created ? 1 : -1));
     const rows = list.map((b) => `<tr data-bk="${esc(b.id)}"><td>${b.name || !b.auto ? `<b class="ag-bkname">${esc(b.name || "–")}</b>` : ""}${b.auto ? `<span class="ag-tag none ag-bkauto-tag">${esc(this._t("bkAutoTag"))}</span>` : ""}<small class="ag-t2 ag-bksys-m">${esc((b.systems || []).join(", ") || "–")}</small></td><td class="ag-t2 ag-bkdate">${esc(date(b.created))}</td><td class="ag-t2 ag-bksys">${esc((b.systems || []).join(", ") || "–")}</td>
-        <td class="ag-acts"><div class="ag-actrow">${btn("bk-download", "arrowLine", "bkDownload", b.id)}${btn("bk-restore", "restore", "bkRestoreOne", b.id)}${btn("bk-delete", "trash", "bkDelete", b.id)}</div></td></tr>`).join("");
+        <td class="ag-acts"><div class="ag-wf-btns ag-bkbtns">${btn("bk-download", "arrowLine", "bkDownload", b.id)}${btn("bk-restore", "restore", "bkRestoreOne", b.id)}${btn("bk-delete", "trash", "bkDelete", b.id)}</div></td></tr>`).join("");
     const th = (key, label) => {
       const on = sort.key === key;
       return `<th aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sortbtn ${on ? "on" : ""}" data-sys="bk-sort" data-key="${key}" title="${esc(this._t("sortBy", { column: label }))}">${esc(label)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;

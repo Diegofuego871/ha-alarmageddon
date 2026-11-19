@@ -14,6 +14,9 @@ for (const lang of ["de", "en"]) {
     const zoned = await s.sim("const x=window.__systems[0]; return [...new Set([...Object.values(x.zones).flat(), ...Object.keys(x.sensor_options)])]");
     check(`${tag}: nur Sensoren aus Zonen in der Liste`, await s.waitFor(`return r.querySelectorAll('[data-sen="detail"]').length === ${zoned.length}`), String(zoned.length));
     check(`${tag}: Bewegung Garage (nicht gewählt) fehlt`, await s.ev(`return !r.querySelector('${ent("binary_sensor.bewegung_garage")}')`));
+    // Knöpfe je Zeile (seit 1.66.1, Wunsch des Nutzers 2026-11-19): rund wie überall; Stift zum Bearbeiten statt Pfeil; Papierkorb nur am Computer
+    const acts = await s.ev("const tds=[...r.querySelectorAll('tr[data-row] td.ag-acts')]; return { rows: tds.length, pens: tds.filter((td) => { const b=td.querySelector('.ag-wf-btns [data-sen=\"detail\"]'); return b && Math.round(b.getBoundingClientRect().width) === 44 && getComputedStyle(b).borderTopStyle === 'solid'; }).length, trash: tds.filter((td) => td.querySelector('[data-sen=\"remove\"]')).length, arrows: r.querySelectorAll('tr[data-row] .ag-cbtn').length }");
+    check(`${tag}: je Zeile ein runder Stift (44 px), kein Pfeil; Papierkorb ${mobile ? "nicht auf dem Handy" : "rund daneben"}`, acts.rows > 0 && acts.pens === acts.rows && acts.arrows === 0 && acts.trash === (mobile ? 0 : acts.rows), JSON.stringify(acts));
     check(`${tag}: Knopf Hinzufügen`, await s.ev("return !!r.querySelector('.ag-tools [data-sen=\"add\"]')"));
 
     await s.tap('.ag-tools [data-sen="add"]');

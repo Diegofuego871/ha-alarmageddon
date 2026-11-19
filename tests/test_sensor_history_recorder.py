@@ -11,6 +11,8 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.components.recorder.common import async_wait_recording_done
 
+from custom_components.alarmageddon import sensor_history
+
 from .conftest import MOTION, WINDOW, setup_alarm
 from .test_alarm import call
 from .test_maintenance import BAT_WINDOW, _device
@@ -35,7 +37,7 @@ async def _ask(client, mid: int, **msg) -> dict:
     return await client.receive_json()
 
 
-async def test_state_history_from_recorder_event_log_and_recordings(recorder_mock, hass: HomeAssistant, hass_ws_client, freezer) -> None:
+async def test_state_history_from_recorder_event_log_and_recordings(recorder_mock, hass: HomeAssistant, hass_ws_client, freezer, monkeypatch) -> None:
     """
     Verlauf eines Fensters über einen Tag: zwei Öffnungen (eine bei scharfer Anlage, sie löst den Alarm aus) und ein Ausfall.
     Die Antwort nennt je Ereignis Dauer, Zustand der Anlage und den Alarm, dazu Stundenwerte und Kennzahlen.
@@ -75,10 +77,15 @@ async def test_state_history_from_recorder_event_log_and_recordings(recorder_moc
     assert (summary["count"], summary["seconds"], summary["longest"], summary["alarms"]) == (2, 720, 600, 1)
     assert (summary["gone_count"], summary["gone_seconds"]) == (1, 1200) and 98 < summary["available"] < 99
     assert sum(b[1] for b in result["buckets"]) == 2 and sum(b[2] for b in result["buckets"]) == 720
-    assert result["entry_id"] == entry.entry_id and result["truncated"] is False
+    assert result["entry_id"] == entry.entry_id and result["truncated"] is False and result["events_total"] == len(events) == 3
     # Kürzerer Zeitraum: nur was darin liegt (3 Stunden: der Ausfall bei 150 Minuten liegt davor)
     short = (await _ask(client, 2, entity_id=WINDOW, hours=3))["result"]
-    assert short["events"] == [] and short["summary"]["count"] == 0
+    assert short["events"] == [] and short["summary"]["count"] == 0 and short["events_total"] == 0
+    # Mehr Ereignisse als die Liste zeigt: die Zahl bleibt die des Zeitraums (Vorgabe des Nutzers 2026-11-19), die Liste die neuesten
+    monkeypatch.setattr(sensor_history, "EVENTS_MAX", 2)
+    capped = (await _ask(client, 3, entity_id=WINDOW, hours=24))["result"]
+    assert (len(capped["events"]), capped["events_total"], capped["truncated"]) == (2, 3, True)
+    assert [e["kind"] for e in capped["events"]] == ["gone", "on"]
 
 
 async def test_only_monitored_sensors_and_fitting_periods(recorder_mock, hass: HomeAssistant, hass_ws_client) -> None:

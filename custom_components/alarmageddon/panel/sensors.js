@@ -380,7 +380,7 @@ export class SensorsUi {
           return `<td class="z ${m === cur ? "cur" : ""}"><button class="ag-box ${on ? "on" : ""}" data-box data-mode="${m}" data-ent="${esc(r.id)}" role="checkbox" aria-checked="${on}" aria-label="${esc(`${r.name}: ${this._t(MODE_KEY[m])}`)}">${on ? ic("check", 18) : ""}</button></td>`;
         }).join("")}
         ${this.alwaysOn ? `<td class="z ${cur === "always" ? "cur" : ""}">${r.info.kind === "value" ? this._offBox() : this._alwaysBox(r)}</td>` : ""}${nar ? "" : `<td class="z">${r.info.kind === "value" ? this._offToggle() : this._entryToggle(r)}</td>`}
-        <td class="ag-acts"><div class="ag-actrow">${nar ? "" : `<button class="ag-iconbtn" data-sen="remove" data-ent="${esc(r.id)}" aria-label="${esc(`${r.name}: ${this._t("removeSensor")}`)}" title="${esc(this._t("removeSensor"))}">${ic("trash", 18)}</button>`}<button class="ag-cbtn" data-sen="detail" data-ent="${esc(r.id)}" aria-label="${esc(`${r.name}: ${this._t("details")}`)}">${ic("chevRight", 16)}</button></div></td></tr>`);
+        <td class="ag-acts"><div class="ag-wf-btns ag-senbtns">${nar ? "" : `<button class="ag-iconbtn" data-sen="remove" data-ent="${esc(r.id)}" aria-label="${esc(`${r.name}: ${this._t("removeSensor")}`)}" title="${esc(this._t("removeSensor"))}">${ic("trash", 18)}</button>`}<button class="ag-iconbtn" data-sen="detail" data-ent="${esc(r.id)}" aria-label="${esc(`${r.name}: ${this._t("editSensor")}`)}" title="${esc(this._t("editSensor"))}">${ic("pencil", 18)}</button></div></td></tr>`);
     }
     return `<div class="ag-card ag-table-wrap ag-stickwrap"><table class="ag-table">${head}${body.join("")}</table></div>`;
   }

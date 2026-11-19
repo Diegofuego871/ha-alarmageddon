@@ -441,18 +441,21 @@
       if (window.__sensorHistory) return window.__sensorHistory(msg);
       const now = Date.now(), H = 3600e3, start = now - msg.hours * H, at = (t) => new Date(t).toISOString();
       if (msg.kind === "state") {
-        const events = [];
-        for (let t = now - 20 * 60e3, i = 0; t > start && i < 320; t -= 5 * H, i++) {
-          events.push({ kind: "on", start: at(t), end: at(t + 120e3), seconds: 120, mode: i % 3 === 1 ? "away" : null, alarm: i === 2 ? "rec-1" : null });
-          if (i === 1) events.push({ kind: "gone", start: at(t - 2 * H), end: at(t - 2 * H + 2400e3), seconds: 2400, mode: "night", alarm: null });
+        // Ereignisse im Zeitraum wie der Server; ?svmany=1: alle 30 Minuten eines (mehr als die 300, die die Liste zeigt)
+        const all = [];
+        const every = params.get("svmany") ? 0.5 * H : 5 * H;
+        for (let t = now - 20 * 60e3, i = 0; t > start; t -= every, i++) {
+          all.push({ kind: "on", start: at(t), end: at(t + 120e3), seconds: 120, mode: i % 3 === 1 ? "away" : null, alarm: i === 2 ? "rec-1" : null });
+          if (i === 1) all.push({ kind: "gone", start: at(t - 2 * H), end: at(t - 2 * H + 2400e3), seconds: 2400, mode: "night", alarm: null });
         }
+        const events = all.slice(0, 300);
         const buckets = [];
         for (let t = Math.floor(start / H) * H + H; t <= now; t += H) {
           const h = new Date(t).getHours(), c = h % 5 === 0 ? 2 : h > 17 ? 3 : 0;
           if (c) buckets.push([at(t), c, c * 60]);
         }
         const count = buckets.reduce((n, b) => n + b[1], 0);
-        return { kind: "state", hours: msg.hours, now: at(now), start: at(start), entry_id: window.__systems[0].entry_id, buckets, events, truncated: false,
+        return { kind: "state", hours: msg.hours, now: at(now), start: at(start), entry_id: window.__systems[0].entry_id, buckets, events, truncated: all.length > 300, events_total: all.length,
           events_from: at(Math.max(start, now - 240 * H)),
           armed: [{ from: at(Math.max(start, now - 30 * H)), to: at(now - 21 * H), mode: "away" }, { from: at(Math.max(start, now - 7 * H)), to: at(now - 2 * H), mode: "away" }].filter((a) => new Date(a.to) > new Date(a.from)),
           summary: { count, seconds: count * 60, longest: 120, last: events[0]?.start ?? null, busiest_hour: 18, per_day: msg.hours >= 24 ? Math.round((count / (msg.hours / 24)) * 10) / 10 : null,
@@ -469,6 +472,7 @@
           // Grenzen aus den Regeln der Anlagen wie der Server (sensor_history.monitor_limits): jede Regel mit einem Messwert dieses Sensors (1.65.0)
           limits: window.__systems.flatMap((sys) => (sys.monitors || []).flatMap((m) => m.tree.items.flatMap((i) => (i.items ? i.items : [i]))
             .filter((l) => l.kind === "value" && l.entity_id === msg.entity_id).map((l) => ({ rule: m.name, op: l.op, limits: [Number(l.limit), ...(l.op === "outside" ? [Number(l.upper)] : [])] })))),
+          get events_total() { return this.events.length; }, truncated: false,
           events: hot ? [{ t: at(now - 2 * H), kind: "ok", rule: "Kühlschrank zu warm", system: window.__systems[0].title, entry_id: window.__systems[0].entry_id, value: "6.1", unit },
             { t: at(now - 3 * H), kind: "out", rule: "Kühlschrank zu warm", system: window.__systems[0].title, entry_id: window.__systems[0].entry_id, value: "9.2", unit }].filter((e) => new Date(e.t) > new Date(start)) : [] };
       }

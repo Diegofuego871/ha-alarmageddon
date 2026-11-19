@@ -77,6 +77,26 @@ async def test_measure_history_lists_only_monitor_events_of_this_sensor(hass: Ho
     assert "Alt" in [e["rule"] for e in week]
 
 
+async def test_the_count_of_events_is_the_count_of_the_period(hass: HomeAssistant, hass_ws_client, values, freezer, monkeypatch) -> None:
+    """
+    Vorgabe des Nutzers 2026-11-19: die Zahl über der Liste entspricht immer dem gewählten Zeitraum, nie einer Obergrenze oder dem Total. Zeigt
+    die Liste nur die neuesten EVENTS_MAX, nennt die Antwort trotzdem die Zahl des Zeitraums (`events_total`) und `truncated`.
+    """
+    entry = await _setup(hass, monitors=[_rule(_value(TEMP, "above", 8), hold=1)])
+    client = await hass_ws_client(hass)
+    now = dt_util.utcnow()
+    for hours_ago in (1, 2, 30, 50):
+        entry.runtime_data.events.events.append({"t": (now - timedelta(hours=hours_ago)).isoformat(), "kind": "monitor_out", "monitor": "Kühlschrank", "entity_id": TEMP})
+    day = (await _ask(client, 1, entity_id=TEMP, kind="value", hours=24))["result"]
+    assert (len(day["events"]), day["events_total"], day["truncated"]) == (2, 2, False)
+    week = (await _ask(client, 2, entity_id=TEMP, kind="value", hours=168))["result"]
+    assert (len(week["events"]), week["events_total"], week["truncated"]) == (4, 4, False)
+    monkeypatch.setattr(sensor_history, "EVENTS_MAX", 3)
+    capped = (await _ask(client, 3, entity_id=TEMP, kind="value", hours=168))["result"]
+    assert (len(capped["events"]), capped["events_total"], capped["truncated"]) == (3, 4, True)
+    assert [e["t"] for e in capped["events"]] == [e["t"] for e in week["events"][:3]], "die neuesten zuerst"
+
+
 async def test_only_sensors_the_monitoring_lists_are_served(hass: HomeAssistant, hass_ws_client, values) -> None:
     """Nie ein beliebiger Sensor: nicht gelistet oder Überwachung aus gibt "nicht gefunden"; der Befehl ist kein Zugang zum Verlauf von Home Assistant."""
     await _setup(hass, enabled=False)
