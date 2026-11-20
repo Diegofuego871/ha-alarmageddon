@@ -5,13 +5,13 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { monAdd: "Messwerte hinzufügen", monChosen: "gewählt", more: "Weitere Funktionen", openCfg: "Konfiguration öffnen", welcome: "Willkommen bei Alarmageddon", welcomeShort: "Willkommen", title: "Einrichtungsassistent", start: "Los geht's", next: "Weiter", finish: "Fertig", skipCode: "Ohne Code weiter",
+  de: { tAlarm: "Alarmmeldung", tMaint: "Wartungsmeldung", tMsgAlarm: "Testmeldung Alarm", tMsgMaint: "Testmeldung Wartung", monAdd: "Messwerte hinzufügen", monChosen: "gewählt", more: "Weitere Funktionen", openCfg: "Konfiguration öffnen", welcome: "Willkommen bei Alarmageddon", welcomeShort: "Willkommen", title: "Einrichtungsassistent", start: "Los geht's", next: "Weiter", finish: "Fertig", skipCode: "Ohne Code weiter",
     askTitle: "Assistent später fortsetzen?", later: "Später", stepOf: (n, total) => `Schritt ${n} von ${total}`, chapter: "Einrichtungsassistent", del: "Anlage löschen",
     stDone: "Abgeschlossen", stLater: "Verschoben bis", stHidden: "Ausgeblendet, bei Schritt 3", run: "Assistent starten", resume: "Bei Schritt 3 fortsetzen", restart: "Von vorn",
     dirty: "Ungespeicherte Änderungen", chosen: (n, total) => `${n} von ${total} gewählt`, codeSome: "Codes dieser Anlage: Diego", codeAnna: "Codes dieser Anlage: Anna",
     siren: "Sirene 3 Minuten", sound: "Alarmton", sumZones: "3 Sensoren · Eingang: Haustür · Verlassen: 60 s · Deaktivieren: 45 s", sumNotify: "an diego · 6 von 7 Meldungen an",
     sumActions: "nur die Alarmmeldung", found: "Gefunden: 3 Sensoren", entry: "Eingangsverzögerung", modes: ["Anwesend", "Abwesend", "Nacht"] },
-  en: { monAdd: "Add measurements", monChosen: "chosen", more: "More features", openCfg: "Open configuration", welcome: "Welcome to Alarmageddon", welcomeShort: "Welcome", title: "Setup assistant", start: "Let's go", next: "Next", finish: "Finish", skipCode: "Continue without code",
+  en: { tAlarm: "Alarm notification", tMaint: "Maintenance notification", tMsgAlarm: "Test notification: alarm", tMsgMaint: "Test notification: maintenance", monAdd: "Add measurements", monChosen: "chosen", more: "More features", openCfg: "Open configuration", welcome: "Welcome to Alarmageddon", welcomeShort: "Welcome", title: "Setup assistant", start: "Let's go", next: "Next", finish: "Finish", skipCode: "Continue without code",
     askTitle: "Continue the assistant later?", later: "Later", stepOf: (n, total) => `Step ${n} of ${total}`, chapter: "Setup assistant", del: "Delete alarm system",
     stDone: "Completed", stLater: "Postponed until", stHidden: "Hidden, at step 3", run: "Start assistant", resume: "Continue at step 3", restart: "Start over",
     dirty: "Unsaved changes", chosen: (n, total) => `${n} of ${total} chosen`, codeSome: "Codes of this alarm system: Diego", codeAnna: "Codes of this alarm system: Anna",
@@ -232,7 +232,12 @@ for (const lang of ["de", "en"]) {
     // Meldungen: zwei Empfängergruppen, Schalter je Meldung
     check(`${tag}: Meldungen: Empfänger der Alarme und der Wartung, Alarmmeldung immer an, sechs Schalter (mit HealthCheck)`, await H.waitStep("notify") && (await s.waitFor(`const g=r.querySelectorAll('.ag-recip'); return g.length === 2 && !!g[1].querySelector('.ag-warntext')
       && !!r.querySelector('.ag-wz-lock') && r.querySelectorAll('[data-wz="kind"]').length === 6`)));
+    // Zwei Testknöpfe (Wunsch des Nutzers 2026-11-20, 11:40: die Empfänger von Alarmen und von Wartungsmeldungen können verschieden sein)
+    const tbtns = () => s.ev("return [...r.querySelectorAll('[data-wz=\"nt-test\"]')].map((b) => ({ g: b.dataset.group, t: b.innerText.trim(), off: b.disabled }))");
+    const tb0 = await tbtns();
+    check(`${tag}: zwei Testknöpfe "${t.tAlarm}" und "${t.tMaint}"; ohne Empfänger der Wartung ist der zweite gesperrt`, J(tb0) === J([{ g: "alarm", t: t.tAlarm, off: false }, { g: "maintenance", t: t.tMaint, off: true }]), J(tb0));
     await (await s.el('.ag-recip[data-group="maintenance_targets"] select')).selectOption("notify.mobile_app_partnerin");
+    check(`${tag}: mit Empfänger der Wartung (noch nicht gespeichert) ist "${t.tMaint}" frei`, await s.waitFor("return r.querySelector('[data-wz=\"nt-test\"][data-group=\"maintenance\"]')?.disabled === false"));
     check(`${tag}: Empfänger der Wartung hinzugefügt (Kapsel), Warnung weg`, await s.waitFor("const g=r.querySelector('.ag-recip[data-group=\"maintenance_targets\"]'); return g.querySelector('.ag-rpill')?.innerText.includes('partnerin') && !g.querySelector('.ag-warntext')"));
     await s.tap('[data-wz="kind"][data-kind="battery_low"]');
     check(`${tag}: "Batterie schwach" aus`, await s.waitFor("return !r.querySelector('[data-wz=\"kind\"][data-kind=\"battery_low\"]').classList.contains('on')"));
@@ -242,9 +247,13 @@ for (const lang of ["de", "en"]) {
     const testHint = await s.ev("return r.querySelector('[data-wz=\"nt-test\"]').closest('.ag-setrow').querySelector('small').textContent");
     check(`${tag}: Hinweis der Testmeldung: nichts vom Speichern`, testHint.length > 20 && !/speicher|save/i.test(testHint), testHint);
     await s.sim("window.__testNotify = []; return 1");
-    await s.tap('[data-wz="nt-test"]');
-    check(`${tag}: "Testmeldung senden" speichert die offene Auswahl ("Batterie schwach" aus) und sendet`, await s.waitFor("return (window.parent.__testNotify || []).at(-1) === 'triggered' && window.parent.__notify.types.battery_low.enabled === false", 8000));
-    await s.waitFor("return !r.querySelector('[data-wz=\"nt-test\"]').classList.contains('ag-running') && !r.host.wizard.busy", 6000);
+    await s.tap('[data-wz="nt-test"][data-group="alarm"]');
+    check(`${tag}: "${t.tAlarm}" speichert die offene Auswahl ("Batterie schwach" aus, Wartung an partnerin) und sendet an die Empfänger der Alarme`, await s.waitFor("return (window.parent.__testNotify || []).at(-1) === 'group:alarm' && window.parent.__notify.types.battery_low.enabled === false && window.parent.__notify.maintenance_targets.includes('notify.mobile_app_partnerin')", 8000));
+    await s.waitFor("return !r.querySelector('[data-wz=\"nt-test\"][data-group=\"alarm\"]').classList.contains('ag-running') && !r.host.wizard.busy", 6000);
+    await s.tap('[data-wz="nt-test"][data-group="maintenance"]');
+    check(`${tag}: "${t.tMaint}" sendet an die Empfänger der Wartungsmeldungen (ein Aufruf, nichts weiter)`, await s.waitFor("const n=window.parent.__testNotify || []; return n.length === 2 && n[1] === 'group:maintenance'", 8000), J(await s.sim("return window.__testNotify")));
+    await s.waitFor("return !r.querySelector('[data-wz=\"nt-test\"][data-group=\"maintenance\"]').classList.contains('ag-running') && !r.host.wizard.busy", 6000);
+    if (mobile) check(`${tag}: Handy: die zwei Testknöpfe teilen sich die Breite`, await s.ev("const b=[...r.querySelectorAll('[data-wz=\"nt-test\"]')].map((x) => x.getBoundingClientRect()); return Math.abs(b[0].width - b[1].width) < 2 && Math.abs(b[0].top - b[1].top) < 2 && b[0].width > 120"));
     await s.tap('[data-wz="next"]');
     const nt = (await H.waitStep("actions")) && (await s.sim("return JSON.parse(JSON.stringify(window.__notify))"));
     check(`${tag}: gespeichert: Wartung an partnerin, "Batterie schwach" aus, Alarme weiter an diego`, !!nt && nt.maintenance_targets.includes("notify.mobile_app_partnerin") && nt.types.battery_low.enabled === false && J(nt.alarm_targets) === J(["notify.mobile_app_diego"]), J(nt && { m: nt.maintenance_targets, b: nt.types.battery_low }));
@@ -316,6 +325,13 @@ for (const lang of ["de", "en"]) {
     const sum = await s.ev("return [...r.querySelectorAll('.ag-wz-sum .ag-setrow small')].map((x) => x.textContent)");
     check(`${tag}: Zusammenfassung: Modi, Sensoren mit Eingang und Zeiten, Code, Meldungen, Aktionen`, sum[0].includes(t.modes[2]) && sum[1] === t.sumZones && sum[2] === "Diego" && sum[3] === t.sumNotify && sum[4] === t.sumActions, J(sum));
     check(`${tag}: Ausprobieren: Test der Aktionen, Testmeldung, Bereit zum Scharfschalten je Modus`, await s.ev("return !!r.querySelector('[data-wz=\"wf-test\"]') && !!r.querySelector('[data-wz=\"nt-test\"]') && r.querySelectorAll('.ag-wz-readyrow .ag-rchip').length === 3"));
+    const tryRows = await s.ev("return [...r.querySelectorAll('[data-wz=\"nt-test\"]')].map((b) => { const row=b.closest('.ag-setrow'); return { g: b.dataset.group, b: row.querySelector('b').textContent, s: row.querySelector('small').textContent, off: b.disabled }; })");
+    check(`${tag}: Ausprobieren: zwei Testmeldungen, "${t.tMsgAlarm}" an diego, "${t.tMsgMaint}" an partnerin`, J(tryRows.map((x) => [x.g, x.b, x.off])) === J([["alarm", t.tMsgAlarm, false], ["maintenance", t.tMsgMaint, false]])
+      && tryRows[0].s.includes("diego") && !tryRows[0].s.includes("partnerin") && tryRows[1].s.includes("partnerin") && !tryRows[1].s.includes("diego"), J(tryRows));
+    await s.sim("window.__testNotify = []; return 1");
+    await s.tap('[data-wz="nt-test"][data-group="maintenance"]');
+    check(`${tag}: Ausprobieren: "${t.tMsgMaint}" sendet an die Empfänger der Wartung`, await s.waitFor("return (window.parent.__testNotify || []).join() === 'group:maintenance'", 8000));
+    await s.waitFor("return !r.querySelector('[data-wz=\"nt-test\"][data-group=\"maintenance\"]').classList.contains('ag-running')", 6000);
     // "Weitere Funktionen" (Wunsch des Nutzers 2026-11-20, 08:33: die Kacheln "Wenn du mehr willst" verleiteten zum Klicken): eine Liste zur Information
     check(`${tag}: "${t.more}": eine Liste zur Information (keine Kacheln), je Funktion wo sie steht, unten "${t.openCfg}"`, await s.ev(`const c=[...r.querySelectorAll('.ag-wz .ag-chap')].find((x) => x.querySelector('.ag-chap-t')?.textContent === ${J(t.more)});
       return !!c && c.querySelectorAll('.ag-wz-morerow').length === 4 && c.querySelectorAll('.ag-wz-where').length === 4 && !c.querySelector('.ag-wz-tile, button.ag-wz-morerow, a') && c.querySelector('[data-wz="settings"]')?.innerText.trim() === ${J(t.openCfg)}`));
@@ -339,6 +355,40 @@ for (const lang of ["de", "en"]) {
     const resumed = await H.waitStep("monitor");
     await s.page.waitForTimeout(1500);
     check(`${tag}: "später" bei "Überwachung": am nächsten Tag genau dort, auch nachdem die Messwerte geladen sind`, resumed && (await H.step()) === "monitor", await H.step());
+    await s.ctx.close();
+
+    // ----- Lange Namen im Fenster "Messwerte hinzufügen" (Bildschirmfoto des Nutzers 2026-11-20, 11:30, Handy: die Zeilen schrumpften in der Liste
+    // fester Höhe, Namen und Art liefen in die nächste Zeile) -----
+    s = await open(browser, { mobile, lang, query: "&wizard=open&wzstep=monitor" });
+    H = helpers(s);
+    await H.waitStep("monitor");
+    await s.waitFor("return !!r.host.wizard.measures");
+    if (!(await s.ev("return r.querySelector('[data-wz=\"mon-use\"]').classList.contains('on')"))) await s.tap('[data-wz="mon-use"]');
+    await s.waitFor("return !!r.querySelector('[data-wz=\"mpick-open\"]:not([disabled])') && !r.host.wizard.busy", 15000);
+    await s.ev(`const m=r.host.wizard.measures; ['Luftqualität Messgerät Badezimmer Obergeschoss - Kohlendioxid','Bewegungsmelder Badezimmer Obergeschoss PIR 96D52C Light Light Level',
+      'Bewegungsmelder Badezimmer Obergeschoss PIR 96D52C Temperature','Lüftungsanlage Untergeschoss Extract air relative humidity','Kühlschrank Vorratsraum Temperatur - Temperature',
+      'Luftqualität Messgerät Kinderzimmer - Feinstaub PM2,5','Luftqualität Messgerät Kinderzimmer - Temperatur','Luftqualität Messgerät Kinderzimmer - Luftfeuchtigkeit']
+      .forEach((n, i) => { m['sensor.lang_' + i] = { name: n, device_class: ['carbon_dioxide','illuminance','temperature','humidity','temperature','pm25','temperature','humidity'][i], area: i < 3 ? 'Badezimmer Obergeschoss' : 'Kinderzimmer', integration: 'Integration mit langem Namen', kind: 'value' }; }); return 1`);
+    await s.tap('[data-wz="mpick-open"]');
+    await s.waitFor("return r.getElementById('ag-wzpick').open");
+    await s.page.waitForTimeout(300);
+    const fit = await s.ev(`const rows=[...r.querySelectorAll('#ag-wzpick .ag-wz-plist > *')]; const bad=[];
+      for (const el of rows) { const b=el.getBoundingClientRect(); for (const c of el.querySelectorAll('b, small, .ag-box, .ag-av')) { const cb=c.getBoundingClientRect(); if (cb.bottom > b.bottom + 0.5 || cb.top < b.top - 0.5) bad.push(c.textContent.slice(0, 30) || c.className); } }
+      for (let i = 1; i < rows.length; i += 1) if (rows[i].getBoundingClientRect().top < rows[i - 1].getBoundingClientRect().bottom - 0.5) bad.push('überlappt: ' + i);
+      return { n: rows.length, bad, labels: [...r.querySelectorAll('#ag-wzpick .ag-group-label')].every((x) => x.getBoundingClientRect().height >= 24) }`);
+    check(`${tag}: lange Namen: jede Zeile so hoch wie ihr Inhalt, nichts läuft in die nächste Zeile, Bereiche lesbar`, fit.n >= 13 && fit.bad.length === 0 && fit.labels, JSON.stringify(fit));
+    await s.ctx.close();
+
+    // ----- Knöpfe (Wünsche des Nutzers 2026-11-20, 11:37 und 11:38): auf dem Handy "Zurück" und "Weiter" je zur Hälfte, auf einem breiten
+    // Bildschirm "Später" und "Weiter" am rechten Rand des Inhalts statt am Rand des Bildschirms -----
+    s = await open(browser, { mobile, lang, size: mobile ? null : { width: 2200, height: 900 }, query: "&wizard=open&wzstep=modes" });
+    H = helpers(s);
+    await H.waitStep("modes");
+    const lay = await s.ev(`const R=(sel) => r.querySelector(sel).getBoundingClientRect(); const body=R('.ag-wz-body'); const pad=parseFloat(getComputedStyle(r.querySelector('.ag-wz-body')).paddingRight);
+      const foot=R('.ag-wz-foot'); const back=R('[data-wz="back"]'); const next=R('[data-wz="next"]');
+      return { inner: Math.round(body.right - pad), later: Math.round(R('[data-wz="later"]').right), next: Math.round(next.right), back: Math.round(back.width), nextW: Math.round(next.width), footW: Math.round(foot.width), footRight: Math.round(foot.right), win: innerWidth }`);
+    check(mobile ? `${tag}: "Zurück" und "Weiter" gleich breit` : `${tag}: 2200 px breit: "Später" und "Weiter" am rechten Rand des Inhalts, die Leiste unten über die ganze Breite`,
+      mobile ? Math.abs(lay.back - lay.nextW) <= 1 && lay.back > 120 : Math.abs(lay.later - lay.inner) <= 1 && Math.abs(lay.next - lay.inner) <= 1 && lay.inner < lay.win - 400 && lay.footRight === lay.win, JSON.stringify(lay));
     await s.ctx.close();
 
     // ----- "Konfiguration öffnen" am Schluss: schliesst ab wie "Fertig", danach Konfiguration › Anlage -----

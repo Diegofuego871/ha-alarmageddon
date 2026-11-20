@@ -110,15 +110,17 @@ for (const lang of ["de", "en"]) {
       await s.ctx.close();
     }
 
-    // ----- Einrichtungsassistent (1.69.0): Testmeldung (Meldungen und Fertig), Test der Alarmaktionen (Fertig) -----
+    // ----- Einrichtungsassistent (1.69.0): Testmeldungen Alarm und Wartung (Meldungen und Fertig, seit 1.71.0 je zwei), Test der Alarmaktionen (Fertig) -----
     {
-      const s = await open(browser, { mobile, lang, query: "&wizard=open&wzstep=notify" });
+      const s = await open(browser, { mobile, lang, query: "&wizard=open&wzstep=notify&mtargets=1" });
       await s.waitFor("return r.querySelector('.ag-wz')?.dataset.step === 'notify' && !!r.querySelector('[data-wz=\"nt-test\"]')");
       await s.sim("window.__delay = { 'alarmageddon/test_notify': 4000 }; return 1");
-      await cycle(s, "Assistent: Testmeldung bei den Meldungen", '[data-wz="nt-test"]');
+      await cycle(s, "Assistent: Testmeldung Alarm bei den Meldungen", '[data-wz="nt-test"][data-group="alarm"]');
+      await cycle(s, "Assistent: Testmeldung Wartung bei den Meldungen", '[data-wz="nt-test"][data-group="maintenance"]');
       await s.ev("r.host.wizard.go('done'); return 1");
       await s.waitFor("return r.querySelector('.ag-wz')?.dataset.step === 'done' && !!r.querySelector('[data-wz=\"wf-test\"]')");
-      await cycle(s, "Assistent: Testmeldung bei Fertig", '[data-wz="nt-test"]');
+      await cycle(s, "Assistent: Testmeldung Alarm bei Fertig", '[data-wz="nt-test"][data-group="alarm"]');
+      await cycle(s, "Assistent: Testmeldung Wartung bei Fertig", '[data-wz="nt-test"][data-group="maintenance"]');
       await cycle(s, "Assistent: Alarmaktionen testen", '[data-wz="wf-test"]');
       check(`${tag}: keine Fehler in der Konsole (Assistent)`, s.errors.length === 0, s.errors.join(" | "));
       await s.ctx.close();

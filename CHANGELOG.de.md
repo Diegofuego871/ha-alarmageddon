@@ -7,6 +7,22 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.71.0] - 2026-11-20
+
+### Hinzugefügt
+
+- **Knopf für den Einrichtungsassistenten im Kopf:** Solange der Einrichtungsassistent einer Anlage nicht fertig ist ("Später", "Nicht mehr anzeigen" oder noch nicht begonnen), steht neben dem Stift ein runder Knopf mit Zauberstab, in jedem Reiter. Er führt genau beim Schritt weiter, bei dem du aufgehört hast (der Tooltip nennt ihn); bei offenen Änderungen fragt er vorher. Einmal je Laden des Panels, fünf Sekunden nachdem er erscheint, schwingt der Zauberstab kurz. Nach "Fertig" ist der Knopf weg; "Von vorn" bleibt unter Konfiguration › Anlage.
+- **Einrichtungsassistent, zwei Testmeldungen:** Der Schritt "Meldungen" und "Ausprobieren" am Schluss bieten einen Test für die Empfänger von Alarmen und einen für die Empfänger von Wartungsmeldungen (sie können verschieden sein). Jeder Knopf ist frei, sobald seine Gruppe einen Empfänger hat; offene Änderungen der Seite werden wie bisher von selbst gespeichert.
+
+### Geändert
+
+- **Einrichtungsassistent auf dem Handy:** "Zurück" und "Weiter" teilen sich die Breite der Fusszeile zu gleichen Teilen.
+- **Einrichtungsassistent auf breiten Bildschirmen:** "Später" oben und "Weiter" unten stehen am rechten Rand des Inhalts statt am Rand des Fensters.
+
+### Behoben
+
+- **Listen in Fenstern auf dem Handy:** In "Messwerte hinzufügen" des Einrichtungsassistenten liefen lange Namen in die nächste Zeile (die Zeilen wurden auf die Höhe der Liste zusammengedrückt). Jede Zeile behält jetzt die Höhe ihres Inhalts; die Zeilen der Messwerte haben dazu mehr Platz, und die Bereiche heben sich als Überschriften ab. Dasselbe gilt für die anderen Listen dieser Art ("Sensoren hinzufügen", die Wahl von Geräten und Sensoren in Regeln und Routinen).
+
 ## [1.70.0] - 2026-11-20
 
 ### Geändert
@@ -2032,6 +2048,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0
 [1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0
 [1.68.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.68.0

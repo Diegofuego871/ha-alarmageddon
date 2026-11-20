@@ -651,6 +651,9 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-pick-chips { gap: 10px; margin-top: 12px; }
 .ag-step-ed .ag-sys-top h3 { margin: 0; }
 .ag-elist { display: flex; flex-direction: column; max-height: 260px; overflow: auto; border: 1px solid var(--ag-divider); border-radius: 12px; }
+/* Zeilen einer Liste schrumpfen nie: in einer Liste mit fester Höhe drückte der Browser sie sonst auf ihre Mindesthöhe, und lange Namen liefen in
+   die nächste Zeile (Bildschirmfoto des Nutzers 2026-11-20, 11:30, "Messwerte hinzufügen" auf dem Handy) */
+.ag-elist > * { flex-shrink: 0; }
 .ag-erow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-bottom: 1px solid var(--ag-divider); background: var(--ag-card); text-align: left; cursor: pointer; font: inherit; color: inherit; min-height: 44px; }
 .ag-erow:last-child { border-bottom: 0; }
 .ag-erow .ag-box { margin: 0; width: 24px; height: 24px; pointer-events: none; }
@@ -1000,6 +1003,20 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 :host([narrow]) .ag-seg[data-seg="wf-trigger"]:has(> button:nth-child(5)) > [data-trigger="monitor"] { grid-column: 1 / -1; }
 /* Name der Anlage oben in der Konfiguration: gross und fett, Stift, Sprung nach HA */
 .ag-headsys { display: flex; align-items: center; gap: 8px; flex: 1 1 calc(100% - 60px); min-width: 0; }
+/* Knopf des Einrichtungsassistenten neben dem Stift (1.71.0, Mockup assistent-knopf-v1, Variante A "Schwung"): rund, hellblau, blauer Punkt
+   (nicht fertig; blau, weil orange nur "ungespeichert" heisst). Die Bewegung gilt auch bei "Bewegung reduzieren" (Entscheid des Nutzers 2026-11-20) */
+.ag-wzbtn { position: relative; width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; padding: 0; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--ag-primary) 45%, transparent); background: var(--ag-primary-soft); color: var(--ag-primary); }
+.ag-wzbtn:hover { background: color-mix(in srgb, var(--ag-primary) 22%, transparent); }
+.ag-wzbtn svg { display: block; overflow: visible; }
+.ag-wzbtn g { transform-box: view-box; }
+.ag-wzbtn-dot { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--ag-primary); border: 2px solid var(--ag-card); pointer-events: none; }
+.ag-wzbtn.wave .ag-wzstick { transform-origin: 3px 21px; animation: ag-wz-swing 1.4s ease-in-out both; }
+.ag-wzbtn.wave .ag-wzstar { transform-origin: center; transform-box: fill-box; animation: ag-wz-pop 1.4s ease-out both; }
+.ag-wzbtn.wave .s1 { animation-delay: .12s; }
+.ag-wzbtn.wave .s2 { animation-delay: .24s; }
+@keyframes ag-wz-swing { 0% { transform: rotate(0) } 22% { transform: rotate(-24deg) } 52% { transform: rotate(16deg) } 74% { transform: rotate(-6deg) } 100% { transform: rotate(0) } }
+@keyframes ag-wz-pop { 0%, 30% { transform: scale(1); opacity: 1 } 40% { transform: scale(.2); opacity: .2 } 60% { transform: scale(1.45) rotate(45deg); opacity: 1 } 100% { transform: scale(1) rotate(90deg); opacity: 1 } }
 .ag-head-cfg > .ag-tabs, .ag-head-cfg > .ag-seg { margin-right: auto; }
 .ag-btn-ic { width: 40px; padding: 0; justify-content: center; flex: none; }
 .ag-systitle { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 700; letter-spacing: -.3px; overflow-wrap: anywhere; }
@@ -1665,7 +1682,7 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz-sidefoot { margin-top: auto; display: flex; gap: 8px; padding: 0 6px; font-size: 12.5px; line-height: 1.45; color: var(--ag-text2); }
 .ag-wz-sidefoot .ag-ic { color: var(--ag-success); margin-top: 1px; }
 .ag-wz-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.ag-wz-head { padding: 26px 40px 0; }
+.ag-wz-head { padding: 26px 40px 0; max-width: 1120px; box-sizing: border-box; }
 .ag-wz-top { display: flex; align-items: center; gap: 12px; }
 .ag-wz-kicker { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ag-primary); }
 .ag-wz-head h2 { margin: 4px 0 0; font-size: 26px; font-weight: 600; letter-spacing: -.005em; }
@@ -1674,6 +1691,9 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz-pre:empty, .ag-wz-post:empty, .ag-wz-slot:empty { display: none; }
 .ag-wz-pre, .ag-wz-post, .ag-wz-slot { display: flex; flex-direction: column; gap: 18px; }
 .ag-wz-foot { position: sticky; bottom: 0; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 14px 40px calc(14px + env(safe-area-inset-bottom, 0px)); background: var(--ag-card); border-top: 1px solid var(--ag-divider); }
+/* Breiter Bildschirm (Wunsch des Nutzers 2026-11-20, 11:38): "Später" oben und "Weiter" unten stehen am rechten Rand des Inhalts (.ag-wz-body, höchstens
+   1120 px mit 40 px Rand), nicht am Rand des Bildschirms; die Leiste unten bleibt über die ganze Breite */
+.ag-wz:not(.narrow) .ag-wz-foot { padding-right: max(40px, calc(100% - 1080px)); }
 .ag-wz-saved { display: inline-flex; align-items: center; gap: 6px; color: var(--ag-text2); font-size: 13px; }
 .ag-wz-saved .ag-ic { color: var(--ag-success); }
 .ag-wz-err { font-size: 13px; }
@@ -1725,9 +1745,15 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz-mlist { max-height: 360px; }
 .ag-wz-mlist .ag-group-label, .ag-wz-plist .ag-group-label { padding: 10px 12px 4px; margin: 0; }
 .ag-wz-mrow { cursor: default; }
+.ag-wz-mlist > .ag-erow, .ag-wz-plist > .ag-erow { gap: 12px; padding: 10px 12px; min-height: 56px; }
 .ag-wz-mtx { flex: 1; min-width: 0; }
-.ag-wz-mtx b { display: block; font-weight: 500; overflow-wrap: anywhere; }
+.ag-wz-mtx b { display: block; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+.ag-wz-mtx small { margin-top: 3px; line-height: 1.3; }
 .ag-wz-mval { flex: none; color: var(--ag-text2); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ag-wz-mlist > .ag-group-label, .ag-wz-plist > .ag-group-label { padding: 8px 12px; background: var(--ag-subtle); border-bottom: 1px solid var(--ag-divider); font-weight: 600; }
+:host([narrow]) .ag-wz-mlist > .ag-erow, :host([narrow]) .ag-wz-plist > .ag-erow { padding: 12px 12px; align-items: flex-start; }
+:host([narrow]) .ag-wz-mlist .ag-erow > .ag-box, :host([narrow]) .ag-wz-plist .ag-erow > .ag-box, :host([narrow]) .ag-wz-mlist .ag-erow > .ag-av, :host([narrow]) .ag-wz-plist .ag-erow > .ag-av { margin-top: 2px; }
+:host([narrow]) .ag-wz-mval { margin-top: 2px; font-size: 13.5px; }
 .ag-wz-mrow .ag-wf-btns .ag-iconbtn { width: 38px; height: 38px; }
 .ag-wz-mnone { padding: 14px; }
 .ag-wz-pick .ag-wz-tools { margin-top: 12px; }
@@ -1737,6 +1763,9 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz.narrow .ag-wz-mlist { max-height: 50vh; }
 .ag-wz.narrow .ag-wz-mhead > .ag-btn, .ag-wz.narrow .ag-wz-mempty > .ag-btn { flex: 1 1 100%; justify-content: center; }
 /* "Weitere Funktionen" am Schluss (Wunsch des Nutzers 2026-11-20, 08:33): eine Liste zur Information statt Kacheln, die zum Klicken verleiten */
+.ag-wz-testbtns { display: flex; flex-wrap: wrap; gap: 8px; }
+.ag-wz.narrow .ag-wz-testbtns { flex: 1 1 100%; }
+.ag-wz.narrow .ag-wz-testbtns > .ag-btn { flex: 1 1 0; min-width: 0; justify-content: center; }
 .ag-wz-morerow { align-items: flex-start; flex-wrap: nowrap; }
 .ag-wz-moreic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; color: var(--ag-text2); background: var(--ag-subtle); }
 .ag-wz-where { display: flex !important; align-items: flex-start; gap: 5px; margin-top: 4px; color: var(--ag-text2); }
@@ -1778,7 +1807,11 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz.narrow .ag-wz-pre, .ag-wz.narrow .ag-wz-post, .ag-wz.narrow .ag-wz-slot { gap: 14px; }
 .ag-wz.narrow .ag-wz-foot { padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
 .ag-wz.narrow .ag-wz-foot .ag-btn { min-height: 44px; }
-.ag-wz.narrow .ag-wz-next { flex: 1; }
+/* Handy: "Zurück" und "Weiter" teilen sich die Breite je zur Hälfte (Wunsch des Nutzers 2026-11-20, 11:37); im ersten Schritt nur "Weiter" über die
+   ganze Breite, ein Fehler steht darüber in eigener Zeile */
+.ag-wz.narrow .ag-wz-foot { flex-wrap: wrap; }
+.ag-wz.narrow .ag-wz-foot > [data-wz="back"], .ag-wz.narrow .ag-wz-next { flex: 1 1 0; min-width: 0; justify-content: center; }
+.ag-wz.narrow .ag-wz-foot > .ag-wz-err { flex: 1 1 100%; order: -1; }
 .ag-wz.narrow .ag-wz-foot .ag-grow { display: none; }
 .ag-wz.narrow .ag-wz-err { position: absolute; left: 12px; right: 12px; bottom: calc(100% + 6px); padding: 8px 12px; border-radius: 12px; background: var(--ag-card); box-shadow: var(--ag-shadow-s); }
 .ag-wz.narrow .ag-wz-grid { grid-template-columns: 1fr; gap: 8px; }

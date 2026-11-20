@@ -318,3 +318,31 @@ def test_every_default_title_starts_with_an_emoji() -> None:
         for key, value in titles.items():
             assert ord(value[0]) > 0x2000 and " " in value, f"{lang}.{key}: {value!r}"
         assert titles["triggered_title"].startswith("🚨") and titles["maint_title"].startswith("⚠️") and titles["maint_title_one"].startswith("⚠️")
+
+
+async def test_group_test_goes_to_the_standard_recipients_only(hass: HomeAssistant, hass_ws_client) -> None:
+    """
+    Einrichtungsassistent (1.71.0, Wunsch des Nutzers 2026-11-20): je eine Testmeldung an die Standard-Empfänger der Alarme und der Wartung.
+    Eigene Empfänger einer Art zählen dafür nie; ohne Standard-Empfänger geht nichts hinaus, auch nicht an die eigenen Empfänger einer Art.
+    """
+    handy = async_mock_service(hass, "notify", "handy")
+    tablet = async_mock_service(hass, "notify", "tablet")
+    uhr = async_mock_service(hass, "notify", "uhr")
+    await setup_alarm(hass)
+    await _types(hass, hass_ws_client, battery_low={"targets": ["notify.uhr"]}, triggered={"targets": ["notify.uhr"]})
+    client = await hass_ws_client(hass)
+    alarm = await _ws(client, type="alarmageddon/test_notify", group="alarm")
+    maint = await _ws(client, type="alarmageddon/test_notify", group="maintenance")
+    await hass.async_block_till_done()
+    assert alarm["result"]["targets"] == ["notify.handy"] and maint["result"]["targets"] == ["notify.tablet"]
+    assert len(handy) == 1 and len(tablet) == 1 and not uhr
+    assert handy[0].data["title"] == "🧪 Test: Alarm notifications" and tablet[0].data["title"] == "🧪 Test: Maintenance notifications"
+    # Keine Standard-Empfänger der Wartung: nichts geht hinaus, auch nicht an die eigenen Empfänger von "Batterie schwach"
+    assert (await _ws(client, type="alarmageddon/save_notify", notify={"maintenance_targets": []}))["success"]
+    empty = await _ws(client, type="alarmageddon/test_notify", group="maintenance")
+    await hass.async_block_till_done()
+    assert empty["result"]["targets"] == [] and not uhr and len(tablet) == 1
+    # Genau eins von Art und Gruppe; unbekannte Gruppe abgelehnt
+    assert not (await _ws(client, type="alarmageddon/test_notify"))["success"]
+    assert not (await _ws(client, type="alarmageddon/test_notify", kind="battery_low", group="maintenance"))["success"]
+    assert not (await _ws(client, type="alarmageddon/test_notify", group="everyone"))["success"]

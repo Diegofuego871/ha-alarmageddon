@@ -14,6 +14,12 @@ const [
 ] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader", "customsounds", "selftest", "healthcheck", "healthlog", "wizard"].map((name) => import(`./${name}.js${V}`)));
 /** Nach so langer Abwesenheit startet das Panel wieder auf der Übersicht (Merkzettel für Reiter und Unterreiter) */
 const AWAY_MS = 30 * 60 * 1000;
+// Knopf des Einrichtungsassistenten im Kopf (1.71.0): der Zauberstab schwingt einmal, so lange nach dem Erscheinen (Wunsch des Nutzers: "nach 5 Sekunden")
+const WAVE_MS = 5000;
+// Symbol "wand" (common.js) in Teilen: Stab und drei Sterne, damit sie sich einzeln bewegen
+const WAND_STICK = "M13.34,12.78L15.78,10.34L13.66,8.22L11.22,10.66L13.34,12.78M14.37,7.29L16.71,9.63C17.1,10 17.1,10.65 16.71,11.04L5.04,22.71C4.65,23.1 4,23.1 3.63,22.71L1.29,20.37C0.9,20 0.9,19.35 1.29,18.96L12.96,7.29C13.35,6.9 14,6.9 14.37,7.29Z";
+const WAND_STARS = ["M7.5,5.6L5,7L6.4,4.5L5,2L7.5,3.4L10,2L8.6,4.5L10,7L7.5,5.6Z", "M22,2L20.6,4.5L22,7L19.5,5.6L17,7L18.4,4.5L17,2L19.5,3.4L22,2Z",
+  "M19.5,15.4L22,14L20.6,16.5L22,19L19.5,17.6L17,19L18.4,16.5L17,14L19.5,15.4Z"];
 const SUBS = ["sensors", "actions", "notify", "system"];
 
 // Knöpfe, die einen Dialog ohne Speichern schliessen (das X löst den ersten gefundenen aus)
@@ -190,6 +196,8 @@ class AlarmageddonPanel extends HTMLElement {
     clearInterval(this._tick);
     clearTimeout(this._toastTimer);
     clearTimeout(this._retryTimer);
+    clearTimeout(this._wzWaveTimer);
+    this._wzWaveTimer = null;
     window.cancelAnimationFrame(this._stickyRaf);
     this._stickyRO?.disconnect();
     this._segRO?.disconnect();
@@ -1101,6 +1109,37 @@ class AlarmageddonPanel extends HTMLElement {
     const systems = this._systems();
     const cur = this._system();
     this._setHtml(slot, systems.length && cur ? this._sysBar(systems, cur) : "");
+    this._waveLater();
+  }
+
+  // Knopf des Einrichtungsassistenten im Kopf (1.71.0; Wunsch des Nutzers 2026-11-20, 11:38, Mockup assistent-knopf-v1; Entscheide 11:48: Variante A
+  // "Schwung", nur solange der Assistent nicht fertig ist, Bewegung immer). Er erinnert daran, dass der Assistent noch da ist ("Später", "Nicht mehr
+  // anzeigen", offen) und führt beim gemerkten Schritt weiter, wie "Fortsetzen" unter Konfiguration › Anlage (offene Änderungen fragen vorher).
+  // Nach "Fertig" gibt es ihn nicht mehr; "Von vorn" steht dann nur unter Konfiguration › Anlage.
+  _wizardBtn(cur) {
+    const w = cur.wizard;
+    if (!w || w.state === "done") return "";
+    const step = this.wizard.number(w.step) > 0 ? w.step : "welcome";
+    const tip = step === "welcome" ? this._t("wzBtnStart") : this._t("wzBtnResume", { n: this.wizard.number(step), step: this._t(`wzS_${step}`) });
+    // Der Zauberstab des Panels (Symbol "wand") in Teilen: der Stab schwingt um den Griff, die drei Sterne blitzen nacheinander auf
+    const svg = `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><g class="ag-wzstick"><path fill="currentColor" d="${WAND_STICK}"/></g>${WAND_STARS.map((d, i) => `<g class="ag-wzstar s${i}"><path fill="currentColor" d="${d}"/></g>`).join("")}</svg>`;
+    return `<button class="ag-wzbtn" data-wz="run" data-step="${esc(step)}" title="${esc(tip)}" aria-label="${esc(tip)}">${svg}<span class="ag-wzbtn-dot"></span></button>`;
+  }
+
+  // Einmal je Laden des Panels schwingt der Zauberstab, WAVE_MS nachdem der Knopf zu sehen ist: nach dem Laden der Daten, oder später, wenn er erst
+  // dann erscheint (etwa nach "Später" im Assistenten). Nie bei jedem Wechsel des Reiters. "Bewegung reduzieren" gilt hier bewusst nicht
+  // (Entscheid des Nutzers 2026-11-20, 11:48: "immer animieren")
+  _waveLater() {
+    if (this._wzWaved || this._wzWaveTimer || !this._content?.querySelector(".ag-headsys .ag-wzbtn")) return;
+    this._wzWaveTimer = setTimeout(() => {
+      this._wzWaveTimer = null;
+      const btn = this._content?.querySelector(".ag-headsys .ag-wzbtn");
+      if (!btn || this._wzWaved) return;
+      this._wzWaved = true;
+      // Ende mit dem letzten Stern (später gestartet als der Stab), sonst spränge er am Schluss zurück
+      btn.addEventListener("animationend", (ev) => { if (ev.target.classList?.contains("s2")) btn.classList.remove("wave"); });
+      btn.classList.add("wave");
+    }, WAVE_MS);
   }
 
   _sysBar(systems, cur) {
@@ -1111,7 +1150,7 @@ class AlarmageddonPanel extends HTMLElement {
     const text = this.hasAttribute("narrow") ? "" : esc(label);
     // Anlage hinzufügen (1.31.0): öffnet einen eigenen Dialog, nicht Home Assistant; am Computer mit Text, auf dem Handy nur das Plus
     const add = this._t("addSystem");
-    return `${title}<button class="ag-iconbtn" data-act="rename" title="${esc(this._t("renameTip"))}" aria-label="${esc(this._t("renameTip"))}">${ic("pencil", 22)}</button><span class="ag-grow"></span>
+    return `${title}<button class="ag-iconbtn" data-act="rename" title="${esc(this._t("renameTip"))}" aria-label="${esc(this._t("renameTip"))}">${ic("pencil", 22)}</button>${this._wizardBtn(cur)}<span class="ag-grow"></span>
       <button class="ag-btn ${text ? "" : "ag-btn-ic"}" data-act="add" aria-label="${esc(add)}" title="${esc(add)}">${ic("plus", 18)}${text ? esc(add) : ""}</button>
       <button class="ag-btn ${text ? "" : "ag-btn-ic"}" data-act="open-ha" aria-label="${esc(label)}" title="${esc(label)}">${ic("external", 18)}${text}</button>`;
   }

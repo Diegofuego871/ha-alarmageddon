@@ -591,8 +591,8 @@ export class WizardUi {
     };
     const alarm = `<div class="ag-mt"><div class="ag-mt-head"><span class="ag-wz-lock" title="${esc(this._t("wzKindAlarmHint"))}">${ic("lockClosed", 20)}</span><span class="ag-mini">${ic("alert", 16)}</span>
       <div class="ag-settx"><b>${esc(this._t("ntT_triggered"))}</b><small>${esc(this._t("wzKindAlarmHint"))}</small></div></div></div>`;
-    const key = "nt:triggered:";
-    const test = onceBtn(key, 'data-wz="nt-test"', { running: h.notify.onceKey === key, label: this._t("ntTestType"), stopLabel: this._t("playStop"), text: this._t("ntTestType"), size: 16, cls: "ag-btn", disabled: !(d.alarm_targets || []).length });
+    // Je eine Testmeldung an die Empfänger von Alarmen und von Wartungsmeldungen (Wunsch des Nutzers 2026-11-20, 11:40: sie können verschieden sein)
+    const test = `<div class="ag-wz-testbtns">${this._groupTestBtn("alarm", "wzTestBtnAlarm", (d.alarm_targets || []).length)}${this._groupTestBtn("maintenance", "wzTestBtnMaint", (d.maintenance_targets || []).length)}</div>`;
     return `${this._chap(this._t("wzRecipients"), `<div class="ag-card ag-setlist">${group("alarm_targets", "ntAlarmTargets", "ntAlarmTargetsHint")}${group("maintenance_targets", "ntMaintTargets", "ntMaintTargetsHint")}</div>`, this._t("wzRecipientsHint"))}
       ${this._chap(this._t("wzKinds"), `<div class="ag-card ag-mtlist">${alarm}${KINDS.map(([k, i]) => kind(k, i)).join("")}</div><p class="ag-chap-h ag-wz-note">${esc(this._t("wzArmedNote"))}</p>`)}
       <div class="ag-card ag-setlist"><div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzTestTitle"))}</b><small>${esc(this._t("wzTestHint"))}</small></div>${test}</div></div>`;
@@ -817,9 +817,10 @@ export class WizardUi {
     const mode = { mode: this._t(MODE_KEY[trig] || "modeAway") };
     const per = Boolean(h.actions.draft?.perMode);
     const testHint = this._t(steps ? (per ? "wzTestActionsHint" : "wzTestActionsHintAll") : per ? "wzTestActionsNone" : "wzTestActionsNoneAll", mode);
-    const key = "nt:triggered:";
-    const targets = (h._data?.notify?.alarm_targets || []).map(short).join(", ");
-    const msgBtn = onceBtn(key, 'data-wz="nt-test"', { running: h.notify.onceKey === key, label: this._t("ntTestType"), stopLabel: this._t("playStop"), text: this._t("ntTestType"), size: 16, cls: "ag-btn", disabled: !targets });
+    const msgRow = (group, title) => {
+      const targets = (h._data?.notify?.[group === "alarm" ? "alarm_targets" : "maintenance_targets"] || []).map(short).join(", ");
+      return `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(targets ? this._t("wzTestMsgHint", { targets }) : this._t("wzSumNoTargets"))}</small></div>${this._groupTestBtn(group, "ntTestType", targets)}</div>`;
+    };
     const ready = (s.modes || []).map((m) => {
       const open = h._blocking(s, m);
       return `<span class="ag-rchip ${open.length ? "no" : "ok"}">${ic(open.length ? "alert" : "check", 14)}${esc(this._t(MODE_KEY[m]))}${open.length ? `: ${esc(open.map((id) => h._name(id)).join(", "))}` : ""}</span>`;
@@ -831,7 +832,7 @@ export class WizardUi {
     return `<div class="ag-card ag-setlist ag-wz-sum">${rows}</div>
       ${this._chap(this._t("wzTry"), `<div class="ag-card ag-setlist">
         <div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzTestActions"))}</b><small>${esc(testHint)}</small></div>${testBtn}</div>
-        <div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzTestMsg"))}</b><small>${esc(targets ? this._t("wzTestMsgHint", { targets }) : this._t("wzSumNoTargets"))}</small></div>${msgBtn}</div>
+        ${msgRow("alarm", "wzTestMsgAlarm")}${msgRow("maintenance", "wzTestMsgMaint")}
         <div class="ag-setrow ag-wz-readyrow"><div class="ag-settx"><b>${esc(this._t("wzReady"))}</b><small>${esc(this._t("wzReadyHint"))}</small></div><div class="ag-ready">${ready}</div></div></div>`)}
       ${this._chap(this._t("wzMore"), `<div class="ag-card ag-setlist ag-wz-more">${more}
         <div class="ag-setrow ag-wz-moreopen"><div class="ag-settx"><small>${esc(this._t("wzMoreOpenHint"))}</small></div><button class="ag-btn" data-wz="settings" ${this.busy ? "disabled" : ""}>${ic("cog", 18)}${esc(this._t("wzMoreOpen"))}</button></div></div>`, this._t("wzMoreHint"))}`;
@@ -939,7 +940,7 @@ export class WizardUi {
       d.types[el.dataset.kind].enabled = d.types[el.dataset.kind].enabled === false;
       this.render();
     } else if (act === "nt-test") {
-      this._notifyTest();
+      this._notifyTest(el.dataset.group || "alarm");
     } else if (act === "quick") {
       h.actions.quickAdd(el.dataset.q);
     } else if (act === "mon-use") {
@@ -1041,13 +1042,20 @@ export class WizardUi {
     return true;
   }
 
-  // Testmeldung: speichert zuerst still den Schritt (die Meldung geht mit den gespeicherten Einstellungen hinaus). Der Hinweis sagt nichts vom
-  // Speichern (Wunsch des Nutzers 2026-11-20, 08:49: keine Seite des Assistenten soll man separat speichern müssen; wir kümmern uns darum)
-  async _notifyTest() {
+  // Play-Knopf der Testmeldung an die Standard-Empfänger einer Gruppe ("alarm" oder "maintenance"); ohne Empfänger gesperrt
+  _groupTestBtn(group, label, any) {
+    const key = `nt:group:${group}`;
+    return onceBtn(key, `data-wz="nt-test" data-group="${group}"`, { running: this.host.notify.onceKey === key, label: this._t(label), stopLabel: this._t("playStop"), text: this._t(label), size: 16, cls: "ag-btn", disabled: !any });
+  }
+
+  // Testmeldung an die Empfänger von Alarmen oder von Wartungsmeldungen: speichert zuerst still den Schritt (die Meldung geht an die gespeicherten
+  // Empfänger). Der Hinweis sagt nichts vom Speichern (Wunsch des Nutzers 2026-11-20, 08:49: keine Seite des Assistenten soll man separat
+  // speichern müssen; wir kümmern uns darum)
+  async _notifyTest(group) {
     const h = this.host;
-    if (h.notify.onceKey === "nt:triggered:") return h.notify.test("triggered");
+    if (h.notify.onceKey === `nt:group:${group}`) return h.notify.test(null, null, group);
     if (!(await this._save(h.notify))) return this._paintFoot();
-    await h.notify.test("triggered");
+    await h.notify.test(null, null, group);
   }
 
   // Überwachung ein/aus und ihre Sensoren gelten sofort: erst danach gibt es den Reiter der Regeln und die Sensoren darin

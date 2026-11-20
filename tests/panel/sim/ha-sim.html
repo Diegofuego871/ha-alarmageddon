@@ -172,6 +172,8 @@
       sensor_report: T(true, true), battery_low: T(true, false), sensor_unavailable: T(true, false), selftest: T(true, false), healthcheck: T(true, false) },
     // HealthCheck-Dienst antwortet nicht (seit 1.69.0 eine Wartungsmeldung wie der Selbsttest) wie der Server (const.py DEFAULT_NOTIFY)
     healthcheck_fails: 2, healthcheck_up: true };
+  // ?mtargets=1: Empfänger der Wartungsmeldungen vorbelegt (Testknöpfe des Assistenten, 1.71.0)
+  if (params.get("mtargets") === "1") window.__notify.maintenance_targets = ["notify.mobile_app_partnerin"];
   // Selbsttest (1.65.0) wie der Server (selftest.py payload): ?selftest=problems füllt Befunde (Konfiguration, Laufzeit, für alle Anlagen),
   // ?selftest=none: noch nie geprüft. Tests setzen window.__selftest auch direkt; window.__selftestAfterRun: Befunde nach "Jetzt prüfen".
   {
@@ -787,6 +789,10 @@
       return { notify: window.__notify };
     }
     if (msg.type === "alarmageddon/test_notify") {
+      if (msg.group) {
+        (window.__testNotify ||= []).push(`group:${msg.group}`);
+        return { targets: msg.group === "alarm" ? window.__notify.alarm_targets : window.__notify.maintenance_targets };
+      }
       (window.__testNotify ||= []).push(msg.kind);
       const alarm = ["triggered", "pending", "armed", "disarmed", "arm_failed", "sensor_offline", "sensor_report"].includes(msg.kind);
       return { targets: alarm ? window.__notify.alarm_targets : window.__notify.maintenance_targets };

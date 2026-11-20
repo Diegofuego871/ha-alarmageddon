@@ -7,6 +7,22 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.71.0] - 2026-11-20
+
+### Added
+
+- **Button for the setup assistant in the header:** as long as the setup assistant of an alarm system is not finished ("Later", "Don't show again" or not yet started), a round button with a magic wand stands next to the pencil, in every tab. It continues exactly at the step where you stopped (the tooltip names it); with open changes it asks first. Once per loading of the panel, five seconds after it appears, the wand swings briefly. After "Finish" the button is gone; "Start over" stays under Configuration › Alarm system.
+- **Setup assistant, two test messages:** the step "Notifications" and "Try it" at the end offer a test for the recipients of alarms and one for the recipients of maintenance notifications (they can differ). Each button is available as soon as its group has a recipient; open changes of the page are saved by themselves, as before.
+
+### Changed
+
+- **Setup assistant on the phone:** "Back" and "Next" share the width of the footer equally.
+- **Setup assistant on wide screens:** "Later" at the top and "Next" at the bottom stand at the right edge of the content instead of at the edge of the window.
+
+### Fixed
+
+- **Lists in windows on the phone:** in "Add measurements" of the setup assistant, long names ran into the next row (the rows were squeezed to fit the height of the list). Every row now keeps the height of its content; the measurement rows also have more space and the areas stand out as headings. The same applies to the other lists of the same kind ("Add sensors", the choice of devices and sensors in rules and routines).
+
 ## [1.70.0] - 2026-11-20
 
 ### Changed
@@ -2032,6 +2048,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0
 [1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0
 [1.68.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.68.0

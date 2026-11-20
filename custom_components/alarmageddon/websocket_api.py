@@ -906,17 +906,25 @@ async def ws_save_notify(hass: HomeAssistant, connection, msg: dict[str, Any]) -
 
 
 @websocket_api.websocket_command(
-    {vol.Required("type"): f"{DOMAIN}/test_notify", vol.Required("kind"): vol.In(list(NOTIFY_TYPES)), vol.Optional("mode"): vol.In(MODES)}
+    {vol.Required("type"): f"{DOMAIN}/test_notify", vol.Optional("kind"): vol.In(list(NOTIFY_TYPES)), vol.Optional("group"): vol.In(["alarm", "maintenance"]),
+     vol.Optional("mode"): vol.In(MODES)}
 )
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_test_notify(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
-    """Testmeldung einer Art an ihre Empfänger, mit ihrem Kritisch und ihrer Lautstärke."""
+    """
+    Testmeldung einer Art an ihre Empfänger, mit ihrem Kritisch und ihrer Lautstärke; oder (seit 1.71.0, `group`) an die Standard-Empfänger der
+    Alarme oder der Wartung. Genau eins von beiden.
+    """
+    if ("kind" in msg) == ("group" in msg):
+        connection.send_error(msg["id"], "invalid_format", "kind or group")
+        return
     entries = [e for e in hass.config_entries.async_entries(DOMAIN) if e.state is ConfigEntryState.LOADED]
     if not entries:
         connection.send_error(msg["id"], "not_found", "No alarm system")
         return
-    targets = entries[0].runtime_data.notifier.send_test(msg["kind"], msg.get("mode"))
+    notifier = entries[0].runtime_data.notifier
+    targets = notifier.send_group_test(msg["group"]) if "group" in msg else notifier.send_test(msg["kind"], msg.get("mode"))
     connection.send_result(msg["id"], {"targets": targets})
 
 

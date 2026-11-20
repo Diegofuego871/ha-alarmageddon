@@ -238,7 +238,14 @@ Mockups `docs/mockups/einrichtungsassistent-v1/`, Variante B "Seite mit Schrittl
   "nur mit passenden Sensoren", unten "Jeder Schritt wird mit Weiter gespeichert". Nur erledigte Schritte sind wählbar.
 - Kopf (`.ag-wz-head`): "Schritt n von N" (Handy: dazu der Name des Schritts und ein Fortschritt aus Strichen), rechts "Später"; Titel als Frage,
   darunter ein Satz zur Erklärung. Fusszeile (`.ag-wz-foot`, klebt unten): "Zurück", "Schritte davor gespeichert" (Computer), "Weiter" mit Pfeil
-  ("Los geht's", "Ohne Code weiter", "Fertig"); während des Speicherns "Speichert …" und gesperrt.
+  ("Los geht's", "Ohne Code weiter", "Fertig"); während des Speicherns "Speichert …" und gesperrt. Seit 1.71.0 (Wünsche des Nutzers 2026-11-20, 11:37
+  und 11:38): auf dem Handy teilen sich "Zurück" und "Weiter" die Breite zu gleichen Teilen (ein Fehler steht darüber); am Computer stehen "Später"
+  oben und "Weiter" unten am rechten Rand des Inhalts (`.ag-wz-head` höchstens 1120 px, Fusszeile mit `padding-right: max(40px, calc(100% - 1080px))`),
+  nicht am Rand eines breiten Fensters.
+- Knopf im Kopf des Panels (seit 1.71.0, Mockup `assistent-knopf-v1`, Variante A): `.ag-wzbtn` rechts neben dem Stift, rund 40 px, hellblau mit
+  blauem Rand und blauem Punkt, Zauberstab in Teilen (`.ag-wzstick`, drei `.ag-wzstar`); nur solange der Assistent nicht fertig ist. Klasse `wave`
+  einmal je Laden: Stab schwingt um den Griff (`ag-wz-swing`, 1,4 s), Sterne blitzen nacheinander auf (`ag-wz-pop`, 0, 0,12, 0,24 s Verzögerung). Gilt
+  bewusst auch bei "Bewegung reduzieren" (Entscheid des Nutzers, wie das Easter Egg des Logos). Test: `wzbtn-e2e.mjs`.
 - Inhalt: eigene Schritte aus den Bausteinen des Panels (Karten `.ag-setlist`, Schalter links, Kapitel, Hinweise `.ag-wz-info` mit Symbol);
   eingebettete Ansichten (Zuordnung, Alarmaktionen, Überwachung) zeigen den Reiter ohne Leiste der Konfiguration, Fusszeile, Werkzeuge der
   Tabelle und Knöpfe je Zeile. Auf dem Handy steht der Eingang unter der Tabelle (Schalter je Sensor), weil die Tabelle dort keine Spalte dafür hat.
@@ -250,7 +257,11 @@ Mockups `docs/mockups/einrichtungsassistent-v1/`, Variante B "Seite mit Schrittl
   (Suchfeld mit X, Filter Alle, Temperatur, Luftfeuchtigkeit, Helligkeit, Luftqualität, Weitere, nur die vorhandenen; Zeilen nach Bereich mit
   Kästchen, Symbol, Name, Art · Integration und dem jetzigen Wert rechts; "Hinzufügen (n)"). Die gewählten stehen in einer Liste fester Höhe
   (`.ag-wz-mlist`, 360 px, Handy 50 % der Höhe) mit Suche, Filtern der gewählten Arten, "n gewählt" und rundem Papierkorb je Zeile; der Knopf
-  "Messwerte hinzufügen" steht dann rechts neben dem Titel.
+  "Messwerte hinzufügen" steht dann rechts neben dem Titel. Seit 1.71.0 (Bildschirmfoto des Nutzers 11:30): Zeilen mindestens 56 px, Abstand 12 px, Bereiche als Überschrift mit Hintergrund; Zeilen
+  einer `.ag-elist` schrumpfen nie (`flex-shrink: 0`), sonst laufen lange Namen in einer Liste fester Höhe in die nächste Zeile.
+- Testmeldungen (seit 1.71.0, Wunsch des Nutzers 2026-11-20, 11:40): im Schritt "Meldungen" zwei Play-Knöpfe nebeneinander ("Alarmmeldung",
+  "Wartungsmeldung", `.ag-wz-testbtns`, Handy je halbe Breite), unter "Ausprobieren" zwei Zeilen "Testmeldung Alarm" und "Testmeldung Wartung" mit den
+  Empfängern; ein Knopf ohne Empfänger seiner Gruppe ist gesperrt.
 - "Weitere Funktionen" am Schluss (seit 1.70.0, Wunsch des Nutzers 2026-11-20, 08:33: die Kacheln "Wenn du mehr willst" verleiteten zum Klicken): eine Karte
   mit Zeilen zur Information (graues Symbol, Name, was es tut, darunter mit Info-Symbol, wo es steht) und unten "Konfiguration öffnen" (Zahnrad),
   das den Assistenten wie "Fertig" abschliesst und Konfiguration › Anlage öffnet. Keine Kachel und keine Zeile ist klickbar.

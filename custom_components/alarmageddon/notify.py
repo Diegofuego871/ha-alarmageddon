@@ -99,6 +99,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "offline": "{sensor} no longer responds while the alarm system is armed.",
         "test_title": "🧪 Test: {name}",
         "test": "This is a test notification from Alarmageddon.",
+        "group_alarm": "Alarm notifications", "group_maintenance": "Maintenance notifications",
         "action_disarm": "Disarm",
         "action_silence": "Silence alarm sound",
         "by_silence": "push notification",
@@ -215,6 +216,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "offline": "{sensor} antwortet nicht mehr, während die Anlage scharf ist.",
         "test_title": "🧪 Test: {name}",
         "test": "Das ist eine Testmeldung von Alarmageddon.",
+        "group_alarm": "Alarmmeldungen", "group_maintenance": "Wartungsmeldungen",
         "action_disarm": "Deaktivieren",
         "action_silence": "Alarmton stumm",
         "by_silence": "Push-Meldung",
@@ -910,6 +912,18 @@ class Notifier:
         title = self._t("test_title", name=self._t(f"type_{kind}"))
         self._send(kind, title, self._t("test"), mode=mode)
         return self._targets(kind, mode)
+
+    def send_group_test(self, group: str) -> list[str]:
+        """
+        Testmeldung an die Standard-Empfänger einer Gruppe, "alarm" oder "maintenance" (Einrichtungsassistent, seit 1.71.0; Wunsch des Nutzers
+        2026-11-20: die Empfänger von Alarmen und von Wartungsmeldungen können verschieden sein, beide sollen sich testen lassen). Nie an eigene
+        Empfänger einer Art; klingt wie die Alarmmeldung bzw. wie "Batterie schwach". Ohne Standard-Empfänger geht nichts hinaus (sonst nähme
+        `_send` die Empfänger der Art).
+        """
+        targets = list(self.cfg["alarm_targets" if group == "alarm" else "maintenance_targets"])
+        if targets:
+            self._send("triggered" if group == "alarm" else "battery_low", self._t("test_title", name=self._t(f"group_{group}")), self._t("test"), targets=targets)
+        return targets
 
     def _targets(self, kind: str, mode: str | None = None) -> list[str]:
         """Empfänger einer Meldung: eigene Empfänger des Modus, dann der Art (1.5.0), sonst die Gruppe oben (Alarm oder Wartung)."""

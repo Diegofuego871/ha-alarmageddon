@@ -456,10 +456,11 @@ export class NotifyUi {
   }
 
   // Testmeldung einer Art: der Knopf wird rot und zum Stopp-Knopf wie jeder Play-Knopf (common.js runOnce); Stopp beendet nur die Anzeige.
-  // Karte und Fenster tragen denselben Schlüssel und laufen gemeinsam.
-  async test(kind, mode) {
+  // Karte und Fenster tragen denselben Schlüssel und laufen gemeinsam. Mit `group` ("alarm", "maintenance"; Einrichtungsassistent, 1.71.0) an die
+  // Standard-Empfänger der Gruppe statt an die Empfänger einer Art.
+  async test(kind, mode, group = null) {
     const h = this.host;
-    const key = `nt:${kind}:${mode || ""}`;
+    const key = group ? `nt:group:${group}` : `nt:${kind}:${mode || ""}`;
     const paint = () => paintOnce([h._view, this._dlg()], this.onceKey);
     if (this.onceKey === key) {
       this.onceKey = null;
@@ -467,7 +468,7 @@ export class NotifyUi {
     }
     await runOnce(this, key, async () => {
       try {
-        const result = await h._hass.callWS({ type: "alarmageddon/test_notify", kind, ...(mode ? { mode } : {}) });
+        const result = await h._hass.callWS(group ? { type: "alarmageddon/test_notify", group } : { type: "alarmageddon/test_notify", kind, ...(mode ? { mode } : {}) });
         const n = result?.targets?.length || 0;
         h._toast(n ? this._t("ntTestSent", { count: n }) : this._t("ntTestNone"));
       } catch (err) {

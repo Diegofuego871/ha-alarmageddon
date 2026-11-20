@@ -1079,6 +1079,13 @@ MUTATIONS = [
      '        migrate = isinstance(stored, dict) and "wizard" not in stored', "        migrate = False", "tests/test_wizard.py -k existing_systems"),
     ("Assistent: \"später\" gilt nicht bis morgen", "settings.py",
      '(item["until"] is None or dt_util.now().date().isoformat() >= item["until"])', "True", "tests/test_wizard.py -k later_returns"),
+    # Testmeldung an die Standard-Empfänger einer Gruppe (1.71.0, Einrichtungsassistent; Wunsch des Nutzers 2026-11-20)
+    ("Testmeldung der Gruppe: ohne Standard-Empfänger geht sie an die eigenen Empfänger einer Art", "notify.py",
+     '        if targets:\n            self._send("triggered" if group == "alarm"', '        if True:\n            self._send("triggered" if group == "alarm"',
+     "tests/test_notify_types.py -k group_test"),
+    ("Testmeldung der Gruppe: Art und Gruppe zugleich (oder keins von beiden) werden angenommen", "websocket_api.py",
+     '    if ("kind" in msg) == ("group" in msg):\n        connection.send_error(msg["id"], "invalid_format", "kind or group")\n        return\n', "",
+     "tests/test_notify_types.py -k group_test"),
     ("Assistent: eine Anlage aus einem Backup bekommt ihn von selbst", "backup.py",
      '            await settings.async_set_wizard(entry.entry_id, "done")\n', "", "tests/test_wizard.py -k from_a_backup"),
 ]

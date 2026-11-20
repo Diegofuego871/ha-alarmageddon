@@ -3,6 +3,17 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
+- 1.71.0 (Basis: `main` @ `c13bfa7` = Tag `v1.70.0`, vom Nutzer am 2026-11-20 committet und getaggt, Baum gleich der Lieferung von 1.70.0;
+  Wünsche des Nutzers vom 2026-11-20, 11:30 bis 11:40, Entscheide 11:48). Protokoll: `docs/UEBERGABE-1.71.0.md`. `PANEL_VERSION` 236. Eine
+  vorbereitete 1.70.1 (nur die Listen) wurde nie geliefert und ist darin aufgegangen.
+  - **Listen in Fenstern (11:30, Handy):** `.ag-elist` ist eine Flex-Spalte mit fester Höhe; ihre Zeilen (`min-height: 44px`) schrumpften, lange Namen
+    liefen in die nächste Zeile. Jetzt `.ag-elist > * { flex-shrink: 0; }` für alle Listen dieser Art; mehr Platz in den Zeilen der Messwerte.
+  - **Fusszeile des Assistenten (11:37, 11:38):** Handy "Zurück"/"Weiter" je halbe Breite; Computer "Später" und "Weiter" am rechten Rand des Inhalts.
+  - **Zwei Testmeldungen (11:40):** Server `Notifier.send_group_test`, WS `test_notify` mit `group` (`alarm`, `maintenance`; genau eines von `kind`
+    und `group`); Panel `NotifyUi.test(null, null, group)`, Assistent `_groupTestBtn`, `_notifyTest(group)` (speichert still). Test
+    `test_notify_types.py -k group_test`, zwei Zeilen "Testmeldung der Gruppe" in `scripts/mutation_check.py` (jetzt 410).
+  - **Knopf im Kopf (11:38, Mockups `assistent-knopf-v1`, Entscheide 11:48: A, nur solange nicht fertig, immer bewegt):** `_wizardBtn`, `_waveLater`,
+    `WAVE_MS`; Suite `wzbtn-e2e.mjs` (neu). Offen: Frage "Vorabversion oder offiziell" für 1.71.0.
 - 1.70.0 (Basis: `main` @ `467fe2a` = Tag `v1.69.0`, vom Nutzer am 2026-11-20 committet und getaggt, Baum gleich der Lieferung von 1.69.0;
   Wünsche des Nutzers vom 2026-11-20, 08:27 bis 08:49, mit Bildschirmfotos aus dem Einrichtungsassistenten). Protokoll:
   `docs/UEBERGABE-1.70.0.md`. `PANEL_VERSION` 235. Minor wegen geändertem Verhalten im Assistenten (Fenster für Messwerte, "Konfiguration öffnen").

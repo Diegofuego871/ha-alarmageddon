@@ -364,7 +364,12 @@ Umsetzung:
   freiwillig (ein Hauptcode zählt), "Schnell hinzufügen" nur Sirene 3 Minuten und Alarmton (Entscheid: ohne Licht), "Überwachung" nur mit
   passenden Messwerten oder eingeschalteter Überwachung (seit 1.70.0: solange die Messwerte laden, bleibt ein angefangener Schritt "Überwachung" stehen,
   `_monitorFits`; Messwerte über das Fenster `#ag-wzpick`, nie alle als Knöpfe, Wunsch des Nutzers 2026-11-20). "Weitere Funktionen" am Schluss ist
-  nur Information, der einzige Knopf "Konfiguration öffnen" schliesst ab wie "Fertig". Ein neuer Schritt ergänzt `WZ_STEPS` (Panel) und `WIZARD_STEPS` (Server), die Texte `wz*`
+  nur Information, der einzige Knopf "Konfiguration öffnen" schliesst ab wie "Fertig". Testmeldungen im Assistenten (seit 1.71.0, Wunsch des Nutzers
+  2026-11-20, 11:40): je eine an die Standard-Empfänger der Alarme und der Wartung (`test_notify` mit `group`, `Notifier.send_group_test`: ohne
+  Empfänger der Gruppe geht nichts hinaus, nie an die Empfänger einer Art; `kind` und `group` schliessen sich aus). Knopf im Kopf (seit 1.71.0,
+  Entscheide des Nutzers 11:48): rund neben dem Stift (`_wizardBtn`), nur solange der Assistent nicht `done` ist, führt beim gemerkten Schritt weiter
+  (`data-wz="run"`, offene Änderungen fragen vorher); der Zauberstab schwingt einmal je Laden, `WAVE_MS` nach dem Erscheinen (`_waveLater`), **auch bei
+  "Bewegung reduzieren"** (Entscheid "immer animieren"); Suite `wzbtn-e2e.mjs`. Ein neuer Schritt ergänzt `WZ_STEPS` (Panel) und `WIZARD_STEPS` (Server), die Texte `wz*`
   und die Suite `wizard-e2e.mjs`; Tests `tests/test_wizard.py`, Zeilen "Assistent" in `scripts/mutation_check.py`.
 - Neustart und Absturz (seit 1.58.0, Code-Review): Der Zustand steht in einer eigenen Ablage (`controller._save_state`, `STATE_STORE_KEY`), sofort bei jedem
   Wechsel geschrieben; beim Start gilt der neuere von eigener Ablage und Restore-Stand von HA (`controller.newer_state`). Was beim Wiederherstellen
