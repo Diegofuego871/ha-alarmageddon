@@ -6,7 +6,7 @@
 // "Weiter" speichert den Schritt; der Server merkt sich den Schritt, damit es nach "Später" genau dort weitergeht.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, onceBtn, DC, OPENINGS, MOTION, MODE_KEY, MODE_ICON, errText } = await import(`./common.js${V}`);
+const { ic, esc, onceBtn, DC, OPENINGS, MOTION, MODE_KEY, MODE_ICON, errText, matchQuery, searchField } = await import(`./common.js${V}`);
 
 export const WZ_STEPS = ["welcome", "modes", "sensors", "zones", "code", "notify", "actions", "monitor", "done"];
 const ALL_MODES = ["home", "away", "night"];
@@ -18,6 +18,15 @@ const EMBED = { zones: true, actions: true, monitor: true };
 const SAFETY = new Set(["smoke", "gas", "carbon_monoxide", "moisture", "heat"]);
 // Meldungen mit Schalter im Assistenten (die Alarmmeldung ist immer an; "Scharf geschaltet" und "Deaktiviert" stehen bei den Aktionen)
 const KINDS = [["arm_failed", "window"], ["sensor_offline", "offline"], ["battery_low", "battery"], ["sensor_unavailable", "offline"], ["selftest", "stethoscope"], ["healthcheck", "heartPulse"]];
+// Messwerte der Überwachung nach Art (Filter im Fenster "Messwerte hinzufügen" und in der Liste der gewählten; Wunsch des Nutzers 2026-11-20,
+// 08:31: statt aller Messwerte als Knöpfe eine leere Liste, ein Fenster mit Suche und Filtern wie "Sensoren hinzufügen", die gewählten wieder
+// mit Suche und Filtern)
+const AIR = new Set(["carbon_dioxide", "carbon_monoxide", "pm1", "pm25", "pm10", "aqi", "volatile_organic_compounds", "volatile_organic_compounds_parts", "nitrogen_dioxide", "ozone", "sulphur_dioxide"]);
+const MEASURE_FILTERS = [["all", "filterAll"], ["temperature", "dcTemperature"], ["humidity", "dcHumidity"], ["illuminance", "dcIlluminance"], ["air", "dcAqi"], ["other", "filterOther"]];
+const measureKind = (dc) => (dc === "temperature" || dc === "humidity" || dc === "illuminance" ? dc : AIR.has(dc) ? "air" : "other");
+// Weitere Funktionen am Schluss: nur zur Information, wo sie stehen (Wunsch des Nutzers 2026-11-20, 08:33: die Kacheln verleiteten zum Klicken)
+const MORE = [["flash", "rtTitle", "wzMore_routines", "wzWhere_routines"], ["hand", "sysCodes", "wzMore_codes", "wzWhere_codes"],
+  ["heartPulse", "hcTitle", "wzMore_health", "wzWhere_health"], ["viewOptions", "wzMoreCard", "wzMore_card", "wzWhere_card"]];
 const short = (s) => s.replace(/^notify\.(mobile_app_)?/, "");
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
@@ -33,6 +42,10 @@ export class WizardUi {
     this.q = "";
     this.filter = "all";
     this.measures = null; // Messwerte des Hauses (für "Überwachung"), auf Abruf
+    this.mq = ""; // Suche und Filter in der Liste der gewählten Messwerte
+    this.mf = "all";
+    this.pick = null; // offenes Fenster "Messwerte hinzufügen": { q, f, sel }
+    this.finishTo = null; // "Konfiguration öffnen" am Schluss: danach Konfiguration › Anlage statt Übersicht
     this.ask = null; // offenes Fenster: "later" oder "dirty"
   }
 
@@ -48,6 +61,9 @@ export class WizardUi {
 
   // "Überwachung" nur, wenn es passende Sensoren gibt oder sie schon eingeschaltet ist
   _monitorFits(s = this.system) {
+    // Solange die Messwerte noch nicht geladen sind, bleibt ein angefangener Schritt "Überwachung" stehen (sonst sprang der Assistent nach
+    // "Später" am nächsten Tag zu "Fertig", statt genau dort weiterzumachen)
+    if (this.measures === null && this.step === "monitor") return true;
     return Boolean(s?.monitor_enabled || s?.monitor_sensors?.length || (this.measures && Object.keys(this.measures).length));
   }
 
@@ -225,7 +241,7 @@ export class WizardUi {
       if (this.step === "done") {
         const res = await h._hass.callWS({ type: "alarmageddon/wizard", entry_id: this.entry, action: "done" });
         if (this.system) this.system.wizard = res.wizard;
-        this.prev = { tab: "overview", sub: this.prev?.sub || "sensors", trigger: h.actions.trigger };
+        this.prev = this.finishTo ? { tab: "config", sub: this.finishTo, trigger: h.actions.trigger } : { tab: "overview", sub: this.prev?.sub || "sensors", trigger: h.actions.trigger };
         this.busy = false;
         this.close();
         return;
@@ -582,22 +598,172 @@ export class WizardUi {
       <div class="ag-card ag-setlist"><div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzTestTitle"))}</b><small>${esc(this._t("wzTestHint"))}</small></div>${test}</div></div>`;
   }
 
-  _monitorHtml() {
+  // Messwerte der Überwachung, die gewählt sind (Entwurf der Sensoren, sonst gespeichert)
+  _monChosen() {
     const h = this.host;
+    return new Set(h.sensors.draft?.entry === this.entry ? h.sensors.draft.monitorSensors : this.system?.monitor_sensors || []);
+  }
+
+  _monInfo(id) {
+    return this.measures?.[id] || this.host._sensor(id) || {};
+  }
+
+  // Jetziger Wert mit Einheit, in der Schreibweise der Sprache (hilft, gleichnamige Sensoren zu unterscheiden)
+  _monValue(id) {
+    const h = this.host;
+    const st = h._state(id);
+    const n = st && st.state !== "" ? Number(st.state) : NaN;
+    if (!Number.isFinite(n)) return "–";
+    const unit = st.attributes?.unit_of_measurement || this._monInfo(id).unit || "";
+    return `${n.toLocaleString(h._hass?.locale?.language || h._lang, { maximumFractionDigits: 1 })}${unit ? ` ${unit}` : ""}`;
+  }
+
+  // Zeilen nach Bereich, wie "Sensoren hinzufügen": im Fenster mit Kästchen, in der Liste der gewählten mit Papierkorb
+  _monRows(ids, q, f, pick) {
+    const h = this.host;
+    const rows = ids.map((id) => {
+      const info = this._monInfo(id);
+      return { id, info, name: info.name || h._name(id), area: info.area || this._t("noArea"), kind: measureKind(info.device_class) };
+    }).filter((r) => (f === "all" || r.kind === f) && matchQuery(q, r.name, r.area, r.id, r.info.integration, this._t((DC[r.info.device_class] || [])[1] || "dcOther")))
+      .sort((a, b) => Number(!a.info.area) - Number(!b.info.area) || a.area.localeCompare(b.area) || a.name.localeCompare(b.name));
+    if (!rows.length) return "";
+    let area = null;
+    return rows.map((r) => {
+      const [icon, label] = DC[r.info.device_class] || ["gauge", "dcOther"];
+      const head = r.area !== area ? `<div class="ag-group-label">${esc((area = r.area))}</div>` : "";
+      const text = `<span class="ag-av">${ic(icon, 18)}</span><span class="ag-wz-mtx"><b>${esc(r.name)}</b><small class="ag-t2">${esc([this._t(label), r.info.integration].filter(Boolean).join(" · "))}</small></span><span class="ag-wz-mval">${esc(this._monValue(r.id))}</span>`;
+      if (pick) {
+        const on = this.pick.sel.has(r.id);
+        return `${head}<button class="ag-erow ${on ? "on" : ""}" data-wz="mpick-toggle" data-ent="${esc(r.id)}" role="checkbox" aria-checked="${on}"><span class="ag-box ${on ? "on" : ""}">${on ? ic("check", 18) : ""}</span>${text}</button>`;
+      }
+      return `${head}<div class="ag-erow ag-wz-mrow">${text}<div class="ag-wf-btns ag-senbtns"><button class="ag-iconbtn" data-wz="mon-remove" data-ent="${esc(r.id)}" ${this.busy ? "disabled" : ""}
+        aria-label="${esc(this._t("wzMonRemove", { name: r.name }))}" title="${esc(this._t("wzMonRemove", { name: r.name }))}">${ic("trash", 18)}</button></div></div>`;
+    }).join("");
+  }
+
+  // Filter, die etwas zeigen: "Alle" und jede Art, die es in der Liste gibt
+  _monChips(ids, current, act) {
+    const kinds = new Set(ids.map((id) => measureKind(this._monInfo(id).device_class)));
+    return MEASURE_FILTERS.filter(([k]) => k === "all" || kinds.has(k))
+      .map(([k, label]) => `<button class="ag-chip ${current === k ? "on" : ""}" data-wz="${act}" data-f="${k}">${esc(this._t(label))}</button>`).join("");
+  }
+
+  _monListHtml() {
+    const ids = [...this._monChosen()];
+    return this._monRows(ids, this.mq, this.mf, false) || `<div class="ag-t2 ag-small ag-wz-mnone">${esc(this._t("pickNone"))}</div>`;
+  }
+
+  _monitorHtml() {
+    if (this.measures === null) return `<div class="ag-wz-wait"><span class="ag-t2">${esc(this._t("loading"))}</span></div>`;
     const s = this.system;
     const measures = this.measures || {};
-    const chosen = new Set(h.sensors.draft?.entry === this.entry ? h.sensors.draft.monitorSensors : s.monitor_sensors || []);
-    const ids = [...new Set([...Object.keys(measures), ...chosen])];
-    const name = (id) => measures[id]?.name || h._name(id);
-    const chips = ids.sort((a, b) => name(a).localeCompare(name(b))).map((id) => {
-      const on = chosen.has(id);
-      const icon = (DC[(measures[id] || h._sensor(id)).device_class] || ["gauge"])[0];
-      return `<button class="ag-chip ${on ? "on" : ""}" data-wz="mon-sensor" data-ent="${esc(id)}" aria-pressed="${on}" ${this.busy ? "disabled" : ""}>${ic(on ? "check" : icon, 16)}${esc(name(id))}</button>`;
-    }).join("");
+    const chosen = [...this._monChosen()];
     const on = Boolean(s.monitor_enabled);
+    const free = Object.keys(measures).filter((id) => !chosen.includes(id)).length;
+    if (!chosen.some((id) => this.mf === "all" || measureKind(this._monInfo(id).device_class) === this.mf)) this.mf = "all";
+    const add = `<button class="ag-btn" data-wz="mpick-open" ${this.busy || !free ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("wzMonAdd"))}</button>`;
+    const head = `<div class="ag-settx"><b>${esc(this._t("wzMonSensors"))}</b><small>${esc(this._t("wzMonSensorsHint"))}</small></div>`;
+    // Leer: nur der Hinweis mit dem Knopf. Mit Messwerten: Knopf oben rechts, darunter Suche, Filter und die Liste fester Höhe
+    const body = !chosen.length
+      ? `${head}<div class="ag-wz-mempty">${ic("gauge", 22)}<div><b>${esc(this._t("wzMonEmpty"))}</b><small>${esc(this._t("wzMonEmptyHint", { n: free }))}</small></div>${add}</div>`
+      : `<div class="ag-wz-mhead">${head}${add}</div>
+        <div class="ag-wz-tools ag-wz-mtools">${searchField("data-wz", "mon-q", this.mq, this._t("search"), this._t("clearSearch"))}<div class="ag-wz-chips">${this._monChips(chosen, this.mf, "mon-filter")}</div>
+          <span class="ag-wz-count">${esc(this._t("wzMonCount", { n: chosen.length }))}</span></div>
+        <div class="ag-elist ag-wz-mlist">${this._monListHtml()}</div>`;
     return `${this._info("eye", this._t("wzL_monitor", { n: Object.keys(measures).length }))}
       <div class="ag-card ag-setlist"><div class="ag-setrow ag-wz-sw">${this._toggle(on, `data-wz="mon-use" ${this.busy ? "disabled" : ""}`, this._t("wzMonUse"))}<div class="ag-settx"><b>${esc(this._t("wzMonUse"))}</b><small>${esc(this._t("wzMonUseHint"))}</small></div></div>
-        ${on ? `<div class="ag-setrow ag-wz-monsensors"><div class="ag-settx"><b>${esc(this._t("wzMonSensors"))}</b><small>${esc(this._t("wzMonSensorsHint"))}</small></div><div class="ag-wz-chips">${chips}</div></div>` : ""}</div>`;
+        ${on ? `<div class="ag-setrow ag-wz-monsensors">${body}</div>` : ""}</div>`;
+  }
+
+  // ----- Fenster "Messwerte hinzufügen" (#ag-wzpick), aufgebaut wie "Sensoren hinzufügen" -----
+
+  _pickDlg() {
+    return this.host._root.getElementById("ag-wzpick");
+  }
+
+  _pickIds() {
+    const chosen = this._monChosen();
+    return Object.keys(this.measures || {}).filter((id) => !chosen.has(id));
+  }
+
+  openPick() {
+    const dlg = this._pickDlg();
+    if (!dlg || this.busy) return;
+    this.pick = { q: "", f: "all", sel: new Set(), error: "" };
+    // Wie auch immer das Fenster schliesst: danach ist keine Auswahl mehr offen, und nichts bleibt im geschlossenen Fenster stehen
+    dlg.onclose = () => {
+      this.pick = null;
+      dlg.innerHTML = "";
+      this.host._lastHtml?.delete(dlg);
+    };
+    this._renderPick();
+    dlg.showModal();
+    dlg.querySelector('[data-wz="mpick-q"]')?.focus({ preventScroll: true });
+  }
+
+  _pickListHtml() {
+    if (!this.measures) return `<div class="ag-wz-wait"><span class="ag-t2">${esc(this._t("loading"))}</span></div>`;
+    return this._monRows(this._pickIds(), this.pick.q, this.pick.f, true) || `<div class="ag-t2 ag-small" style="padding:14px">${esc(this._t("pickNone"))}</div>`;
+  }
+
+  _renderPick() {
+    const p = this.pick;
+    const dlg = this._pickDlg();
+    if (!p || !dlg) return;
+    const ids = this._pickIds();
+    this.host._setHtml(dlg, `<div class="ag-dlg-body ag-wz-pick"><h3>${esc(this._t("wzMonPickTitle"))}</h3><div class="ag-t2">${esc(this._t("wzMonPickHint"))}</div>
+      <div class="ag-wz-tools">${searchField("data-wz", "mpick-q", p.q, this._t("search"), this._t("clearSearch"))}<div class="ag-wz-chips">${this._monChips(ids, p.f, "mpick-filter")}</div></div>
+      <div class="ag-elist ag-wz-plist">${this._pickListHtml()}</div><div class="ag-dlg-err" aria-live="polite">${esc(p.error)}</div>
+      <div class="ag-dlg-btns"><button class="ag-btn" data-wz="mpick-close">${esc(this._t("cancel"))}</button>
+        <button class="ag-btn primary" data-wz="mpick-add" ${p.sel.size && !this.busy ? "" : "disabled"}>${ic("plus", 18)}<span>${esc(this._t("pickAdd", { count: p.sel.size }))}</span></button></div></div>`);
+  }
+
+  // Nur die Liste neu (Suchfeld behält den Fokus, die Liste ihren Rollstand)
+  _renderPickList() {
+    const list = this._pickDlg()?.querySelector(".ag-wz-plist");
+    if (!list) return;
+    const top = list.scrollTop;
+    list.innerHTML = this._pickListHtml();
+    list.scrollTop = top;
+    this._pickFoot();
+  }
+
+  _pickFoot() {
+    const btn = this._pickDlg()?.querySelector('[data-wz="mpick-add"]');
+    if (!btn || !this.pick) return;
+    btn.disabled = !this.pick.sel.size || this.busy;
+    btn.querySelector("span").textContent = this._t("pickAdd", { count: this.pick.sel.size });
+  }
+
+  // Hinzufügen gilt sofort (wie bisher die Knöpfe): erst danach können die Regeln darunter die Messwerte verwenden
+  async _pickAdd() {
+    const h = this.host;
+    const p = this.pick;
+    if (!p?.sel.size || this.busy) return;
+    this.busy = true;
+    this._pickFoot();
+    try {
+      const d = h.sensors.ensureDraft();
+      for (const id of p.sel) d.monitorSensors.add(id);
+      if (await this._save(h.sensors)) {
+        this.mq = "";
+        this.mf = "all";
+        h._closeDialog("ag-wzpick");
+      } else {
+        p.error = this.error;
+        this.error = "";
+      }
+    } finally {
+      this.busy = false;
+      if (this.pick) this._renderPick();
+      if (this.active) h._renderView(true);
+    }
+  }
+
+  // Liste der gewählten: nur die Zeilen neu
+  _renderMonList() {
+    const list = this.host._content?.querySelector(".ag-wz-mlist");
+    if (list) list.innerHTML = this._monListHtml();
   }
 
   // Kurzfassung je Schritt (Schrittliste und Abschluss)
@@ -658,14 +824,17 @@ export class WizardUi {
       const open = h._blocking(s, m);
       return `<span class="ag-rchip ${open.length ? "no" : "ok"}">${ic(open.length ? "alert" : "check", 14)}${esc(this._t(MODE_KEY[m]))}${open.length ? `: ${esc(open.map((id) => h._name(id)).join(", "))}` : ""}</span>`;
     }).join("");
-    const more = [["groups", "rtTitle", "wzMore_routines"], ["hand", "sysCodes", "wzMore_codes"], ["heartPulse", "hcTitle", "wzMore_health"], ["viewOptions", "wzMoreCard", "wzMore_card"]]
-      .map(([icon, title, text]) => `<div class="ag-card ag-wz-tile"><span class="ag-oav">${ic(icon, 22)}</span><div><b>${esc(this._t(title))}</b><small>${esc(this._t(text))}</small></div></div>`).join("");
+    // Nur zur Information, keine Kacheln (sie verleiteten zum Klicken): je Funktion, was sie tut und wo sie steht; unten ein Knopf, der den
+    // Assistenten abschliesst und Konfiguration › Anlage öffnet
+    const more = MORE.map(([icon, title, text, where]) => `<div class="ag-setrow ag-wz-morerow"><span class="ag-wz-moreic">${ic(icon, 20)}</span><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(text))}</small>
+      <small class="ag-wz-where">${ic("info", 13)}${esc(this._t(where))}</small></div></div>`).join("");
     return `<div class="ag-card ag-setlist ag-wz-sum">${rows}</div>
       ${this._chap(this._t("wzTry"), `<div class="ag-card ag-setlist">
         <div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzTestActions"))}</b><small>${esc(testHint)}</small></div>${testBtn}</div>
         <div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzTestMsg"))}</b><small>${esc(targets ? this._t("wzTestMsgHint", { targets }) : this._t("wzSumNoTargets"))}</small></div>${msgBtn}</div>
         <div class="ag-setrow ag-wz-readyrow"><div class="ag-settx"><b>${esc(this._t("wzReady"))}</b><small>${esc(this._t("wzReadyHint"))}</small></div><div class="ag-ready">${ready}</div></div></div>`)}
-      ${this._chap(this._t("wzMore"), `<div class="ag-wz-grid">${more}</div>`)}`;
+      ${this._chap(this._t("wzMore"), `<div class="ag-card ag-setlist ag-wz-more">${more}
+        <div class="ag-setrow ag-wz-moreopen"><div class="ag-settx"><small>${esc(this._t("wzMoreOpenHint"))}</small></div><button class="ag-btn" data-wz="settings" ${this.busy ? "disabled" : ""}>${ic("cog", 18)}${esc(this._t("wzMoreOpen"))}</button></div></div>`, this._t("wzMoreHint"))}`;
   }
 
   // ----- Fenster "Später" und "Offene Änderungen" -----
@@ -775,8 +944,42 @@ export class WizardUi {
       h.actions.quickAdd(el.dataset.q);
     } else if (act === "mon-use") {
       this._monitorUse();
-    } else if (act === "mon-sensor") {
+    } else if (act === "mon-remove") {
       this._monitorSensor(el.dataset.ent);
+    } else if (act === "mon-filter") {
+      this.mf = el.dataset.f;
+      el.parentElement.querySelectorAll("[data-wz]").forEach((b) => b.classList.toggle("on", b === el));
+      this._renderMonList();
+    } else if (act === "mon-q-clear" || act === "mpick-q-clear") {
+      const input = el.parentElement.querySelector("input");
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    } else if (act === "mpick-open") {
+      this.openPick();
+    } else if (act === "mpick-toggle") {
+      const id = el.dataset.ent;
+      if (this.pick.sel.has(id)) this.pick.sel.delete(id);
+      else this.pick.sel.add(id);
+      const on = this.pick.sel.has(id);
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-checked", String(on));
+      const box = el.querySelector(".ag-box");
+      box.classList.toggle("on", on);
+      box.innerHTML = on ? ic("check", 18) : "";
+      this._pickFoot();
+    } else if (act === "mpick-filter") {
+      this.pick.f = el.dataset.f;
+      el.parentElement.querySelectorAll("[data-wz]").forEach((b) => b.classList.toggle("on", b === el));
+      this._renderPickList();
+    } else if (act === "mpick-close") {
+      this.host._closeDialog("ag-wzpick");
+    } else if (act === "mpick-add") {
+      this._pickAdd();
+    } else if (act === "settings") {
+      // Weitere Funktionen: schliesst den Assistenten wie "Fertig" (alles ist gespeichert) und öffnet Konfiguration › Anlage
+      this.finishTo = "system";
+      this.next().finally(() => (this.finishTo = null));
     } else if (act === "wf-test") {
       // Die Ansicht der Aktionen ist hier nicht eingebettet: danach den Schritt selbst neu zeichnen (Knopf rot bzw. wieder Play)
       const s = this.system;
@@ -799,6 +1002,17 @@ export class WizardUi {
       const tmp = document.createElement("div");
       tmp.innerHTML = html;
       if (list) list.innerHTML = tmp.querySelector(".ag-wz-list .ag-elist").innerHTML;
+      return true;
+    }
+    if (act === "mon-q" || act === "mpick-q") {
+      el.parentElement.querySelector(".ag-clear")?.toggleAttribute("hidden", !el.value);
+      if (act === "mon-q") {
+        this.mq = el.value;
+        this._renderMonList();
+      } else if (this.pick) {
+        this.pick.q = el.value;
+        this._renderPickList();
+      }
       return true;
     }
     if (act === "exit" || act === "entry") {
@@ -827,7 +1041,8 @@ export class WizardUi {
     return true;
   }
 
-  // Testmeldung: speichert zuerst den Schritt (die Meldung geht mit den gespeicherten Einstellungen hinaus)
+  // Testmeldung: speichert zuerst still den Schritt (die Meldung geht mit den gespeicherten Einstellungen hinaus). Der Hinweis sagt nichts vom
+  // Speichern (Wunsch des Nutzers 2026-11-20, 08:49: keine Seite des Assistenten soll man separat speichern müssen; wir kümmern uns darum)
   async _notifyTest() {
     const h = this.host;
     if (h.notify.onceKey === "nt:triggered:") return h.notify.test("triggered");

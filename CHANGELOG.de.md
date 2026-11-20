@@ -7,6 +7,18 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.70.0] - 2026-11-20
+
+### Geändert
+
+- **Einrichtungsassistent, Schritt "Überwachung":** Die Messwerte erscheinen nicht mehr alle auf einmal als Knöpfe (bei vielen Sensoren eine sehr lange Liste, die die Regeln weit nach unten schob). Die Liste beginnt leer; "Messwerte hinzufügen" öffnet ein Fenster wie "Sensoren hinzufügen" mit Suche und Filtern (Temperatur, Luftfeuchtigkeit, Helligkeit, Luftqualität, Weitere; nur die vorhandenen), in dem du die gewünschten Messwerte ankreuzt. Die gewählten stehen in einer Liste fester Höhe mit ihrem jetzigen Wert, Suche, denselben Filtern und einem Papierkorb zum Entfernen. Hinzufügen und Entfernen gelten wie bisher sofort.
+- **Einrichtungsassistent, "Fertig":** Aus "Wenn du mehr willst" wird "Weitere Funktionen", eine Liste zur Information statt Kacheln, die anklickbar aussahen: Routinen, Codes pro Person, HealthCheck und die Dashboard-Karte, je mit dem Ort, wo sie stehen. Darunter schliesst "Konfiguration öffnen" den Assistenten wie "Fertig" ab und öffnet Konfiguration › Anlage.
+- **Einrichtungsassistent, Testmeldung im Schritt "Meldungen":** Der Hinweis sagt nicht mehr "(speichert diesen Schritt zuerst)". Der Knopf speichert offene Änderungen der Seite wie bisher selbst; separat speichern muss man nichts.
+
+### Behoben
+
+- **Einrichtungsassistent:** Wer beim Schritt "Überwachung" "Später" wählte, landete am nächsten Tag bei "Fertig" statt bei "Überwachung", weil der Schritt ausgeblendet war, solange die Messwerte noch luden. Jetzt geht es genau dort weiter.
+
 ## [1.69.0] - 2026-11-20
 
 ### Hinzugefügt
@@ -2020,6 +2032,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0
 [1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0
 [1.68.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.68.0
 [1.67.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.67.0

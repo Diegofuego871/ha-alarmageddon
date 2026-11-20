@@ -108,7 +108,7 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Das ist ei
 - **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet, wird gemeldet oder zählt auf Wunsch als Alarm.
 - **Selbsttest:** prüft regelmässig, ob alles, was der Alarm braucht, da und erreichbar ist, und hält fest, was scheiterte; er liest nur und hält nie einen Alarm auf.
 - **HealthCheck:** Lebenszeichen an einen Dienst draussen melden ein verstummtes Home Assistant. Die Ping-URL steht ganz nur im Panel und im Backup, nie im Log oder in einer Meldung; ein Lebenszeichen wartet höchstens 10 Sekunden.
-- **Getestet:** über 1600 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 8400 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 408 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
+- **Getestet:** über 1600 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 8500 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 408 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
 
 ### Grenzen
 

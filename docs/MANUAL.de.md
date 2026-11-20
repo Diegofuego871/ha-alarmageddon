@@ -24,9 +24,9 @@ Eine neue Anlage öffnet von selbst den Einrichtungsassistenten, einmal, beim er
 4. **Code (freiwillig):** das Formular der Codes pro Person, mit dem eigenen Benutzer und Namen vorbelegt. Ein Hauptcode aus der Einrichtung in Home Assistant zählt.
 5. **Meldungen:** wer Alarmmeldungen und wer Wartungsmeldungen bekommt (beide gelten für alle Anlagen), ein Schalter je Meldung und eine Testmeldung. Kritisch, Lautstärke, eigene Texte und eigene Empfänger bleiben unter Benachrichtigungen.
 6. **Alarmaktionen:** der Editor aus Konfiguration › Aktionen, dazu schnell hinzuzufügen "Sirene 3 Minuten" und "Alarmton".
-7. **Überwachung:** nur, wenn Home Assistant passende Messwert-Sensoren hat oder die Überwachung schon an ist. Einschalten und die Wahl der Sensoren gelten sofort.
+7. **Überwachung:** nur, wenn Home Assistant passende Messwert-Sensoren hat oder die Überwachung schon an ist. Einschalten gilt sofort. Die Liste der Messwerte beginnt leer; "Messwerte hinzufügen" öffnet ein Fenster wie "Sensoren hinzufügen" mit Suche und Filtern (Temperatur, Luftfeuchtigkeit, Helligkeit, Luftqualität, Weitere, nur die vorhandenen), in dem du die gewünschten ankreuzt. Die gewählten stehen in einer Liste fester Höhe mit ihrem jetzigen Wert, Suche, denselben Filtern und einem Papierkorb zum Entfernen; Hinzufügen und Entfernen gelten sofort.
 
-"Fertig" fasst alles zusammen, mit "Ändern" je Schritt, einem Test der Alarmaktionen, einer Testmeldung und "Bereit zum Scharfschalten" je Modus.
+"Fertig" fasst alles zusammen, mit "Ändern" je Schritt, einem Test der Alarmaktionen, einer Testmeldung und "Bereit zum Scharfschalten" je Modus. "Weitere Funktionen" nennt zur Information Routinen, Codes pro Person, HealthCheck und die Dashboard-Karte, je mit dem Ort, wo sie stehen; "Konfiguration öffnen" schliesst den Assistenten wie "Fertig" ab und öffnet Konfiguration › Anlage. Die Testmeldung im Schritt "Meldungen" speichert die Auswahl dieser Seite selbst.
 
 Jeder Schritt wird mit "Weiter" gespeichert, über dasselbe Speichern wie die Reiter der Konfiguration; "Zurück" und am Computer die Schrittliste links führen zu früheren Schritten. "Später" (oder Escape) fragt: "Morgen wieder anzeigen" öffnet den Assistenten am nächsten Tag (Datum von Home Assistant) genau beim Schritt, bei dem du aufgehört hast, "Nicht mehr anzeigen" lässt ihn, bis du ihn selbst startest. Unter Konfiguration › Anlage › Einrichtungsassistent, direkt vor "Anlage löschen", siehst du, wo er steht, und startest ihn erneut, bei diesem Schritt oder von vorn; was eingerichtet ist, ist vorgewählt. Ungespeicherte Änderungen der Konfiguration verwirft er nur nach einer Rückfrage. Anlagen, die es vor Version 1.69.0 gab, und Anlagen aus einem Backup bekommen ihn nicht von selbst; sein Stand gehört nicht ins Backup.
 
@@ -180,7 +180,7 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Diese Mech
 | Selbsttest | Prüft regelmässig, ob alles, was die Anlagen brauchen, da und erreichbar ist, und hält fest, was im Betrieb scheiterte; er liest nur und hält nie einen Alarm auf |
 | HealthCheck | Lebenszeichen an einen Dienst draussen: Fällt Home Assistant aus oder verliert es das Internet, meldet sich der Dienst; Probleme des Selbsttests kommen dort ebenfalls an. Ein Lebenszeichen wartet höchstens 10 Sekunden und hält nie etwas auf |
 | Sensoren, die ausfallen | Ein Sensor, der im scharfen Zustand nicht mehr erreichbar ist, wird sofort gemeldet oder löst mit der Option "Ausfall gilt als Alarm" den Alarm aus. Schwache Batterien werden gemeldet, bevor sie leer sind |
-| Getestet | Über 1600 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen, eine ältere und eine aktuelle), rund 8400 Prüfungen der Oberfläche auf Computer und Handy und eine Mutationsprobe, die jede von 408 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert |
+| Getestet | Über 1600 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen, eine ältere und eine aktuelle), rund 8500 Prüfungen der Oberfläche auf Computer und Handy und eine Mutationsprobe, die jede von 408 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert |
 
 ### Grenzen
 

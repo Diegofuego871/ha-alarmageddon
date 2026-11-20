@@ -3,6 +3,19 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
+- 1.70.0 (Basis: `main` @ `467fe2a` = Tag `v1.69.0`, vom Nutzer am 2026-11-20 committet und getaggt, Baum gleich der Lieferung von 1.69.0;
+  Wünsche des Nutzers vom 2026-11-20, 08:27 bis 08:49, mit Bildschirmfotos aus dem Einrichtungsassistenten). Protokoll:
+  `docs/UEBERGABE-1.70.0.md`. `PANEL_VERSION` 235. Minor wegen geändertem Verhalten im Assistenten (Fenster für Messwerte, "Konfiguration öffnen").
+  - **Testmeldung im Schritt "Meldungen" (08:27, 08:49):** der Hinweis sagt nichts mehr vom Speichern ("(speichert diesen Schritt zuerst)" las sich
+    wie eine Aufforderung); der Knopf speichert offene Änderungen der Seite still (`wizard.js _notifyTest`, unverändert).
+  - **Schritt "Überwachung" (08:31):** leere Liste mit "Messwerte hinzufügen", Fenster `#ag-wzpick` wie "Sensoren hinzufügen" (Suche, Filter nach
+    Art: `MEASURE_FILTERS`, `measureKind`), Liste der gewählten mit Suche, Filtern, Wert, Papierkorb (`_monitorHtml`, `openPick`, `_pickAdd`,
+    `_monitorSensor`); Hinzufügen und Entfernen gelten sofort. Rückfrage bei Escape mit Auswahl (`_dlgDirty`).
+  - **Behoben:** Fortsetzen bei "Überwachung" sprang zu "Fertig", solange die Messwerte luden (`_monitorFits`).
+  - **"Weitere Funktionen" (08:33):** Liste zur Information statt Kacheln, je Funktion der Ort; "Konfiguration öffnen" schliesst ab wie "Fertig" und
+    öffnet Konfiguration › Anlage (`finishTo`).
+  - Suite `wizard-e2e.mjs` (402 Prüfungen). Offen: Frage "Vorabversion oder offiziell" für 1.70.0. Die Kacheln im Willkommen-Schritt (Übersicht
+    der Schritte) sehen aus wie die früheren Kacheln "Wenn du mehr willst"; nicht geändert, weil nicht verlangt.
 - 1.69.0 (Basis: `main` @ `ddcfb75` = Commit des Nutzers "1.68.0: …", Baum gleich der Lieferung von 1.68.0, = Tag `v1.68.0`; Wunsch des
   Nutzers vom 2026-11-19, 20:43, Entscheide 21:05 nach den Mockups `docs/mockups/einrichtungsassistent-v1/`, README 21:06).
   Protokoll: `docs/UEBERGABE-1.69.0.md`. `PANEL_VERSION` 234. Auf Wunsch des Nutzers (23:01) alles in einem Paket: Assistent, README,

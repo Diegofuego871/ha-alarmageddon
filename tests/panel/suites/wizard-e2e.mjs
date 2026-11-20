@@ -5,13 +5,13 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { welcome: "Willkommen bei Alarmageddon", welcomeShort: "Willkommen", title: "Einrichtungsassistent", start: "Los geht's", next: "Weiter", finish: "Fertig", skipCode: "Ohne Code weiter",
+  de: { monAdd: "Messwerte hinzufügen", monChosen: "gewählt", more: "Weitere Funktionen", openCfg: "Konfiguration öffnen", welcome: "Willkommen bei Alarmageddon", welcomeShort: "Willkommen", title: "Einrichtungsassistent", start: "Los geht's", next: "Weiter", finish: "Fertig", skipCode: "Ohne Code weiter",
     askTitle: "Assistent später fortsetzen?", later: "Später", stepOf: (n, total) => `Schritt ${n} von ${total}`, chapter: "Einrichtungsassistent", del: "Anlage löschen",
     stDone: "Abgeschlossen", stLater: "Verschoben bis", stHidden: "Ausgeblendet, bei Schritt 3", run: "Assistent starten", resume: "Bei Schritt 3 fortsetzen", restart: "Von vorn",
     dirty: "Ungespeicherte Änderungen", chosen: (n, total) => `${n} von ${total} gewählt`, codeSome: "Codes dieser Anlage: Diego", codeAnna: "Codes dieser Anlage: Anna",
     siren: "Sirene 3 Minuten", sound: "Alarmton", sumZones: "3 Sensoren · Eingang: Haustür · Verlassen: 60 s · Deaktivieren: 45 s", sumNotify: "an diego · 6 von 7 Meldungen an",
     sumActions: "nur die Alarmmeldung", found: "Gefunden: 3 Sensoren", entry: "Eingangsverzögerung", modes: ["Anwesend", "Abwesend", "Nacht"] },
-  en: { welcome: "Welcome to Alarmageddon", welcomeShort: "Welcome", title: "Setup assistant", start: "Let's go", next: "Next", finish: "Finish", skipCode: "Continue without code",
+  en: { monAdd: "Add measurements", monChosen: "chosen", more: "More features", openCfg: "Open configuration", welcome: "Welcome to Alarmageddon", welcomeShort: "Welcome", title: "Setup assistant", start: "Let's go", next: "Next", finish: "Finish", skipCode: "Continue without code",
     askTitle: "Continue the assistant later?", later: "Later", stepOf: (n, total) => `Step ${n} of ${total}`, chapter: "Setup assistant", del: "Delete alarm system",
     stDone: "Completed", stLater: "Postponed until", stHidden: "Hidden, at step 3", run: "Start assistant", resume: "Continue at step 3", restart: "Start over",
     dirty: "Unsaved changes", chosen: (n, total) => `${n} of ${total} chosen`, codeSome: "Codes of this alarm system: Diego", codeAnna: "Codes of this alarm system: Anna",
@@ -237,6 +237,14 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-wz="kind"][data-kind="battery_low"]');
     check(`${tag}: "Batterie schwach" aus`, await s.waitFor("return !r.querySelector('[data-wz=\"kind\"][data-kind=\"battery_low\"]').classList.contains('on')"));
     check(`${tag}: Schalter links, Text rechts`, await s.ev("return [...r.querySelectorAll('[data-wz=\"kind\"]')].every((b) => b.getBoundingClientRect().right <= b.closest('.ag-mt-head').querySelector('.ag-settx').getBoundingClientRect().left)"));
+    // Die Testmeldung speichert die Auswahl still selbst; der Hinweis sagt nichts vom Speichern (Bildschirmfoto des Nutzers 2026-11-20, 08:27:
+    // "(speichert diesen Schritt zuerst)" las sich wie eine Aufforderung; Wunsch 08:49: gar nichts von Speichern, wir kümmern uns darum)
+    const testHint = await s.ev("return r.querySelector('[data-wz=\"nt-test\"]').closest('.ag-setrow').querySelector('small').textContent");
+    check(`${tag}: Hinweis der Testmeldung: nichts vom Speichern`, testHint.length > 20 && !/speicher|save/i.test(testHint), testHint);
+    await s.sim("window.__testNotify = []; return 1");
+    await s.tap('[data-wz="nt-test"]');
+    check(`${tag}: "Testmeldung senden" speichert die offene Auswahl ("Batterie schwach" aus) und sendet`, await s.waitFor("return (window.parent.__testNotify || []).at(-1) === 'triggered' && window.parent.__notify.types.battery_low.enabled === false", 8000));
+    await s.waitFor("return !r.querySelector('[data-wz=\"nt-test\"]').classList.contains('ag-running') && !r.host.wizard.busy", 6000);
     await s.tap('[data-wz="next"]');
     const nt = (await H.waitStep("actions")) && (await s.sim("return JSON.parse(JSON.stringify(window.__notify))"));
     check(`${tag}: gespeichert: Wartung an partnerin, "Batterie schwach" aus, Alarme weiter an diego`, !!nt && nt.maintenance_targets.includes("notify.mobile_app_partnerin") && nt.types.battery_low.enabled === false && J(nt.alarm_targets) === J(["notify.mobile_app_diego"]), J(nt && { m: nt.maintenance_targets, b: nt.types.battery_low }));
@@ -255,15 +263,52 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !r.getElementById('ag-step').open");
     await s.tap('[data-wz="next"]');
 
-    // Überwachung: Schalter und Sensoren gelten sofort
-    check(`${tag}: Überwachung: ${t.found}, aus, noch keine Sensoren`, await H.waitStep("monitor") && (await s.waitFor(`return r.querySelector('.ag-wz-pre').innerText.includes(${J(t.found)}) && !r.querySelector('[data-wz="mon-use"]').classList.contains('on') && !r.querySelector('[data-wz="mon-sensor"]')`)));
-    await s.tap('[data-wz="mon-use"]');
+    // Überwachung: Schalter und Messwerte gelten sofort. Seit dem Wunsch des Nutzers 2026-11-20, 08:31 (106 Messwerte als Knöpfe, "man wird fast
+    // erschlagen"): eine leere Liste, das Fenster "Messwerte hinzufügen" wie "Sensoren hinzufügen" (Suche, Filter, einzeln wählen), die gewählten
+    // wieder mit Suche und Filtern in einer Liste fester Höhe
     const wzState = () => s.ev("const w=r.host.wizard; return JSON.stringify({ step: w.step, busy: w.busy, error: w.error, wait: r.host._wait, dirty: [r.host.sensors, r.host.systemUi, r.host.actions, r.host.notify].map((u) => u.dirtyCount()) })");
-    check(`${tag}: einschalten gilt sofort, danach die drei Messwerte zur Wahl und die Regeln darunter`, await s.waitFor("return r.querySelector('[data-wz=\"mon-use\"]').classList.contains('on') && !r.querySelector('[data-wz=\"mon-use\"]').disabled && r.querySelectorAll('[data-wz=\"mon-sensor\"]:not([disabled])').length === 3 && !!r.querySelector('.ag-wz-slot .ag-wf-head')", 15000)
+    const PICK = "#ag-wzpick";
+    const rowsOf = (sel) => s.ev(`return [...r.querySelectorAll('${sel}')].map((b) => b.dataset.ent || b.querySelector('[data-ent]')?.dataset.ent)`);
+    check(`${tag}: Überwachung: ${t.found}, aus, noch keine Messwerte`, await H.waitStep("monitor") && (await s.waitFor(`return r.querySelector('.ag-wz-pre').innerText.includes(${J(t.found)}) && !r.querySelector('[data-wz="mon-use"]').classList.contains('on') && !r.querySelector('[data-wz="mpick-open"]')`)));
+    await s.tap('[data-wz="mon-use"]');
+    check(`${tag}: einschalten gilt sofort; danach eine leere Liste mit "${t.monAdd}" (keine Knöpfe für alle Messwerte) und die Regeln darunter`, await s.waitFor("return r.querySelector('[data-wz=\"mon-use\"]').classList.contains('on') && !r.querySelector('[data-wz=\"mon-use\"]').disabled && !!r.querySelector('.ag-wz-mempty [data-wz=\"mpick-open\"]:not([disabled])') && !r.querySelector('.ag-wz-mrow, .ag-wz-pre .ag-chip[data-ent]') && !!r.querySelector('.ag-wz-slot .ag-wf-head')", 15000)
       && (await H.sys("e_ferienhaus")).monitor_enabled === true, await wzState());
-    await s.tap('[data-wz="mon-sensor"][data-ent="sensor.kuehlschrank_temperatur"]');
-    check(`${tag}: Sensor der Überwachung gewählt, sofort gespeichert`, await s.waitFor("const b=r.querySelector('[data-wz=\"mon-sensor\"][data-ent=\"sensor.kuehlschrank_temperatur\"]'); return b?.classList.contains('on') && !b.disabled && !r.querySelector('[data-wz=\"next\"]').disabled", 15000)
+    await s.tap('[data-wz="mpick-open"]');
+    check(`${tag}: Fenster "${t.monAdd}": drei Messwerte nach Bereich, Filter Alle, Temperatur, Luftfeuchtigkeit, Luftqualität; "Hinzufügen" gesperrt`, await s.waitFor(`const d=r.getElementById('ag-wzpick'); return d.open && d.querySelector('h3').textContent === ${J(t.monAdd)} && d.querySelectorAll('[data-wz="mpick-toggle"]').length === 3
+      && d.querySelectorAll('.ag-group-label').length === 3 && [...d.querySelectorAll('[data-wz="mpick-filter"]')].map((b) => b.dataset.f).join() === 'all,temperature,humidity,air' && d.querySelector('[data-wz="mpick-add"]').disabled`));
+    await s.tap(`${PICK} [data-wz="mpick-filter"][data-f="temperature"]`);
+    check(`${tag}: Filter "Temperatur": nur der Kühlschrank`, J(await rowsOf(`${PICK} [data-wz="mpick-toggle"]`)) === J(["sensor.kuehlschrank_temperatur"]));
+    await s.tap(`${PICK} [data-wz="mpick-filter"][data-f="all"]`);
+    const pq = await s.el(`${PICK} [data-wz="mpick-q"]`);
+    await pq.fill("keller");
+    check(`${tag}: Suche "keller": nur der Keller, das Feld behält den Fokus, das X zum Leeren erscheint`, await s.waitFor(`return [...r.querySelectorAll('${PICK} [data-wz="mpick-toggle"]')].map((b) => b.dataset.ent).join() === 'sensor.keller_luftfeuchtigkeit' && r.activeElement?.dataset.wz === 'mpick-q' && !r.querySelector('${PICK} [data-wz="mpick-q-clear"]').hidden`));
+    await s.tap(`${PICK} [data-wz="mpick-q-clear"]`);
+    check(`${tag}: X leert die Suche: wieder drei`, await s.waitFor(`return r.querySelectorAll('${PICK} [data-wz="mpick-toggle"]').length === 3 && !r.querySelector('${PICK} [data-wz="mpick-q"]').value`));
+    await s.tap(`${PICK} [data-wz="mpick-toggle"][data-ent="sensor.kuehlschrank_temperatur"]`);
+    await s.tap(`${PICK} [data-wz="mpick-toggle"][data-ent="sensor.keller_luftfeuchtigkeit"]`);
+    check(`${tag}: zwei gewählt: Häkchen, "Hinzufügen (2)" frei, noch nichts gespeichert`, await s.waitFor(`const b=r.querySelector('${PICK} [data-wz="mpick-add"]'); return !b.disabled && b.innerText.includes('2') && r.querySelectorAll('${PICK} .ag-erow.on').length === 2`)
+      && J((await H.sys("e_ferienhaus")).monitor_sensors) === "[]");
+    await s.page.keyboard.press("Escape");
+    check(`${tag}: Escape mit Auswahl fragt zuerst`, await s.waitFor("return r.getElementById('ag-confirm').open"));
+    await s.tap('#ag-confirm [data-c="no"]');
+    check(`${tag}: "Abbrechen" in der Rückfrage: Fenster und Auswahl bleiben`, await s.waitFor("return !r.getElementById('ag-confirm').open && r.getElementById('ag-wzpick').open && r.host.wizard.pick?.sel.size === 2"));
+    await s.tap(`${PICK} [data-wz="mpick-add"]`);
+    check(`${tag}: "Hinzufügen": Fenster zu, sofort gespeichert, die zwei stehen in der Liste mit jetzigem Wert und Papierkorb`, await s.waitFor("return !r.getElementById('ag-wzpick').open && !r.host.wizard.busy && r.querySelectorAll('.ag-wz-mrow').length === 2 && r.querySelectorAll('.ag-wz-mrow [data-wz=\"mon-remove\"]').length === 2 && r.querySelector('.ag-wz-mrow .ag-wz-mval').textContent.trim() !== ''", 15000)
+      && J([...(await H.sys("e_ferienhaus")).monitor_sensors].sort()) === J(["sensor.keller_luftfeuchtigkeit", "sensor.kuehlschrank_temperatur"]), await wzState());
+    check(`${tag}: die Liste der gewählten: Suche, Filter nur der gewählten Arten, "2 ${t.monChosen}", eine Zeile über der Liste "${t.monAdd}"`, await s.ev(`return !!r.querySelector('.ag-wz-mtools [data-wz="mon-q"]') && [...r.querySelectorAll('[data-wz="mon-filter"]')].map((b) => b.dataset.f).join() === 'all,temperature,humidity'
+      && r.querySelector('.ag-wz-mtools .ag-wz-count').textContent.includes('2') && !!r.querySelector('.ag-wz-mhead [data-wz="mpick-open"]:not([disabled])')`));
+    await s.tap('[data-wz="mon-filter"][data-f="humidity"]');
+    check(`${tag}: Filter "Luftfeuchtigkeit" in der Liste: nur der Keller`, J(await rowsOf(".ag-wz-mrow")) === J(["sensor.keller_luftfeuchtigkeit"]));
+    await s.tap('[data-wz="mon-filter"][data-f="all"]');
+    const mq = await s.el('[data-wz="mon-q"]');
+    await mq.fill("kühl");
+    check(`${tag}: Suche "kühl" in der Liste: nur der Kühlschrank, Fokus bleibt`, await s.waitFor("return [...r.querySelectorAll('.ag-wz-mrow [data-wz=\"mon-remove\"]')].map((b) => b.dataset.ent).join() === 'sensor.kuehlschrank_temperatur' && r.activeElement?.dataset.wz === 'mon-q'"));
+    await s.tap('[data-wz="mon-q-clear"]');
+    await s.waitFor("return r.querySelectorAll('.ag-wz-mrow').length === 2");
+    await s.tap('[data-wz="mon-remove"][data-ent="sensor.keller_luftfeuchtigkeit"]');
+    check(`${tag}: Papierkorb entfernt den Keller, sofort gespeichert`, await s.waitFor("return !r.host.wizard.busy && r.querySelectorAll('.ag-wz-mrow').length === 1 && !r.querySelector('[data-wz=\"next\"]').disabled", 15000)
       && J((await H.sys("e_ferienhaus")).monitor_sensors) === J(["sensor.kuehlschrank_temperatur"]), await wzState());
+    check(`${tag}: die Liste hat eine feste Höhe (die Regeln darunter bleiben nah)`, await s.ev("const l=r.querySelector('.ag-wz-mlist'); return getComputedStyle(l).overflowY === 'auto' && parseFloat(getComputedStyle(l).maxHeight) > 0"));
     await s.tap('[data-wz="next"]');
 
     // Fertig
@@ -271,6 +316,9 @@ for (const lang of ["de", "en"]) {
     const sum = await s.ev("return [...r.querySelectorAll('.ag-wz-sum .ag-setrow small')].map((x) => x.textContent)");
     check(`${tag}: Zusammenfassung: Modi, Sensoren mit Eingang und Zeiten, Code, Meldungen, Aktionen`, sum[0].includes(t.modes[2]) && sum[1] === t.sumZones && sum[2] === "Diego" && sum[3] === t.sumNotify && sum[4] === t.sumActions, J(sum));
     check(`${tag}: Ausprobieren: Test der Aktionen, Testmeldung, Bereit zum Scharfschalten je Modus`, await s.ev("return !!r.querySelector('[data-wz=\"wf-test\"]') && !!r.querySelector('[data-wz=\"nt-test\"]') && r.querySelectorAll('.ag-wz-readyrow .ag-rchip').length === 3"));
+    // "Weitere Funktionen" (Wunsch des Nutzers 2026-11-20, 08:33: die Kacheln "Wenn du mehr willst" verleiteten zum Klicken): eine Liste zur Information
+    check(`${tag}: "${t.more}": eine Liste zur Information (keine Kacheln), je Funktion wo sie steht, unten "${t.openCfg}"`, await s.ev(`const c=[...r.querySelectorAll('.ag-wz .ag-chap')].find((x) => x.querySelector('.ag-chap-t')?.textContent === ${J(t.more)});
+      return !!c && c.querySelectorAll('.ag-wz-morerow').length === 4 && c.querySelectorAll('.ag-wz-where').length === 4 && !c.querySelector('.ag-wz-tile, button.ag-wz-morerow, a') && c.querySelector('[data-wz="settings"]')?.innerText.trim() === ${J(t.openCfg)}`));
     if (mobile) await s.tap('.ag-wz-sum [data-wz="goto"][data-step="code"]');
     else await s.tap('.ag-wz-side [data-wz="goto"][data-step="code"]');
     check(`${tag}: ${mobile ? '"Ändern"' : "Schrittliste"} führt zurück zum Code`, await H.waitStep("code"));
@@ -283,6 +331,24 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: "Fertig": Server merkt "abgeschlossen", das Panel zeigt die Übersicht der neuen Anlage`, await s.waitFor("return !r.querySelector('.ag-wz') && r.querySelector('[data-seg=\"tabs\"] [data-tab=\"overview\"]')?.classList.contains('on') && r.querySelector('select[data-act=\"system\"]')?.value === 'e_ferienhaus'", 8000)
       && (await H.sys("e_ferienhaus")).wizard.state === "done" && (await H.calls()).at(-1)?.action === "done");
     check(`${tag}: keine Fehler im Browser (Ablauf)`, s.errors.length === 0, s.errors.join(" | "));
+    await s.ctx.close();
+
+    // ----- Fortsetzen bei "Überwachung" (Fehler bis 2026-11-20: der Assistent sprang zu "Fertig", solange die Messwerte noch luden) -----
+    s = await open(browser, { mobile, lang, query: "&wizard=later&wzuntil=2000-01-01&wzstep=monitor" });
+    H = helpers(s);
+    const resumed = await H.waitStep("monitor");
+    await s.page.waitForTimeout(1500);
+    check(`${tag}: "später" bei "Überwachung": am nächsten Tag genau dort, auch nachdem die Messwerte geladen sind`, resumed && (await H.step()) === "monitor", await H.step());
+    await s.ctx.close();
+
+    // ----- "Konfiguration öffnen" am Schluss: schliesst ab wie "Fertig", danach Konfiguration › Anlage -----
+    s = await open(browser, { mobile, lang, query: "&wizard=open&wzstep=done" });
+    H = helpers(s);
+    await H.waitStep("done");
+    await s.tap('[data-wz="settings"]');
+    check(`${tag}: "${t.openCfg}": Assistent abgeschlossen (Server), Konfiguration › Anlage offen`, await s.waitFor("return !r.querySelector('.ag-wz') && r.host._tab === 'config' && r.host._sub === 'system' && !!r.querySelector('.ag-wzrow')", 10000)
+      && (await H.calls()).at(-1)?.action === "done" && (await H.sys("e_haus"))?.wizard?.state === "done");
+    check(`${tag}: keine Fehler im Browser (Fortsetzen, Konfiguration öffnen)`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
 
     // ----- Konfiguration › Anlage: Kapitel vor "Anlage löschen" -----

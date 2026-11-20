@@ -24,9 +24,9 @@ A new alarm system opens the setup assistant by itself, once, the first time the
 4. **Code (optional):** the form of the codes per person, with your own user and name filled in. A main code from the setup in Home Assistant counts.
 5. **Notifications:** who gets alarm notifications and who gets maintenance notifications (both apply to all alarm systems), a switch per notification and a test message. Critical, volume, own texts and own recipients stay under Notifications.
 6. **Alarm actions:** the editor of Configuration › Actions, with "Siren 3 minutes" and "Alarm sound" to add quickly.
-7. **Monitoring:** only when Home Assistant has suitable measuring sensors or monitoring is already on. Switching it on and choosing its sensors applies at once.
+7. **Monitoring:** only when Home Assistant has suitable measuring sensors or monitoring is already on. Switching it on applies at once. The list of measurements starts empty; "Add measurements" opens a window like "Add sensors" with a search and filters (temperature, humidity, brightness, air quality, other, only those that exist), where you tick the ones you want. The chosen ones stand in a list of fixed height with their current value, a search, the same filters and a bin to remove one; adding and removing apply at once.
 
-"Done" sums everything up with "Change" per step, a test of the alarm actions, a test message and "Ready to arm" per mode.
+"Done" sums everything up with "Change" per step, a test of the alarm actions, a test message and "Ready to arm" per mode. "More features" names, for information only, routines, codes per person, HealthCheck and the dashboard card, each with where to find it; "Open configuration" finishes the assistant like "Finish" and opens Configuration › Alarm system. The test message in the step "Notifications" saves the choices of that page by itself.
 
 Every step is saved with "Next", through the same saving as the tabs of the configuration; "Back" and, on the computer, the step list on the left lead to earlier steps. "Later" (or Escape) asks: "Show again tomorrow" opens the assistant the next day (date of Home Assistant) exactly at the step where you stopped, "Don't show again" leaves it until you start it yourself. Under Configuration › Alarm system › Setup assistant, just before "Delete alarm system", you see where it stands and start it again, at that step or from the start; everything that is set up is preselected. Unsaved changes in the configuration are discarded only after a question. Alarm systems that existed before version 1.69.0 and alarm systems restored from a backup do not get it by themselves; its state is not part of backups.
 
@@ -180,7 +180,7 @@ An alarm system has to work when something else does not. These mechanisms are b
 | Self-test | Checks regularly whether everything the alarm systems use is there and reachable, and records what failed during operation; it only reads and never holds up an alarm |
 | HealthCheck | Life signs to an external service: if Home Assistant fails or loses the internet, the service alerts you; problems of the self-test are reported there too. A life sign waits at most 10 seconds and never holds anything up |
 | Sensors that fail | A sensor that becomes unreachable while armed is reported at once, or triggers the alarm with the option "failure counts as alarm". Low batteries are reported before they are empty |
-| Tested | More than 1,600 automated tests against a real Home Assistant (in two versions, an older and a current one), about 8,400 checks of the interface on computer and phone, and a mutation check that removes each of 408 safeguards and requires a test to fail |
+| Tested | More than 1,600 automated tests against a real Home Assistant (in two versions, an older and a current one), about 8,500 checks of the interface on computer and phone, and a mutation check that removes each of 408 safeguards and requires a test to fail |
 
 ### Limits
 

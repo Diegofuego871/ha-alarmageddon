@@ -7,6 +7,18 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.70.0] - 2026-11-20
+
+### Changed
+
+- **Setup assistant, step "Monitoring":** the measurements no longer appear all at once as buttons (with many sensors a very long list that pushed the rules far down). The list starts empty; "Add measurements" opens a window like "Add sensors" with a search and filters (temperature, humidity, brightness, air quality, other; only those that exist), where you tick the measurements you want. The chosen ones stand in a list of fixed height with their current value, a search, the same filters and a bin to remove one. Adding and removing apply at once, as before.
+- **Setup assistant, "Done":** "If you want more" is now "More features", a list for information instead of tiles that looked clickable: routines, codes per person, HealthCheck and the dashboard card, each with where to find it. Below it "Open configuration" finishes the assistant like "Finish" and opens Configuration › Alarm system.
+- **Setup assistant, test message in the step "Notifications":** the hint no longer says "(saves this step first)". The button saves open changes of the page by itself, as before, so nothing needs to be saved separately.
+
+### Fixed
+
+- **Setup assistant:** whoever chose "Later" at the step "Monitoring" landed at "Done" the next day instead of at "Monitoring", because the step was hidden while the measurements were still loading. It now continues exactly there.
+
 ## [1.69.0] - 2026-11-20
 
 ### Added
@@ -2020,6 +2032,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0
 [1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0
 [1.68.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.68.0
 [1.67.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.67.0

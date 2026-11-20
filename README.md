@@ -108,7 +108,7 @@ An alarm system has to work when something else does not. This is built in and c
 - **Failures:** a sensor that stops answering while armed is reported, or counts as an alarm if you like.
 - **Self-test:** checks regularly whether everything the alarm uses is there and reachable, and records what failed; it only reads and never holds up an alarm.
 - **HealthCheck:** life signs to a service outside report a silent Home Assistant. The ping URL appears in full only in the panel and in backups, never in the log or a notification; a life sign waits at most 10 seconds.
-- **Tested:** more than 1,600 automated tests against a real Home Assistant (in two versions), about 8,400 checks of the interface, and a mutation check that removes each of 408 safeguards and requires a test to fail.
+- **Tested:** more than 1,600 automated tests against a real Home Assistant (in two versions), about 8,500 checks of the interface, and a mutation check that removes each of 408 safeguards and requires a test to fail.
 
 ### Limits
 

@@ -362,7 +362,9 @@ Umsetzung:
   laufen weiter über die Reiter). Eine Änderung an einem Reiter gilt damit auch im Assistenten; was im Assistenten fehlen soll, blendet `styles.js`
   je Schritt aus. Er öffnet sich nie über ungespeicherte Änderungen oder ein offenes Fenster; der Start von Hand fragt vorher. Der Code ist
   freiwillig (ein Hauptcode zählt), "Schnell hinzufügen" nur Sirene 3 Minuten und Alarmton (Entscheid: ohne Licht), "Überwachung" nur mit
-  passenden Messwerten oder eingeschalteter Überwachung. Ein neuer Schritt ergänzt `WZ_STEPS` (Panel) und `WIZARD_STEPS` (Server), die Texte `wz*`
+  passenden Messwerten oder eingeschalteter Überwachung (seit 1.70.0: solange die Messwerte laden, bleibt ein angefangener Schritt "Überwachung" stehen,
+  `_monitorFits`; Messwerte über das Fenster `#ag-wzpick`, nie alle als Knöpfe, Wunsch des Nutzers 2026-11-20). "Weitere Funktionen" am Schluss ist
+  nur Information, der einzige Knopf "Konfiguration öffnen" schliesst ab wie "Fertig". Ein neuer Schritt ergänzt `WZ_STEPS` (Panel) und `WIZARD_STEPS` (Server), die Texte `wz*`
   und die Suite `wizard-e2e.mjs`; Tests `tests/test_wizard.py`, Zeilen "Assistent" in `scripts/mutation_check.py`.
 - Neustart und Absturz (seit 1.58.0, Code-Review): Der Zustand steht in einer eigenen Ablage (`controller._save_state`, `STATE_STORE_KEY`), sofort bei jedem
   Wechsel geschrieben; beim Start gilt der neuere von eigener Ablage und Restore-Stand von HA (`controller.newer_state`). Was beim Wiederherstellen

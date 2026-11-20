@@ -17,7 +17,7 @@ const AWAY_MS = 30 * 60 * 1000;
 const SUBS = ["sensors", "actions", "notify", "system"];
 
 // Knöpfe, die einen Dialog ohne Speichern schliessen (das X löst den ersten gefundenen aus)
-const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sys="code-close"],[data-sys="rt-cancel"],[data-wf="mon-cancel-form"],[data-wf="mon-step-cancel"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"],[data-nt="kind-cancel"]';
+const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sys="code-close"],[data-sys="rt-cancel"],[data-wf="mon-cancel-form"],[data-wf="mon-step-cancel"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"],[data-nt="kind-cancel"],[data-wz="mpick-close"]';
 
 class AlarmageddonPanel extends HTMLElement {
   constructor() {
@@ -98,7 +98,7 @@ class AlarmageddonPanel extends HTMLElement {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
       <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-wide" id="ag-codelist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
-      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog><dialog class="ag-dlg" id="ag-wzask"></dialog><dialog class="ag-dlg ag-wide" id="ag-ntkind"></dialog></div>`;
+      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog><dialog class="ag-dlg" id="ag-wzask"></dialog><dialog class="ag-dlg ag-wide" id="ag-ntkind"></dialog><dialog class="ag-dlg ag-wide" id="ag-wzpick"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
     if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => this._stickySync()).observe(this._content);
     this._initSeg(this._root);
@@ -1532,6 +1532,8 @@ class AlarmageddonPanel extends HTMLElement {
     if (dlg.id === "ag-mon") return this.actions.mon.formDirty();
     // Fenster einer Meldung unter Benachrichtigungen (1.69.0): Änderungen seit dem Öffnen, im Entwurf der Seite
     if (dlg.id === "ag-ntkind") return this.notify.kindDirty();
+    // "Messwerte hinzufügen" im Assistenten (2026-11-20): eine Auswahl ist eine offene Änderung
+    if (dlg.id === "ag-wzpick") return Boolean(this.wizard.pick?.sel?.size);
     if (dlg.id === "ag-monstep") return Boolean(this.actions.mon.step) && JSON.stringify(this.actions.mon.step.form) !== this.actions.mon.step.snap;
     if (dlg.id === "ag-pick") return Boolean(this.sensors.pick?.sel?.size);
     if (dlg.id === "ag-presets") return JSON.stringify(this.sensors.presetDraft) !== JSON.stringify(this.sensors.presets) || Boolean(this.sensors.presetOverride);

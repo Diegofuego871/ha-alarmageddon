@@ -1711,7 +1711,39 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz-note { margin: 10px 4px 0; }
 .ag-wz-sw { justify-content: flex-start; }
 .ag-wz-sw > .ag-toggle { order: -1; flex: none; }
-.ag-wz-monsensors { flex-wrap: wrap; }
+.ag-wz-monsensors { flex-direction: column; align-items: stretch; gap: 12px; }
+/* Schritt "Überwachung" (Wunsch des Nutzers 2026-11-20, 08:31): leere Liste mit "Messwerte hinzufügen", gewählte mit Suche und Filtern in einer Liste
+   fester Höhe (die Regeln darunter bleiben nah), Fenster #ag-wzpick wie "Sensoren hinzufügen" */
+.ag-wz-mempty { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1.5px dashed var(--ag-divider); border-radius: 14px; color: var(--ag-text2); flex-wrap: wrap; }
+.ag-wz-mempty > div { flex: 1 1 240px; min-width: 0; }
+.ag-wz-mempty b { display: block; color: var(--ag-text); font-weight: 500; }
+.ag-wz-mempty small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.4; }
+.ag-wz-mtools .ag-wz-count { margin-left: auto; }
+.ag-wz-mhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ag-wz-mhead > .ag-settx { flex: 1 1 260px; }
+.ag-wz-mhead > .ag-btn { flex: none; }
+.ag-wz-mlist { max-height: 360px; }
+.ag-wz-mlist .ag-group-label, .ag-wz-plist .ag-group-label { padding: 10px 12px 4px; margin: 0; }
+.ag-wz-mrow { cursor: default; }
+.ag-wz-mtx { flex: 1; min-width: 0; }
+.ag-wz-mtx b { display: block; font-weight: 500; overflow-wrap: anywhere; }
+.ag-wz-mval { flex: none; color: var(--ag-text2); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ag-wz-mrow .ag-wf-btns .ag-iconbtn { width: 38px; height: 38px; }
+.ag-wz-mnone { padding: 14px; }
+.ag-wz-pick .ag-wz-tools { margin-top: 12px; }
+.ag-wz-plist { max-height: min(52vh, 440px); margin-top: 10px; }
+:host([narrow]) .ag-wz-pick .ag-wz-tools .list-search, .ag-wz.narrow .ag-wz-mtools .list-search { flex: 1 1 100%; }
+:host([narrow]) .ag-wz-plist { max-height: none; }
+.ag-wz.narrow .ag-wz-mlist { max-height: 50vh; }
+.ag-wz.narrow .ag-wz-mhead > .ag-btn, .ag-wz.narrow .ag-wz-mempty > .ag-btn { flex: 1 1 100%; justify-content: center; }
+/* "Weitere Funktionen" am Schluss (Wunsch des Nutzers 2026-11-20, 08:33): eine Liste zur Information statt Kacheln, die zum Klicken verleiten */
+.ag-wz-morerow { align-items: flex-start; flex-wrap: nowrap; }
+.ag-wz-moreic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; color: var(--ag-text2); background: var(--ag-subtle); }
+.ag-wz-where { display: flex !important; align-items: flex-start; gap: 5px; margin-top: 4px; color: var(--ag-text2); }
+.ag-wz-where > .ag-ic, .ag-wz-where > svg { flex: none; margin-top: 2px; }
+.ag-wz-moreopen { justify-content: space-between; }
+.ag-wz-moreopen .ag-settx { flex: 1 1 260px; }
+.ag-wz.narrow .ag-wz-moreopen > .ag-btn { flex: 1 1 100%; justify-content: center; }
 .ag-wz-sum .ag-setrow { align-items: center; }
 .ag-wz-sum .ag-oav { --ag-tile: 38px; color: var(--ag-primary); background: var(--ag-primary-soft); }
 .ag-wz-readyrow { flex-wrap: wrap; }

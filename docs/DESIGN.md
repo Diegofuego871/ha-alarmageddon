@@ -245,3 +245,12 @@ Mockups `docs/mockups/einrichtungsassistent-v1/`, Variante B "Seite mit Schrittl
 - "Später" und Escape öffnen das Fenster `#ag-wzask` mit drei grossen Knöpfen (Morgen wieder anzeigen, Nicht mehr anzeigen, Weiter einrichten).
 - Jeder Schritt beginnt oben. Kapitel "Einrichtungsassistent" unter Konfiguration › Anlage vor "Anlage löschen" (Symbol `wand`, Farbe
   `ag-tint-wizard`): Stand und "Assistent starten" bzw. "Von vorn" und "Bei Schritt n fortsetzen". Test: `wizard-e2e.mjs`.
+- Schritt "Überwachung" (seit 1.70.0, Wunsch des Nutzers 2026-11-20, 08:31, mit Bildschirmfoto: 106 Messwerte als Knöpfe): die Liste der Messwerte beginnt
+  leer (`.ag-wz-mempty`, gestrichelter Rahmen, "Messwerte hinzufügen"); das Fenster `#ag-wzpick` ist aufgebaut wie "Sensoren hinzufügen"
+  (Suchfeld mit X, Filter Alle, Temperatur, Luftfeuchtigkeit, Helligkeit, Luftqualität, Weitere, nur die vorhandenen; Zeilen nach Bereich mit
+  Kästchen, Symbol, Name, Art · Integration und dem jetzigen Wert rechts; "Hinzufügen (n)"). Die gewählten stehen in einer Liste fester Höhe
+  (`.ag-wz-mlist`, 360 px, Handy 50 % der Höhe) mit Suche, Filtern der gewählten Arten, "n gewählt" und rundem Papierkorb je Zeile; der Knopf
+  "Messwerte hinzufügen" steht dann rechts neben dem Titel.
+- "Weitere Funktionen" am Schluss (seit 1.70.0, Wunsch des Nutzers 2026-11-20, 08:33: die Kacheln "Wenn du mehr willst" verleiteten zum Klicken): eine Karte
+  mit Zeilen zur Information (graues Symbol, Name, was es tut, darunter mit Info-Symbol, wo es steht) und unten "Konfiguration öffnen" (Zahnrad),
+  das den Assistenten wie "Fertig" abschliesst und Konfiguration › Anlage öffnet. Keine Kachel und keine Zeile ist klickbar.
