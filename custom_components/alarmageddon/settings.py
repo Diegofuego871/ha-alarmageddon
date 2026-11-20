@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 import copy
+from datetime import date, timedelta
 import re
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -15,7 +16,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
-import voluptuous as vol
+from homeassistant.util import dt as dt_util
 
 from .const import (
     AUTO_BACKUP_DAYS,
@@ -29,7 +30,6 @@ from .const import (
     OFFLINE_MINUTES_RANGE,
     SELFTEST_HOURS_KEYS,
     SELFTEST_MINUTES_RANGE,
-    HC_NOTICE_KINDS,
     HEALTHCHECK_DEFAULT_INTERVAL,
     HEALTHCHECK_INTERVAL_RANGE,
     HEALTHCHECK_NOTIFY_FAILS_RANGE,
@@ -40,12 +40,15 @@ from .const import (
     NOTIFY_TYPES,
     DEFAULT_PRESETS,
     DEVICE_CLASS_TYPE,
+    DOMAIN,
     MODES,
     NOTIFY_MODE_KINDS,
     SENSOR_OPTIONS,
     SENSOR_TYPES,
     SETTINGS_STORE_KEY,
     TYPE_OTHER,
+    WIZARD_STATES,
+    WIZARD_STEPS,
 )
 
 
@@ -87,12 +90,14 @@ def valid_notify(value: Any) -> dict[str, Any]:
     out = copy.deepcopy(DEFAULT_NOTIFY)
     if not isinstance(value, dict):
         return out
+    value = dict(value)
+    _healthcheck_1_68(value)
     for key in ("alarm_targets", "maintenance_targets"):
         if isinstance(value.get(key), list):
             # Wie die Listen je Art und je Schritt: nur ein gültiger Name eines notify-Dienstes. Ohne Obergrenze: ein Empfänger der
             # Gruppe darf nie still wegfallen (im Zweifel alarmieren)
             out[key] = [t for t in dict.fromkeys(value[key]) if isinstance(t, str) and NOTIFY_NAME.fullmatch(t)]
-    for key in ("disarm_action", "open_action", "silence_action", "acknowledge_action", "arm_retry_action", "arm_force_action"):
+    for key in ("disarm_action", "open_action", "silence_action", "acknowledge_action", "arm_retry_action", "arm_force_action", "healthcheck_up"):
         if isinstance(value.get(key), bool):
             out[key] = value[key]
     # Abstände des Selbsttests bis 1.66.x in Stunden: übernommen, wenn der Wert in Minuten fehlt (gespeicherte Einstellungen, ältere Backups)
@@ -102,7 +107,7 @@ def valid_notify(value: Any) -> dict[str, Any]:
         if new not in value and isinstance(hours, (int, float)) and not isinstance(hours, bool):
             value[new] = int(hours) * 60
     for key, (low, high) in (("battery_threshold", BATTERY_THRESHOLD_RANGE), ("battery_checks", BATTERY_CHECKS_RANGE), ("offline_minutes", OFFLINE_MINUTES_RANGE), ("selftest_minutes", SELFTEST_MINUTES_RANGE),
-                              ("selftest_minutes_armed", SELFTEST_MINUTES_RANGE)):
+                              ("selftest_minutes_armed", SELFTEST_MINUTES_RANGE), ("healthcheck_fails", HEALTHCHECK_NOTIFY_FAILS_RANGE)):
         if isinstance(value.get(key), (int, float)) and not isinstance(value.get(key), bool):
             out[key] = max(low, min(high, int(value[key])))
     # Alte Form zuerst, die neue überschreibt sie
@@ -152,24 +157,28 @@ def valid_notify(value: Any) -> dict[str, Any]:
                     own["targets"] = targets
                 if own:
                     out["modes"].setdefault(mode, {})[kind] = own
-    # Meldungen der HealthCheck-Dienste (1.68.0): Anzahl gescheiterter Aufrufe und je Meldung alle Felder einer festen Meldung; ein ungültiger
-    # Wert fällt auf den Standard zurück (nie eine Meldung, die still ausbleibt, weil ein Feld kaputt war)
-    hc = value.get("healthcheck")
-    if isinstance(hc, dict):
-        from .schemas import HC_NOTICE_SCHEMA  # noqa: PLC0415 - schemas zieht viel nach, hier nur bei Bedarf
-
-        fails = hc.get("fails")
-        if isinstance(fails, (int, float)) and not isinstance(fails, bool):
-            out["healthcheck"]["fails"] = max(HEALTHCHECK_NOTIFY_FAILS_RANGE[0], min(HEALTHCHECK_NOTIFY_FAILS_RANGE[1], int(fails)))
-        for kind in HC_NOTICE_KINDS:
-            if isinstance(hc.get(kind), dict):
-                try:
-                    notice = HC_NOTICE_SCHEMA(dict(hc[kind]))
-                except vol.Invalid:
-                    continue
-                notice["targets"] = _valid_targets(notice.get("targets"))
-                out["healthcheck"][kind] = notice
     return out
+
+
+def _healthcheck_1_68(value: dict[str, Any]) -> None:
+    """
+    Meldungen der HealthCheck-Dienste aus 1.68.0 (zwei feste Meldungen "hc_down", "hc_up" unter "healthcheck") in die Form seit 1.69.0 (Wartungsmeldung
+    "healthcheck" wie der Selbsttest, dazu "healthcheck_fails" und "healthcheck_up"; Wunsch des Nutzers 2026-11-19, 22:16/22:17). Übernommen werden
+    an/aus, Empfänger, Kritisch, Lautstärke und "stehen lassen" von "antwortet nicht", die Zahl und an/aus von "antwortet wieder"; eigene Texte und das
+    Klickziel gibt es nicht mehr. Was schon in der neuen Form steht, bleibt (gespeicherte Einstellungen, Backups aus 1.68.0, ein noch offenes altes Panel).
+    """
+    hc = value.pop("healthcheck", None)
+    if not isinstance(hc, dict):
+        return
+    down = hc.get("hc_down") if isinstance(hc.get("hc_down"), dict) else {}
+    types = value.get("types") if isinstance(value.get("types"), dict) else {}
+    if "healthcheck" not in types and down:
+        value["types"] = {**types, "healthcheck": {key: down[key] for key in ("enabled", "critical", "persistent", "volume", "targets") if key in down}}
+    if "healthcheck_fails" not in value and "fails" in hc:
+        value["healthcheck_fails"] = hc["fails"]
+    up = hc.get("hc_up")
+    if "healthcheck_up" not in value and isinstance(up, dict) and isinstance(up.get("enabled"), bool):
+        value["healthcheck_up"] = up["enabled"]
 
 
 HEALTHCHECK_ID = re.compile(r"^[a-z0-9]{1,16}$")
@@ -272,6 +281,24 @@ def valid_auto_backup(value: Any) -> dict[str, Any]:
     return {"enabled": raw.get("enabled") is not False, "every": raw.get("every") if raw.get("every") in AUTO_BACKUP_DAYS else AUTO_BACKUP_DEFAULT["every"], "keep": keep}
 
 
+def valid_wizard(value: Any) -> dict[str, dict[str, Any]]:
+    """Zustand des Einrichtungsassistenten je Anlage (1.69.0): nur bekannte Zustände und Schritte, Datum als ISO-Tag; Unbekanntes fällt weg."""
+    out: dict[str, dict[str, Any]] = {}
+    if not isinstance(value, dict):
+        return out
+    for entry_id, item in value.items():
+        if not isinstance(entry_id, str) or not isinstance(item, dict):
+            continue
+        until = item.get("until")
+        try:
+            until = date.fromisoformat(until).isoformat() if isinstance(until, str) else None
+        except ValueError:
+            until = None
+        out[entry_id] = {"state": item.get("state") if item.get("state") in WIZARD_STATES else "open", "until": until,
+                         "step": item.get("step") if item.get("step") in WIZARD_STEPS else WIZARD_STEPS[0]}
+    return out
+
+
 class Settings:
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
@@ -288,6 +315,8 @@ class Settings:
             "healthchecks": [],
             # Letzte echte Änderung (offen <-> zu) je Sensor, ISO-Zeit; intern, nicht in der Sicherung (Laufzeitdaten)
             "last_changes": {},
+            # Einrichtungsassistent je Anlage (1.69.0, const.WIZARD_STEPS); nicht im Backup
+            "wizard": {},
         }
         # (Schlüssel, Funktion): der Schlüssel ist die Anlage (entry_id), damit eine Anlage, die ohnehin neu lädt, ausgelassen werden kann
         self._listeners: list[tuple[str | None, Callable[[], None]]] = []
@@ -318,6 +347,12 @@ class Settings:
         stored = await self._store.async_load()
         if isinstance(stored, dict):
             self.data.update(stored)
+        # Update auf 1.69.0: Die Ablage gibt es schon, aber ohne Assistent. Die bestehenden Anlagen sind eingerichtet und bekommen ihn nicht von
+        # selbst (Entscheid des Nutzers 2026-11-19, 21:05); nur danach angelegte. Bei einer neuen Installation (keine Ablage) ist jede Anlage neu.
+        migrate = isinstance(stored, dict) and "wizard" not in stored
+        if migrate:
+            self.data["wizard"] = {e.entry_id: {"state": "done"} for e in self.hass.config_entries.async_entries(DOMAIN)}
+        self.data["wizard"] = valid_wizard(self.data.get("wizard"))
         self.data["presets"] = valid_presets(self.data.get("presets"))
         self.data["notify"] = valid_notify(self.data.get("notify"))
         self.data["names_with_device"] = self.data.get("names_with_device") is not False
@@ -328,6 +363,45 @@ class Settings:
         self.data.pop("update_notified", None)
         stored_changes = self.data.get("last_changes")
         self.data["last_changes"] = {k: v for k, v in stored_changes.items() if isinstance(k, str) and isinstance(v, str)} if isinstance(stored_changes, dict) else {}
+        if migrate:
+            # Sofort festhalten: sonst hielte ein späterer Start die inzwischen neu angelegten Anlagen ebenfalls für eingerichtet
+            await self._async_write()
+
+    # -- Einrichtungsassistent (1.69.0) --
+
+    def wizard(self, entry_id: str) -> dict[str, Any]:
+        """Zustand des Assistenten einer Anlage; ohne Eintrag ist sie neu (offen, beim Willkommen)."""
+        return dict(self.data["wizard"].get(entry_id) or {"state": "open", "until": None, "step": WIZARD_STEPS[0]})
+
+    def wizard_payload(self, entry_id: str) -> dict[str, Any]:
+        """Für das Panel: Zustand, Schritt und ob er jetzt erscheint ("due"); "später" gilt bis zum Tag "until" nach der Uhr von Home Assistant."""
+        item = self.wizard(entry_id)
+        due = item["state"] == "open" or (item["state"] == "later" and (item["until"] is None or dt_util.now().date().isoformat() >= item["until"]))
+        return {**item, "due": due}
+
+    async def async_set_wizard(self, entry_id: str, action: str, step: str | None = None) -> dict[str, Any]:
+        """
+        Aktion des Panels: "start" (offen, beim Schritt `step` oder am Anfang), "step" (offen, hier geht es weiter), "later" (ab morgen wieder,
+        der Schritt bleibt), "hide" (nur noch von Hand), "done" (abgeschlossen).
+        """
+        item = self.wizard(entry_id)
+        if action in ("start", "step"):
+            item.update(state="open", until=None, step=step if step in WIZARD_STEPS else WIZARD_STEPS[0])
+        elif action == "later":
+            item.update(state="later", until=(dt_util.now().date() + timedelta(days=1)).isoformat())
+        elif action == "hide":
+            item.update(state="hidden", until=None)
+        elif action == "done":
+            item.update(state="done", until=None, step=WIZARD_STEPS[0])
+        self.data["wizard"][entry_id] = item
+        await self._async_write()
+        return self.wizard_payload(entry_id)
+
+    @callback
+    def forget_wizard(self, entry_id: str) -> None:
+        """Eine entfernte Anlage nimmt ihren Assistenten mit."""
+        if self.data["wizard"].pop(entry_id, None) is not None:
+            self._save_soon()
 
     @property
     def last_changes(self) -> dict[str, str]:

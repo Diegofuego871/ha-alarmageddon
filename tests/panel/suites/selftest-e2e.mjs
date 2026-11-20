@@ -163,7 +163,7 @@ for (const lang of ["de", "en"]) {
     // Benachrichtigungen: eigene Meldungsart (der Abstand steht nicht mehr hier)
     await s.ev("r.host.openPlace('notify'); return 1");
     await s.waitFor("return !!r.querySelector('.ag-nt [data-kind=\"selftest\"]')");
-    check(`${tag}: Meldungsart "${t.kind}" unter den Wartungsmeldungen (an, wie die anderen)`, await s.ev(`return [...r.querySelectorAll('.ag-mt')].some((m) => m.querySelector('.ag-settx b')?.textContent === ${JSON.stringify(t.kind)} && m.querySelector('[data-nt="enabled"][data-kind="selftest"]')?.getAttribute('aria-checked') === 'true')`));
+    check(`${tag}: Meldungsart "${t.kind}" unter den Wartungsmeldungen (an, wie die anderen)`, await s.ev(`const m=r.querySelector('.ag-ntk[data-ntk="selftest"]'); return !!m && m.classList.contains('maint') && !!m.closest('.ag-chap') && [...r.querySelectorAll('.ag-nt .ag-chap')].indexOf(m.closest('.ag-chap')) === 2 && m.querySelector('.ag-wf-text b')?.textContent === ${JSON.stringify(t.kind)} && m.querySelector('[data-nt="enabled"][data-kind="selftest"]')?.getAttribute('aria-checked') === 'true'`));
     check(`${tag}: Benachrichtigungen ohne Abstand und ohne "${t.run}" (beides im Kapitel ${t.chapter})`, await s.ev("return !r.querySelector('.ag-nt [data-sys=\"st-value\"]') && !r.querySelector('.ag-nt [data-key^=\"selftest_\"]') && !r.querySelector('.ag-nt [data-st=\"run\"]')"));
     // Ein Entwurf der Benachrichtigungen sendet den Abstand nie mit (sonst überschriebe er einen neueren Wert)
     await s.tap('[data-nt="enabled"][data-kind="selftest"]');

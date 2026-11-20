@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 233  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 234  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -169,6 +169,14 @@ DEFAULT_PRESETS: Final = {
 
 # Globale Einstellungen (für alle Anlagen gleich)
 SETTINGS_STORE_KEY: Final = f"{DOMAIN}.settings"
+# Einrichtungsassistent (1.69.0, Wunsch und Entscheide des Nutzers 2026-11-19, 20:43 und 21:05; Mockups einrichtungsassistent-v1): je Anlage ein Zustand
+# in den globalen Einstellungen (nicht in den Optionen: sonst lüde die Anlage bei jedem Schritt neu; nicht im Backup: Zustand der Oberfläche).
+# "open": erscheint beim Öffnen des Panels; "later": ab dem Datum "until" (Ortszeit von Home Assistant) wieder; "hidden": nur noch von Hand;
+# "done": abgeschlossen. "step": wo es weitergeht (Wunsch 21:05: "genau an der Stelle"). Eine Anlage ohne Eintrag ist neu, also "open";
+# beim Update auf 1.69.0 bekommen die bestehenden Anlagen "done" (settings.async_load), neue Anlagen aus einem Backup ebenfalls.
+WIZARD_STEPS: Final = ("welcome", "modes", "sensors", "zones", "code", "notify", "actions", "monitor", "done")
+WIZARD_STATES: Final = ("open", "later", "hidden", "done")
+WIZARD_ACTIONS: Final = ("start", "step", "later", "hide", "done")
 DATA_SETTINGS: Final = f"{DOMAIN}_settings"
 DATA_SETTINGS_LOCK: Final = f"{DOMAIN}_settings_lock"
 
@@ -180,12 +188,15 @@ NOTIFY_TYPES: Final = {
     "battery_low": "maintenance", "sensor_unavailable": "maintenance",
     # Selbsttest (1.65.0): eine Meldung je neuem Befund, wie Batterie und Ausfall (selftest.py)
     "selftest": "maintenance",
+    # HealthCheck-Dienst antwortet nicht (seit 1.69.0 eine Wartungsmeldung wie der Selbsttest, Wunsch des Nutzers 2026-11-19, 22:16/22:17;
+    # in 1.68.0 zwei feste Meldungen mit eigenem Text unter "healthcheck"): healthcheck.py
+    "healthcheck": "maintenance",
 }
 # Standard je Art: (an, kritisch). Im Zweifel melden: Alarm und Ausfall eines Sensors im scharfen Zustand sind kritisch.
 NOTIFY_TYPE_DEFAULTS: Final = {
     "triggered": (True, True), "pending": (False, False), "armed": (False, False), "disarmed": (False, False),
     "arm_failed": (True, False), "sensor_offline": (True, True), "sensor_report": (True, True),
-    "battery_low": (True, False), "sensor_unavailable": (True, False), "selftest": (True, False),
+    "battery_low": (True, False), "sensor_unavailable": (True, False), "selftest": (True, False), "healthcheck": (True, False),
 }
 # Meldungsarten, die nur im scharfen Zustand vorkommen und je Modus eigene Werte haben können (0.29.0): Stiller Alarm, Eingangsverzögerung,
 # Scharf geschaltet, Sensorausfall im scharfen Zustand. notify["modes"][modus][art] = {enabled, critical, volume}, nur abweichende Werte.
@@ -222,14 +233,13 @@ DEFAULT_NOTIFY: Final = {
     # und beim Zurückholen eines Backups übernommen (settings.valid_notify)
     "selftest_minutes": 360,
     "selftest_minutes_armed": 60,
-    # HealthCheck-Dienste (1.68.0, Wunsch des Nutzers 2026-11-19, 18:42/18:43): "Dienst antwortet nicht" nach so vielen gescheiterten Aufrufen
-    # hintereinander (jeder automatische Aufruf, nie der Testknopf), "Dienst antwortet wieder" beim ersten, der danach klappt; je eine feste Meldung wie unter
-    # Aktionen (Text, Empfänger, Kritisch, Lautstärke, stehen lassen, Klickziel). Leere Empfänger: die Empfänger der Wartung.
-    "healthcheck": {"fails": 2, **{kind: {"enabled": True, "title": "", "message": "", "critical": False, "volume": 0.8, "persistent": False,
-                                          "click": "healthcheck", "click_path": "", "targets": []} for kind in ("hc_down", "hc_up")}},
+    # HealthCheck-Dienste (1.68.0, Wunsch des Nutzers 2026-11-19, 18:42/18:43; seit 1.69.0 die Wartungsmeldung "healthcheck", 22:16/22:17):
+    # "Dienst antwortet nicht" nach so vielen gescheiterten Aufrufen hintereinander (jeder automatische Aufruf, nie der Testknopf); "Dienst
+    # antwortet wieder" beim ersten, der danach klappt, wenn "healthcheck_up" an ist (dieselben Empfänger, nie kritisch).
+    "healthcheck_fails": 2,
+    "healthcheck_up": True,
 }
 HEALTHCHECK_NOTIFY_FAILS_RANGE: Final = (1, 10)
-HC_NOTICE_KINDS: Final = ("hc_down", "hc_up")
 BATTERY_THRESHOLD_RANGE: Final = (5, 50)
 BATTERY_CHECKS_RANGE: Final = (1, 10)
 OFFLINE_MINUTES_RANGE: Final = (5, 1440)

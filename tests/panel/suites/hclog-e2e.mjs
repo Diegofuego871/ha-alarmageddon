@@ -1,17 +1,17 @@
 // 1.68.0: Protokoll der HealthCheck-Dienste (Wunsch und Entscheide des Nutzers 2026-11-19, 17:06 bis 17:48; Mockups healthcheck-protokoll-v1/-v2).
 // Runder Knopf "Protokoll" als erster je Zeile der Dienste; Ansicht mit den Bausteinen der Sensoransicht: Kopf mit Auswahl des Dienstes, Zustand und
-// "Bearbeiten"; Kacheln Verlauf, Antwortzeit, Dienst; Zeitraum 3 Std. bis 30 Tage; Grafik je Zeitraum (bis 1 Tag Herzschlag mit Band, 7 Tage
+// "Bearbeiten" (seit 1.69.0 drei runde Knöpfe wie in der Liste: Fehler senden, Lebenszeichen senden, Stift); Kacheln Verlauf, Antwortzeit, Dienst; Zeitraum 3 Std. bis 30 Tage; Grafik je Zeitraum (bis 1 Tag Herzschlag mit Band, 7 Tage
 // Zeitleiste je Tag, 30 Tage Raster Tag x Stunde); Antwortzeit mit Zonen und Marken; Liste "Ereignisse" und "Alle Aufrufe", beide genau nach dem
 // gewählten Zeitraum, die Zahl am Reiter ist die Zahl der Liste (Vorgabe des Nutzers); einzelne Aufrufe nur 24 Stunden (Hinweis bei 7 und 30 Tagen).
 // Suche, Sortierung, Tabellenkopf klebt, nichts ragt seitlich hinaus. Je Sprache, Desktop und Handy, echte Klicks/Taps, feste Uhrzeit.
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { log: "Protokoll", edit: "Bearbeiten", tabs: ["Verlauf", "Antwortzeit", "Dienst"], ranges: ["3 Std.", "12 Std.", "1 Tag", "7 Tage", "30 Tage", "90 Tage", "1 Jahr"], ok: "in Ordnung",
+  de: { log: "Protokoll", edit: "Bearbeiten", testFail: "Fehler senden", testOk: "Lebenszeichen senden", tabs: ["Verlauf", "Antwortzeit", "Dienst"], ranges: ["3 Std.", "12 Std.", "1 Tag", "7 Tage", "30 Tage", "90 Tage", "1 Jahr"], ok: "in Ordnung",
     okSince: "in Ordnung seit", failed: "gescheitert", failedSince: "gescheitert seit", every: "alle 5 min", kpis: ["erfolgreich", "Lebenszeichen", "gescheitert", "Fehler gemeldet", "Antwortzeit im Mittel"],
     latKpis: ["aktuell", "im Mittel", "langsamster Aufruf", "ohne Antwort"], zones: ["schnell", "langsam", "sehr langsam"], events: "Ereignisse", calls: "Alle Aufrufe",
     callsDay: "Einzelne Aufrufe bleiben 24 Stunden", noData: "Noch nichts aufgezeichnet", st: "Selbsttest", url: "Ping-URL", keep: "Aufbewahrt:", fail: "Gescheitert", start: "Erstes Lebenszeichen nach dem Start" },
-  en: { log: "Log", edit: "Edit", tabs: ["History", "Response time", "Service"], ranges: ["3 h", "12 h", "1 day", "7 days", "30 days", "90 days", "1 year"], ok: "OK",
+  en: { log: "Log", edit: "Edit", testFail: "Send failure", testOk: "Send life sign", tabs: ["History", "Response time", "Service"], ranges: ["3 h", "12 h", "1 day", "7 days", "30 days", "90 days", "1 year"], ok: "OK",
     okSince: "OK since", failed: "Failed", failedSince: "Failed since", every: "every 5 min", kpis: ["successful", "life signs", "failed", "failures reported", "mean response time"],
     latKpis: ["now", "on average", "slowest call", "without answer"], zones: ["fast", "slow", "very slow"], events: "Events", calls: "All calls",
     callsDay: "Single calls are kept for 24 hours", noData: "Nothing recorded yet", st: "Self-test", url: "Ping URL", keep: "Kept:", fail: "Failed", start: "First life sign after the start" },
@@ -44,12 +44,34 @@ for (const lang of ["de", "en"]) {
       && JSON.stringify((await requests()).at(-1)) === JSON.stringify([HC.id, 24]));
 
     // ----- Kopf, Kacheln, Zeitraum -----
-    const head = await dlg(`const h=d.querySelector('.ag-sv-head'); const e=h.querySelector('[data-sv="edit"]').getBoundingClientRect(); const x=d.querySelector('.ag-dlg-x').getBoundingClientRect();
+    // Seit 1.69.0 (Wunsch des Nutzers 2026-11-19, 21:50): statt "Bearbeiten" drei runde Knöpfe wie in der Liste: Fehler senden, Lebenszeichen
+    // senden, Stift (gleiche Symbole, gleiche Reihenfolge, 44 px)
+    const icons = await s.ev(`const d=r.getElementById('ag-hclist'); const b=[...d.querySelectorAll('[data-hc-row="${HC.id}"] .ag-iconbtn')]; return Object.fromEntries(b.map((x) => [x.dataset.hc, x.querySelector('svg')?.innerHTML]))`);
+    const head = await dlg(`const h=d.querySelector('.ag-sv-head'); const x=d.querySelector('.ag-dlg-x').getBoundingClientRect(); const bs=[...h.querySelectorAll('.ag-hl-acts .ag-iconbtn')];
       return { name: h.querySelector('.ag-hl-pick b').textContent, sub: h.querySelector('.ag-sv-ttl small').textContent, pill: h.querySelector('.ag-sv-pill').textContent, pillCls: h.querySelector('.ag-sv-pill').className,
-        edit: h.querySelector('[data-sv="edit"]').textContent.trim(), tint: !!h.querySelector('.ag-oav.ag-tint-health svg'), free: e.right <= x.left + 1 || e.top >= x.bottom - 1, expanded: h.querySelector('[data-sv="menu"]').getAttribute('aria-expanded') }`);
-    check(`${tag}: Kopf: getöntes Herz, Name als Auswahl, darunter Rechner${mobile ? "" : ", Anbieter"} und Intervall, Zustand "${t.ok}", "${t.edit}" ohne das X zu überdecken`,
+        acts: bs.map((b) => b.dataset.sv), labels: bs.map((b) => b.getAttribute('aria-label')), svg: bs.map((b) => b.querySelector('svg')?.innerHTML), size: bs.map((b) => Math.round(b.getBoundingClientRect().width)),
+        text: bs.map((b) => b.textContent.trim()).join(''), tint: !!h.querySelector('.ag-oav.ag-tint-health svg'),
+        free: bs.every((b) => { const e=b.getBoundingClientRect(); return e.right <= x.left + 1 || e.top >= x.bottom - 1; }), inside: bs.every((b) => b.getBoundingClientRect().right <= d.getBoundingClientRect().right), expanded: h.querySelector('[data-sv="menu"]').getAttribute('aria-expanded') }`);
+    check(`${tag}: Kopf: getöntes Herz, Name als Auswahl, darunter Rechner${mobile ? "" : ", Anbieter"} und Intervall, Zustand "${t.ok}"`,
       head.name === HC.name && head.sub.includes("hc-ping.com") && head.sub.includes(t.every) && head.sub.includes("Healthchecks.io") !== mobile && head.pill === t.ok && !/err|act|off/.test(head.pillCls)
-      && head.edit === t.edit && head.tint && head.free && head.expanded === "false", JSON.stringify(head));
+      && head.tint && head.expanded === "false", JSON.stringify(head));
+    check(`${tag}: Kopf: drei runde Knöpfe "${t.testFail}", "${t.testOk}", "${t.edit}" mit den Symbolen der Liste, 44 px, ohne Text, ohne das X zu überdecken`,
+      JSON.stringify(head.acts) === JSON.stringify(["test-fail", "test-ok", "edit"]) && JSON.stringify(head.labels) === JSON.stringify([t.testFail, t.testOk, t.edit])
+      && head.svg[0] === icons["test-fail"] && head.svg[1] === icons["test-ok"] && head.svg[2] === icons.edit && head.size.every((w) => w === 44) && head.text === "" && head.free && head.inside, JSON.stringify(head));
+    // Lebenszeichen und Fehler senden wie in der Liste; danach holt das Protokoll neu
+    for (const [act, kind] of [["test-ok", "ok"], ["test-fail", "fail"]]) {
+      const n = (await requests()).length;
+      await s.tap(`#ag-hclog .ag-hl-acts [data-sv="${act}"]`);
+      let reloaded = false;
+      for (let i = 0; i < 60 && !reloaded; i += 1) {
+        reloaded = (await requests()).length > n;
+        if (!reloaded) await s.page.waitForTimeout(100);
+      }
+      const ping = (await s.sim("return window.__hcCalls.filter((m) => m.type === 'alarmageddon/healthcheck_ping').map((m) => [m.check_id, m.kind])")).at(-1);
+      check(`${tag}: Kopf: "${kind === "ok" ? t.testOk : t.testFail}" sendet wie in der Liste, das Protokoll lädt neu, das Fenster bleibt`, reloaded && JSON.stringify(ping) === JSON.stringify([HC.id, kind])
+        && (await s.waitFor("return !r.querySelector('#ag-hclog .ag-hl-acts [disabled]')", 6000)) && (await s.ev("return r.getElementById('ag-hclog').open")), JSON.stringify(ping));
+    }
+    await ready(24);
     const tiles = await dlg("return [...d.querySelectorAll('.ag-sv-tile')].map((b) => ({ tab: b.dataset.tab, label: b.querySelector('small').textContent, value: b.querySelector('b').textContent, on: b.classList.contains('on') }))");
     check(`${tag}: Kacheln ${t.tabs.join(", ")}; "Verlauf" gewählt mit "${t.okSince} …", Antwortzeit in ms, Dienst "Healthchecks.io"`,
       tiles.map((x) => x.label).join() === t.tabs.join() && tiles[0].on && tiles[0].value.startsWith(t.okSince) && /^\d+ ms$/.test(tiles[1].value) && tiles[2].value === "Healthchecks.io", JSON.stringify(tiles));

@@ -321,25 +321,49 @@ Umsetzung:
   folgen genau dem gewählten Zeitraum** (Vorgabe des Nutzers, auch für die einzelnen Aufrufe): `events_total`, `calls_total`, höchstens 300 Zeilen
   mit Hinweis; ab 90 Tagen ganze Tage (Beginn Mitternacht des ersten Tages).
   Ansicht mit den Bausteinen der Sensoransicht (`HealthLogView extends SensorView`, Fenster `#ag-hclog`, Weiche in `_onClick`/`_onInput` vor der
-  Sensoransicht); Grafik bis 1 Tag Herzschlag mit Band, 7 Tage Zeitleiste, 30 Tage Raster (Entscheid "Vorschlag 1"), 90 Tage und 1 Jahr Raster
+  Sensoransicht; im Kopf seit 1.69.0 die runden Knöpfe der Liste "Fehler senden", "Lebenszeichen senden", Stift, `healthlog.js _actsHtml`, Wunsch
+  des Nutzers 21:50); Grafik bis 1 Tag Herzschlag mit Band, 7 Tage Zeitleiste, 30 Tage Raster (Entscheid "Vorschlag 1"), 90 Tage und 1 Jahr Raster
   Monat × Tag (Mockup v3 "B", Lücke ab `HEALTHLOG_GAP_DAY_MINUTES`); Antwortzeit mit Zonen 300 ms und 1 s. Statuskachel: sind Dienste eingerichtet,
   ist die Zeile des Selbsttests geteilt (`selftest.js tileHalf`, `healthcheck.js tileHalf`, gleich hoch), ohne Dienste wie bisher und ohne Einladung.
-- Meldungen der HealthCheck-Dienste (seit 1.68.0, Wunsch des Nutzers vom 2026-11-19, 18:42/18:43): `notify["healthcheck"]` = `fails`
-  (`HEALTHCHECK_NOTIFY_FAILS_RANGE`, Standard 2) und je Meldung `hc_down`, `hc_up` eine feste Meldung (`HC_NOTICE_SCHEMA`: wie `EVENT_NOTICE_SCHEMA`,
-  Klickziel `healthcheck` = `?view=healthcheck`). `healthcheck._notify` nach jedem Aufruf **ohne** Testknopf: "antwortet nicht" einmal je Ausfall nach
-  `fails` gescheiterten hintereinander, "antwortet wieder" nur nach einem "antwortet nicht"; `_fails`, `_fail_since`, `_down` in der Ablage (ein
-  Neustart meldet nicht noch einmal); im `try` (hält nie ein Lebenszeichen auf). Gesendet über `notify.async_send_healthcheck` (Platzhalter `HC_TOKENS`,
-  **nie die URL**, Empfänger leer = Wartung). Der Selbsttest meldet `ping_failed` nicht mehr (`selftest._report`), der Befund bleibt. Panel: Kapitel im
-  Reiter Benachrichtigungen (`notify.js _hcHtml`, immer da), Fenster der festen Meldungen (`actions.js openHcNoticeEditor`, `form.hc`, Weiche in
-  `_onClick`/`_onInput` für `#ag-step`). Standardtexte in `strings.js` gleich `notify.TEXTS` (Test). Tests `tests/test_healthcheck_notify.py`, Suiten
-  `hcnotify-e2e.mjs`, `play-e2e.mjs`, Zeilen "Meldung HealthCheck" in `scripts/mutation_check.py`. Tests `tests/test_healthcheck_log.py`, Suite `hclog-e2e.mjs`, Zeilen "Protokoll HealthCheck" in `scripts/mutation_check.py`. Der Nachbau
-  rechnet wie der Server (`__hcLogHistory`, `?hclog=empty`).
+- Meldungen der HealthCheck-Dienste (seit 1.68.0, Wunsch des Nutzers vom 2026-11-19, 18:42/18:43; seit 1.69.0, Wunsch 22:16/22:17, eine
+  Wartungsmeldung wie "Selbsttest"): Art `healthcheck` in `NOTIFY_TYPES` (Gruppe `maintenance`, Standard an, nicht kritisch) mit `notify.healthcheck_fails`
+  (`HEALTHCHECK_NOTIFY_FAILS_RANGE`, Standard 2) und `notify.healthcheck_up` (Standard an). Feste Texte `hc_down_*`, `hc_up_*` in `notify.TEXTS`,
+  **nie die URL**, Klickziel `?view=healthcheck`. `healthcheck._notify` nach jedem Aufruf **ohne** Testknopf: "antwortet nicht" einmal je Ausfall nach
+  `healthcheck_fails` gescheiterten hintereinander und nur, wenn die Meldung an ist; "antwortet wieder" nur nach einem "antwortet nicht" und nur mit
+  `healthcheck_up`, nie kritisch; `_fails`, `_fail_since`, `_down` in der Ablage (ein Neustart meldet nicht noch einmal); im `try` (hält nie ein
+  Lebenszeichen auf). Gesendet über `notify.async_send_healthcheck` (Empfänger leer = Wartung). Die Form aus 1.68.0 (`notify["healthcheck"]` mit `fails`,
+  `hc_down`, `hc_up`) übernimmt `settings._healthcheck_1_68` beim Laden, aus Backups und von einem alten Panel; `save_notify` lehnt sie ab. Der Selbsttest
+  meldet `ping_failed` nicht (`selftest._report`), der Befund bleibt. Testmeldung über `test_notify` (Art `healthcheck`). Tests
+  `tests/test_healthcheck_notify.py`, Suiten `hcnotify-e2e.mjs`, `play-e2e.mjs`, Zeilen "Meldung HealthCheck" in `scripts/mutation_check.py`. Tests
+  `tests/test_healthcheck_log.py`, Suite `hclog-e2e.mjs`, Zeilen "Protokoll HealthCheck" in `scripts/mutation_check.py`. Der Nachbau rechnet wie der
+  Server (`__hcLogHistory`, `?hclog=empty`).
+- Konfiguration › Benachrichtigungen (seit 1.69.0, Wünsche des Nutzers vom 2026-11-19, 22:20 und 22:27; Entscheid 23:01 "C", Mockups `meldungen-v1`):
+  jede Meldung der Kapitel "Störungsmeldungen" und "Wartungsmeldungen" ist eine Karte (`notify.js _card`, `.ag-ntk`, Farbe des Kapitels: Störung rot,
+  Wartung orange) mit Schalter, Kurzfassung, Play und Stift; der Stift öffnet das Fenster `#ag-ntkind` (`renderKind`). **Gespeichert wird nur auf der
+  Seite** (Vorgabe des Nutzers): das Fenster ändert den Entwurf (`NotifyUi.draft`), "Übernehmen" schliesst, "Abbrechen", X und Escape stellen nach der
+  Rückfrage (`_dlgDirty` → `kindDirty`) den Stand beim Öffnen wieder her (`openKind` merkt Entwurf und leere Empfängerlisten). Eine geänderte Meldung
+  trägt "Noch nicht gespeichert" mit dem orangen Punkt (`kindChanged`); eine ungültige Zahl hält "Übernehmen" auf (`ntkRange`). Zahlen einheitlich im
+  Raster `.ag-ntk-nums` (Beschriftung links, Felder in einer Flucht, Hinweis darunter). Eine neue Meldungsart ergänzt `GROUPS`, bei Zahlen `NUMBERS` und
+  `RANGES`, die Kurzfassung (`_summary`, Texte `ntkAfter_*`), und die Suiten `ntcards-e2e.mjs`, `switches-e2e.mjs`.
 - Batterie schwach (Wartung, `maintenance.py`; seit 1.68.0, Wunsch des Nutzers vom 2026-11-19, 19:38, nach einer Meldung "Batterie 1 %" bei 61 %):
   die Meldung geht erst hinaus, wenn die Batterie bei `battery_checks` Prüfungen hintereinander (`BATTERY_CHECKS_RANGE`, Standard 3, Prüfung alle
   `MAINTENANCE_INTERVAL`) unter der Schwelle liegt; ein Wert über der Schwelle beginnt neu, ein Batteriesensor ohne Wert zählt nicht und beginnt
   nicht neu. Die Zählung (`Maintenance._low`) lebt nur im Speicher: ein Neustart verzögert höchstens. Statusentität und Übersicht zeigen den
   aktuellen Wert sofort. Tests `tests/test_maintenance.py` (ältere Tests mit `_setup(checks=1)`), Suite `hardening-e2e.mjs`, Zeilen "Batterie
   schwach" in `scripts/mutation_check.py`.
+- Einrichtungsassistent (seit 1.69.0, `panel/wizard.js`, `settings.py` `wizard`, WS `alarmageddon/wizard`; Wunsch und Entscheide des Nutzers vom
+  2026-11-19, 20:43 und 21:05, Mockups `einrichtungsassistent-v1`): Zustand je Anlage in den globalen Einstellungen (`open`; `later` mit `until` =
+  Datum von morgen in Ortszeit von HA; `hidden`; `done`; dazu `step`), fällig (`due`) rechnet der Server. Eine neue Anlage bekommt ihn (kein Eintrag
+  = offen); beim ersten Laden nach dem Update (Ablage ohne `wizard`) gelten alle bestehenden Anlagen als `done`, sofort geschrieben; eine Anlage aus
+  einem Backup bekommt `done`; Entfernen nimmt den Zustand mit; nie im Backup. Der Befehl ändert nie die Anlage selbst. "Später" führt am nächsten
+  Tag **genau zum Schritt** zurück, bei dem man aufgehört hat (jeder Schrittwechsel geht an den Server). **Kein eigener Editor:** die Schritte
+  speichern über die Entwürfe und das Speichern der Reiter (`SystemUi`, `SensorsUi`, `NotifyUi`, `ActionsUi`); "Zuordnung", "Alarmaktionen" und
+  "Überwachung" sind die eingebetteten Ansichten (das Panel zeichnet in `.ag-wz-slot` als `_view`, `_tab`/`_sub` stehen auf dem Schritt, Ereignisse
+  laufen weiter über die Reiter). Eine Änderung an einem Reiter gilt damit auch im Assistenten; was im Assistenten fehlen soll, blendet `styles.js`
+  je Schritt aus. Er öffnet sich nie über ungespeicherte Änderungen oder ein offenes Fenster; der Start von Hand fragt vorher. Der Code ist
+  freiwillig (ein Hauptcode zählt), "Schnell hinzufügen" nur Sirene 3 Minuten und Alarmton (Entscheid: ohne Licht), "Überwachung" nur mit
+  passenden Messwerten oder eingeschalteter Überwachung. Ein neuer Schritt ergänzt `WZ_STEPS` (Panel) und `WIZARD_STEPS` (Server), die Texte `wz*`
+  und die Suite `wizard-e2e.mjs`; Tests `tests/test_wizard.py`, Zeilen "Assistent" in `scripts/mutation_check.py`.
 - Neustart und Absturz (seit 1.58.0, Code-Review): Der Zustand steht in einer eigenen Ablage (`controller._save_state`, `STATE_STORE_KEY`), sofort bei jedem
   Wechsel geschrieben; beim Start gilt der neuere von eigener Ablage und Restore-Stand von HA (`controller.newer_state`). Was beim Wiederherstellen
   auslösen muss (abgelaufene Eingangsverzögerung), löst erst in `controller.async_finish_restore()` aus, wenn alle Zuhörer angemeldet sind

@@ -171,24 +171,40 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Wartung in Benachrichtigungen`, await s.waitFor(`return r.querySelector('.ag-nt')?.innerText.includes('${t.maint}')`));
     check(`${tag}: "Sensor nicht erreichbar" (länger) unter Wartung, "im scharfen Zustand" bei den Meldungen`, await s.ev("const chaps=[...r.querySelectorAll('.ag-chap')]; const maint=chaps[2]; const alarm=chaps[1]; return !!maint.querySelector('[data-nt=\"enabled\"][data-kind=\"sensor_unavailable\"]') && !maint.querySelector('[data-kind=\"sensor_offline\"]') && !!alarm.querySelector('[data-nt=\"enabled\"][data-kind=\"sensor_offline\"]')"));
     await s.page.screenshot({ path: `${outDir}notify-offline-${lang}-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });
-    const thr = await s.el('[data-nt="num"][data-key="battery_threshold"]');
+    // Seit 1.69.0 (Variante C) stehen die Zahlen im Fenster der Meldung (Stift auf der Karte), einheitlich: Beschriftung links, Feld und Einheit rechts
+    const openKind = async (kind) => {
+      await s.tap(`.ag-ntk[data-ntk="${kind}"] [data-nt="edit"]`);
+      await s.waitFor("return r.getElementById('ag-ntkind').open");
+    };
+    const applyKind = async () => {
+      await s.tap('#ag-ntkind [data-nt="kind-apply"]');
+      return s.waitFor("return !r.getElementById('ag-ntkind').open");
+    };
+    await openKind("battery_low");
+    const thr = await s.el('#ag-ntkind [data-nt="num"][data-key="battery_threshold"]');
     await thr.fill("80");
-    check(`${tag}: Schwelle zu hoch abgelehnt`, await s.waitFor("return r.querySelector('[data-nt=\"save\"]').disabled && !!r.querySelector('.ag-foot .ag-err')"));
+    check(`${tag}: Schwelle zu hoch abgelehnt`, await s.waitFor("return r.querySelector('[data-nt=\"save\"]').disabled && !!r.querySelector('.ag-foot .ag-err') && r.querySelector('#ag-ntkind [data-num=\"battery_threshold\"] .ag-num').classList.contains('bad')"));
     await thr.fill("25");
     // 1.68.0: "Meldung nach … Prüfungen in Folge" (Wunsch des Nutzers 2026-11-19, 19:38: ein einzelner falscher Wert eines Geräts meldet nichts)
-    const checksRow = await s.ev(`const row=r.querySelector('[data-num="battery_checks"]'); return row && { unit: row.querySelector('.ag-num .ag-t2').textContent, unitLines: Math.round(row.querySelector('.ag-num .ag-t2').getBoundingClientRect().height / 14), value: row.querySelector('input').value,
-      sameCard: !!row.closest('.ag-mt')?.querySelector('[data-nt="enabled"][data-kind="battery_low"]'), hint: row.querySelector('small')?.textContent || '',
-      inside: row.getBoundingClientRect().right <= row.closest('.ag-mt').getBoundingClientRect().right + 1 }`);
+    const checksRow = await s.ev(`const row=r.querySelector('#ag-ntkind [data-num="battery_checks"]'); const unit=row?.querySelector('.ag-ntk-unit'); return row && { unit: unit.textContent, unitLines: Math.round(unit.getBoundingClientRect().height / 14), value: row.querySelector('input').value,
+      sameCard: r.host.notify.kindEdit?.kind === 'battery_low', hint: row.querySelector('.ag-ntk-nh')?.textContent || '',
+      inside: unit.getBoundingClientRect().right <= row.closest('.ag-efcard').getBoundingClientRect().right + 1 }`);
     const checksText = lang === "de" ? "Prüfungen" : "checks";
-    check(`${tag}: Batterie schwach: "… 3 ${checksText}" (eine Zeile) in derselben Karte, mit Hinweis auf die 15 Minuten der Wartung, passt in die Breite`,
+    check(`${tag}: Batterie schwach: "… 3 ${checksText}" (eine Zeile) im Fenster der Meldung, mit Hinweis auf die 15 Minuten der Wartung, passt in die Breite`,
       !!checksRow && checksRow.value === "3" && checksRow.sameCard && checksRow.unit === checksText && checksRow.unitLines <= 1 && checksRow.hint.includes("15") && checksRow.inside, JSON.stringify(checksRow));
-    const checksField = await s.el('[data-nt="num"][data-key="battery_checks"]');
+    const checksField = await s.el('#ag-ntkind [data-nt="num"][data-key="battery_checks"]');
     await checksField.fill("0");
     check(`${tag}: 0 Prüfungen abgelehnt (Feld rot, "Speichern" gesperrt)`, await s.waitFor("return r.querySelector('[data-nt=\"save\"]').disabled && r.querySelector('[data-num=\"battery_checks\"] .ag-num').classList.contains('bad')"));
     await checksField.fill("4");
-    await (await s.el('[data-nt="num"][data-key="offline_minutes"]')).fill("120");
-    await s.tap('[data-nt="enabled"][data-kind="sensor_unavailable"]');
-    check(`${tag}: Art aus blendet ihre Einstellungen aus`, await s.waitFor("return !r.querySelector('[data-nt=\"num\"][data-key=\"offline_minutes\"]')"));
+    check(`${tag}: Batterie übernommen`, await applyKind());
+    await openKind("sensor_unavailable");
+    await (await s.el('#ag-ntkind [data-nt="num"][data-key="offline_minutes"]')).fill("120");
+    await applyKind();
+    await s.tap('.ag-ntk[data-ntk="sensor_unavailable"] [data-nt="enabled"]');
+    await openKind("sensor_unavailable");
+    check(`${tag}: Art aus blendet ihre Einstellungen aus`, await s.waitFor("return !r.querySelector('[data-nt=\"num\"][data-key=\"offline_minutes\"]') && !!r.querySelector('#ag-ntkind [data-nt=\"enabled\"][data-kind=\"sensor_unavailable\"]')"));
+    await s.tap('#ag-ntkind [data-nt="kind-cancel"]');
+    await s.waitFor("return !r.getElementById('ag-ntkind').open");
     await s.tap('[data-nt="save"]');
     check(`${tag}: Wartung gespeichert`, await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`));
     const nt = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_notify').at(-1)?.notify");

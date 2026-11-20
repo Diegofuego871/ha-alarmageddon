@@ -15,7 +15,7 @@
 
 [English](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/README.md)
 
-**Eine vollständige Alarmanlage für Home Assistant, ohne eine einzige Automation.** Du kreuzt an, welche Sensoren wachen, legst fest, was bei einem Alarm passiert, und schaltest scharf. Alles in einem Seitenpanel, am Computer und auf dem Handy; die Push-Meldungen kommen von selbst, und Alarmageddon behält sich selbst im Blick.
+**Eine vollständige Alarmanlage für Home Assistant, ohne eine einzige Automation.** Ein Einrichtungsassistent fragt, welche Sensoren wachen, was bei einem Alarm passiert und wer benachrichtigt wird; dann schaltest du scharf. Alles in einem Seitenpanel, am Computer und auf dem Handy; die Push-Meldungen kommen von selbst, und Alarmageddon behält sich selbst im Blick.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/overview-de.png" alt="Übersicht mit zwei Anlagen, der Statuskachel und der Sensorliste" width="100%"></p>
 
@@ -23,19 +23,20 @@
 
 <table>
 <tr>
-<td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/step-sensors-de.png" alt="Sensoren und Zonen auf dem Handy" width="250"><br><b>1. Sensoren wählen</b><br>Ankreuzen, welche Sensoren in "Anwesend", "Abwesend" und "Nacht" wachen.</td>
-<td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/step-actions-de.png" alt="Alarmaktionen als Ablauf auf dem Handy" width="250"><br><b>2. Alarm festlegen</b><br>Push-Meldung, Sirene, Licht, Ton: ein Ablauf aus Schritten, jeder mit einem Knopf testbar.</td>
+<td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/step-wizard-de.png" alt="Der Einrichtungsassistent auf dem Handy: Sensoren wählen" width="250"><br><b>1. Sensoren wählen</b><br>Der Einrichtungsassistent listet die Sensoren von Home Assistant und schlägt vor, wo jeder in "Anwesend", "Abwesend" und "Nacht" wacht.</td>
+<td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/step-actions-de.png" alt="Alarmaktionen als Ablauf auf dem Handy" width="250"><br><b>2. Alarm festlegen</b><br>Push-Meldung, Sirene, Alarmton, Licht: ein Ablauf aus Schritten, jeder mit einem Knopf testbar.</td>
 <td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/mobile-de.png" alt="Übersicht auf dem Handy" width="250"><br><b>3. Scharf schalten</b><br>Im Panel, auf dem Dashboard, per Routine oder aus jedem System, das Home Assistant kennt.</td>
 </tr>
 </table>
 
 ## Was du bekommst
 
+- **In wenigen Minuten eingerichtet.** Ein Einrichtungsassistent führt jede neue Anlage durch Modi, Sensoren, Eingangstür und Verzögerungen, Code, Meldungen und Alarmaktionen, mit Vorschlägen nach Sensorart. Unterbrechen geht jederzeit; am nächsten Tag geht es genau dort weiter.
 - **Keine Automationen, kein YAML.** Zonen je Modus, Ein- und Ausgangsverzögerung, Sirene und Alarmton, Routinen nach Zeit oder Gerät, Codes pro Person: alles eingebaut und grafisch eingestellt.
-- **Push-Meldungen von selbst.** Alarm, scharf, deaktiviert, Sensor nicht erreichbar, Batterie schwach: Du wählst nur die Empfänger. Die Alarmmeldung bringt ihre Knöpfe mit ("Quittieren", "Deaktivieren"), auf Wunsch kritisch.
+- **Push-Meldungen von selbst.** Alarm, scharf, deaktiviert, Sensor nicht erreichbar, Batterie schwach (erst, wenn sie über mehrere Prüfungen schwach bleibt, nie bei einem einzelnen Ausreisser): Du wählst nur die Empfänger. Die Alarmmeldung bringt ihre Knöpfe mit ("Quittieren", "Deaktivieren"), auf Wunsch kritisch.
 - **Sensoren unter Beobachtung.** Batterie mit Prognose, Empfang, letzte Änderung und der Verlauf jedes Sensors über 30 Tage. Fällt ein Sensor im scharfen Zustand aus, erfährst du es.
 - **Mehr als Einbruch.** Regeln der Überwachung für Kühlschrank, Keller oder Luft melden, wenn ein Wert seine Grenzen verlässt, getrennt vom Alarm und nie mit der Sirene.
-- **Behält sich selbst im Blick.** Ein Selbsttest prüft regelmässig (standardmässig alle paar Stunden, auf Wunsch bis alle 5 Minuten), ob alles, was die Anlagen brauchen, noch da und erreichbar ist. Ein HealthCheck-Dienst draussen (Healthchecks.io, Cronitor, Better Stack …) bekommt regelmässig ein Lebenszeichen und meldet sich, wenn Home Assistant verstummt.
+- **Behält sich selbst im Blick.** Ein Selbsttest prüft regelmässig (standardmässig alle paar Stunden, auf Wunsch bis alle 5 Minuten), ob alles, was die Anlagen brauchen, noch da und erreichbar ist. Ein HealthCheck-Dienst draussen (Healthchecks.io, Cronitor, Better Stack …) bekommt regelmässig ein Lebenszeichen und meldet sich, wenn Home Assistant verstummt; Alarmageddon protokolliert jedes Lebenszeichen und sagt dir, wenn ein Dienst nicht mehr antwortet.
 - **Nachvollziehbar.** Jeder Alarm wird mit Zeitachse aufgezeichnet: welcher Sensor, welche Schritte, welche Meldungen, wer quittiert hat.
 - **Im Zweifel alarmieren.** Zustand, Verzögerungen und Alarme überstehen Neustart und Absturz, kein Gerät hält die Sirene auf, ein Wächter beaufsichtigt den Ablauf.
 - **Bleibt zu Hause.** Keine Cloud, kein Konto. Jede Anlage ist eine gewöhnliche `alarm_control_panel`-Entität; jeder Sensor von Home Assistant funktioniert (Zigbee, Z-Wave, Thread/Matter, WLAN, Bluetooth).
@@ -43,10 +44,16 @@
 ## Installation
 
 1. **Installieren:** HACS → drei Punkte → "Benutzerdefinierte Repositories" → `https://github.com/Diegofuego871/ha-alarmageddon`, Typ "Integration". "Alarmageddon" installieren und Home Assistant neu starten.
-2. **Anlage hinzufügen:** Einstellungen → Geräte & Dienste → "Integration hinzufügen" → "Alarmageddon". Name vergeben und, wenn du willst, einen Code.
-3. **Einrichten:** "Alarmageddon" in der Seitenleiste öffnen (nur Administratoren) und unter Konfiguration die drei Schritte von oben durchgehen: Sensoren, Aktionen, Benachrichtigungen. Mit "Testmeldung senden" und dem Abspielknopf eines Schritts probierst du alles ohne Alarm aus. Unter Konfiguration › Anlage findest du Routinen, Codes pro Person, eigene Töne, HealthCheck und Backup.
+2. **Anlage hinzufügen:** Einstellungen → Geräte & Dienste → "Integration hinzufügen" → "Alarmageddon". Name vergeben und, wenn du willst, einen Code. Weitere Anlagen lassen sich auch im Panel hinzufügen ("Anlage hinzufügen").
+3. **Einrichten:** "Alarmageddon" in der Seitenleiste öffnen (nur Administratoren). Der Einrichtungsassistent startet von selbst und geht Modi, Sensoren, Eingang und Verzögerungen, einen Code, Meldungen und Alarmaktionen durch; jeder Schritt wird mit "Weiter" gespeichert. Danach findest du alles unter Konfiguration; Routinen, Codes pro Person, eigene Töne, HealthCheck und Backup stehen unter Konfiguration › Anlage. Mit "Testmeldung senden" und dem Abspielknopf eines Schritts probierst du alles ohne Alarm aus.
 
 ## Rundgang
+
+### Der Einrichtungsassistent
+
+Jede neue Anlage beginnt mit ihm: bis zu sieben kurze Schritte, die erklären, was sie fragen. Sensoren werden nach Art vorgeschlagen (Türen und Fenster in jedem Modus, Bewegung nur bei Abwesend, Rauch, Wasser und Gas immer), die Alarmaktionen nutzen den echten Editor mit "Sirene 3 Minuten" und "Alarmton" zum schnellen Hinzufügen, und die Überwachung erscheint nur, wenn Home Assistant passende Sensoren hat. "Später" bringt ihn am nächsten Tag beim selben Schritt zurück; unter Konfiguration › Anlage lässt er sich jederzeit erneut starten, mit allem, was eingerichtet ist, vorgewählt.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/wizard-de.png" alt="Einrichtungsassistent beim Schritt Zuordnung und Eingang: links die Schritte, die Sensortabelle nach Sensorart vorbelegt" width="100%"></p>
 
 ### Was bei einem Alarm passiert
 
@@ -101,7 +108,7 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Das ist ei
 - **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet, wird gemeldet oder zählt auf Wunsch als Alarm.
 - **Selbsttest:** prüft regelmässig, ob alles, was der Alarm braucht, da und erreichbar ist, und hält fest, was scheiterte; er liest nur und hält nie einen Alarm auf.
 - **HealthCheck:** Lebenszeichen an einen Dienst draussen melden ein verstummtes Home Assistant. Die Ping-URL steht ganz nur im Panel und im Backup, nie im Log oder in einer Meldung; ein Lebenszeichen wartet höchstens 10 Sekunden.
-- **Getestet:** über 1500 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 7400 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 368 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
+- **Getestet:** über 1600 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 8400 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 408 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
 
 ### Grenzen
 
@@ -119,7 +126,7 @@ Alarmageddon ist keine zertifizierte Alarmanlage:
 
 ## Mehr erfahren
 
-- **[Handbuch](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.de.md):** jede Ansicht und jede Einstellung im Detail, alle Sicherheitsmechanismen, Entitäten, Zahlen und Grenzen, Routinen, Selbsttest, HealthCheck, Backup, Hinweise für Entwickler.
+- **[Handbuch](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.de.md):** jede Ansicht und jede Einstellung im Detail, der Einrichtungsassistent, alle Sicherheitsmechanismen, Entitäten, Zahlen und Grenzen, Routinen, Selbsttest, HealthCheck, Backup, Hinweise für Entwickler.
 - **[Änderungsprotokoll](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/CHANGELOG.de.md):** was sich in welcher Version geändert hat.
 - **Sprachen:** Die Integration ist auf Englisch und wechselt auf Deutsch, wenn Home Assistant auf Deutsch läuft.
 - **Lizenz:** siehe [LICENSE](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/LICENSE).

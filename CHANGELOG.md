@@ -7,6 +7,23 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.69.0] - 2026-11-20
+
+### Added
+
+- **Setup assistant:** a new alarm system opens a setup assistant by itself, once, the first time the panel shows it (added in the panel or under Settings › Devices & services). It asks only for the essentials and explains on the way: **Modes** (Home, Away, Night, and smoke, water and gas always active), **Sensors** (all suitable sensors of Home Assistant with filters and search), **Assignment and entry** (the sensor table of Configuration › Sensors, filled in by sensor type: doors and windows in every mode, motion only when away, smoke, water and gas always; the entry door, the time to leave and the time to disarm), **Code** (optional; with your own user filled in), **Notifications** (recipients of alarm and of maintenance notifications, a switch per notification, a test message), **Alarm actions** (the editor of Configuration › Actions with "Siren 3 minutes" and "Alarm sound" to add quickly) and **Monitoring** (only when there are suitable measuring sensors). "Done" sums everything up with "Change" per step, a test of the alarm actions, a test message and "Ready to arm" per mode.
+  - Every step is saved with "Next", through the same saving as the tabs of the configuration. On the computer a step list on the left shows what is done; on the phone a progress bar.
+  - "Later" asks "Show again tomorrow" (the next day it opens exactly at the step where you stopped) or "Don't show again".
+  - A new chapter "Setup assistant" under Configuration › Alarm system, just before "Delete alarm system", shows where it stands and starts it again, at that step or from the start, with everything that is set up preselected.
+  - Alarm systems that existed before this update and alarm systems restored from a backup do not get it by themselves. Its state is not part of backups and is removed with the alarm system.
+
+### Changed
+
+- **Adding an alarm system in the panel** now opens the setup assistant of the new alarm system (before: Configuration › Sensors). "Later" leads there as before.
+- **Configuration › Notifications, new design:** every notification under "Fault messages" and "Maintenance messages" is a card like the fixed notifications under Configuration › Actions: switch, symbol in the colour of its chapter (fault messages red, maintenance messages orange, switched off grey), title, a short summary (to whom, critical, the own settings such as "below 20 % · after 3 checks"), play (test message) and pencil. The pencil opens a window with all settings of the notification: "Send the message", recipients, delivery (critical with volume, "stays in Home Assistant") and the own settings of the notification. Numbers are uniform: label on the left, field and unit on the right in one line, the hint below. "Apply" takes the changes over to the page; saved is as before only with "Save" at the bottom. A changed card shows "Not saved yet" with the orange dot, as everywhere in the panel; "Cancel", X and Escape ask before discarding changes made in the window. On the computer the cards stand in two columns, on the phone in one. "Settings per mode" stays at the top of "Fault messages".
+- **Messages of the HealthCheck services:** now one maintenance message "HealthCheck service not answering" under Configuration › Notifications › Maintenance messages, set up like "Self-test": switch, recipients (default: the maintenance recipients), critical with volume, "stays in Home Assistant", test message, plus "Message after … failed attempts" (1 to 10, default 2) and "Message when it answers again" (on by default; same recipients, never critical, replaces the message "not answering"). The texts are fixed; the chapter "HealthCheck services" with its own texts and tap target is gone. Settings from 1.68.0 are taken over (on/off, recipients, critical, volume, "stays in Home Assistant", the number and on/off of "answers again").
+- **Log of the HealthCheck services:** the header shows the round buttons of the list instead of "Edit": "Send failure", "Send life sign" and the pencil, with the same symbols and in the same order. After sending, the log reloads with the new call.
+
 ## [1.68.0] - 2026-11-19
 
 ### Added
@@ -2003,6 +2020,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0
 [1.68.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.68.0
 [1.67.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.67.0
 [1.66.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.1

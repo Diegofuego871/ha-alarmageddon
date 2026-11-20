@@ -214,6 +214,8 @@ async def async_restore(hass: HomeAssistant, backup: dict[str, Any], mapping: li
             if entry is None:
                 continue
             created.append(entry.title)
+            # Sie bekommt die Einstellungen des Backups: der Einrichtungsassistent erscheint nicht von selbst (1.69.0)
+            await settings.async_set_wizard(entry.entry_id, "done")
         else:
             entry = target
         options = {**entry.options, **item["options"]}

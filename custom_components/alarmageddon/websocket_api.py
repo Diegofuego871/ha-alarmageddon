@@ -10,7 +10,6 @@ Texte liefert der Server keine: Fehler kommen als Schlüssel
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
 import re
 import secrets
 from typing import Any
@@ -27,7 +26,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integrations
-from homeassistant.util import dt as dt_util, slugify
+from homeassistant.util import slugify
 
 from . import backup, custom_sounds, last_change, reception
 from .code import hash_code, match_code
@@ -98,7 +97,6 @@ from .const import (
     DOMAIN,
     HEALTHCHECK_INTERVAL_RANGE,
     HEALTHLOG_RANGES,
-    HC_NOTICE_KINDS,
     HEALTHCHECK_NOTIFY_FAILS_RANGE,
     HEALTHCHECK_NAME_MAX,
     HEALTHCHECK_SUFFIX_MAX,
@@ -113,13 +111,15 @@ from .const import (
     OPT_ENTRY_DELAY,
     SENSOR_OPTIONS,
     SENSOR_TYPES,
+    WIZARD_ACTIONS,
+    WIZARD_STEPS,
 )
 from .devices import battery_of, device_field, device_sensors, display_name, free_entity_id, main_device, system_device
 from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
-from .schemas import step_list, END_NOTIFY_SCHEMA, EVENT_NOTICE_SCHEMA, HC_NOTICE_SCHEMA, valid_event_notify, valid_report_step, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
+from .schemas import step_list, END_NOTIFY_SCHEMA, EVENT_NOTICE_SCHEMA, valid_event_notify, valid_report_step, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
 from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_battery_forecasts, async_get_stats, async_measure_history, async_numeric_history, async_state_history
-from .healthcheck import async_get_healthcheck, host_of
+from .healthcheck import async_get_healthcheck
 from .selftest import async_get_selftest
 from .settings import async_get_settings, sensor_type, valid_fail_suffix, valid_healthcheck_name, valid_healthcheck_url
 
@@ -159,7 +159,6 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_monitor_entities)
     websocket_api.async_register_command(hass, ws_sensor_candidates)
     websocket_api.async_register_command(hass, ws_test_event_notify)
-    websocket_api.async_register_command(hass, ws_test_healthcheck_notify)
     websocket_api.async_register_command(hass, ws_save_monitors)
     websocket_api.async_register_command(hass, ws_test_monitor_step)
     websocket_api.async_register_command(hass, ws_battery_forecast)
@@ -183,6 +182,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_healthcheck_delete)
     websocket_api.async_register_command(hass, ws_healthcheck_ping)
     websocket_api.async_register_command(hass, ws_healthcheck_history)
+    websocket_api.async_register_command(hass, ws_wizard)
 
 
 def _entry(hass: HomeAssistant, connection, msg: dict[str, Any]) -> ConfigEntry | None:
@@ -314,16 +314,17 @@ def _chosen_sensors(hass: HomeAssistant) -> tuple[set[str], bool]:
     return chosen, monitoring
 
 
-@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/sensor_candidates"})
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/sensor_candidates", vol.Optional("measures", default=False): bool})
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_sensor_candidates(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """
     Alle Sensoren, die sich einer Anlage hinzufügen lassen (Fenster "Sensoren hinzufügen"), samt den schon gewählten; Messwerte nur,
-    wenn eine Anlage die Überwachung eingeschaltet hat. Auf Abruf, nicht mit jeder Abfrage der Übersicht (1.60.0).
+    wenn eine Anlage die Überwachung eingeschaltet hat oder `measures` sie verlangt (Einrichtungsassistent, 1.69.0: der Schritt
+    "Überwachung" erscheint nur, wenn es passende Messwerte gibt). Auf Abruf, nicht mit jeder Abfrage der Übersicht (1.60.0).
     """
     chosen, monitoring = _chosen_sensors(hass)
-    connection.send_result(msg["id"], {"sensors": await _with_integration(hass, await _sensor_info(hass, chosen, measures=monitoring))})
+    connection.send_result(msg["id"], {"sensors": await _with_integration(hass, await _sensor_info(hass, chosen, measures=monitoring or msg["measures"]))})
 
 
 async def _last_changes(hass: HomeAssistant, settings, entities: list[str]) -> dict[str, str]:
@@ -351,6 +352,7 @@ async def _last_changes(hass: HomeAssistant, settings, entities: list[str]) -> d
 @websocket_api.async_response
 async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """Alle Anlagen mit Zonen und Ereignissen, dazu die Sensoren. Live-Zustände liest das Panel aus hass.states."""
+    settings = await async_get_settings(hass)
     systems = []
     chosen: set[str] = set()
     for entry in hass.config_entries.async_entries(DOMAIN):
@@ -416,12 +418,13 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "code_arm_required": ctl.code_arm_required,
                 "code_ack_required": ctl.code_ack_required,
                 "events": entry.runtime_data.events.events[:20],
+                # Einrichtungsassistent (1.69.0): Zustand, Schritt und ob er jetzt erscheint
+                "wizard": settings.wizard_payload(entry.entry_id),
             }
         )
     systems.sort(key=lambda s: s["title"].lower())
     # Nur die gewählten Sensoren (1.60.0); die Kandidaten für "Sensoren hinzufügen" liefert ws_sensor_candidates
     sensors = await _with_integration(hass, await _sensor_info(hass, chosen, candidates=False))
-    settings = await async_get_settings(hass)
     notify_services = sorted(f"notify.{name}" for name in hass.services.async_services().get("notify", {}) if name not in ("notify", "send_message", "persistent_notification"))
     loaded = [e for e in hass.config_entries.async_entries(DOMAIN) if e.state is ConfigEntryState.LOADED]
     connection.send_result(msg["id"], {
@@ -592,6 +595,31 @@ async def ws_create_system(hass: HomeAssistant, connection, msg: dict[str, Any])
         connection.send_error(msg["id"], "create_failed", "The alarm system could not be created")
         return
     connection.send_result(msg["id"], {"entry_id": entry.entry_id})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/wizard",
+        vol.Required("entry_id"): str,
+        vol.Required("action"): vol.In(WIZARD_ACTIONS),
+        vol.Optional("step"): vol.In(WIZARD_STEPS),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_wizard(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Einrichtungsassistent (1.69.0): Zustand einer Anlage setzen. "start" und "step" merken, wo es weitergeht (auch über Tage, Wunsch des
+    Nutzers 2026-11-19, 21:05), "later" bis morgen, "hide" nur noch von Hand, "done" abgeschlossen. Ändert nichts an der Anlage selbst:
+    die Schritte speichern über die Befehle der Reiter.
+    """
+    if (entry := _entry(hass, connection, msg)) is None:
+        return
+    if msg["action"] == "step" and "step" not in msg:
+        connection.send_error(msg["id"], "invalid_format", "step is required")
+        return
+    settings = await async_get_settings(hass)
+    connection.send_result(msg["id"], {"wizard": await settings.async_set_wizard(entry.entry_id, msg["action"], msg.get("step"))})
 
 
 @websocket_api.websocket_command(
@@ -852,12 +880,9 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             # Bis 1.66.x in Stunden: ein Panel, das noch offen ist, sendet sie so (als Minuten übernommen)
             vol.Optional("selftest_hours"): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
             vol.Optional("selftest_hours_armed"): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
-            # Meldungen der HealthCheck-Dienste (1.68.0): streng geprüft (ein ungültiger Wert ist ein Fehler, nie still der Standard)
-            vol.Optional("healthcheck"): {
-                vol.Required("fails"): vol.All(vol.Coerce(int), vol.Range(min=HEALTHCHECK_NOTIFY_FAILS_RANGE[0], max=HEALTHCHECK_NOTIFY_FAILS_RANGE[1])),
-                vol.Required("hc_down"): vol.All(dict, HC_NOTICE_SCHEMA),
-                vol.Required("hc_up"): vol.All(dict, HC_NOTICE_SCHEMA),
-            },
+            # HealthCheck-Dienste (seit 1.69.0 die Wartungsmeldung "healthcheck" unter "types"): Zahl gescheiterter Aufrufe und "antwortet wieder"
+            vol.Optional("healthcheck_fails"): vol.All(vol.Coerce(int), vol.Range(min=HEALTHCHECK_NOTIFY_FAILS_RANGE[0], max=HEALTHCHECK_NOTIFY_FAILS_RANGE[1])),
+            vol.Optional("healthcheck_up"): bool,
         },
     }
 )
@@ -1002,37 +1027,6 @@ def loaded_healthcheck(hass: HomeAssistant) -> Any:
     """Die laufenden Lebenszeichen (1.65.0), solange eine Anlage geladen ist; sonst None."""
     healthcheck = hass.data.get(DATA_HEALTHCHECK)
     return healthcheck if healthcheck is not None and healthcheck.started else None
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): f"{DOMAIN}/test_healthcheck_notify",
-        vol.Required("kind"): vol.In(HC_NOTICE_KINDS),
-        vol.Required("notice"): vol.All(dict, HC_NOTICE_SCHEMA),
-    }
-)
-@websocket_api.require_admin
-@websocket_api.async_response
-async def ws_test_healthcheck_notify(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
-    """
-    Testmeldung "antwortet nicht" oder "antwortet wieder" (1.68.0) mit den (auch ungespeicherten) Werten aus dem Fenster; Beispielwerte vom ersten
-    Dienst (Name und Rechner, nie die URL), ohne Dienst erfundene.
-    """
-    from .notify import async_send_healthcheck, text  # noqa: PLC0415
-
-    if (healthcheck := loaded_healthcheck(hass)) is None:
-        connection.send_error(msg["id"], "not_found", "No alarm system")
-        return
-    settings = await async_get_settings(hass)
-    item = next(iter(healthcheck.items()), None)
-    values = {"name": str(item.get("name") or host_of(item["url"])) if item else "Healthchecks.io", "host": host_of(item["url"]) if item else "hc-ping.com",
-              "reason": text(hass, "hc_reason_timeout") if msg["kind"] == "hc_down" else "", "count": str(settings.notify["healthcheck"]["fails"]),
-              "since": dt_util.as_local(dt_util.utcnow() - timedelta(minutes=10)).strftime(text(hass, "time_format"))}
-    targets = async_send_healthcheck(hass, settings.notify, msg["kind"], values, notice={**msg["notice"], "enabled": True}, test=True, tag="alarmageddon_hc_test")
-    if not targets and not msg["notice"].get("persistent"):
-        connection.send_error(msg["id"], "no_targets", "No recipients configured")
-        return
-    connection.send_result(msg["id"], {"ok": True, "targets": targets})
 
 
 @websocket_api.websocket_command(

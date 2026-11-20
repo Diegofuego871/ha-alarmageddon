@@ -91,7 +91,13 @@ for (const lang of ["de", "en"]) {
 
     // Anlegen
     await s.tap('#ag-add button[type="submit"]');
-    check(`${tag}: Anlegen schliesst den Dialog und wechselt zur neuen Anlage in Konfiguration › Sensoren`, await s.waitFor("const sel=r.querySelector('select[data-act=\"system\"]'); return !r.getElementById('ag-add').open && !!sel && sel.value === 'e_garage_nord' && !!r.querySelector('[data-tab=\"config\"].on') && !!r.querySelector('[data-sub=\"sensors\"].on')", 8000));
+    // Seit 1.69.0 öffnet sich für die neue Anlage der Einrichtungsassistent; "Später" › "Nicht mehr anzeigen" führt dorthin, wo das Panel
+    // die neue Anlage bisher zeigte (Konfiguration › Sensoren)
+    check(`${tag}: Anlegen schliesst den Dialog und öffnet den Einrichtungsassistenten für die neue Anlage`, await s.waitFor("return !r.getElementById('ag-add').open && r.querySelector('.ag-wz')?.dataset.step === 'welcome' && r.querySelector('.ag-wz-lead')?.textContent.includes('Garage Nord')", 8000));
+    await s.tap('[data-wz="later"]');
+    await s.waitFor("return r.getElementById('ag-wzask').open");
+    await s.tap('#ag-wzask [data-wz="ask-hide"]');
+    check(`${tag}: danach die neue Anlage in Konfiguration › Sensoren`, await s.waitFor("const sel=r.querySelector('select[data-act=\"system\"]'); return !r.querySelector('.ag-wz') && !!sel && sel.value === 'e_garage_nord' && !!r.querySelector('[data-tab=\"config\"].on') && !!r.querySelector('[data-sub=\"sensors\"].on')", 8000));
     check(`${tag}: Server hat genau diese Anlage angelegt`, await s.sim("return JSON.stringify(window.__created) === JSON.stringify(['Garage Nord'])"));
     check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
@@ -107,7 +113,12 @@ for (const mobile of [false, true]) {
   await (await s.el("#ag-add-input")).fill("Wohnung");
   await s.waitFor("return !r.getElementById('ag-add').querySelector('button[type=submit]').disabled");
   await s.tap('#ag-add button[type="submit"]');
-  check(`${tag}: erste Anlage angelegt, Panel zeigt sie (kein "Noch keine Alarmanlage" mehr)`, await s.waitFor("return !r.getElementById('ag-add').open && !r.querySelector('.ag-empty') && (r.querySelector('.ag-head')?.innerText || '').includes('Wohnung')", 8000));
+  check(`${tag}: erste Anlage angelegt, der Einrichtungsassistent öffnet sich für sie`, await s.waitFor("return !r.getElementById('ag-add').open && !r.querySelector('.ag-empty') && (r.querySelector('.ag-wz-lead')?.textContent || '').includes('Wohnung')", 8000));
+  await s.tap('[data-wz="later"]');
+  await s.waitFor("return r.getElementById('ag-wzask').open");
+  await s.tap('#ag-wzask [data-wz="ask-later"]');
+  // Die neue Anlage hat noch keine Sensoren (wie der Server): "Später" führt wie bisher zu Konfiguration › Sensoren, die leere Seite ohne Anlage ist weg
+  check(`${tag}: nach "Später" zeigt das Panel sie in Konfiguration › Sensoren (kein "Noch keine Alarmanlage" mehr)`, await s.waitFor("return !r.querySelector('.ag-wz') && !r.querySelector('.ag-empty [data-act=\"add\"]') && !!r.querySelector('[data-tab=\"config\"].on') && !!r.querySelector('[data-sub=\"sensors\"].on') && (r.querySelector('.ag-head')?.innerText || '').includes('Wohnung')", 8000));
   await s.ctx.close();
 }
 await browser.close();

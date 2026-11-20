@@ -310,13 +310,14 @@ class HealthCheck:
     def _save(self) -> None:
         self._store.async_delay_save(self._stored, 5)
 
-    # -- Meldungen "antwortet nicht" und "antwortet wieder" (1.68.0) --
+    # -- Meldungen "antwortet nicht" und "antwortet wieder" (1.68.0; seit 1.69.0 die Wartungsmeldung "healthcheck") --
 
     @callback
     def _notify(self, item: dict[str, Any], result: str, code: int | None, at: Any) -> None:
         """
-        Nach jedem automatischen Aufruf (Takt, Start, Speichern, Wechsel des Selbsttests; nie beim Testknopf): nach `fails` gescheiterten hintereinander einmal "antwortet nicht", beim ersten, der danach
-        klappt, "antwortet wieder" (nur, wenn "antwortet nicht" hinausging). Werte ohne URL: Name, Rechner, Grund, Anzahl, seit wann.
+        Nach jedem automatischen Aufruf (Takt, Start, Speichern, Wechsel des Selbsttests; nie beim Testknopf): nach `healthcheck_fails` gescheiterten
+        hintereinander einmal "antwortet nicht", beim ersten, der danach klappt, "antwortet wieder" (nur, wenn "antwortet nicht" hinausging und
+        `healthcheck_up` an ist; das prüft async_send_healthcheck). Werte ohne URL: Name, Rechner, Grund, Anzahl, seit wann.
         """
         from .notify import async_send_healthcheck  # noqa: PLC0415 - notify zieht die Anlagen nach
 
@@ -331,7 +332,7 @@ class HealthCheck:
             return
         self._fails[hid] = self._fails.get(hid, 0) + 1
         self._fail_since.setdefault(hid, at.timestamp())
-        if self._fails[hid] >= int(cfg["healthcheck"]["fails"]) and hid not in self._down and cfg["healthcheck"]["hc_down"].get("enabled"):
+        if self._fails[hid] >= int(cfg["healthcheck_fails"]) and hid not in self._down and cfg["types"]["healthcheck"].get("enabled"):
             self._down.add(hid)
             async_send_healthcheck(self.hass, cfg, "hc_down", self._values(item, self._fails[hid], self._fail_since[hid], result, code), tag=f"alarmageddon_hc_{hid}")
 

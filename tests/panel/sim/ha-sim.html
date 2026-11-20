@@ -122,6 +122,13 @@
       night_enabled: false, sensor_options: {}, workflows: {}, workflow_running: null, workflow_test: false,
       events: [ { t: iso(20 * 60e3), state: "disarmed", mode: null, by: "Automation" } ] },
   ];
+  // Einrichtungsassistent (1.69.0): wie der Server je Anlage ein Zustand. Bestehende Anlagen sind eingerichtet; ?wizard=open öffnet ihn für "Haus"
+  // (?wzstep=zones: bei diesem Schritt), neue Anlagen (create_system) bekommen ihn. "Heute" lässt sich mit window.__wzToday ("JJJJ-MM-TT") setzen.
+  for (const sys of window.__systems) sys.wizard = { state: "done", until: null, step: "welcome" };
+  if (params.get("wizard") && window.__systems[0]) window.__systems[0].wizard = { state: params.get("wizard"), until: params.get("wzuntil") || null, step: params.get("wzstep") || "welcome" };
+  window.__wzCalls = [];
+  const wzToday = () => window.__wzToday || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const wzPayload = (w) => ({ ...(w || { state: "open", until: null, step: "welcome" }), due: !w || w.state === "open" || (w.state === "later" && (!w.until || wzToday() >= w.until)) });
 
   // ?routineevents=1: Ereignisse von Routinen im Protokoll (1.52.0)
   if (HOUSE && window.__systems[0]) window.__systems[0].monitor_sensors = [...window.__systems[0].monitor_sensors, ...HOUSE_IDS.slice(0, Number(params.get("housechosen") || 0))];
@@ -162,10 +169,9 @@
   const T = (enabled, critical) => ({ enabled, critical, volume: 0.8 });
   window.__notify = { alarm_targets: ["notify.mobile_app_diego"], maintenance_targets: [], disarm_action: false, open_action: true, silence_action: false, battery_threshold: 20, battery_checks: 3, offline_minutes: 60, selftest_minutes: 360, selftest_minutes_armed: 60,
     types: { triggered: T(true, true), pending: T(false, false), armed: T(false, false), disarmed: T(false, false), arm_failed: T(true, false), sensor_offline: T(true, true),
-      sensor_report: T(true, true), battery_low: T(true, false), sensor_unavailable: T(true, false), selftest: T(true, false) },
-    // Meldungen der HealthCheck-Dienste (1.68.0) wie der Server (const.py DEFAULT_NOTIFY)
-    healthcheck: { fails: 2, ...Object.fromEntries(["hc_down", "hc_up"].map((k) => [k, { enabled: true, title: "", message: "", critical: false, volume: 0.8, persistent: false, click: "healthcheck", click_path: "", targets: [] }])) } };
-  window.__hcNoticeCalls = [];
+      sensor_report: T(true, true), battery_low: T(true, false), sensor_unavailable: T(true, false), selftest: T(true, false), healthcheck: T(true, false) },
+    // HealthCheck-Dienst antwortet nicht (seit 1.69.0 eine Wartungsmeldung wie der Selbsttest) wie der Server (const.py DEFAULT_NOTIFY)
+    healthcheck_fails: 2, healthcheck_up: true };
   // Selbsttest (1.65.0) wie der Server (selftest.py payload): ?selftest=problems füllt Befunde (Konfiguration, Laufzeit, für alle Anlagen),
   // ?selftest=none: noch nie geprüft. Tests setzen window.__selftest auch direkt; window.__selftestAfterRun: Befunde nach "Jetzt prüfen".
   {
@@ -465,14 +471,6 @@
       return [kind, { enabled: !!legacy.enabled, title: "", message: "", critical: !!legacy.critical, volume: legacy.volume ?? 0.8, persistent: !!legacy.persistent, click: "overview", click_path: "", targets: [...(legacy.targets || [])] }];
     }))]));
     if (msg.type === "alarmageddon/test_end_notify") return { ok: true }; // wie der Server: sendet an die Empfänger, ohne sie zu nennen
-    // Testmeldung einer Meldung der HealthCheck-Dienste (1.68.0): Empfänger der Meldung, sonst die der Wartung, wie der Server
-    if (msg.type === "alarmageddon/test_healthcheck_notify") {
-      if (!["hc_down", "hc_up"].includes(msg.kind)) throw { code: "invalid_format", message: "kind" };
-      window.__hcNoticeCalls.push(JSON.parse(JSON.stringify(msg)));
-      const targets = msg.notice?.targets?.length ? msg.notice.targets : window.__notify.maintenance_targets;
-      if (!targets.length && !msg.notice?.persistent) throw { code: "no_targets", message: "No recipients configured" };
-      return { ok: true, targets };
-    }
     if (msg.type === "alarmageddon/test_event_notify") {
       const targets = msg.notice?.targets?.length ? msg.notice.targets : window.__notify.alarm_targets;
       if (!targets.length) throw { code: "no_targets", message: "No recipients configured" };
@@ -486,6 +484,7 @@
       const sensors = {};
       for (const [id, info] of Object.entries(SENSORS)) {
         if (!all && !chosen.has(id)) continue;
+        if (all && params.get("nomeasures") && info.kind === "value" && !chosen.has(id)) continue;
         sensors[id] = { ...info };
         // Namen wie der Server (devices.display_name): Tests geben einem Sensor über window.__deviceNames ein Gerät und einen eigenen Namen
         const named = window.__deviceNames?.[id];
@@ -495,7 +494,7 @@
       return JSON.parse(JSON.stringify({
         // Nach dem Speichern lädt HA die Anlage neu: sie fehlt kurz in der Antwort und hat danach eine neue Kennung (instance)
         version: "1.20.0",
-        systems: window.__systems.filter((s) => !(window.__reload && window.__reload.id === s.entry_id && Date.now() < window.__reload.until)).map(({ code, pcodes, instance, event_notify_own, ...s }) => ({ ...s, instance: instance || "i0", event_notify: eventNotify(event_notify_own) })), sensors,
+        systems: window.__systems.filter((s) => !(window.__reload && window.__reload.id === s.entry_id && Date.now() < window.__reload.until)).map(({ code, pcodes, instance, event_notify_own, ...s }) => ({ ...s, instance: instance || "i0", event_notify: eventNotify(event_notify_own), wizard: wzPayload(s.wizard) })), sensors,
         users: [{ id: "u_anna", name: "Anna" }, { id: "u_diego", name: "Diego" }, { id: "u_gast", name: "Gast" }], presets: window.__presets, notify: window.__notify, display: { names_with_device: window.__namesWithDevice !== false }, auto_backup: window.__autoBackup || { enabled: true, every: "weekly" },
         selftest: window.__systems.length ? selftestPayload() : null,
         healthchecks: window.__systems.length ? window.__healthchecks.map((i) => ({ ...i, log: window.__hcLogBrief(i) })) : [], healthcheck_max: 5,
@@ -777,16 +776,10 @@
       }
       // Batterie schwach nach so vielen Prüfungen hintereinander (1.68.0): 1 bis 10 wie der Server
       if (incoming.battery_checks !== undefined && (!Number.isInteger(incoming.battery_checks) || incoming.battery_checks < 1 || incoming.battery_checks > 10)) throw { code: "invalid_format", message: "battery_checks" };
-      // HealthCheck-Dienste (1.68.0): wie das Schema des Servers, streng
-      if (incoming.healthcheck !== undefined) {
-        const hc = incoming.healthcheck;
-        const keys = ["enabled", "title", "message", "critical", "volume", "persistent", "click", "click_path", "targets"];
-        if (!Number.isInteger(hc.fails) || hc.fails < 1 || hc.fails > 10) throw { code: "invalid_format", message: "fails" };
-        for (const k of ["hc_down", "hc_up"]) {
-          const n = hc[k];
-          if (!n || typeof n.enabled !== "boolean" || typeof n.critical !== "boolean" || Object.keys(n).some((x) => !keys.includes(x)) || !["healthcheck", "log", "overview", "custom"].includes(n.click ?? "healthcheck")) throw { code: "invalid_format", message: k };
-        }
-      }
+      // HealthCheck-Dienste (seit 1.69.0): Zahl 1 bis 10 und "antwortet wieder" wie das Schema des Servers; die Form aus 1.68.0 nimmt er nicht mehr an
+      if (incoming.healthcheck !== undefined) throw { code: "invalid_format", message: "extra keys not allowed @ data['notify']['healthcheck']" };
+      if (incoming.healthcheck_fails !== undefined && (!Number.isInteger(incoming.healthcheck_fails) || incoming.healthcheck_fails < 1 || incoming.healthcheck_fails > 10)) throw { code: "invalid_format", message: "healthcheck_fails" };
+      if (incoming.healthcheck_up !== undefined && typeof incoming.healthcheck_up !== "boolean") throw { code: "invalid_format", message: "healthcheck_up" };
       if (incoming.selftest_minutes) window.__selftest = { ...window.__selftest, minutes_disarmed: incoming.selftest_minutes };
       if (incoming.selftest_minutes_armed) window.__selftest = { ...window.__selftest, minutes_armed: incoming.selftest_minutes_armed };
       const types = Object.fromEntries(Object.entries(window.__notify.types).map(([k, v]) => [k, { ...v, ...(incoming.types?.[k] || {}) }]));
@@ -794,6 +787,7 @@
       return { notify: window.__notify };
     }
     if (msg.type === "alarmageddon/test_notify") {
+      (window.__testNotify ||= []).push(msg.kind);
       const alarm = ["triggered", "pending", "armed", "disarmed", "arm_failed", "sensor_offline", "sensor_report"].includes(msg.kind);
       return { targets: alarm ? window.__notify.alarm_targets : window.__notify.maintenance_targets };
     }
@@ -825,11 +819,12 @@
       if (error) throw err(error, error);
       if (window.__createFail) throw err("create_failed", "The alarm system could not be created");
       const slug = name.toLowerCase().replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+      // Wie der Server (systems.async_create_system, default_options): noch keine Sensoren; der Einrichtungsassistent ist offen (1.69.0)
       const created = { entry_id: `e_${slug}`, title: name, entity_id: `alarm_control_panel.${slug}`, modes: ["home", "away"], zones: { home: [], away: [] },
-        sensors: BINARY, entry_sensors: [], entry_delay_max: { home: 0, away: 0 },
+        sensors: [], entry_sensors: [], entry_delay_max: { home: 0, away: 0 },
         mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 60, entry_delay: 30, confirm_window: 60 } },
         has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [], night_enabled: false, sensor_options: {},
-        workflows: {}, workflow_running: null, workflow_test: false, events: [] };
+        workflows: {}, workflow_running: null, workflow_test: false, events: [], wizard: { state: "open", until: null, step: "welcome" } };
       window.__systems.push(created);
       window.__systems.sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
       window.__setState(created.entity_id, "disarmed", { arm_mode: null, changed_by: null, deadline: null, triggered_by: null, friendly_name: name });
@@ -838,6 +833,19 @@
     }
     const sys = window.__systems.find((s) => s.entry_id === msg.entry_id);
     if (!sys) throw err("not_found");
+    if (msg.type === "alarmageddon/wizard") {
+      // Wie settings.async_set_wizard
+      window.__wzCalls.push({ entry_id: msg.entry_id, action: msg.action, step: msg.step });
+      const w = { ...(sys.wizard || { state: "open", until: null, step: "welcome" }) };
+      const tomorrow = new Date(`${wzToday()}T12:00:00`);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      if (msg.action === "start" || msg.action === "step") Object.assign(w, { state: "open", until: null, step: msg.step || "welcome" });
+      else if (msg.action === "later") Object.assign(w, { state: "later", until: tomorrow.toISOString().slice(0, 10) });
+      else if (msg.action === "hide") Object.assign(w, { state: "hidden", until: null });
+      else if (msg.action === "done") Object.assign(w, { state: "done", until: null, step: "welcome" });
+      sys.wizard = w;
+      return { wizard: wzPayload(w) };
+    }
     const reloadNow = () => {
       window.__reload = { id: sys.entry_id, until: Date.now() + (window.__reloadMs ?? 900) };
       sys.instance = `i${Date.now()}`;
@@ -1022,7 +1030,7 @@
   }
 
   function makeHass() {
-    return { states: { ...states }, services: SERVICES, entities: { ...entities }, language: lang, locale: { language: lang }, user: { name: "Diego", is_admin: true }, themes: { darkMode: params.get("theme") === "dark" }, callWS, fetchWithAuth: (path, init) => window.hass_fetchWithAuth(path, init) };
+    return { states: { ...states }, services: SERVICES, entities: { ...entities }, language: lang, locale: { language: lang }, user: { id: "u_diego", name: "Diego", is_admin: true }, themes: { darkMode: params.get("theme") === "dark" }, callWS, fetchWithAuth: (path, init) => window.hass_fetchWithAuth(path, init) };
   }
   // Eigene Töne (1.39.0): die Liste des Servers und das Hochladen per HTTP (hass.fetchWithAuth); Regeln wie auf dem Server in klein
   window.__customSounds = params.get("sounds") === "1" ? [{ id: "custom_0123456789ab", name: "Haustür-Sirene", seconds: 4.2, size: 370000, url: "/alarmageddon_custom/custom_0123456789ab.wav" }] : [];

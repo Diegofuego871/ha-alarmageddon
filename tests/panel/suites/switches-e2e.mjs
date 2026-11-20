@@ -92,7 +92,16 @@ for (const lang of ["de", "en"]) {
     // ----- Meldungen und Anlage -----
     await s.tap('[data-sub="notify"]');
     await s.waitFor("return !!r.querySelector('.ag-nt [data-nt=\"permode\"]')");
-    await audit("Meldungen", 8);
+    await audit("Meldungen", 7);
+    // Seit 1.69.0 (Variante C): jedes Fenster einer Meldung (#ag-ntkind)
+    for (const kind of await s.ev("return [...r.querySelectorAll('.ag-ntk')].map((c) => c.dataset.ntk)")) {
+      if (await s.ev(`return !r.querySelector('.ag-ntk[data-ntk="${kind}"] [data-nt="enabled"]').classList.contains('on')`)) await s.tap(`.ag-ntk[data-ntk="${kind}"] [data-nt="enabled"]`);
+      await s.tap(`.ag-ntk[data-ntk="${kind}"] [data-nt="edit"]`);
+      await s.waitFor("return r.getElementById('ag-ntkind').open");
+      await audit(`Fenster der Meldung (${kind})`, kind === "arm_failed" ? 5 : kind === "healthcheck" ? 4 : 3);
+      await closeDialogs();
+    }
+    await s.ev("r.querySelector('.ag-foot [data-nt=\"cancel\"]')?.click(); return 1");
     await s.tap('[data-sub="system"]');
     await s.waitFor("return !!r.querySelector('[data-sys=\"permode\"]')");
     await audit("Anlage");
@@ -134,6 +143,29 @@ for (const lang of ["de", "en"]) {
     await mo.ev("for (const d of r.querySelectorAll('dialog[open]')) d.close(); return 1");
     check(`${tag}: Überwachung: keine Fehler im Browser`, mo.errors.length === 0, mo.errors.join(" | "));
     await mo.ctx.close();
+
+    // ----- Einrichtungsassistent (1.69.0): Modi, Zuordnung (Handy: Eingang je Sensor), Meldungen, Überwachung -----
+    const w = await open(browser, { mobile, lang, query: "&wizard=open&wzstep=modes&monitor=1" });
+    const auditW = async (where, min) => {
+      await w.page.waitForTimeout(350);
+      const a = await w.ev(AUDIT);
+      check(`${tag}: Assistent, ${where}: alle ${a.n} Schalter stehen links, der Text nahe rechts davon`, a.n >= min && a.bad.length === 0, JSON.stringify({ n: a.n, bad: a.bad.slice(0, 5) }));
+    };
+    const goW = async (step) => {
+      await w.ev(`r.host.wizard.go(${JSON.stringify(step)}); return 1`);
+      await w.waitFor(`return r.querySelector('.ag-wz')?.dataset.step === ${JSON.stringify(step)}`);
+    };
+    await w.waitFor("return r.querySelector('.ag-wz')?.dataset.step === 'modes'");
+    await auditW("Modi", 4);
+    await goW("zones");
+    await auditW("Zuordnung und Eingang", mobile ? 3 : 0);
+    await goW("notify");
+    await auditW("Meldungen", 5);
+    await goW("monitor");
+    await w.waitFor("return !!r.querySelector('[data-wz=\"mon-use\"]')");
+    await auditW("Überwachung", 1);
+    check(`${tag}: Assistent: keine Fehler im Browser`, w.errors.length === 0, w.errors.join(" | "));
+    await w.ctx.close();
 
     // ----- Übersicht: Fenster "Ansicht" und "Umbenennen" -----
     const o = await open(browser, { mobile, lang, tab: "overview" });

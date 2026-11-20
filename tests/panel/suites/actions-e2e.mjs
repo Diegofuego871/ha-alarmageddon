@@ -324,23 +324,40 @@ for (const lang of ["de", "en"]) {
     // ----- Benachrichtigungen -----
     check(`${tag}: Benachrichtigungen offen`, await s.waitFor("return !!r.querySelector('.ag-nt [data-nt=\"target-add\"]')"));
     check(`${tag}: Empfänger als Dropdown, gewählte als Pille`, await s.ev("const sels=r.querySelectorAll('select[data-nt=\"target-add\"]'); return sels.length === 2 && sels[0].options.length === 3 && sels[1].options.length === 4 && r.querySelectorAll('.ag-nt .ag-recip .ag-rpill').length === 1 && r.querySelector('.ag-nt .ag-recip .ag-rpill').innerText.includes('diego')"));
-    check(`${tag}: Kapitel mit Titel (Empfänger, Alarm-Arten, Wartung, HealthCheck-Dienste seit 1.68.0)`, await s.ev("return [...r.querySelectorAll('.ag-chap-t')].length === 4"));
-    // 1.17.7: Jeder Schalter steht links, sein Text wächst nach rechts (so ist klar, welcher Schalter zu welcher Option gehört)
-    const sw = await s.ev("const bad=[]; let n=0; for (const t of r.querySelectorAll('.ag-nt .ag-toggle')) { const q=t.getBoundingClientRect(); if (!q.width) continue; n++; const row=t.parentElement; const txt=[...row.children].filter((c) => c!==t && c.textContent.trim() && !c.matches('.ag-mini')); const tl=Math.min(...txt.map((c) => c.getBoundingClientRect().left)); if (!(q.right <= tl + 1)) bad.push([(t.getAttribute('aria-label')||'').slice(0,30), Math.round(q.right), Math.round(tl)]); } return { n, bad }");
-    check(`${tag}: Meldungen: alle ${sw.n} Schalter stehen links vom Text`, sw.n >= 8 && sw.bad.length === 0, JSON.stringify(sw.bad.slice(0, 4)));
+    check(`${tag}: Kapitel mit Titel (Standard-Empfänger, Störungsmeldungen, Wartungsmeldungen; seit 1.69.0 ohne Kapitel der HealthCheck-Dienste)`, await s.ev("return [...r.querySelectorAll('.ag-chap-t')].length === 3"));
+    // Seit 1.69.0 (Variante C) ist jede Meldung eine Karte mit Stift; die Einstellungen stehen im Fenster #ag-ntkind, "Übernehmen" ändert den Entwurf
+    const edit = async (kind) => {
+      await s.tap(`.ag-ntk[data-ntk="${kind}"]:not([data-mode]) [data-nt="edit"]`);
+      await s.waitFor("return r.getElementById('ag-ntkind').open");
+    };
+    const apply = async () => {
+      await s.tap('#ag-ntkind [data-nt="kind-apply"]');
+      await s.waitFor("return !r.getElementById('ag-ntkind').open");
+    };
+    // 1.17.7: Jeder Schalter steht links, sein Text wächst nach rechts (so ist klar, welcher Schalter zu welcher Option gehört); auf den Karten steht
+    // zwischen Schalter und Text nur das Symbol der Meldung
+    const swLeft = (root) => s.ev(`const bad=[]; let n=0; for (const t of ${root}.querySelectorAll('.ag-toggle')) { const q=t.getBoundingClientRect(); if (!q.width) continue; n++; const row=t.parentElement; const txt=[...row.children].filter((c) => c!==t && c.textContent.trim() && !c.matches('.ag-mini, .ag-ntk-icon, .ag-wf-btns')); const tl=Math.min(...txt.map((c) => c.getBoundingClientRect().left)); if (!(q.right <= tl + 1)) bad.push([(t.getAttribute('aria-label')||'').slice(0,30), Math.round(q.right), Math.round(tl)]); } return { n, bad }`);
+    const sw = await swLeft("r.querySelector('.ag-nt')");
+    check(`${tag}: Meldungen: alle ${sw.n} Schalter stehen links vom Text`, sw.n >= 7 && sw.bad.length === 0, JSON.stringify(sw.bad.slice(0, 4)));
+    await edit("arm_failed");
+    const swWin = await swLeft("r.getElementById('ag-ntkind')");
+    check(`${tag}: Fenster "Scharfschalten nicht möglich": alle ${swWin.n} Schalter stehen links vom Text`, swWin.n >= 5 && swWin.bad.length === 0, JSON.stringify(swWin.bad.slice(0, 4)));
     // 1.18.0: Knöpfe der Meldung "Scharfschalten nicht möglich" ("Erneut versuchen", "Trotzdem scharf schalten"): zwei Schalter, beide an
-    const arm = () => s.ev("return [...r.querySelectorAll('.ag-nt [data-nt=\"armbtn\"]')].map((b) => ({ key: b.dataset.key, on: b.getAttribute('aria-checked') === 'true', inType: !!b.closest('.ag-mt')?.querySelector('[data-nt=\"enabled\"][data-kind=\"arm_failed\"]'), hint: (b.parentElement.querySelector('small')?.textContent.length || 0) > 20 }))");
+    const arm = () => s.ev("return [...r.querySelectorAll('#ag-ntkind [data-nt=\"armbtn\"]')].map((b) => ({ key: b.dataset.key, on: b.getAttribute('aria-checked') === 'true', inType: r.host.notify.kindEdit?.kind === 'arm_failed', hint: (b.parentElement.querySelector('small')?.textContent.length || 0) > 20 }))");
     const arm0 = await arm();
     check(`${tag}: "Scharfschalten nicht möglich" hat zwei Schalter für die Knöpfe der Meldung, beide an, mit Beschreibung`, arm0.length === 2 && arm0[0].key === "retry" && arm0[1].key === "force" && arm0.every((x) => x.on && x.inType && x.hint), JSON.stringify(arm0));
     // 1.25.1: Benennung wie bei den anderen Aktionen der Push-Meldung: Aktion "…" (Englisch Action "…"), Beschreibung "Knopf unter der Meldung: …"
-    const names = await s.ev("return [...r.querySelectorAll('.ag-nt [data-nt=\"armbtn\"]')].map((b) => [b.parentElement.querySelector('span').childNodes[0].textContent.trim(), b.parentElement.querySelector('small').textContent.trim().slice(0, 40)])");
+    const names = await s.ev("return [...r.querySelectorAll('#ag-ntkind [data-nt=\"armbtn\"]')].map((b) => [b.parentElement.querySelector('.ag-settx b').textContent.trim(), b.parentElement.querySelector('small').textContent.trim().slice(0, 40)])");
     const word = lang === "de" ? "Aktion" : "Action", lead = lang === "de" ? "Knopf unter der Meldung:" : "Button under the message:";
     check(`${tag}: die Knöpfe heissen ${word} "…" und beginnen die Beschreibung mit "${lead}"`, names.length === 2 && names.every(([n, h]) => n.startsWith(`${word} "`) && h.startsWith(lead)), JSON.stringify(names));
-    await s.ev("r.querySelector('.ag-nt [data-nt=\"armbtn\"][data-key=\"force\"]').click(); return 1");
-    check(`${tag}: ausgeschaltet zählt als Änderung (Punkt am Reiter)`, await s.waitFor("return r.host.notify.dirtyCount() === 1 && r.querySelector('[data-sub=\"notify\"]').classList.contains('has-edit') && r.querySelector('.ag-nt [data-nt=\"armbtn\"][data-key=\"force\"]').getAttribute('aria-checked') === 'false'"));
+    await s.ev("r.querySelector('#ag-ntkind [data-nt=\"armbtn\"][data-key=\"force\"]').click(); return 1");
+    await apply();
+    check(`${tag}: ausgeschaltet zählt als Änderung (Punkt am Reiter, Karte markiert)`, await s.waitFor("return r.host.notify.dirtyCount() === 1 && r.querySelector('[data-sub=\"notify\"]').classList.contains('has-edit') && r.host.notify.draft.arm_force_action === false && !!r.querySelector('.ag-ntk[data-ntk=\"arm_failed\"] .ag-unsaved')"));
     await s.tap('.ag-foot [data-nt="save"]');
     check(`${tag}: gespeichert: der Server bekommt "arm_force_action": false, danach ist nichts mehr offen`, await s.waitFor("return r.host.notify.dirtyCount() === 0 && !r.querySelector('[data-sub=\"notify\"]').classList.contains('has-edit')") && (await s.sim("const c=window.__calls.filter((x) => x.type === 'alarmageddon/save_notify').pop(); return c.notify.arm_force_action === false && c.notify.arm_retry_action !== false")));
-    await s.ev("r.querySelector('.ag-nt [data-nt=\"armbtn\"][data-key=\"force\"]').click(); return 1");
+    await edit("arm_failed");
+    await s.ev("r.querySelector('#ag-ntkind [data-nt=\"armbtn\"][data-key=\"force\"]').click(); return 1");
+    await apply();
     await s.tap('.ag-foot [data-nt="save"]');
     await s.waitFor("return r.host.notify.dirtyCount() === 0");
     check(`${tag}: Alarmmeldung hier nicht einstellbar und kein Hinweiskapitel: keine Art "Alarm", keine Knöpfe`, await s.ev("return !r.querySelector('[data-nt=\"enabled\"][data-kind=\"triggered\"]') && !r.querySelector('[data-nt=\"button\"]') && !r.querySelector('[data-nt=\"to-actions\"]')"));
@@ -352,16 +369,23 @@ for (const lang of ["de", "en"]) {
     // Je Art: Sensorausfall leiser, "Scharfschalten fehlgeschlagen" aus und wieder ein und kritisch, Batterie kritisch. Seit 1.62.0 stehen
     // "Stiller Alarm", "Eingangsverzögerung", "Scharf geschaltet" und "Deaktiviert" nicht mehr hier (feste Elemente im Reiter Aktionen).
     check(`${tag}: die vier Meldungen des Ablaufs stehen nicht mehr hier, ein Hinweis nennt den Reiter Aktionen`, await s.ev("return ['sensor_report','pending','armed','disarmed'].every((k) => !r.querySelector(`.ag-nt [data-kind=\"${k}\"]`)) && !!r.querySelector('.ag-nt .ag-nt-moved')"));
-    await s.ev("const i=r.querySelector('[data-nt=\"volume\"][data-kind=\"sensor_offline\"]'); i.value='50'; i.dispatchEvent(new Event('input', { bubbles: true }));");
-    check(`${tag}: Lautstärke der Art angezeigt`, await s.waitFor("return r.querySelector('.ag-vol[data-kind=\"sensor_offline\"]').textContent.trim() === '50 %'"));
-    check(`${tag}: Regler nur bei kritischen Arten`, await s.ev("return !r.querySelector('[data-nt=\"volume\"][data-kind=\"arm_failed\"]') && !r.querySelector('[data-nt=\"volume\"][data-kind=\"battery_low\"]')"));
-    await s.tap('[data-nt="enabled"][data-kind="arm_failed"]');
+    await edit("sensor_offline");
+    await s.ev("const i=r.querySelector('#ag-ntkind [data-nt=\"volume\"][data-kind=\"sensor_offline\"]'); i.value='50'; i.dispatchEvent(new Event('input', { bubbles: true }));");
+    check(`${tag}: Lautstärke der Art angezeigt`, await s.waitFor("return r.querySelector('#ag-ntkind .ag-vol[data-kind=\"sensor_offline\"]').textContent.trim() === '50 %'"));
+    await apply();
+    await edit("arm_failed");
+    check(`${tag}: Regler nur bei kritischen Arten`, await s.ev("return !r.querySelector('[data-nt=\"volume\"][data-kind=\"arm_failed\"]')"));
+    await s.tap('#ag-ntkind [data-nt="enabled"][data-kind="arm_failed"]');
     check(`${tag}: Art ausgeschaltet versteckt Einstellungen`, await s.waitFor("return !r.querySelector('[data-nt=\"critical\"][data-kind=\"arm_failed\"]')"));
-    await s.tap('[data-nt="enabled"][data-kind="arm_failed"]');
+    await s.tap('#ag-ntkind [data-nt="enabled"][data-kind="arm_failed"]');
     check(`${tag}: Art eingeschaltet zeigt Einstellungen`, await s.waitFor("return !!r.querySelector('[data-nt=\"critical\"][data-kind=\"arm_failed\"]')"));
-    await s.tap('[data-nt="critical"][data-kind="arm_failed"]');
+    await s.tap('#ag-ntkind [data-nt="critical"][data-kind="arm_failed"]');
     check(`${tag}: kritisch zeigt Regler`, await s.waitFor("return !!r.querySelector('[data-nt=\"volume\"][data-kind=\"arm_failed\"]')"));
-    await s.tap('[data-nt="critical"][data-kind="battery_low"]');
+    await apply();
+    await edit("battery_low");
+    check(`${tag}: Batterie nicht kritisch: kein Regler`, await s.ev("return !r.querySelector('[data-nt=\"volume\"][data-kind=\"battery_low\"]')"));
+    await s.tap('#ag-ntkind [data-nt="critical"][data-kind="battery_low"]');
+    await apply();
     await s.tap('[data-nt="enabled"][data-kind="sensor_unavailable"]');
     await s.tap('[data-nt="enabled"][data-kind="sensor_unavailable"]');
     await s.page.screenshot({ path: `${outDir}notify-${lang}-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });

@@ -176,13 +176,28 @@ Breite der Fenster (seit 1.67.0, Wunsch des Nutzers 2026-11-19): Listen und Form
   bei scharfer Anlage (Entscheid des Nutzers 2026-11-19). Beim Tippen werden nur
   Hinweise, Vorschau und Fehler neu gezeichnet, nie das Feld. Fehler erst nach dem ersten "Speichern" oder bei Inhalt im Feld.
 
-## Meldungen der HealthCheck-Dienste (seit 1.68.0, Wunsch des Nutzers vom 2026-11-19, 18:42/18:43, ohne Mockup)
+## Konfiguration › Benachrichtigungen (seit 1.69.0, Wünsche des Nutzers vom 2026-11-19, 22:16 bis 22:27; Entscheid 23:01, Mockups `meldungen-v1`)
 
-- Konfiguration › Benachrichtigungen, Kapitel "HealthCheck-Dienste" nach "Wartungsmeldungen", immer da: eine Karte mit "Meldung nach" (Zahl 1 bis 10
-  und "gescheiterten Aufrufen", ungültig rot), darunter die Karten "Dienst antwortet nicht" (Herz) und "Dienst antwortet wieder" (Haken) wie die
-  festen Meldungen unter Aktionen (`.ag-wf-endcard.ag-wf-notice`: Schalter links, Symbol, Name und eine Zeile "an wen, wie", Play und Stift rund;
-  aus = blass). Der Stift öffnet dasselbe Fenster wie die festen Meldungen mit den Platzhaltern {name} (Dienst), {host}, {reason}, {count}, {since},
-  der Vorschau mit dem ersten Dienst, Empfänger standardmässig die der Wartung, Klickziel "Liste der HealthCheck-Dienste".
+- Drei Kapitel: "Standard-Empfänger" (unverändert, zwei Zeilen mit Dropdown und Pillen), "Störungsmeldungen" (mit "Einstellungen pro Modus" oben),
+  "Wartungsmeldungen". Das Kapitel "HealthCheck-Dienste" aus 1.68.0 gibt es nicht mehr: "HealthCheck-Dienst antwortet nicht" ist die letzte
+  Wartungsmeldung, aufgebaut wie "Selbsttest" (Wunsch 22:16/22:17), fester Text, Klick öffnet die Liste der Dienste.
+- **Variante C:** jede Meldung eine Karte `.ag-ntk` wie die festen Meldungen unter Aktionen: Schalter links, Symbol 40 px in der Farbe des Kapitels
+  (`.fault` rot `--ag-error`, `.maint` orange `--ag-warning`, Symbol in `--ag-warning-text`), Streifen links 4 px in derselben Farbe, Titel 16 px fett,
+  Kurzfassung ("An …", "kritisch, 80 %", "bleibt in Home Assistant stehen", eigene Werte wie "unter 20 % · nach 3 Prüfungen", "nach 2
+  Fehlversuchen · auch "antwortet wieder"", "mit beiden Knöpfen"; ohne Empfänger "Kein Empfänger" in `ag-warntext`), Play (`onceBtn`, gesperrt bei
+  offenen Änderungen oder ausgeschaltet) und Stift, beide rund 44 px. Aus: Streifen und Symbol grau, Titel grau. Raster `.ag-ntk-grid`: Computer zwei
+  Spalten, Handy eine (die Knöpfe in eigener Zeile rechts). Mit "Einstellungen pro Modus" stehen über den Karten die Zeilen `.ag-pmscope` ("Alles
+  darunter gilt nur für …", "Für alle Modi").
+- **Fenster `#ag-ntkind`** (`ag-wide`, Aufbau wie das Fenster der festen Meldungen unter Aktionen): Kopf mit Symbol in der Farbe des Kapitels und
+  Titel, bei einem Modus `.ag-pmscope` und die Herkunft; Abschnitte (Kapitel-Stil `_sec`) "Meldung senden" (Schalter, Erklärung der Meldung),
+  "Empfänger" (Herkunft, Dropdown, Pillen), "Zustellung" (Kritisch mit Lautstärke `.ag-ef-range`, "stehen lassen"), "Einstellungen" (nur wo es
+  welche gibt), darunter "Testmeldung senden" mit Hinweis; Fusszeile "Abbrechen", "Übernehmen". Das Fenster ändert den Entwurf der Seite
+  (Vorgabe 23:01: gespeichert wird auf der Seite); "Abbrechen", X, Escape mit Änderung fragen (`_dlgDirty`), dann gilt der Stand beim Öffnen.
+- **Einheitliche Zahlen** (Wunsch 22:27, Bildschirmfoto "Batterie schwach"): `.ag-ntk-nums` ist ein Raster mit drei Spalten (Beschriftung, Feld,
+  Einheit); jede Zeile ist `display: contents`, damit die Felder einer Meldung untereinander in einer Flucht stehen. Der Hinweis steht darunter über
+  die ganze Breite, auf dem Handy genauso (Feld 72 px). Einheiten ausgeschrieben ("%", "Prüfungen", "Minuten", "Fehlversuchen").
+- **Ungespeichert** (Vorgabe 23:01 "im gleichen Stil"): eine Karte mit Änderungen trägt `<small class="ag-unsaved">` "Noch nicht gespeichert" mit
+  dem orangen Punkt (wie die Routinen), dazu der Punkt am Reiter und die Zahl in der Fusszeile.
 
 ## Protokoll der HealthCheck-Dienste (seit 1.68.0, Wunsch und Entscheide des Nutzers vom 2026-11-19, 17:06 bis 17:48)
 
@@ -192,7 +207,9 @@ Breite der Fenster (seit 1.67.0, Wunsch des Nutzers 2026-11-19): Listen und Form
   `SensorView`). Kopf: getöntes Herz (`.ag-oav.ag-tint-health`, 44 px), der Name als Auswahl (`.ag-hl-pick` mit kleinem Pfeil, Menü
   `.ag-hl-menu` je Dienst mit Punkt in der Farbe des Zustands und "in Ordnung seit …"; ein Tipp daneben schliesst es und tut trotzdem, was er
   soll), darunter Rechner, erkannter Dienst (nur Computer) und "alle 5 min"; rechts der Zustand als Pille (grün, orange Fehler gemeldet, rot
-  gescheitert `.ag-sv-pill.err`, grau ohne Protokoll) und "Bearbeiten" (Stift) an der Stelle von "In HA öffnen".
+  gescheitert `.ag-sv-pill.err`, grau ohne Protokoll) und an der Stelle von "In HA öffnen" seit 1.69.0 (Wunsch des Nutzers 2026-11-19, 21:50)
+  die runden Knöpfe der Liste "Fehler senden", "Lebenszeichen senden" und der Stift (`.ag-hl-acts`, gleiche Symbole und Reihenfolge, 44 px,
+  ohne Text; bis 1.68.0 "Bearbeiten" mit Text).
 - Kacheln Verlauf (`history`, "in Ordnung seit …"), Antwortzeit (`timer`, letzter Wert), Dienst (`heartPulse`, Anbieter); auf dem Handy wie
   Verlauf/Empfang/Gerät der Sensoren (Wort, Wert, Wort). Zeitraum 3 Std. bis 1 Jahr (sieben Tasten, seit dem Wunsch des Nutzers 18:24 mit 90 Tagen und
   1 Jahr), gemeinsam für Verlauf und Antwortzeit; auf dem Handy in einer Zeile mit 12,5 px, bis 360 px Breite in zwei Zeilen (4 + 3).
@@ -211,3 +228,20 @@ Breite der Fenster (seit 1.67.0, Wunsch des Nutzers 2026-11-19): Listen und Form
 - Liste: Reiter "Ereignisse" (Standard, Symbol `alert`) und "Alle Aufrufe" (`history`) mit der Zahl des Zeitraums, Suche, Sortierung je Spalte
   (Zeit, Ereignis, Ergebnis, Antwortzeit, Auslöser; Handy: Zeit, Ereignis mit Ergebnis klein darunter, Auslöser), Zeit am Computer mit
   Sekunden. Hinweis "Einzelne Aufrufe bleiben 24 Stunden …" über der Liste bei 7 und 30 Tagen. Test: `hclog-e2e.mjs`.
+
+## Einrichtungsassistent (seit 1.69.0, Wunsch und Entscheide des Nutzers vom 2026-11-19, 20:43 und 21:05)
+
+Mockups `docs/mockups/einrichtungsassistent-v1/`, Variante B "Seite mit Schrittliste".
+
+- Rahmen: der Assistent ersetzt Kopf und Reiter des Panels (`.ag-wz` im Scrollbereich `.ag-content.ag-wzc`). Am Computer links die Schrittliste
+  (`.ag-wz-side`, klebt): Marke, Schritte mit Nummer (Willkommen: Zauberstab, erledigt: Häkchen, darunter die Kurzfassung), "Überwachung" als
+  "nur mit passenden Sensoren", unten "Jeder Schritt wird mit Weiter gespeichert". Nur erledigte Schritte sind wählbar.
+- Kopf (`.ag-wz-head`): "Schritt n von N" (Handy: dazu der Name des Schritts und ein Fortschritt aus Strichen), rechts "Später"; Titel als Frage,
+  darunter ein Satz zur Erklärung. Fusszeile (`.ag-wz-foot`, klebt unten): "Zurück", "Schritte davor gespeichert" (Computer), "Weiter" mit Pfeil
+  ("Los geht's", "Ohne Code weiter", "Fertig"); während des Speicherns "Speichert …" und gesperrt.
+- Inhalt: eigene Schritte aus den Bausteinen des Panels (Karten `.ag-setlist`, Schalter links, Kapitel, Hinweise `.ag-wz-info` mit Symbol);
+  eingebettete Ansichten (Zuordnung, Alarmaktionen, Überwachung) zeigen den Reiter ohne Leiste der Konfiguration, Fusszeile, Werkzeuge der
+  Tabelle und Knöpfe je Zeile. Auf dem Handy steht der Eingang unter der Tabelle (Schalter je Sensor), weil die Tabelle dort keine Spalte dafür hat.
+- "Später" und Escape öffnen das Fenster `#ag-wzask` mit drei grossen Knöpfen (Morgen wieder anzeigen, Nicht mehr anzeigen, Weiter einrichten).
+- Jeder Schritt beginnt oben. Kapitel "Einrichtungsassistent" unter Konfiguration › Anlage vor "Anlage löschen" (Symbol `wand`, Farbe
+  `ag-tint-wizard`): Stand und "Assistent starten" bzw. "Von vorn" und "Bei Schritt n fortsetzen". Test: `wizard-e2e.mjs`.

@@ -1,7 +1,7 @@
 // Bilder der README aus dem HA-Nachbau erzeugen (kein Test): `CHROMIUM_PATH=... node readme-shots.mjs`, danach
 // `python3 ../../scripts/optimize_images.py` (verkleinert die PNG). Ausgabe: docs/img/<ansicht>-<sprache>.png.
 // Nur erfundene Daten (CLAUDE.md): echte Namen aus dem Nachbau werden vor der Aufnahme ersetzt.
-// Einzelne Bilder neu aufnehmen (seit 1.58.0): `ONLY=step-sensors,actions node readme-shots.mjs` (die Karten des Dashboards entstehen immer).
+// Einzelne Bilder neu aufnehmen (seit 1.58.0): `ONLY=step-wizard,actions node readme-shots.mjs` (die Karten des Dashboards entstehen immer).
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { launch, R } from "./lib.mjs";
@@ -68,6 +68,8 @@ async function shotNow(lang, name, { mobile = false, tab = "overview", prepare, 
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       if (node.nodeValue.includes("Diego")) node.nodeValue = node.nodeValue.replaceAll("Diego", "Marco");
       if (node.nodeValue.includes("Sonos")) node.nodeValue = node.nodeValue.replaceAll("Sonos", lang === "de" ? "Lautsprecher" : "Speaker");
+      // Integrationen nennt die Liste des Einrichtungsassistenten; ein Hersteller steht dort neutral als Technik
+      if (node.nodeValue.includes("Shelly")) node.nodeValue = node.nodeValue.replaceAll("Shelly", lang === "de" ? "WLAN" : "Wi-Fi");
     }
   }, lang);
   await frameEl.screenshot({ path: `${out}${name}-${lang}.png` });
@@ -125,7 +127,10 @@ for (const lang of ["en", "de"]) {
     await toElement(frame, ".ag-wf-line.ag-wf-armed");
   } });
   // Die drei Schritte der README (1.58.0), alle auf dem Handy und gleich hoch: Sensoren wählen, Alarm festlegen, scharf schalten ("mobile")
-  await shot(lang, "step-sensors", { mobile: true, tab: "config", prepare: ({ frame }) => toElement(frame, ".ag-table-wrap") });
+  // Seit 1.69.0 zeigt der erste Schritt den Einrichtungsassistenten (Schritt "Sensoren"); dazu das Bild des Rundgangs am Computer beim Schritt
+  // "Zuordnung und Eingang" mit der Schrittliste
+  await shot(lang, "step-wizard", { mobile: true, query: "&wizard=open&wzstep=sensors" });
+  await shot(lang, "wizard", { height: 860, query: "&wizard=open&wzstep=zones" });
   await shot(lang, "step-actions", { mobile: true, tab: "config", prepare: async ({ page, frame }) => {
     await click('[data-sub="actions"]')({ frame });
     await page.waitForTimeout(800);

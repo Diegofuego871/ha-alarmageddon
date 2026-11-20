@@ -123,6 +123,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "maint_battery": "{sensor}: battery {value} %",
         "maint_offline": "{sensor}: unreachable since {time}",
         "type_selftest": "Self-test",
+        "type_healthcheck": "HealthCheck service not answering",
         "selftest_title_one": "⚠️ Self-test: 1 problem",
         "selftest_title": "⚠️ Self-test: {count} problems",
         "selftest_more": "… and {count} more. Details: Alarmageddon › Overview › Status.",
@@ -146,9 +147,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "time_format": "%m/%d %H:%M",
         # HealthCheck-Dienste (1.68.0): eigene Meldungen, nie mit der URL
         "hc_down_title": "⚠️ Health check \"{name}\" is not answering",
-        "hc_down_message": "{count} calls to {host} have failed since {since} ({reason}). The service may be down, or Home Assistant cannot reach the internet.",
+        "hc_down_message": "Calls to {host} have been failing since {since} ({reason}; failed attempts: {count}). The service may be down, or Home Assistant cannot reach the internet.",
         "hc_up_title": "✅ Health check \"{name}\" answers again",
-        "hc_up_message": "{host} answers again (failing since {since}, {count} failed calls).",
+        "hc_up_message": "{host} answers again (failing since {since}, failed attempts: {count}).",
         "hc_reason_timeout": "no answer",
         "hc_reason_error": "no connection",
         "hc_reason_http": "HTTP {code}",
@@ -238,6 +239,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "maint_battery": "{sensor}: Batterie {value} %",
         "maint_offline": "{sensor}: nicht erreichbar seit {time}",
         "type_selftest": "Selbsttest",
+        "type_healthcheck": "HealthCheck-Dienst antwortet nicht",
         "selftest_title_one": "⚠️ Selbsttest: 1 Problem",
         "selftest_title": "⚠️ Selbsttest: {count} Probleme",
         "selftest_more": "… und {count} weitere. Einzelheiten: Alarmageddon › Übersicht › Status.",
@@ -260,9 +262,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "st_ping_failed": "{system}: das Lebenszeichen \"{name}\" ({service}) ging nicht hinaus",
         "time_format": "%d.%m. %H:%M",
         "hc_down_title": "⚠️ HealthCheck-Dienst \"{name}\" antwortet nicht",
-        "hc_down_message": "{count} Aufrufe an {host} sind seit {since} gescheitert ({reason}). Der Dienst ist vielleicht gestört, oder Home Assistant erreicht das Internet nicht.",
+        "hc_down_message": "Die Aufrufe an {host} scheitern seit {since} ({reason}; Fehlversuche: {count}). Der Dienst ist vielleicht gestört, oder Home Assistant erreicht das Internet nicht.",
         "hc_up_title": "✅ HealthCheck-Dienst \"{name}\" antwortet wieder",
-        "hc_up_message": "{host} antwortet wieder (gestört seit {since}, {count} gescheiterte Aufrufe).",
+        "hc_up_message": "{host} antwortet wieder (gestört seit {since}, Fehlversuche: {count}).",
         "hc_reason_timeout": "keine Antwort",
         "hc_reason_error": "keine Verbindung",
         "hc_reason_http": "HTTP {code}",
@@ -386,40 +388,30 @@ def async_persist(hass: HomeAssistant, cfg: dict[str, Any], kind: str, title: st
         persistent_notification.async_create(hass, message, title=title, notification_id=notification_id)
 
 
-HC_TOKENS = ("{name}", "{host}", "{reason}", "{count}", "{since}")
-HC_CLICK = {"healthcheck": "/alarmageddon?view=healthcheck", "overview": "/alarmageddon", "log": "/alarmageddon?view=log"}
+HC_URL = "/alarmageddon?view=healthcheck"  # ein Tipp auf die Meldung öffnet die Liste der Dienste
 
 
 @callback
-def async_send_healthcheck(hass: HomeAssistant, cfg: dict[str, Any], kind: str, values: dict[str, str], *, notice: dict[str, Any] | None = None,
-                           test: bool = False, tag: str = "alarmageddon_healthcheck") -> list[str]:
+def async_send_healthcheck(hass: HomeAssistant, cfg: dict[str, Any], kind: str, values: dict[str, str], *, tag: str = "alarmageddon_healthcheck") -> list[str]:
     """
-    Meldung eines HealthCheck-Dienstes (1.68.0): "hc_down" (antwortet nicht) oder "hc_up" (antwortet wieder), mit den Werten der festen Meldung aus
-    den Benachrichtigungen (`notice` für die Testmeldung aus dem Fenster). Eigener Text mit Platzhaltern; bleibt davon nichts übrig, gilt der
-    Standardtext. Leere Empfänger: die der Wartung. `values` nennt nie die URL (nur Name und Rechner). Gibt die erreichbaren Empfänger zurück.
+    Meldung eines HealthCheck-Dienstes: "hc_down" (antwortet nicht) oder "hc_up" (antwortet wieder). Seit 1.69.0 (Wunsch des Nutzers 2026-11-19,
+    22:16/22:17) eine Wartungsmeldung wie der Selbsttest: an/aus, Empfänger (leer: die der Wartung), Kritisch, Lautstärke und "stehen lassen" aus der
+    Art "healthcheck", der Text ist fest. "Antwortet wieder" nur mit "healthcheck_up", an dieselben Empfänger, **nie kritisch** (eine Entwarnung
+    weckt niemanden); derselbe tag ersetzt "antwortet nicht" auf dem Handy und in Home Assistant. `values` nennt nie die URL (nur Name und Rechner).
+    Gibt die Empfänger zurück.
     """
-    n = notice if notice is not None else cfg["healthcheck"][kind]
-    if not n.get("enabled"):
+    setting = cfg["types"]["healthcheck"]
+    if not setting.get("enabled") or (kind == "hc_up" and not cfg.get("healthcheck_up", True)):
         return []
-
-    def fill(template: str) -> str:
-        for token in HC_TOKENS:
-            template = template.replace(token, str(values.get(token[1:-1], "")))
-        return template.strip()
-
-    title = fill(n.get("title") or "") or text(hass, f"{kind}_title", **values)
-    message = fill(n.get("message") or "") or text(hass, f"{kind}_message", **values)
-    if test:
-        title = text(hass, "test_title", name=title)
-    url = n.get("click_path") if n.get("click") == "custom" and n.get("click_path") else HC_CLICK.get(n.get("click") or "healthcheck", HC_CLICK["healthcheck"])
-    if n.get("persistent"):
+    title = text(hass, f"{kind}_title", **values)
+    message = text(hass, f"{kind}_message", **values)
+    if setting.get("persistent"):
         try:
             persistent_notification.async_create(hass, message, title=title, notification_id=tag)
         except Exception:  # noqa: BLE001 - die Benachrichtigung in Home Assistant ist Zusatz: die Meldung aufs Handy geht trotzdem hinaus
             _LOGGER.exception("The persistent notification of the health check could not be created")
-    # Gruppe, Symbol und Kritisch wie eine Wartungsmeldung; Kritisch und Lautstärke aus der Meldung
-    payload = build_payload(cfg, "selftest", title, message, tag=tag, critical=bool(n.get("critical")), volume=float(n.get("volume", 0.8)), url=url)
-    return async_send(hass, list(n.get("targets") or cfg["maintenance_targets"]), payload)
+    payload = build_payload(cfg, "healthcheck", title, message, tag=tag, critical=kind == "hc_down" and bool(setting.get("critical")), url=HC_URL)
+    return async_send(hass, list(setting.get("targets") or cfg["maintenance_targets"]), payload)
 
 
 def effective_type(cfg: dict[str, Any], kind: str, mode: str | None) -> dict[str, Any]:

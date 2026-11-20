@@ -7,6 +7,23 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.69.0] - 2026-11-20
+
+### Hinzugefügt
+
+- **Einrichtungsassistent:** eine neue Anlage öffnet von selbst einen Einrichtungsassistenten, einmal, beim ersten Mal, wenn das Panel sie zeigt (im Panel oder unter Einstellungen › Geräte & Dienste hinzugefügt). Er fragt nur das Wichtigste und erklärt unterwegs: **Modi** (Anwesend, Abwesend, Nacht, dazu Rauch, Wasser und Gas immer aktiv), **Sensoren** (alle passenden Sensoren von Home Assistant mit Filtern und Suche), **Zuordnung und Eingang** (die Sensortabelle aus Konfiguration › Sensoren, vorbelegt nach Sensorart: Türen und Fenster in jedem Modus, Bewegung nur bei Abwesend, Rauch, Wasser und Gas immer; die Eingangstür, die Zeit zum Verlassen und die Zeit zum Deaktivieren), **Code** (freiwillig; mit dem eigenen Benutzer vorbelegt), **Meldungen** (Empfänger der Alarm- und der Wartungsmeldungen, ein Schalter je Meldung, eine Testmeldung), **Alarmaktionen** (der Editor aus Konfiguration › Aktionen, dazu schnell hinzuzufügen "Sirene 3 Minuten" und "Alarmton") und **Überwachung** (nur, wenn es passende Messwert-Sensoren gibt). "Fertig" fasst alles zusammen, mit "Ändern" je Schritt, einem Test der Alarmaktionen, einer Testmeldung und "Bereit zum Scharfschalten" je Modus.
+  - Jeder Schritt wird mit "Weiter" gespeichert, über dasselbe Speichern wie die Reiter der Konfiguration. Am Computer zeigt links eine Schrittliste, was erledigt ist, auf dem Handy ein Fortschrittsbalken.
+  - "Später" fragt "Morgen wieder anzeigen" (am nächsten Tag öffnet er genau beim Schritt, bei dem du aufgehört hast) oder "Nicht mehr anzeigen".
+  - Ein neues Kapitel "Einrichtungsassistent" unter Konfiguration › Anlage, direkt vor "Anlage löschen", zeigt, wo er steht, und startet ihn erneut, bei diesem Schritt oder von vorn, mit allem, was eingerichtet ist, vorgewählt.
+  - Anlagen, die es vor diesem Update gab, und Anlagen aus einem Backup bekommen ihn nicht von selbst. Sein Stand gehört nicht ins Backup und verschwindet mit der Anlage.
+
+### Geändert
+
+- **Anlage im Panel hinzufügen** öffnet jetzt den Einrichtungsassistenten der neuen Anlage (bisher: Konfiguration › Sensoren). "Später" führt wie bisher dorthin.
+- **Konfiguration › Benachrichtigungen, neues Design:** Jede Meldung unter "Störungsmeldungen" und "Wartungsmeldungen" ist eine Karte wie die festen Meldungen unter Konfiguration › Aktionen: Schalter, Symbol in der Farbe ihres Kapitels (Störungsmeldungen rot, Wartungsmeldungen orange, ausgeschaltet grau), Titel, eine Kurzfassung (an wen, kritisch, die eigenen Einstellungen wie "unter 20 % · nach 3 Prüfungen"), Play (Testmeldung) und Stift. Der Stift öffnet ein Fenster mit allen Einstellungen der Meldung: "Meldung senden", Empfänger, Zustellung (Kritisch mit Lautstärke, "in Home Assistant stehen lassen") und die eigenen Einstellungen der Meldung. Zahlen sind einheitlich: Beschriftung links, Feld und Einheit rechts in einer Flucht, der Hinweis darunter. "Übernehmen" überträgt die Änderungen auf die Seite; gespeichert wird wie bisher nur mit "Speichern" unten. Eine geänderte Karte zeigt "Noch nicht gespeichert" mit dem orangen Punkt, wie überall im Panel; "Abbrechen", X und Escape fragen, bevor sie Änderungen im Fenster verwerfen. Am Computer stehen die Karten in zwei Spalten, auf dem Handy in einer. "Einstellungen pro Modus" bleibt oben bei den Störungsmeldungen.
+- **Meldungen der HealthCheck-Dienste:** jetzt eine Wartungsmeldung "HealthCheck-Dienst antwortet nicht" unter Konfiguration › Benachrichtigungen › Wartungsmeldungen, aufgebaut wie "Selbsttest": Schalter, Empfänger (Standard: die der Wartung), Kritisch mit Lautstärke, "in Home Assistant stehen lassen", Testmeldung, dazu "Meldung nach … Fehlversuchen" (1 bis 10, Standard 2) und "Melden, wenn er wieder antwortet" (Standard an; dieselben Empfänger, nie kritisch, ersetzt die Meldung "antwortet nicht"). Die Texte sind fest; das Kapitel "HealthCheck-Dienste" mit eigenen Texten und Klickziel entfällt. Einstellungen aus 1.68.0 werden übernommen (an/aus, Empfänger, Kritisch, Lautstärke, "stehen lassen", die Zahl und an/aus von "antwortet wieder").
+- **Protokoll der HealthCheck-Dienste:** Der Kopf zeigt statt "Bearbeiten" die runden Knöpfe der Liste: "Fehler senden", "Lebenszeichen senden" und den Stift, mit denselben Symbolen und in derselben Reihenfolge. Nach dem Senden lädt das Protokoll neu, mit dem neuen Aufruf.
+
 ## [1.68.0] - 2026-11-19
 
 ### Hinzugefügt
@@ -2003,6 +2020,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0
 [1.68.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.68.0
 [1.67.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.67.0
 [1.66.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.66.1

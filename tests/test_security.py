@@ -95,7 +95,7 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "healthcheck_delete": {"check_id": "x"},
     "healthcheck_ping": {"check_id": "x", "kind": "ok"},
     "healthcheck_history": {"check_id": "x", "hours": 24},
-    "test_healthcheck_notify": {"kind": "hc_down", "notice": {"enabled": True, "critical": False}},
+    "wizard": {"entry_id": "ENTRY", "action": "later"},
 }
 
 

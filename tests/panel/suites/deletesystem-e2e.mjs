@@ -24,7 +24,8 @@ for (const lang of ["de", "en"]) {
     await (await s.el('select[data-act="system"]')).selectOption("e_haus");
     await s.page.waitForTimeout(300);
     await toEnd();
-    check(`${tag}: Kapitel "${t.title}" ist das letzte, unter der Sicherung`, await s.ev(`const cs=[...r.querySelectorAll('.ag-chap')]; const last=cs[cs.length-1]; const bk=cs[cs.length-2]; return last.querySelector('.ag-chap-t').innerText.includes(${JSON.stringify(t.title)}) && last.classList.contains('ag-chap-danger') && bk.querySelector('[data-sys="bk-create"]') !== null`));
+    // Seit 1.69.0 steht zwischen Backup und "Anlage löschen" der Einrichtungsassistent (Entscheid des Nutzers 2026-11-19)
+    check(`${tag}: Kapitel "${t.title}" ist das letzte, unter dem Einrichtungsassistenten und der Sicherung`, await s.ev(`const cs=[...r.querySelectorAll('.ag-chap')]; const last=cs[cs.length-1]; const wz=cs[cs.length-2]; const bk=cs[cs.length-3]; return last.querySelector('.ag-chap-t').innerText.includes(${JSON.stringify(t.title)}) && last.classList.contains('ag-chap-danger') && wz.querySelector('.ag-wzrow') !== null && bk.querySelector('[data-sys="bk-create"]') !== null`));
     check(`${tag}: scharfe Anlage: Knopf gesperrt, Hinweis "${t.notDisarmed}"`, await s.ev(`const b=r.querySelector('[data-sys="delete"]'); return b.disabled && b.closest('.ag-chap').innerText.includes(${JSON.stringify(t.notDisarmed)})`));
 
     // ----- Garage ist deaktiviert: Knopf frei, rot -----

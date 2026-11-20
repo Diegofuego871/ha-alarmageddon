@@ -239,11 +239,17 @@ for (const lang of ["de", "en"]) {
       // Meldungen: "Ausfall (scharf)" steht oben bei den Meldungen; Schalter "Einstellungen pro Modus" (aus: keine Reiter), ein: Reiter der Modi
       await s.tap('[data-sub="notify"]');
       check(`${tag}: Schalter "Einstellungen pro Modus" aus: keine Reiterleiste`, await s.waitFor("return r.querySelector('.ag-nt [data-nt=\"permode\"]').getAttribute('aria-checked') === 'false' && !r.querySelector('[data-seg=\"nt-mode\"]')"));
-      check(`${tag}: "Sensor im scharfen Zustand nicht erreichbar" steht bei den Meldungen (nicht mehr unter Wartung)`, await s.ev("const al=[...r.querySelectorAll('.ag-nt .ag-mtlist')][0]; const ma=[...r.querySelectorAll('.ag-nt .ag-mtlist')][1]; return !!al.querySelector('[data-nt=\"enabled\"][data-kind=\"sensor_offline\"]') && !ma.querySelector('[data-kind=\"sensor_offline\"]') && !!ma.querySelector('[data-kind=\"sensor_unavailable\"]')"));
+      check(`${tag}: "Sensor im scharfen Zustand nicht erreichbar" steht bei den Meldungen (nicht mehr unter Wartung)`, await s.ev("const al=[...r.querySelectorAll('.ag-nt .ag-ntk-grid')][0]; const ma=[...r.querySelectorAll('.ag-nt .ag-ntk-grid')][1]; return !!al.querySelector('[data-nt=\"enabled\"][data-kind=\"sensor_offline\"]') && !ma.querySelector('[data-kind=\"sensor_offline\"]') && !!ma.querySelector('[data-kind=\"sensor_unavailable\"]')"));
       check(`${tag}: "Sensor meldet" heisst "Stiller Alarm"`, await s.ev("return /Stiller Alarm|Silent alarm/.test(r.querySelector('.ag-nt').textContent) && !/Sensor meldet \\(kein|Sensor reports \\(n/.test(r.querySelector('.ag-nt').textContent)"));
-      // Jede Art kann zusätzlich als Benachrichtigung in Home Assistant stehen bleiben (auch Wartung); Entwurf, wird mit gespeichert
-      check(`${tag}: Schalter "In Home Assistant stehen lassen" bei jeder Art (Alarm und Wartung)`, await s.ev("const n=r.querySelectorAll('.ag-nt [data-nt=\"persistent\"]'); return n.length >= 4 && !!r.querySelector('.ag-nt [data-nt=\"persistent\"][data-kind=\"battery_low\"]')"));
-      await s.tap('.ag-nt [data-nt="persistent"][data-kind="battery_low"]');
+      // Jede Art kann zusätzlich als Benachrichtigung in Home Assistant stehen bleiben (auch Wartung); Entwurf, wird mit gespeichert. Seit 1.69.0
+      // im Fenster der Meldung (Stift auf der Karte)
+      const persist = await s.ev("const out=[]; for (const c of r.querySelectorAll('.ag-ntk:not(.off)')) { c.querySelector('[data-nt=\"edit\"]').click(); const d=r.getElementById('ag-ntkind'); out.push(!!d.querySelector('[data-nt=\"persistent\"][data-kind=\"' + c.dataset.ntk + '\"]')); d.querySelector('[data-nt=\"kind-cancel\"]').click(); } return out");
+      check(`${tag}: Schalter "In Home Assistant stehen lassen" bei jeder Art (Alarm und Wartung)`, persist.length >= 4 && persist.every(Boolean), JSON.stringify(persist));
+      await s.tap('.ag-ntk[data-ntk="battery_low"] [data-nt="edit"]');
+      await s.waitFor("return r.getElementById('ag-ntkind').open");
+      await s.tap('#ag-ntkind [data-nt="persistent"][data-kind="battery_low"]');
+      await s.tap('#ag-ntkind [data-nt="kind-apply"]');
+      await s.waitFor("return !r.getElementById('ag-ntkind').open");
       await s.tap('[data-nt="save"]');
       await s.waitFor("return r.querySelector('.ag-foot').innerText.includes('Gespeichert') || r.querySelector('.ag-foot').innerText.includes('Saved')");
       const pSent = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_notify').at(-1)");
@@ -252,9 +258,13 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: Schalter ein: Reiter der Modi (ohne "Alle Modi"), der erste ist gewählt, Entwurf`, await s.waitFor("const t=[...r.querySelectorAll('[data-seg=\"nt-mode\"] > button')]; return t.length >= 2 && t.every((b) => b.dataset.nt !== 'tab:all') && t[0].classList.contains('on') && r.querySelector('[data-sub=\"notify\"]').classList.contains('has-edit')"));
       await s.tap('[data-nt="tab:away"]');
       // Seit 1.62.0 stehen "Stiller Alarm", "Eingangsverzögerung" und "Scharf geschaltet" im Reiter Aktionen: je Modus bleibt hier der Ausfall
-      check(`${tag}: Reiter Abwesend zeigt die Art im scharfen Zustand (den Ausfall) mit Herkunft`, await s.waitFor("return r.querySelectorAll('.ag-nt [data-nt=\"enabled\"][data-mode=\"away\"]').length === 1 && !!r.querySelector('.ag-nt [data-nt=\"enabled\"][data-kind=\"sensor_offline\"][data-mode=\"away\"]') && r.querySelectorAll('.ag-nt .ag-origin:not(.ag-mt-recip .ag-origin)').length === 1"));
-      await s.tap('.ag-nt [data-nt="critical"][data-kind="sensor_offline"][data-mode="away"]');
-      check(`${tag}: eigener Wert mit Zurücksetzen`, await s.waitFor("return !!r.querySelector('[data-nt=\"mode-reset\"][data-kind=\"sensor_offline\"]')"));
+      check(`${tag}: Reiter Abwesend zeigt die Art im scharfen Zustand (den Ausfall) mit Herkunft`, await s.waitFor("return r.querySelectorAll('.ag-nt [data-nt=\"enabled\"][data-mode=\"away\"]').length === 1 && !!r.querySelector('.ag-nt [data-nt=\"enabled\"][data-kind=\"sensor_offline\"][data-mode=\"away\"]') && r.querySelectorAll('.ag-nt .ag-origin').length === 1"));
+      await s.tap('.ag-nt [data-nt="edit"][data-kind="sensor_offline"][data-mode="away"]');
+      await s.waitFor("return r.getElementById('ag-ntkind').open");
+      await s.tap('#ag-ntkind [data-nt="critical"][data-kind="sensor_offline"][data-mode="away"]');
+      check(`${tag}: eigener Wert mit Zurücksetzen (im Fenster und nach "Übernehmen" auf der Karte)`, await s.waitFor("return !!r.querySelector('#ag-ntkind [data-nt=\"mode-reset\"][data-kind=\"sensor_offline\"]')"));
+      await s.tap('#ag-ntkind [data-nt="kind-apply"]');
+      await s.waitFor("return !r.getElementById('ag-ntkind').open && !!r.querySelector('.ag-nt [data-nt=\"mode-reset\"][data-kind=\"sensor_offline\"]')");
       await s.tap('[data-nt="save"]');
       await s.waitFor("return r.querySelector('.ag-foot').innerText.includes('Gespeichert') || r.querySelector('.ag-foot').innerText.includes('Saved')");
       const ntSent = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_notify').at(-1)");

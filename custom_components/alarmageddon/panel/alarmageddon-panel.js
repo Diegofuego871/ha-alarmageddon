@@ -10,14 +10,14 @@ const V = new URL(import.meta.url).search;
 const [
   { pickLang, translate }, { CSS },
   { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, SOFT_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY, copyBtn, copyValue },
-  { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart }, { filePicked }, { SelfTestUi }, { HealthCheckUi }, { HealthLogView },
-] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader", "customsounds", "selftest", "healthcheck", "healthlog"].map((name) => import(`./${name}.js${V}`)));
+  { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart }, { filePicked }, { SelfTestUi }, { HealthCheckUi }, { HealthLogView }, { WizardUi },
+] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader", "customsounds", "selftest", "healthcheck", "healthlog", "wizard"].map((name) => import(`./${name}.js${V}`)));
 /** Nach so langer Abwesenheit startet das Panel wieder auf der Übersicht (Merkzettel für Reiter und Unterreiter) */
 const AWAY_MS = 30 * 60 * 1000;
 const SUBS = ["sensors", "actions", "notify", "system"];
 
 // Knöpfe, die einen Dialog ohne Speichern schliessen (das X löst den ersten gefundenen aus)
-const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sys="code-close"],[data-sys="rt-cancel"],[data-wf="mon-cancel-form"],[data-wf="mon-step-cancel"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"]';
+const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sys="code-close"],[data-sys="rt-cancel"],[data-wf="mon-cancel-form"],[data-wf="mon-step-cancel"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"],[data-nt="kind-cancel"]';
 
 class AlarmageddonPanel extends HTMLElement {
   constructor() {
@@ -44,6 +44,7 @@ class AlarmageddonPanel extends HTMLElement {
     this.selftest = new SelfTestUi(this);
     this.healthcheck = new HealthCheckUi(this);
     this.hcLog = new HealthLogView(this); // Protokoll der HealthCheck-Dienste (1.68.0)
+    this.wizard = new WizardUi(this); // Einrichtungsassistent (1.69.0)
   }
 
   // Ansicht des gewählten Reiters unter Konfiguration
@@ -97,7 +98,7 @@ class AlarmageddonPanel extends HTMLElement {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
       <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-wide" id="ag-codelist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
-      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog></div>`;
+      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog><dialog class="ag-dlg" id="ag-wzask"></dialog><dialog class="ag-dlg ag-wide" id="ag-ntkind"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
     if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => this._stickySync()).observe(this._content);
     this._initSeg(this._root);
@@ -131,6 +132,12 @@ class AlarmageddonPanel extends HTMLElement {
       if (this._tab === "config" && this._sub === "actions") this.actions.onPointerDown(ev);
     });
     this._root.addEventListener("keydown", (ev) => {
+      // Einrichtungsassistent: Escape fragt "Später?" (nur ohne offenes Fenster, das Escape selbst schliesst)
+      if (ev.key === "Escape" && this.wizard.active && !this._root.querySelector("dialog[open]")) {
+        ev.preventDefault();
+        this.wizard.askLater();
+        return;
+      }
       if (this._tab === "config" && this._sub === "actions") this.actions.onKeyDown(ev);
     });
     this._root.addEventListener("focusin", (ev) => this.actions.onFocus(ev.target, true));
@@ -316,6 +323,8 @@ class AlarmageddonPanel extends HTMLElement {
       } else if (!this.sensors.paint) {
         this._renderView(false);
       }
+      // Einrichtungsassistent (1.69.0): einmal je Anlage, für die er fällig ist
+      this.wizard.maybeOpen();
     } catch (err) {
       clearTimeout(timer);
       if (seq !== this._fetchSeq) return;
@@ -517,7 +526,7 @@ class AlarmageddonPanel extends HTMLElement {
   _keepScroll(fn) {
     const c = this._content;
     if (!c) return fn();
-    const key = `${this._tab}|${this._sub}|${this._sel}`;
+    const key = `${this._tab}|${this._sub}|${this._sel}|${this.wizard?.active ? this.wizard.step : ""}`;
     const same = key === this._scrollKey;
     this._scrollKey = key;
     const top = c.scrollTop;
@@ -539,6 +548,15 @@ class AlarmageddonPanel extends HTMLElement {
 
   _render() {
     if (!this._content) return;
+    // Einrichtungsassistent (1.69.0): eigenes Gerüst statt Kopf und Reitern; die eingebetteten Ansichten zeichnen in seinen Platz (_view)
+    this._content.classList.toggle("ag-wzc", this.wizard.active);
+    if (this.wizard.active) {
+      this._lastHtml.delete(this._content);
+      this._keepScroll(() => (this._content.innerHTML = this.wizard.frameHtml()));
+      this._view = this._content.querySelector(".ag-wz-slot");
+      this._renderView(true);
+      return;
+    }
     const narrow = this.hasAttribute("narrow");
     const tabs = this._segHtml("tabs", [
       // Symbol und Text auf jedem Gerät (1.13.1, Wunsch des Nutzers): am Computer links vom Text, auf dem Handy darüber (mit kurzem Text)
@@ -610,6 +628,12 @@ class AlarmageddonPanel extends HTMLElement {
       return;
     }
     if (this._tab !== "log") this.log.stop();
+    if (this.wizard.active) {
+      this.wizard.render(full);
+      this._placePills();
+      this._renderDots();
+      return;
+    }
     if (this._tab === "config") this._renderConfig(full);
     else if (this._tab === "log") this._renderLogTab(full);
     else this._renderOverview(full);
@@ -619,6 +643,11 @@ class AlarmageddonPanel extends HTMLElement {
 
   // Bei Zustandsänderungen in HA: nur die Teile, die Live-Werte zeigen
   _renderLive() {
+    if (this.wizard.active) {
+      this.wizard.renderLive();
+      this._renderDots();
+      return;
+    }
     if (this._tab === "overview") {
       this._renderTop();
       this._renderList();
@@ -1314,7 +1343,14 @@ class AlarmageddonPanel extends HTMLElement {
       return;
     }
     this._closeDialog("ag-add");
-    await this._fetch();
+    // Der Assistent öffnet sich erst nach dem Wechsel zur neuen Anlage (unten), nie schon beim Abruf: ohne andere Anlage wäre sie dort schon
+    // gewählt, und "Später" führte dann in die Übersicht statt zu Konfiguration › Sensoren
+    this._creating = true;
+    try {
+      await this._fetch();
+    } finally {
+      this._creating = false;
+    }
     // Zur neuen Anlage wechseln und gleich die Sensoren wählen lassen; offene Änderungen an der bisherigen Anlage fragen vorher nach
     this._guard(() => {
       this._sel = entryId;
@@ -1325,6 +1361,7 @@ class AlarmageddonPanel extends HTMLElement {
       this._savePref("tab", "config");
       this._savePref("sub", "sensors");
       this._render();
+      this.wizard.maybeOpen(); // die neue Anlage bekommt den Einrichtungsassistenten (1.69.0)
     });
   }
 
@@ -1493,6 +1530,8 @@ class AlarmageddonPanel extends HTMLElement {
       return Boolean(e?.form) && e.snap !== undefined && JSON.stringify(e.form) !== e.snap;
     }
     if (dlg.id === "ag-mon") return this.actions.mon.formDirty();
+    // Fenster einer Meldung unter Benachrichtigungen (1.69.0): Änderungen seit dem Öffnen, im Entwurf der Seite
+    if (dlg.id === "ag-ntkind") return this.notify.kindDirty();
     if (dlg.id === "ag-monstep") return Boolean(this.actions.mon.step) && JSON.stringify(this.actions.mon.step.form) !== this.actions.mon.step.snap;
     if (dlg.id === "ag-pick") return Boolean(this.sensors.pick?.sel?.size);
     if (dlg.id === "ag-presets") return JSON.stringify(this.sensors.presetDraft) !== JSON.stringify(this.sensors.presets) || Boolean(this.sensors.presetOverride);
@@ -1636,6 +1675,9 @@ class AlarmageddonPanel extends HTMLElement {
   // ----- Ereignisse -----
 
   _onClick(ev) {
+    // Einrichtungsassistent (1.69.0): eigene Knöpfe; die eingebetteten Ansichten laufen weiter über ihre Reiter (_tab/_sub stehen auf dem Schritt)
+    const wz = ev.target.closest("[data-wz]");
+    if (wz && this.wizard.onClick(wz)) return;
     // Protokoll der HealthCheck-Dienste (1.68.0): Bausteine der Sensoransicht in eigenem Fenster. Ein Tipp neben die offene Auswahl der Dienste
     // schliesst sie und tut trotzdem, was er soll (Kachel, Zeitraum, X)
     if (this.hcLog.menu && !ev.target.closest(".ag-hl-menu, #ag-hclog [data-sv='menu']")) this.hcLog.setMenu(false);
@@ -1650,7 +1692,7 @@ class AlarmageddonPanel extends HTMLElement {
     const hc = ev.target.closest("[data-hc]");
     if (hc && this.healthcheck.onClick(hc)) return;
     // Ganze Sensorzeile (und Karte) antippen öffnet die Optionen; Kästchen, Schalter und Knöpfe in der Zeile behalten ihre Aufgabe
-    if (this._tab === "config" && this._sub === "sensors") {
+    if (this._tab === "config" && this._sub === "sensors" && !this.wizard.active) {
       const row = ev.target.closest("[data-row]");
       if (row && !ev.target.closest("button, input, a, label, select, [data-box], .ag-toggle")) {
         const id = row.dataset.row;
@@ -1659,9 +1701,10 @@ class AlarmageddonPanel extends HTMLElement {
         return;
       }
     }
-    // Fenster einer Meldung der HealthCheck-Dienste (1.68.0): das Fenster der festen Meldungen, geöffnet aus Konfiguration › Meldungen
-    if (this.actions.edit?.form?.hc && ev.target.closest("#ag-step") && this.actions.onClick(ev.target.closest("[data-wf]"))) return;
-    if (this._tab === "config" && this._sub === "sensors" && this.sensors.onClick(ev.target.closest("[data-sen]"), ev)) return;
+    if (this._tab === "config" && this._sub === "sensors" && this.sensors.onClick(ev.target.closest("[data-sen]"), ev)) {
+      this.wizard.embedded(); // im Assistenten folgen die Schalter des Eingangs (Handy) der Zuordnung
+      return;
+    }
     if (this._tab === "config" && this._sub === "system" && this.systemUi.onClick(ev.target.closest("[data-sys], [data-scope]"))) return;
     if (this._tab === "config" && this._sub === "actions" && this.actions.onClick(ev.target.closest("[data-wf], [data-trigger]"))) return;
     if (this._tab === "config" && this._sub === "notify" && this.notify.onClick(ev.target.closest("[data-nt]"))) return;
@@ -1768,6 +1811,7 @@ class AlarmageddonPanel extends HTMLElement {
 
   _onInput(ev) {
     const el = ev.target;
+    if (el.dataset?.wz && this.wizard.onInput(el)) return;
     if (el.dataset?.sv && el.closest("#ag-hclog") && this.hcLog.onInput(el)) return;
     if (el.dataset?.sv && this.sensorView.onInput(el)) return;
     if (el.dataset?.hc && this.healthcheck.onInput(el)) return;
@@ -1781,7 +1825,6 @@ class AlarmageddonPanel extends HTMLElement {
       return;
     }
     if (this.list.onInput(el)) return;
-    if (this.actions.edit?.form?.hc && el.closest?.("#ag-step")) return void this.actions.onInput(el);
     if (this._tab === "config" && this._sub === "sensors" && this.sensors.onInput(el)) return;
     if (this._tab === "config" && this._sub === "system") this.systemUi.onInput(el);
     if (this._tab === "config" && this._sub === "actions") this.actions.onInput(el);
@@ -1790,6 +1833,7 @@ class AlarmageddonPanel extends HTMLElement {
 
   _onChange(ev) {
     const el = ev.target;
+    if (el.dataset?.wz && this.wizard.onChange(el)) return;
     // Eigene Töne: Datei gewählt (im Fenster eines Tonschritts oder im Fenster "Eigene Töne"); der Name steht sofort neben dem Knopf
     if (el.dataset?.cs === "file") return filePicked(el, el.closest("#ag-step") ? this.actions.edit?.upload : this.systemUi.cs?.upload);
     // Codefeld verlassen: erst jetzt warnt "zu kurz" (1.63.0)
@@ -1806,6 +1850,7 @@ class AlarmageddonPanel extends HTMLElement {
       this._savePref("system", value);
       this._resetConfig();
       this._renderView(true);
+      this.wizard.maybeOpen();
     });
   }
 

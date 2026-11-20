@@ -224,7 +224,7 @@ export class SystemUi {
         <div class="ag-subh">${esc(this._t("chapTimes"))}</div>${card(timesRows)}
         <div class="ag-subh">${esc(this._t("chapBehaviour"))}</div>${card(behaviourRows)}</div>`);
     const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + perMode
-      + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._healthHtml(d, bad) + this._backupHtml() + this._deleteHtml();
+      + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._healthHtml(d, bad) + this._backupHtml() + this._wizardHtml() + this._deleteHtml();
     // Beim Tippen nie neu aufbauen (Cursor bliebe nicht stehen), nur bei Schaltern und Auswahl
     h._setHtml(form, html);
     h._placePills();
@@ -559,6 +559,25 @@ export class SystemUi {
   }
 
   // Anlage löschen (1.32.0): ganz unten, roter Textknopf; die Warnung kommt im Dialog. Nur bei deaktivierter Anlage (der Server prüft es auch).
+  // Einrichtungsassistent (1.69.0, Wunsch des Nutzers 2026-11-19): kleines Kapitel vor "Anlage löschen". Zustand und Knopf zum Starten; ist er
+  // nicht fertig, geht es mit "Fortsetzen" beim gemerkten Schritt weiter, "Von vorn" beginnt beim Willkommen (alles wie konfiguriert vorgewählt)
+  _wizardHtml() {
+    const s = this.system;
+    const w = s.wizard || { state: "done", step: "welcome" };
+    const wz = this.host.wizard;
+    const n = wz.number(w.step);
+    const stepName = this._t(`wzS_${w.step}`);
+    const date = w.until ? new Date(`${w.until}T00:00:00`).toLocaleDateString(this.host._hass?.locale?.language || undefined) : "";
+    const status = w.state === "done" ? this._t("wzState_done") : w.state === "later" ? this._t("wzState_later", { date, n }) : w.state === "hidden" ? this._t("wzState_hidden", { n })
+      : this._t("wzState_open", { n, step: stepName });
+    const resume = w.state !== "done" && w.step !== "welcome";
+    const btns = resume
+      ? `<button class="ag-btn" data-wz="run" data-step="welcome">${esc(this._t("wzRestart"))}</button><button class="ag-btn primary" data-wz="run" data-step="${esc(w.step)}">${ic("wand", 18)}${esc(this._t("wzResume", { n }))}</button>`
+      : `<button class="ag-btn" data-wz="run" data-step="welcome">${ic("wand", 18)}${esc(this._t("wzRun"))}</button>`;
+    return chapter(this._t("wzChapter"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum ag-wzrow"><span class="ag-oav ag-tint ag-tint-wizard on">${ic("wand", 20)}</span>
+      <div class="ag-settx"><b>${esc(status)}</b><small>${esc(this._t("wzChapterText"))}</small></div><div class="ag-btnrow">${btns}</div></div></div>`, this._t("wzChapterHint"));
+  }
+
   _deleteHtml() {
     const sys = this.host._system();
     if (!sys) return "";
@@ -845,13 +864,15 @@ export class SystemUi {
 
   // Code hinzufügen oder bearbeiten (Bearbeiten seit 1.63.0): dasselbe Fenster. Beim Bearbeiten stehen Name und Benutzer drin, die Codefelder
   // sind leer (der Code ist nirgends bekannt); leer gelassen bleibt der bisherige Code. Das Auge blendet nur den gerade getippten Code ein.
-  openCodeForm(id = "") {
+  // `preset` (Einrichtungsassistent, 1.69.0): ein neuer Code für den angemeldeten Benutzer, Name und Benutzer vorgewählt, wenn dieser noch keinen hat
+  openCodeForm(id = "", preset = null) {
     const codes = this.system?.codes || [];
     const c = id ? codes.find((x) => x.id === id) : null;
     if (id && !c) return;
     const users = this.host._data?.users || [];
     const taken = new Set(codes.filter((x) => x !== c).map((x) => x.user_id).filter(Boolean));
-    const own = c?.user_id || "";
+    const mine = !c && preset?.userId && users.some((u) => u.id === preset.userId) && !taken.has(preset.userId) ? preset : null;
+    const own = c?.user_id || mine?.userId || "";
     // Ein verknüpfter Benutzer, den Home Assistant nicht mehr als aktiv listet, bleibt wählbar (sonst löste ihn jedes Speichern still)
     const gone = own && !users.some((u) => u.id === own) ? `<option value="${esc(own)}" selected>${esc(this._t("codeUserGone"))}</option>` : "";
     const options = users.filter((u) => !taken.has(u.id)).map((u) => `<option value="${esc(u.id)}" ${u.id === own ? "selected" : ""}>${esc(u.name)}</option>`).join("");
@@ -864,7 +885,7 @@ export class SystemUi {
       <label class="ag-fld"><span class="ag-label">${esc(this._t("codeUser"))}</span><select class="ag-input" data-sys="cf" data-key="user_id" data-init="${esc(own)}" aria-label="${esc(this._t("codeUser"))}">
         <option value="">${esc(this._t("codeUserNone"))}</option>${gone}${options}</select>
         <small class="ag-t2">${esc(this._t("codeUserHint"))}</small></label>
-      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeName"))}</span><input class="ag-input" data-sys="cf" data-key="name" maxlength="40" autocomplete="off" value="${esc(c?.name || "")}" data-init="${esc(c?.name || "")}" aria-label="${esc(this._t("codeName"))}"></label>
+      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeName"))}</span><input class="ag-input" data-sys="cf" data-key="name" maxlength="40" autocomplete="off" value="${esc(c?.name || mine?.name || "")}" data-init="${esc(c?.name || "")}" aria-label="${esc(this._t("codeName"))}"></label>
       ${secret("code", this._t("codeValue"), c ? this._t("codeKeepHint") : "")}
       ${secret("code2", this._t("codeRepeat"))}
       <div class="ag-codewarn" hidden aria-live="polite">${ic("alert", 18)}<span></span></div>

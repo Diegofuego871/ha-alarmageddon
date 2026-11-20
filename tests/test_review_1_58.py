@@ -485,6 +485,9 @@ async def test_data_lists_measured_values_only_with_monitoring_and_never_waits_l
     assert "sensor.keller_temperatur" not in data["sensors"] and "sensor.gewaehlt" in data["sensors"]
     await client.send_json({"id": 10, "type": "alarmageddon/sensor_candidates"})
     assert "sensor.keller_temperatur" not in (await client.receive_json())["result"]["sensors"], "Überwachung aus: kein Messwert als Kandidat"
+    # Der Einrichtungsassistent (1.69.0) fragt ausdrücklich nach den Messwerten: nur dann erscheint sein Schritt "Überwachung"
+    await client.send_json({"id": 11, "type": "alarmageddon/sensor_candidates", "measures": True})
+    assert "sensor.keller_temperatur" in (await client.receive_json())["result"]["sensors"]
     assert WINDOW not in data["last_changes"]
     assert asked and all(e.startswith("binary_sensor.") for e in asked[0]), "Messwerte werden nie im Verlauf gesucht"
     release.set()

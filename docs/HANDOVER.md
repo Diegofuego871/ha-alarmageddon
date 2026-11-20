@@ -3,6 +3,33 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
+- 1.69.0 (Basis: `main` @ `ddcfb75` = Commit des Nutzers "1.68.0: …", Baum gleich der Lieferung von 1.68.0, = Tag `v1.68.0`; Wunsch des
+  Nutzers vom 2026-11-19, 20:43, Entscheide 21:05 nach den Mockups `docs/mockups/einrichtungsassistent-v1/`, README 21:06).
+  Protokoll: `docs/UEBERGABE-1.69.0.md`. `PANEL_VERSION` 234. Auf Wunsch des Nutzers (23:01) alles in einem Paket: Assistent, README,
+  Knöpfe im Protokoll der HealthCheck-Dienste, deren Meldung als Wartungsmeldung und das neue Design der Benachrichtigungen.
+  - **Einrichtungsassistent:** Server `settings.py` (`wizard` je Anlage: `open`, `later` mit `until`, `hidden`, `done`, dazu `step`; `due` im
+    Server; Migration: Ablage ohne `wizard` = alle bestehenden Anlagen `done`, sofort geschrieben), WS `alarmageddon/wizard` (`start`, `step`,
+    `later`, `hide`, `done`), `data` mit `wizard`, `sensor_candidates` mit `measures`; Backup als neue Anlage = `done`; Entfernen nimmt den Zustand
+    mit. Panel `wizard.js` (`WizardUi`): Schritte Willkommen, Modi, Sensoren, Zuordnung und Eingang, Code (freiwillig, Hauptcode zählt), Meldungen
+    (Empfänger Alarm und Wartung getrennt, Schalter je Meldung), Alarmaktionen (eingebettet, Schnellwahl Sirene 3 Minuten und Alarmton),
+    Überwachung (nur mit Messwerten oder eingeschalteter Überwachung, gilt sofort), Fertig. Speichern über die Reiter (`_saveStep`, `_settled`),
+    eingebettete Ansichten in `.ag-wz-slot` (`_tab`/`_sub` je Schritt, `SUB`). Handy: Eingang als Schalter unter der Tabelle (`_entryHtml`,
+    `embedded()` nach Klicks in der Tabelle). Kapitel unter Konfiguration › Anlage vor "Anlage löschen" (`system.js _wizardHtml`).
+  - **README überarbeitet (21:06):** Einleitung, erster Schritt mit dem Assistenten (`step-wizard-*.png` statt `step-sensors-*.png`), "In wenigen
+    Minuten eingerichtet", Batterie und Protokoll der HealthCheck-Dienste aus 1.68.0, Installation, Rundgang "Der Einrichtungsassistent"
+    (`wizard-*.png`), Zahlen der Tests. Handbuch: Abschnitt "Einrichtungsassistent".
+  - **Protokoll der HealthCheck-Dienste (21:50):** im Kopf statt "Bearbeiten" die runden Knöpfe der Liste "Fehler senden", "Lebenszeichen
+    senden", Stift (`healthlog.js _actsHtml`, Reihenfolge wie in der Liste), danach lädt das Protokoll neu. Suite `hclog-e2e.mjs`.
+  - **Meldung der HealthCheck-Dienste als Wartungsmeldung (22:16/22:17):** Art `healthcheck` in `NOTIFY_TYPES` (Gruppe `maintenance`) mit
+    `healthcheck_fails` und `healthcheck_up`; feste Texte (seit 23:01 "Fehlversuche"), nie die URL. Übernahme der Form aus 1.68.0 in
+    `settings._healthcheck_1_68` (Ablage, Backup, altes Panel); entfernt: `HC_NOTICE_SCHEMA`, WS `test_healthcheck_notify`, `notify.js _hcHtml`,
+    `actions.js openHcNoticeEditor`. Tests `test_healthcheck_notify.py` (neu geschrieben), Zeilen "Meldung HealthCheck" in `mutation_check.py`.
+  - **Neues Design von Konfiguration › Benachrichtigungen (22:20, 22:27; Entscheid 23:01 "C", Mockups `docs/mockups/meldungen-v1/`):** Karten
+    wie die festen Meldungen unter Aktionen (`notify.js _card`, `.ag-ntk`, Störung rot, Wartung orange), Fenster `#ag-ntkind` (`openKind`,
+    `renderKind`, `closeKind`; ändert nur den Entwurf, Rückfrage über `_dlgDirty`), "Noch nicht gespeichert" je Karte (`kindChanged`), einheitliche
+    Zahlen (`.ag-ntk-nums`). Suiten `ntcards-e2e.mjs` (neu), `hcnotify-e2e.mjs` (neu geschrieben), angepasst `actions-e2e`, `targets-e2e`,
+    `layout-e2e`, `hardening-e2e`, `review-e2e`, `selftest-e2e`, `switches-e2e` (jedes Fenster einer Meldung).
+  - Offen: Frage "Vorabversion oder offiziell" für 1.69.0.
 - 1.68.0 (Basis: `main` @ `321ff98` = Tag `v1.67.0`, vom Nutzer am 2026-11-19 getaggt, Baum gleich der Lieferung von 1.67.0; Wünsche des Nutzers vom
   2026-11-19, 17:06 bis 18:43, Entscheide 17:31, 17:48 und 18:35 nach den Mockups `docs/mockups/healthcheck-protokoll-v1/`, `-v2/` und `-v3/`).
   Protokoll: `docs/UEBERGABE-1.68.0.md`. `PANEL_VERSION` 233.

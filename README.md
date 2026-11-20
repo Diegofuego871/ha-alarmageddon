@@ -15,7 +15,7 @@
 
 [Deutsch](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/README.de.md)
 
-**A complete alarm system for Home Assistant, without a single automation.** You tick which sensors keep watch, decide what happens on an alarm, and arm. Everything in one side panel, on the computer and on the phone; the push notifications come by themselves, and Alarmageddon keeps an eye on itself.
+**A complete alarm system for Home Assistant, without a single automation.** A setup assistant asks which sensors keep watch, what happens on an alarm and who is notified; then you arm. Everything in one side panel, on the computer and on the phone; the push notifications come by themselves, and Alarmageddon keeps an eye on itself.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/overview-en.png" alt="Overview with two alarm systems, the status tile and the sensor list" width="100%"></p>
 
@@ -23,19 +23,20 @@
 
 <table>
 <tr>
-<td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/step-sensors-en.png" alt="Sensors and zones on the phone" width="250"><br><b>1. Choose the sensors</b><br>Tick which sensors keep watch in "Home", "Away" and "Night".</td>
-<td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/step-actions-en.png" alt="Alarm actions as a flow on the phone" width="250"><br><b>2. Define the alarm</b><br>Push notification, siren, light, sound: a flow of steps, each one testable with a button.</td>
+<td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/step-wizard-en.png" alt="The setup assistant on the phone: choosing the sensors" width="250"><br><b>1. Choose the sensors</b><br>The setup assistant lists the sensors of Home Assistant and suggests where each one keeps watch in "Home", "Away" and "Night".</td>
+<td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/step-actions-en.png" alt="Alarm actions as a flow on the phone" width="250"><br><b>2. Define the alarm</b><br>Push notification, siren, alarm sound, light: a flow of steps, each one testable with a button.</td>
 <td width="33%" align="center" valign="top"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/mobile-en.png" alt="Overview on the phone" width="250"><br><b>3. Arm</b><br>In the panel, on the dashboard, by a routine or from any system Home Assistant knows.</td>
 </tr>
 </table>
 
 ## What you get
 
+- **Set up in minutes.** A setup assistant guides every new alarm system through modes, sensors, entry door and delays, code, notifications and alarm actions, with suggestions by sensor type. Stop at any time; the next day it continues exactly where you left off.
 - **No automations, no YAML.** Zones per mode, entry and exit delay, siren and alarm sound, routines by time or by device, a code per person: all built in and set up graphically.
-- **Push notifications by themselves.** Alarm, armed, disarmed, sensor unreachable, battery low: you only choose the recipients. The alarm notification brings its buttons along ("Acknowledge", "Disarm"), critical if you like.
+- **Push notifications by themselves.** Alarm, armed, disarmed, sensor unreachable, battery low (only when it stays low over several checks, never on a single outlier): you only choose the recipients. The alarm notification brings its buttons along ("Acknowledge", "Disarm"), critical if you like.
 - **Sensors under observation.** Battery with a forecast, signal, last change and the history of every sensor over 30 days. If a sensor drops out while armed, you are told.
 - **More than burglary.** Monitoring rules for the fridge, the cellar or the air report when a value leaves its limits, separate from the alarm and never with the siren.
-- **Watches itself.** A self-test checks regularly (every few hours by default, as often as every 5 minutes if you like) whether everything the alarm systems use is still there and reachable. A HealthCheck service outside (Healthchecks.io, Cronitor, Better Stack …) gets a regular life sign and alerts you when Home Assistant falls silent.
+- **Watches itself.** A self-test checks regularly (every few hours by default, as often as every 5 minutes if you like) whether everything the alarm systems use is still there and reachable. A HealthCheck service outside (Healthchecks.io, Cronitor, Better Stack …) gets a regular life sign and alerts you when Home Assistant falls silent; Alarmageddon logs every life sign and tells you when a service stops answering.
 - **Traceable.** Every alarm is recorded with a timeline: which sensor, which steps, which notifications, who acknowledged.
 - **When in doubt, alarm.** State, delays and alarms survive a restart and a crash, no device holds up the siren, a watchdog supervises the flow.
 - **Stays at home.** No cloud, no account. Each alarm system is an ordinary `alarm_control_panel` entity; any sensor of Home Assistant works (Zigbee, Z-Wave, Thread/Matter, Wi-Fi, Bluetooth).
@@ -43,10 +44,16 @@
 ## Installation
 
 1. **Install:** HACS → three dots → "Custom repositories" → `https://github.com/Diegofuego871/ha-alarmageddon`, type "Integration". Install "Alarmageddon" and restart Home Assistant.
-2. **Add an alarm system:** Settings → Devices & services → "Add integration" → "Alarmageddon". Give it a name and, if you like, a code.
-3. **Set it up:** open "Alarmageddon" in the sidebar (administrators only) and go through the three steps from above under Configuration: sensors, actions, notifications. "Send test message" and the play button of a step let you try everything without an alarm. Under Configuration › Alarm system you find routines, codes per person, your own sounds, HealthCheck and backup.
+2. **Add an alarm system:** Settings → Devices & services → "Add integration" → "Alarmageddon". Give it a name and, if you like, a code. More alarm systems can also be added in the panel ("Add alarm system").
+3. **Set it up:** open "Alarmageddon" in the sidebar (administrators only). The setup assistant starts by itself and goes through modes, sensors, entry and delays, a code, notifications and alarm actions; every step is saved with "Next". Afterwards everything is under Configuration; routines, codes per person, your own sounds, HealthCheck and backup are under Configuration › Alarm system. "Send test message" and the play button of a step let you try everything without an alarm.
 
 ## A tour
+
+### The setup assistant
+
+Every new alarm system starts with it: up to seven short steps that explain what they ask. Sensors are suggested by type (doors and windows in every mode, motion only when away, smoke, water and gas always), the alarm actions use the real editor with "Siren 3 minutes" and "Alarm sound" to add quickly, and monitoring only appears when Home Assistant has suitable sensors. "Later" brings it back the next day at the same step; under Configuration › Alarm system it can be started again at any time, with everything that is set up preselected.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/wizard-en.png" alt="Setup assistant at the step Assignment and entry: step list on the left, the sensor table filled in by sensor type" width="100%"></p>
 
 ### What happens on an alarm
 
@@ -101,7 +108,7 @@ An alarm system has to work when something else does not. This is built in and c
 - **Failures:** a sensor that stops answering while armed is reported, or counts as an alarm if you like.
 - **Self-test:** checks regularly whether everything the alarm uses is there and reachable, and records what failed; it only reads and never holds up an alarm.
 - **HealthCheck:** life signs to a service outside report a silent Home Assistant. The ping URL appears in full only in the panel and in backups, never in the log or a notification; a life sign waits at most 10 seconds.
-- **Tested:** more than 1,500 automated tests against a real Home Assistant (in two versions), about 7,400 checks of the interface, and a mutation check that removes each of 368 safeguards and requires a test to fail.
+- **Tested:** more than 1,600 automated tests against a real Home Assistant (in two versions), about 8,400 checks of the interface, and a mutation check that removes each of 408 safeguards and requires a test to fail.
 
 ### Limits
 
@@ -119,7 +126,7 @@ Alarmageddon is not a certified alarm system:
 
 ## Learn more
 
-- **[Manual](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.md):** every view and every setting in detail, all safety mechanisms, entities, numbers and limits, routines, self-test, HealthCheck, backup, notes for developers.
+- **[Manual](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.md):** every view and every setting in detail, the setup assistant, all safety mechanisms, entities, numbers and limits, routines, self-test, HealthCheck, backup, notes for developers.
 - **[Changelog](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/CHANGELOG.md):** what changed in which version.
 - **Languages:** the integration is in English and switches to German when Home Assistant runs in German.
 - **License:** see [LICENSE](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/LICENSE).

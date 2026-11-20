@@ -165,6 +165,14 @@ export class HealthLogView extends SensorView {
       this.load(false);
     } else if (act === "edit") {
       this.host.healthcheck.openForm(this.id);
+    } else if (act === "test-ok" || act === "test-fail") {
+      // Wie in der Liste; danach das Protokoll neu holen (der Aufruf steht dort als Test)
+      const id = this.id;
+      const run = this.host.healthcheck.test(id, act === "test-ok" ? "ok" : "fail");
+      this.render();
+      run.then(() => {
+        if (this.dlg?.open && this.id === id) this.load(true);
+      });
     } else if (act === "retry") {
       this.load();
     } else if (["copy", "pane", "lsort", "lq-clear"].includes(act)) {
@@ -253,7 +261,7 @@ export class HealthLogView extends SensorView {
         <div class="ag-sv-head"><span class="ag-oav ag-tint ag-tint-health on">${ic("heartPulse", 24)}</span>
           <div class="ag-sv-ttl"><button type="button" class="ag-hl-pick" data-sv="menu" aria-haspopup="listbox" aria-expanded="${this.menu}" title="${esc(t("hlSwitch"))}"><b>${esc(item.name || host)}</b>${ic("arrowDown", 18)}</button><small>${esc(sub)}</small></div>
           <span class="ag-sv-pill ${pill}">${esc(this._stateText({ state: state.state }))}</span>
-          <button type="button" class="ag-btn ag-sv-ha" data-sv="edit">${ic("pencil", 18)}${esc(t("hcEdit"))}</button>
+          ${this._actsHtml(item)}
           <div class="ag-hl-menu" role="listbox" aria-label="${esc(t("hlSwitch"))}" ${this.menu ? "" : "hidden"}>${menu}</div></div>
         <div class="ag-seg ag-sv-tiles n3" data-seg="sv-tabs" role="tablist">${tiles}</div>
         ${body.fix}
@@ -261,6 +269,16 @@ export class HealthLogView extends SensorView {
       <div class="ag-sv-list">${body.list}</div></div>`);
     if (body.busy) loaderStart(this.host._root, this.host);
     this.host._placePills?.();
+  }
+
+  // Oben rechts (seit 1.69.0, Wunsch des Nutzers 2026-11-19, 21:50, statt nur "Bearbeiten"): "Fehler senden", "Lebenszeichen senden" und der
+  // Stift, dieselben runden Knöpfe mit denselben Symbolen und in derselben Reihenfolge wie in der Liste der Dienste
+  _actsHtml(item) {
+    const t = (k) => this._t(k);
+    const hc = this.host.healthcheck;
+    const busy = (kind) => Boolean(hc.busy?.has(`${item.id}|${kind}`));
+    const btn = (act, icon, label, off = false) => `<button type="button" class="ag-iconbtn" data-sv="${act}" title="${esc(label)}" aria-label="${esc(label)}" ${off ? "disabled" : ""}>${ic(icon, 18)}</button>`;
+    return `<div class="ag-wf-btns ag-hcbtns ag-sv-ha ag-hl-acts">${btn("test-fail", "alert", t(item.fail_suffix ? "hcTestFail" : "hcTestFailNone"), !item.fail_suffix || busy("fail"))}${btn("test-ok", "check", t("hcTestOk"), busy("ok"))}${btn("edit", "pencil", t("hcEdit"))}</div>`;
   }
 
   _rangeSeg() {

@@ -1,7 +1,7 @@
 // 1.63.0 (Vorgabe des Nutzers, 2026-11-17): Jeder Play-Knopf im Panel verhält sich gleich. Beim Drücken wird er rot und zum Stopp-Knopf
 // (weisses Stopp-Symbol, Name "Stopp"/"… beenden"), ein Druck auf Stopp macht ihn wieder zum Play-Knopf. Geprüft wird jeder Ort mit einem
 // Play-Knopf: Schritt testen, "Testen" unten, die Karten der fünf festen Meldungen, der Test im Fenster einer Meldung, Probehören im Fenster
-// eines Tonschritts, eigene Töne, Schritt der Überwachung, Testmeldung im Reiter Benachrichtigungen, die zwei Meldungen der HealthCheck-Dienste (1.68.0). Je Sprache, Desktop und Handy.
+// eines Tonschritts, eigene Töne, Schritt der Überwachung, Testmeldung im Reiter Benachrichtigungen, die Meldung der HealthCheck-Dienste (seit 1.69.0 eine Wartungsmeldung), die Tests im Einrichtungsassistenten (1.69.0). Je Sprache, Desktop und Handy.
 import { check, done, launch, open, outDir } from "../lib.mjs";
 
 const PLAY = "M8,5.14V19.14L19,12.14L8,5.14Z";
@@ -95,19 +95,32 @@ for (const lang of ["de", "en"]) {
     // ----- Benachrichtigungen und eigene Töne -----
     {
       const s = await open(browser, { mobile, lang, tab: "config", query: "&sounds=1" });
-      await s.sim("window.__delay = { 'alarmageddon/test_notify': 4000, 'alarmageddon/test_healthcheck_notify': 4000 }; window.__notify.maintenance_targets = ['notify.mobile_app_diego']; return 1");
+      await s.sim("window.__delay = { 'alarmageddon/test_notify': 4000 }; window.__notify.maintenance_targets = ['notify.mobile_app_diego']; return 1");
       await s.tap('[data-sub="notify"]');
       await s.waitFor("return !!r.querySelector('.ag-nt [data-nt=\"test\"]')");
       await cycle(s, "Testmeldung im Reiter Benachrichtigungen", '.ag-nt [data-nt="test"][data-kind="sensor_offline"]');
-      // Meldungen der HealthCheck-Dienste (1.68.0): Play auf den Karten wie bei den festen Meldungen
-      await cycle(s, "HealthCheck-Dienst antwortet nicht", '.ag-nt [data-nt="hc-play"][data-kind="hc_down"]');
-      await cycle(s, "HealthCheck-Dienst antwortet wieder", '.ag-nt [data-nt="hc-play"][data-kind="hc_up"]');
+      // HealthCheck-Dienst antwortet nicht (seit 1.69.0 eine Wartungsmeldung): Testmeldung wie bei den anderen Wartungsmeldungen
+      await cycle(s, "Testmeldung HealthCheck-Dienst antwortet nicht", '.ag-nt [data-nt="test"][data-kind="healthcheck"]');
       await s.tap('[data-sub="system"]');
       await s.ev("window.Audio = function () { const o = { play: () => Promise.resolve(), pause() {}, addEventListener() {}, removeEventListener() {}, set onended(f) { o._end = f; }, set src(v) {}, currentTime: 0 }; return o; }; return 1");
       await s.tap('[data-sys="cs-open"]');
       await s.waitFor("return r.getElementById('ag-cslist').open && !!r.querySelector('#ag-cslist .ag-csrow [data-sys=\"cs-play\"]')");
       await cycle(s, "Eigenen Ton abspielen", '#ag-cslist .ag-csrow [data-sys="cs-play"]', '#ag-cslist .ag-csrow [data-sys="cs-stop"]');
       check(`${tag}: keine Fehler in der Konsole (Benachrichtigungen, Töne)`, s.errors.length === 0, s.errors.join(" | "));
+      await s.ctx.close();
+    }
+
+    // ----- Einrichtungsassistent (1.69.0): Testmeldung (Meldungen und Fertig), Test der Alarmaktionen (Fertig) -----
+    {
+      const s = await open(browser, { mobile, lang, query: "&wizard=open&wzstep=notify" });
+      await s.waitFor("return r.querySelector('.ag-wz')?.dataset.step === 'notify' && !!r.querySelector('[data-wz=\"nt-test\"]')");
+      await s.sim("window.__delay = { 'alarmageddon/test_notify': 4000 }; return 1");
+      await cycle(s, "Assistent: Testmeldung bei den Meldungen", '[data-wz="nt-test"]');
+      await s.ev("r.host.wizard.go('done'); return 1");
+      await s.waitFor("return r.querySelector('.ag-wz')?.dataset.step === 'done' && !!r.querySelector('[data-wz=\"wf-test\"]')");
+      await cycle(s, "Assistent: Testmeldung bei Fertig", '[data-wz="nt-test"]');
+      await cycle(s, "Assistent: Alarmaktionen testen", '[data-wz="wf-test"]');
+      check(`${tag}: keine Fehler in der Konsole (Assistent)`, s.errors.length === 0, s.errors.join(" | "));
       await s.ctx.close();
     }
   }

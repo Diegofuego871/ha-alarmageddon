@@ -249,6 +249,8 @@ async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     await async_remove_workflow_store(hass, entry.entry_id)
     await async_remove_monitor_store(hass, entry.entry_id)
     await Store(hass, 1, f"{STATE_STORE_KEY}.{entry.entry_id}").async_remove()
+    # Einrichtungsassistent (1.69.0): der Zustand der Anlage verschwindet mit ihr
+    (await async_get_settings(hass)).forget_wizard(entry.entry_id)
     # Selbsttest: die Meldung der Anlage unter "Reparaturen" verschwindet mit ihr; die übrigen Anlagen prüft er kurz danach neu
     ir.async_delete_issue(hass, DOMAIN, f"selftest_{entry.entry_id}")
     if not any(e.entry_id != entry.entry_id for e in hass.config_entries.async_entries(DOMAIN)):
