@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.74.4] - 2026-11-21
+
+### Geändert
+
+- **Zauberstab des Assistenten, Ablauf wie im Comic:** Alles löst der Stab aus, ohne Pausen. Er schwingt im kleinen Kreis und schnippt zum Punkt; mit dem Schnippen gleiten die Sterne zum Punkt und werden eingesogen, der Punkt schwillt mit jedem Stern an. Kaum ist der letzte drin, rast der Punkt als Sternschnuppe los, dreht eine Runde um den Knopf, leuchtet bei der Ankunft auf und explodiert in einem Ring, und im selben Augenblick werden die Sterne an ihrem Platz wieder eingeblendet. Eine Welle dauert 3,6 Sekunden.
+
 ## [1.74.3] - 2026-11-21
 
 ### Geändert
@@ -2122,6 +2128,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.74.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.4
 [1.74.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.3
 [1.74.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.2
 [1.74.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.1

@@ -17,7 +17,7 @@ const AWAY_MS = 30 * 60 * 1000;
 // Knopf des Einrichtungsassistenten im Kopf (1.71.0): der Zauberstab schwingt einmal, so lange nach dem Erscheinen (Wunsch des Nutzers: "nach 5 Sekunden")
 const WAVE_MS = 5000; // erste Welle: so lange nach dem Erscheinen des Knopfes
 const WAVE_PAUSE_MS = 30000; // Pause zwischen den Wellen (Wunsch des Nutzers 2026-11-20)
-const WAVE_LEN_MS = 4700; // eine Welle: Stab, Wackeln, Schuss der Sterne, Komet, blinkendes Wiederauftauchen (4,4 s) mit etwas Luft
+const WAVE_LEN_MS = 3900; // eine Welle: Schwung, Einsaugen der Sterne, Komet, Explosion, Sterne wieder da (3,6 s, WAVE in styles.js) mit etwas Luft
 // Symbol "wand" (common.js) in Teilen: Stab und drei Sterne, damit sie sich einzeln bewegen
 const WAND_STICK = "M13.34,12.78L15.78,10.34L13.66,8.22L11.22,10.66L13.34,12.78M14.37,7.29L16.71,9.63C17.1,10 17.1,10.65 16.71,11.04L5.04,22.71C4.65,23.1 4,23.1 3.63,22.71L1.29,20.37C0.9,20 0.9,19.35 1.29,18.96L12.96,7.29C13.35,6.9 14,6.9 14.37,7.29Z";
 const WAND_STARS = ["M7.5,5.6L5,7L6.4,4.5L5,2L7.5,3.4L10,2L8.6,4.5L10,7L7.5,5.6Z", "M22,2L20.6,4.5L22,7L19.5,5.6L17,7L18.4,4.5L17,2L19.5,3.4L22,2Z",

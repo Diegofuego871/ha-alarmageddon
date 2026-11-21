@@ -1,51 +1,61 @@
 // Stile des Panels (Shadow DOM). Farben aus den Theme-Variablen von HA, Präfix --ag- (docs/DESIGN.md).
 // Klassennamen mit eigenem Präfix, damit nichts kollidiert (LEARNINGS: gängige Namen haben Layouts zerschossen).
 
-// Zeitplan der Zauberstab-Welle in Millisekunden (siehe Kommentar bei ".ag-wzbtn.wave .ag-wzstar"); WAVE_LEN_MS im Panel muss etwas darüber liegen
-const WAVE = { wiggle: 1400, fly: 1720, hit: 2100, comet: 1500, back: 3000, total: 4400, dot: 3400 };
-// Mittelpunkte der Sterne und des Punktes in Einheiten des Symbols (viewBox 24): Ziel ist der Punkt oben rechts am Knopf
+// Zauberstab-Welle (Wunsch des Nutzers 2026-11-21: "wie in einem Comic", alles vom Stab ausgelöst, ohne Pausen): der Stab macht einen Schwung im Kreis und
+// schnippt zum Punkt; schon beim Schnippen gleiten die Sterne hin und werden vom Punkt eingesogen (er schwillt mit jedem Stern an); kaum ist der letzte
+// drin, rast der Punkt als Komet los, dreht eine Runde, blitzt bei der Ankunft auf und explodiert in einem Ring, und im selben Augenblick werden die
+// Sterne an ihrem Platz langsam wieder eingeblendet. Jeder Teil beginnt, wenn der vorige endet. Zeiten in Millisekunden; WAVE_LEN_MS im Panel liegt darüber.
+const WAVE = { swing: 1100, suck: 800, comet: 1000, fade: 900, total: 3600 };
+// Mittelpunkte der Sterne und des Punktes in Einheiten des Symbols (viewBox 24, Symbol 22 px, gemessen im Nachbau): Ziel der Sterne ist der Punkt
 const WAVE_DOT = [26.7, -2.7];
 const WAVE_STAR_AT = [[7.5, 4.5], [19.5, 4.5], [19.5, 16.5]];
 const pc = (ms) => `${(Math.round((ms / WAVE.total) * 100000) / 1000).toString()}%`;
-const pcDot = (ms) => `${(Math.round((ms / WAVE.dot) * 100000) / 1000).toString()}%`;
-const WAVE_LAND = [
-  `0%, ${pcDot(WAVE.wiggle - 40)} { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent; filter: none }`,
-  `${pcDot(WAVE.wiggle + 60)}, ${pcDot(WAVE.wiggle + WAVE.comet - 10)} { transform: scale(.3); opacity: 0; box-shadow: 0 0 0 0 transparent; filter: none }`,
-  `${pcDot(WAVE.wiggle + WAVE.comet)} { transform: scale(2); opacity: 1; box-shadow: 0 0 6px 2px color-mix(in srgb, var(--ag-primary) 80%, #fff); filter: brightness(1.7) }`,
-  `${pcDot(WAVE.wiggle + WAVE.comet + 300)} { transform: scale(1.4); opacity: 1; box-shadow: 0 0 10px 6px transparent; filter: brightness(1.3) }`,
-  `100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent; filter: none }`,
-].join("\n  ");
-// Je Stern eine Zeitleiste: wackeln (Stern i um i*40 ms versetzt), Ausholen, Schuss zum Punkt, dort aufgehen; später nacheinander (220 ms Abstand) blinkend wieder da
-const WAVE_STARS = WAVE_STAR_AT.map(([x, y], i) => {
-  const d = i * 40;
-  const b = WAVE.back + i * 220;
+// Je Stern: Abstand zum Punkt, Start des Einsaugens (leicht versetzt), Flugzeit (weiter weg = länger), Ankunft
+const WAVE_FLY = WAVE_STAR_AT.map(([x, y], i) => {
   const dx = Math.round((WAVE_DOT[0] - x) * 10) / 10;
   const dy = Math.round((WAVE_DOT[1] - y) * 10) / 10;
-  const gone = `translate(${dx}px, ${dy}px) scale(.12) rotate(0deg)`;
+  const dist = Math.hypot(dx, dy);
+  const start = WAVE.suck + [40, 0, 80][i];
+  const arrive = Math.round(start + 380 + dist * 9);
+  return { dx, dy, start, arrive };
+});
+const WAVE_LAUNCH = Math.max(...WAVE_FLY.map((f) => f.arrive)); // der letzte Stern ist drin: der Komet rast los
+const WAVE_BOOM = WAVE_LAUNCH + WAVE.comet; // Ankunft, Aufblitzen und Explosion; die Sterne kommen zurück
+// Wieder eingeblendet, von innen nach aussen: zuerst der Stern, der dem Punkt am nächsten ist
+const WAVE_BACK = WAVE_FLY.map((f) => WAVE_BOOM + 110 * [...WAVE_FLY].sort((p, q) => p.arrive - q.arrive).indexOf(f));
+// Der Punkt schwillt mit jedem eingesogenen Stern an, wird zum Kometen (verschwindet), blitzt bei der Ankunft auf und setzt sich
+const WAVE_LAND = (() => {
+  const hits = WAVE_FLY.map((f) => f.arrive).sort((p, q) => p - q);
+  const glow = (n) => `0 0 ${2 + 2 * n}px ${Math.round(n * 0.6 * 10) / 10}px color-mix(in srgb, var(--ag-primary) 60%, #fff)`;
+  const rows = [`0%, ${pc(hits[0] - 1)} { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent; filter: none }`];
+  hits.forEach((t, n) => {
+    rows.push(`${pc(t)} { transform: scale(${(1.3 + n * 0.2).toFixed(2)}); opacity: 1; box-shadow: ${glow(n + 1)}; filter: brightness(${(1.2 + n * 0.15).toFixed(2)}) }`);
+    if (n < hits.length - 1) rows.push(`${pc(t + 50)} { transform: scale(${(1.15 + n * 0.2).toFixed(2)}); opacity: 1; box-shadow: ${glow(n)}; filter: brightness(1.1) }`);
+  });
+  rows.push(`${pc(WAVE_LAUNCH + 50)}, ${pc(WAVE_BOOM - 10)} { transform: scale(.3); opacity: 0; box-shadow: 0 0 0 0 transparent; filter: none }`);
+  rows.push(`${pc(WAVE_BOOM)} { transform: scale(2.2); opacity: 1; box-shadow: 0 0 10px 4px color-mix(in srgb, var(--ag-primary) 70%, #fff); filter: brightness(1.8) }`);
+  rows.push(`${pc(WAVE_BOOM + 250)} { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px 3px transparent; filter: brightness(1.3) }`);
+  rows.push(`${pc(WAVE_BOOM + 600)}, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent; filter: none }`);
+  return rows.join("\n  ");
+})();
+// Je Stern eine Zeitleiste: ruhig, beim Schnippen eingesogen (erst langsam, dann immer schneller, kleiner werdend und sich drehend), weg, bei der
+// Explosion an seinem Platz langsam eingeblendet (mit leichtem Schimmer)
+const WAVE_STARS = WAVE_FLY.map((f, i) => {
+  const b = WAVE_BACK[i];
+  const gone = `translate(${f.dx}px, ${f.dy}px) scale(0) rotate(220deg)`;
   const move = [
-    `0%, ${pc(WAVE.wiggle)} { transform: none }`,
-    `${pc(WAVE.wiggle + 100 + d)} { transform: scale(1.5) rotate(24deg) }`,
-    `${pc(WAVE.wiggle + 200 + d)} { transform: scale(.8) rotate(-22deg) }`,
-    `${pc(WAVE.fly - 20 + d)} { transform: scale(1.25) rotate(8deg); animation-timing-function: cubic-bezier(.55, 0, 1, .45) }`,
-    `${pc(WAVE.hit + d)} { transform: ${gone} }`,
-    `${pc(b - 1)} { transform: ${gone} }`,
-    `${pc(b)} { transform: scale(.3) rotate(0deg) }`,
-    `${pc(b + 130)} { transform: scale(1.3) rotate(15deg) }`,
-    `${pc(b + 270)} { transform: scale(.85) rotate(-15deg) }`,
-    `${pc(b + 410)} { transform: scale(1.2) rotate(8deg) }`,
-    `${pc(b + 560)} { transform: scale(.95) rotate(-4deg) }`,
-    `${pc(b + 720)} { transform: scale(1.05) rotate(0deg) }`,
-    `${pc(b + 900)}, 100% { transform: none }`,
+    `0%, ${pc(f.start)} { transform: none; animation-timing-function: cubic-bezier(.55, 0, .9, .35) }`,
+    `${pc(f.arrive)}, ${pc(b - 1)} { transform: ${gone} }`,
+    `${pc(b)} { transform: scale(.45) rotate(-30deg); animation-timing-function: cubic-bezier(.2, .7, .3, 1) }`,
+    `${pc(b + WAVE.fade * 0.6)} { transform: scale(1.12) rotate(4deg) }`,
+    `${pc(b + WAVE.fade)}, 100% { transform: none }`,
   ].join("\n  ");
   const fade = [
-    `0%, ${pc(WAVE.hit - 90 + d)} { opacity: 1 }`,
-    `${pc(WAVE.hit + d)} { opacity: 0 }`,
-    `${pc(b)} { opacity: 0 }`,
-    `${pc(b + 130)} { opacity: 1 }`,
-    `${pc(b + 270)} { opacity: .15 }`,
-    `${pc(b + 410)} { opacity: 1 }`,
-    `${pc(b + 560)} { opacity: .4 }`,
-    `${pc(b + 720)}, 100% { opacity: 1 }`,
+    `0%, ${pc(f.arrive - 120)} { opacity: 1 }`,
+    `${pc(f.arrive)}, ${pc(b)} { opacity: 0 }`,
+    `${pc(b + WAVE.fade * 0.45)} { opacity: .8 }`,
+    `${pc(b + WAVE.fade * 0.7)} { opacity: .55 }`,
+    `${pc(b + WAVE.fade)}, 100% { opacity: 1 }`,
   ].join("\n  ");
   return `@keyframes ag-wz-star${i} {\n  ${move} }\n@keyframes ag-wz-fade${i} {\n  ${fade} }`;
 }).join("\n");
@@ -1074,31 +1084,32 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 .ag-wzbtn svg { display: block; overflow: visible; }
 .ag-wzbtn g { transform-box: view-box; }
 .ag-wzbtn-dot { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--ag-primary); border: 2px solid var(--ag-card); pointer-events: none; }
-.ag-wzbtn.wave .ag-wzstick { transform-origin: 3px 21px; animation: ag-wz-swing 1.4s ease-in-out both; }
-/* Zauberstab-Welle (Wunsch des Nutzers 2026-11-21, "richtig cool"), 4,4 Sekunden: (1) 0 bis 1,4 s bewegt sich nur der Stab. (2) Mit seiner letzten Bewegung (1,4 s) wackeln die Sterne
-   und gleichzeitig beginnt der Komet zu drehen (der Punkt verschwindet, der Komet startet dort). (3) Die Sterne holen aus (kurzer Rückschwung) und schiessen, einer nach dem
-   anderen, zum Komet am Punkt und gehen in ihm auf; der Komet beschleunigt und saust einmal um den Knopf (1,4 bis 2,9 s). (4) Bei der Ankunft (2,9 s) blitzt der Punkt auf, danach tauchen die
-   Sterne nacheinander blinkend wieder auf (3 bis 4,4 s). Die Sterne haben je eine Bewegung (transform) und ein Ein- und Ausblenden (opacity) in einer gemeinsamen Zeitleiste
-   (WAVE_T), die Zeiten stehen unten in WAVE. Ziel der Sterne: der Punkt, in Einheiten des Symbols (viewBox 24, Symbol 22 px). */
+.ag-wzbtn.wave .ag-wzstick { transform-origin: 3px 21px; animation: ag-wz-swing ${WAVE.swing}ms cubic-bezier(.45, 0, .35, 1) both; }
+/* Ablauf der Welle: siehe WAVE oben. Die Sterne haben je eine Zeitleiste für Bewegung und Ein-/Ausblenden über die ganze Welle. */
 .ag-wzbtn.wave .ag-wzstar { transform-origin: center; transform-box: fill-box; animation-timing-function: ease-in-out; animation-fill-mode: both; animation-duration: ${WAVE.total}ms; }
 .ag-wzbtn.wave .s0 { animation-name: ag-wz-star0, ag-wz-fade0; }
 .ag-wzbtn.wave .s1 { animation-name: ag-wz-star1, ag-wz-fade1; }
 .ag-wzbtn.wave .s2 { animation-name: ag-wz-star2, ag-wz-fade2; }
-/* Sternschnuppe wie im Device Panel (dp-comet und dp-land, docs/mockups/shootingstar-v1; "ein Markenzeichen", Wunsch des Nutzers 2026-11-20, 21:29): der Punkt löst sich vom Knopf,
-   huscht mit Schweif einmal um die Linie und setzt sich kurz vergrössert wieder hin. Die Welle kommt nach WAVE_PAUSE_MS Pause wieder, solange der Knopf steht. */
+/* Sternschnuppe wie im Device Panel (dp-comet, docs/mockups/shootingstar-v1; "ein Markenzeichen", Wunsch des Nutzers 2026-11-20): der Punkt rast mit Schweif
+   einmal um die Linie. Der Kopf liegt bei 358 Grad des Verlaufs; mit 47 Grad Drehung steht er genau am Punkt (oben rechts) und kommt nach 360 Grad wieder dort an.
+   Er startet geladen (hell) und rast los, nimmt Fahrt auf und kommt sanft am Punkt an. */
 .ag-wzbtn.wave::before { content: ""; position: absolute; inset: -1px; border-radius: 50%; pointer-events: none; opacity: 0;
   background: conic-gradient(from 0deg, transparent 0deg, transparent 240deg, color-mix(in srgb, var(--ag-primary) 14%, transparent) 240deg, color-mix(in srgb, var(--ag-primary) 92%, #fff) 354deg, #fff3e0 358deg, transparent 360deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  animation: ag-wz-comet ${WAVE.comet}ms cubic-bezier(.5, 0, .95, .55) ${WAVE.wiggle}ms both, ag-wz-comet-vis ${WAVE.comet}ms linear ${WAVE.wiggle}ms both, ag-wz-comet-boost ${WAVE.comet}ms linear ${WAVE.wiggle}ms both; }
-.ag-wzbtn.wave .ag-wzbtn-dot { animation: ag-wz-land ${WAVE.dot}ms linear both; }
-/* Der Kopf des Kometen liegt bei 358 Grad des Verlaufs; mit 47 Grad Drehung steht er genau am Punkt (oben rechts) und kommt nach 360 Grad wieder dort an. Die Beschleunigung
-   steckt im Zeitverlauf der Drehung, das Ein- und Ausblenden läuft getrennt und linear. Wenn die Sterne im Komet aufgehen, leuchtet er kurz heller. */
+  animation: ag-wz-comet ${WAVE.comet}ms cubic-bezier(.5, 0, .3, 1) ${WAVE_LAUNCH}ms both, ag-wz-comet-vis ${WAVE.comet}ms linear ${WAVE_LAUNCH}ms both, ag-wz-comet-boost ${WAVE.comet}ms linear ${WAVE_LAUNCH}ms both; }
+/* Explosion bei der Ankunft: ein Ring breitet sich vom Punkt aus und verglimmt */
+.ag-wzbtn.wave::after { content: ""; position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; pointer-events: none; opacity: 0;
+  border: 2px solid color-mix(in srgb, var(--ag-primary) 55%, #fff); box-shadow: 0 0 6px 1px color-mix(in srgb, var(--ag-primary) 60%, #fff);
+  animation: ag-wz-burst 650ms cubic-bezier(.2, .7, .3, 1) ${WAVE_BOOM}ms both; }
+.ag-wzbtn.wave .ag-wzbtn-dot { animation: ag-wz-land ${WAVE.total}ms linear both; }
 @keyframes ag-wz-comet { from { transform: rotate(47deg) } to { transform: rotate(407deg) } }
-@keyframes ag-wz-comet-vis { 0% { opacity: 0 } 4% { opacity: 1 } 94% { opacity: 1 } 100% { opacity: 0 } }
-@keyframes ag-wz-comet-boost { 0%, 36% { filter: brightness(1) } 46% { filter: brightness(1.9) } 70%, 100% { filter: brightness(1) } }
-/* Der Punkt verschwindet, wenn der Komet losfährt, und blitzt bei der Ankunft kurz auf und bleibt stehen */
+@keyframes ag-wz-comet-vis { 0% { opacity: 0 } 3% { opacity: 1 } 95% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes ag-wz-comet-boost { 0% { filter: brightness(1.8) } 45%, 100% { filter: brightness(1) } }
+@keyframes ag-wz-burst { 0% { transform: scale(.6); opacity: 0 } 8% { transform: scale(1); opacity: 1 } 100% { transform: scale(4.2); opacity: 0 } }
 @keyframes ag-wz-land { ${WAVE_LAND} }
-@keyframes ag-wz-swing { 0% { transform: rotate(0) } 22% { transform: rotate(-24deg) } 52% { transform: rotate(16deg) } 74% { transform: rotate(-6deg) } 100% { transform: rotate(0) } }
+/* Schwung im Kreis um den Griff, dann ein Schnippen zum Punkt (bei 75 %, wenn die Sterne losgleiten) und zurück in die Ruhe */
+@keyframes ag-wz-swing { 0% { transform: none } 20% { transform: translate(-.6px, .6px) rotate(-18deg) } 40% { transform: translate(-1px, -.4px) rotate(-30deg) }
+  58% { transform: translate(.3px, -1px) rotate(-8deg) } 73% { transform: translate(.8px, -.6px) rotate(22deg) } 87% { transform: translate(.2px, 0) rotate(-5deg) } 100% { transform: none } }
 ${WAVE_STARS}
 .ag-head-cfg > .ag-tabs, .ag-head-cfg > .ag-seg { margin-right: auto; }
 .ag-btn-ic { width: 40px; padding: 0; justify-content: center; flex: none; }

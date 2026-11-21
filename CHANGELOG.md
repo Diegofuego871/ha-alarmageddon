@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.74.4] - 2026-11-21
+
+### Changed
+
+- **Setup assistant wand, comic-style sequence:** everything is set off by the wand, without pauses. The wand swings in a small circle and flicks towards the dot; with the flick the stars glide to the dot and are sucked in, and the dot swells with each star. As soon as the last one is in, the dot races off as a shooting star, goes once around the button, lights up on arrival and bursts in a ring, and at that moment the stars fade back in at their places. A wave takes 3.6 seconds.
+
 ## [1.74.3] - 2026-11-21
 
 ### Changed
@@ -2122,6 +2128,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.74.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.4
 [1.74.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.3
 [1.74.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.2
 [1.74.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.1
