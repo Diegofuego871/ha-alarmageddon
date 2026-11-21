@@ -245,13 +245,17 @@ export class HealthCheckUi {
         <td class="ag-t2 ag-hclast">${esc(i.status ? this._when(i.status.at) : "–")}</td>
         <td class="ag-t2 ag-hcint">${esc(fmtDur(i.interval))}</td>
         <td class="ag-hcst"><span class="ag-hcstate ${this._statusTone(i.status)}">${esc(this._statusText(i.status))}</span></td>
-        <td class="ag-acts"><div class="ag-wf-btns ag-hcbtns">${btn("log", "history", t("hlOpen"), i.id)}${i.fail_suffix ? btn("test-fail", "alert", t("hcTestFail"), i.id) : ""}${i.alarm_suffix ? btn("test-alarm", "bell", t("hcTestAlarm"), i.id) : ""}${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
+        <td class="ag-acts"><div class="ag-wf-btns ag-hcbtns">${btn("log", "chartBox", t("hlOpen"), i.id)}${i.fail_suffix ? btn("test-fail", "alert", t("hcTestFail"), i.id) : ""}${i.alarm_suffix ? btn("test-alarm", "bell", t("hcTestAlarm"), i.id) : ""}${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
     }).join("");
     const th = (k, label, cls = "") => {
       const on = sort.key === k;
       return `<th class="${cls}" aria-sort="${on ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}"><button type="button" class="ag-sortbtn ${on ? "on" : ""}" data-hc="sort" data-key="${k}" title="${esc(t("sortBy", { column: label }))}">${esc(label)}<span class="ag-sortic">${on ? ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 14) : ""}</span></button></th>`;
     };
-    return `<div class="ag-t2 ag-small" style="margin:10px 4px 6px">${esc(t("hcCount", { count: items.length, max: this.max }))}</div>
+    // Auf dem Handy gibt es keine sortierbaren Spaltenköpfe: dort steht "Sortieren nach" mit Auswahl und Richtung neben der Zahl (Wunsch des Nutzers 2026-11-21, wie im Device Panel)
+    const opts = [["name", "hcColName"], ["last", "hcColLast"], ["interval", "hcColInterval"], ["status", "hcColStatus"]];
+    const sortbar = `<div class="ag-hcsort"><span class="ag-t2">${esc(t("viewSort"))}</span><select class="ag-input" data-hc="sortsel" aria-label="${esc(t("viewSort"))}">${opts.map(([k, l]) => `<option value="${k}" ${sort.key === k ? "selected" : ""}>${esc(t(l))}</option>`).join("")}</select>
+      <button type="button" class="ag-iconbtn" data-hc="sortdir" title="${esc(t(sort.dir === "desc" ? "hcSortDesc" : "hcSortAsc"))}" aria-label="${esc(t(sort.dir === "desc" ? "hcSortDesc" : "hcSortAsc"))}">${ic(sort.dir === "desc" ? "arrowDown" : "arrowUp", 20)}</button></div>`;
+    return `<div class="ag-hcrow"><span class="ag-t2 ag-small ag-hccount">${esc(t("hcCount", { count: items.length, max: this.max }))}</span>${sortbar}</div>
       <div class="ag-card ag-bkwrap"><table class="ag-table ag-hctable"><tr>${th("name", t("hcColName"), "ag-hcurl")}${th("last", t("hcColLast"), "ag-hclast")}${th("interval", t("hcColInterval"), "ag-hcint")}${th("status", t("hcColStatus"), "ag-hcst")}<th class="ag-hcacts"></th></tr>${rows}</table></div>`;
   }
 
@@ -451,7 +455,10 @@ export class HealthCheckUi {
     else if (act === "test-ok") this.test(el.dataset.id, "ok");
     else if (act === "test-fail") this.test(el.dataset.id, "fail");
     else if (act === "test-alarm") this.test(el.dataset.id, "alarm");
-    else if (act === "sort") {
+    else if (act === "sortdir") {
+      this.sort = { ...this.sort, dir: this.sort.dir === "asc" ? "desc" : "asc" };
+      this.renderList();
+    } else if (act === "sort") {
       const k = el.dataset.key;
       this.sort = { key: k, dir: this.sort.key === k ? (this.sort.dir === "asc" ? "desc" : "asc") : k === "last" ? "desc" : "asc" };
       this.renderList();
@@ -497,6 +504,12 @@ export class HealthCheckUi {
   onInput(el) {
     const act = el?.dataset?.hc;
     if (!act) return false;
+    if (act === "sortsel") {
+      const k = el.value;
+      this.sort = { key: k, dir: k === "last" ? "desc" : "asc" };
+      this.renderList();
+      return true;
+    }
     if (act === "search") {
       this.q = el.value;
       const clear = this.listDlg?.querySelector('[data-hc="search-clear"]');

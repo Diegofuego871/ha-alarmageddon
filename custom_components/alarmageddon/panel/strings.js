@@ -1793,6 +1793,8 @@ export const STRINGS = {
     hcDeleteText: "Alarmageddon will no longer call \"{name}\". The service will then report missing life signs, unless you pause or delete the check there.",
     // Protokoll der HealthCheck-Dienste (1.68.0)
     hlOpen: "Log",
+    hcSortAsc: "Ascending (tap for descending)",
+    hcSortDesc: "Descending (tap for ascending)",
     hlSwitch: "Switch service",
     hlEvery: "every {time}",
     hlTab_history: "History",
@@ -3832,6 +3834,8 @@ export const STRINGS = {
     hcDeleteText: "Alarmageddon ruft \"{name}\" nicht mehr auf. Der Dienst meldet dann fehlende Lebenszeichen, ausser du pausierst oder löschst den Check dort.",
     // Protokoll der HealthCheck-Dienste (1.68.0)
     hlOpen: "Protokoll",
+    hcSortAsc: "Aufsteigend (tippen für absteigend)",
+    hcSortDesc: "Absteigend (tippen für aufsteigend)",
     hlSwitch: "Dienst wechseln",
     hlEvery: "alle {time}",
     hlTab_history: "Verlauf",

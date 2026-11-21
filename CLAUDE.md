@@ -305,7 +305,7 @@ Umsetzung:
   Verbindung kommt nie ins Log (sie enthält oft die URL). Ein Lebenszeichen ist eine Hintergrundaufgabe mit `HEALTHCHECK_TIMEOUT`, hält nie etwas
   auf; ein Wechsel des Selbsttests geht höchstens alle `HEALTHCHECK_MIN_GAP` Sekunden hinaus. Tests in `tests/test_healthcheck.py`, Zeilen
   "HealthCheck" in `scripts/mutation_check.py`, Suite `healthcheck-e2e.mjs`. Nie die echte Ping-URL eines Nutzers (Bildschirmfoto) in Code, Tests
-  oder Bildern verwenden; der Nachbau hat erfundene Adressen (`?hc=sample`). Das Fenster der Dienste erklärt sie unter der Liste zum Aufklappen
+  oder Bildern verwenden; der Nachbau hat erfundene Adressen (`?hc=sample`). Die Liste der Dienste hat auf dem Handy statt der Spaltenköpfe eine klebende Zeile "Sortieren nach" mit Auswahl und Richtung (seit 1.74.7, Wunsch des Nutzers 2026-11-21, wie im Device Panel; Suite `hcsort-e2e.mjs`); der Protokoll-Knopf trägt das Symbol `chartBox`. Das Fenster der Dienste erklärt sie unter der Liste zum Aufklappen
   ("Was sind HealthCheck-Dienste?", seit 1.67.0, Wunsch des Nutzers; Name bleibt "HealthCheck-Dienste", Entscheid des Nutzers 2026-11-19) mit den
   Beispielen `EXAMPLES` in `healthcheck.js` (Links in neuem Fenster, dieselben Anbieter wie `KNOWN`). Statusentität und Statuskarte (seit 1.72.0,
   Wunsch des Nutzers 2026-11-20): `HealthCheck.summary` gibt nur Zahlen (`healthcheck`, `_ok`, `_report`, `_fail` als Attribute), **nie URL, Name

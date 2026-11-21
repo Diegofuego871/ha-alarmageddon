@@ -3,7 +3,8 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
-- 1.74.6 (2026-11-21, noch ohne Tag): Zauberstab: der Schweif gehört zum Punkt (Träger-Aufbau, PANEL_VERSION 257), Rand dünner; Suite `wzbtn-e2e` prüft Aufbau und Umlauf (Abstand zur Mitte, Uhrzeigersinn).
+- 1.74.7 (2026-11-21, noch ohne Tag): HealthCheck-Fenster: Protokoll-Knopf mit Symbol `chartBox`; auf dem Handy Sortierzeile "Sortieren nach" (`.ag-hcrow`, `data-hc="sortsel"`/`"sortdir"`, klebt unter dem Kopf, ersetzt den Tabellenkopf; PANEL_VERSION 258; Suite `hcsort-e2e.mjs`).
+- 1.74.6 (2026-11-21, Tag `v1.74.6`): Zauberstab: der Schweif gehört zum Punkt (Träger-Aufbau, PANEL_VERSION 257), Rand dünner; Suite `wzbtn-e2e` prüft Aufbau und Umlauf (Abstand zur Mitte, Uhrzeigersinn).
 - 1.74.5 (2026-11-21, Tag `v1.74.5`): Zauberstab: der Punkt bleibt sichtbar und fährt selbst als Kometenkopf (1,3 s Runde, Welle 3,9 s, PANEL_VERSION 256); Logo des Assistenten auf der Startseite (`wizard._headHtml`, `.ag-wz-badge`: runder Farbverlauf Primärfarbe/Violett mit weissem Zauberstab; Suite `wzbadge-e2e.mjs`; PANEL_VERSION 255).
 - 1.74.4 (2026-11-21, Tag `v1.74.4`): Zauberstab wie im Comic.
 - 1.74.3 (2026-11-21, Tag `v1.74.3`): Zauberstab mit Wackeln, Schuss und Blinken (4,4 s).

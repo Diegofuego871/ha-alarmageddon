@@ -1704,6 +1704,18 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-sthfs { margin-left: 0; display: grid; grid-template-columns: max-content minmax(0, auto); justify-content: start; align-items: center; gap: 10px 16px; }
 .ag-sthf { display: contents; }
 /* Liste der Lebenszeichen: Tabelle wie die Backups; die URL steht ganz da und bricht an jeder Stelle um (sie hat keine Leerzeichen) */
+.ag-hcrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 4px 6px; }
+.ag-hccount { flex: none; white-space: nowrap; }
+.ag-hcsort { display: none; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; flex: 1 1 auto; }
+.ag-hcsort > .ag-t2 { white-space: nowrap; font-size: 13px; }
+.ag-hcsort .ag-iconbtn { flex: none; border: 1px solid var(--ag-divider); color: var(--ag-text); }
+.ag-hcsort .ag-input { width: auto; min-width: 112px; flex: 0 0 auto; padding-top: 8px; padding-bottom: 8px; }
+@media (max-width: 440px) { .ag-hcsort > .ag-t2 { display: none; } } /* auf schmalen Handys reicht die Auswahl (der Name steht als Beschriftung im Eintrag) */
+:host([narrow]) .ag-hcsort { display: flex; }
+/* Die Sortierzeile klebt unter Titel und Suche (Vorgabe: Kopf scrollt nie weg), sie ersetzt auf dem Handy den Tabellenkopf */
+:host([narrow]) .ag-hc-pop .ag-hcrow { position: sticky; top: calc(var(--ag-pophead, 22px) - 22px); z-index: 2; margin: 0 -22px; padding: 10px 22px 6px; background: var(--ag-card); }
+/* Auf dem Handy sortiert die Auswahl: die Kopfzeile der Tabelle fällt weg */
+:host([narrow]) .ag-hc-pop .ag-hctable tr:first-child { display: none; }
 .ag-hctable td { vertical-align: middle; }
 .ag-hc-pop .ag-hctable th, :host([narrow]) .ag-hc-pop .ag-hctable th { top: calc(var(--ag-pophead, 22px) - 22px); }
 /* Desktop: feste Spalten; der Dienst bekommt den Rest, die URL darunter auf eine Zeile gekürzt (ganz im Tooltip und im Formular) */

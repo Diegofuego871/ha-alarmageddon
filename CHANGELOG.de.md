@@ -7,6 +7,13 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.74.7] - 2026-11-21
+
+### Geändert
+
+- **HealthCheck-Dienste, Knopf "Protokoll":** Der Knopf in der Liste der Dienste hat ein neues Symbol, ein Diagramm im Kasten (vorher eine Uhr mit Pfeil).
+- **HealthCheck-Dienste, "Sortieren nach" auf dem Handy:** Neben der Zahl stehen eine Auswahl (Dienst, Zuletzt, Intervall, Status) und ein Knopf für die Richtung, wie im Device Panel. Die Zeile klebt unter Titel und Suche; am Computer bleiben die sortierbaren Spaltenköpfe der Tabelle.
+
 ## [1.74.6] - 2026-11-21
 
 ### Behoben
@@ -2144,6 +2151,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.74.7]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.7
 [1.74.6]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.6
 [1.74.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.5
 [1.74.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.4

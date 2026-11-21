@@ -242,8 +242,8 @@ for (const lang of ["de", "en"]) {
     await f5.page.waitForTimeout(300);
     check(`${tag}: fünf Zeilen, "${t.add}" im Fenster gesperrt`, await f5.ev("const d=r.getElementById('ag-hclist'); return d.querySelectorAll('[data-hc-row]').length === 5 && d.querySelector('.ag-dlg-btns [data-hc=\"add\"]').disabled"));
     const stick = await f5.ev(`const d=r.getElementById('ag-hclist'); const body=d.querySelector('.ag-dlg-body'); if (!(body.scrollHeight > body.clientHeight + 20)) return { scroll: false };
-      body.scrollTop = 400; const th=d.querySelector('.ag-hctable th').getBoundingClientRect(); const head=d.querySelector('.ag-pop-head').getBoundingClientRect();
-      const hit=r.elementFromPoint(th.left + 20, th.top + th.height / 2); return { scroll: body.scrollTop > 0, th: th.top, head: head.bottom, visible: !!hit?.closest('th') }`);
+      body.scrollTop = 400; const th=(getComputedStyle(d.querySelector('.ag-hctable tr')).display === 'none' ? d.querySelector('.ag-hcrow') : d.querySelector('.ag-hctable th')).getBoundingClientRect(); const head=d.querySelector('.ag-pop-head').getBoundingClientRect();
+      const hit=r.elementFromPoint(th.left + 20, th.top + th.height / 2); return { scroll: body.scrollTop > 0, th: th.top, head: head.bottom, visible: !!hit?.closest('th, .ag-hcrow') }`);
     check(`${tag}: gerollt: der Tabellenkopf klebt direkt unter Titel und Suche und bleibt sichtbar`, stick.scroll && Math.abs(stick.th - stick.head) <= 1 && stick.visible, JSON.stringify(stick));
     check(`${tag}: keine Fehler im Browser (fünf Dienste)`, f5.errors.length === 0, f5.errors.join(" | "));
     await f5.ctx.close();

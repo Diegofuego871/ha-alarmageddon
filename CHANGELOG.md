@@ -7,6 +7,13 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.74.7] - 2026-11-21
+
+### Changed
+
+- **HealthCheck services, "Log" button:** the button in the list of services has a new symbol, a chart in a box (it used to be a clock with an arrow).
+- **HealthCheck services, "Sort by" on the phone:** next to the count there is a selection (Service, Last, Interval, Status) and a button for the direction, like in Device Panel. The row sticks below the title and the search; the sortable column heads of the table remain on the computer.
+
 ## [1.74.6] - 2026-11-21
 
 ### Fixed
@@ -2144,6 +2151,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.74.7]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.7
 [1.74.6]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.6
 [1.74.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.5
 [1.74.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.4
