@@ -473,14 +473,15 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-btns .ag-iconbtn:hover { background: var(--ag-hover); }
 .ag-wf-btns .ag-iconbtn[data-wf="delete"] { color: var(--ag-error); }
 .ag-wf-btns .ag-iconbtn:disabled { opacity: .3; cursor: default; }
-/* Knöpfe, die eine Aktion auslösen (1.73.0, Wunsch des Nutzers 2026-11-20): "Lebenszeichen senden" leicht grün, "Fehler senden" und "Alarm senden" leicht orange; Stift und Papierkorb
+/* Knöpfe, die eine Aktion auslösen (1.73.0, Wunsch des Nutzers 2026-11-20): "Lebenszeichen senden" leicht grün, "Fehler senden" leicht orange, "Alarm senden" leicht rötlich; Stift und Papierkorb
    bleiben neutral. Läuft der Test (ag-running), gilt der rote Stopp-Knopf. */
 .ag-wf-btns .ag-iconbtn[data-hc="test-ok"]:not(.ag-running), .ag-wf-btns .ag-iconbtn[data-sv="test-ok"]:not(.ag-running) { color: var(--ag-success); background: var(--ag-success-soft); border-color: color-mix(in srgb, var(--ag-success) 45%, transparent); }
-.ag-wf-btns .ag-iconbtn[data-hc="test-fail"]:not(.ag-running), .ag-wf-btns .ag-iconbtn[data-sv="test-fail"]:not(.ag-running),
-.ag-wf-btns .ag-iconbtn[data-hc="test-alarm"]:not(.ag-running), .ag-wf-btns .ag-iconbtn[data-sv="test-alarm"]:not(.ag-running) { color: var(--ag-warning-text); background: var(--ag-warning-soft); border-color: color-mix(in srgb, var(--ag-warning) 50%, transparent); }
+.ag-wf-btns .ag-iconbtn[data-hc="test-fail"]:not(.ag-running), .ag-wf-btns .ag-iconbtn[data-sv="test-fail"]:not(.ag-running) { color: var(--ag-warning-text); background: var(--ag-warning-soft); border-color: color-mix(in srgb, var(--ag-warning) 50%, transparent); }
 .ag-wf-btns .ag-iconbtn[data-hc="test-ok"]:not(.ag-running):hover, .ag-wf-btns .ag-iconbtn[data-sv="test-ok"]:not(.ag-running):hover { background: color-mix(in srgb, var(--ag-success) 24%, transparent); }
-.ag-wf-btns .ag-iconbtn[data-hc="test-fail"]:not(.ag-running):hover, .ag-wf-btns .ag-iconbtn[data-sv="test-fail"]:not(.ag-running):hover,
-.ag-wf-btns .ag-iconbtn[data-hc="test-alarm"]:not(.ag-running):hover, .ag-wf-btns .ag-iconbtn[data-sv="test-alarm"]:not(.ag-running):hover { background: color-mix(in srgb, var(--ag-warning) 28%, transparent); }
+.ag-wf-btns .ag-iconbtn[data-hc="test-fail"]:not(.ag-running):hover, .ag-wf-btns .ag-iconbtn[data-sv="test-fail"]:not(.ag-running):hover { background: color-mix(in srgb, var(--ag-warning) 28%, transparent); }
+/* "Alarm senden" leicht rötlich (Wunsch des Nutzers 2026-11-21): ein Alarm ist ernster als ein Fehler des Selbsttests */
+.ag-wf-btns .ag-iconbtn[data-hc="test-alarm"]:not(.ag-running), .ag-wf-btns .ag-iconbtn[data-sv="test-alarm"]:not(.ag-running) { color: var(--ag-error); background: var(--ag-error-soft); border-color: color-mix(in srgb, var(--ag-error) 50%, transparent); }
+.ag-wf-btns .ag-iconbtn[data-hc="test-alarm"]:not(.ag-running):hover, .ag-wf-btns .ag-iconbtn[data-sv="test-alarm"]:not(.ag-running):hover { background: color-mix(in srgb, var(--ag-error) 26%, transparent); }
 /* Läuft ein Test, ist der Stopp-Knopf rot und pulsiert: auf einen Blick zu sehen, wo man es wieder anhält */
 /* Laufender Play-Knopf, überall gleich (Vorgabe des Nutzers, 2026-11-17): rot, weisses Stopp-Symbol, pulsiert (common.js onceBtn, paintOnce) */
 .ag-iconbtn.ag-running, .ag-btn.ag-running { background: var(--ag-error); border-color: var(--ag-error); color: #fff; animation: ag-running 1.4s ease-out infinite; }

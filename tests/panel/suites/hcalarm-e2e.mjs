@@ -30,9 +30,10 @@ for (const lang of ["de", "en"]) {
     const tones = await s.ev(`const c=(sel) => { const b=r.querySelector('#ag-hclist [data-hc-row="${CRON}"] ' + sel); const st=getComputedStyle(b); const rgb=(x) => { const v=x.match(/[\\d.]+/g).map(Number); return /^color\\(/.test(x) ? [...v.slice(0, 3).map((n) => n * 255), v[3] ?? 1] : v; }; return { color: rgb(st.color), bg: rgb(st.backgroundColor), label: b.getAttribute('aria-label') }; };
       return { ok: c('[data-hc="test-ok"]'), fail: c('[data-hc="test-fail"]'), alarm: c('[data-hc="test-alarm"]'), edit: c('[data-hc="edit"]'), log: c('[data-hc="log"]') }`);
     const greenish = (x) => x.color[1] > x.color[0] && x.color[1] > x.color[2] && (x.bg[3] ?? 1) > 0 && (x.bg[3] ?? 1) < 0.4;
+    const reddish = (x) => x.color[1] < x.color[0] * 0.5 && x.color[2] < x.color[0] * 0.6 && (x.bg[3] ?? 1) > 0 && (x.bg[3] ?? 1) < 0.4;
     const orangish = (x) => x.color[0] > x.color[2] + 30 && x.color[1] > x.color[2] && (x.bg[3] ?? 1) > 0 && (x.bg[3] ?? 1) < 0.4;
-    check(`${tag}: "${t.testOk}" leicht grün, "${t.testFail}" und "${t.testAlarm}" leicht orange, Stift und Protokoll neutral`,
-      greenish(tones.ok) && orangish(tones.fail) && orangish(tones.alarm) && !greenish(tones.edit) && !orangish(tones.edit) && !greenish(tones.log) && !orangish(tones.log), JSON.stringify(tones));
+    check(`${tag}: "${t.testOk}" leicht grün, "${t.testFail}" leicht orange, "${t.testAlarm}" leicht rötlich, Stift und Protokoll neutral`,
+      greenish(tones.ok) && orangish(tones.fail) && reddish(tones.alarm) && !reddish(tones.fail) && !greenish(tones.edit) && !orangish(tones.edit) && !greenish(tones.log) && !orangish(tones.log), JSON.stringify(tones));
 
     // ----- Test "Alarm senden" in der Liste -----
     await s.tap(`#ag-hclist [data-hc-row="${CRON}"] [data-hc="test-alarm"]`);

@@ -20,7 +20,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 - **Formular der HealthCheck-Dienste in Kapiteln:** Dienst, Bei Fehler des Selbsttests, Bei Alarm (freiwillig), Intervall, je mit Titel und Strich davor.
 - **Protokoll der HealthCheck-Dienste:** Die Grafik für 90 Tage ist jetzt eine **6-Monats**-Grafik (voller); 90 Tage entfällt.
-- **Aktionsknöpfe eingefärbt:** "Lebenszeichen senden" leicht grün, "Fehler senden" und "Alarm senden" leicht orange; Stift und Protokoll bleiben neutral. Das X und die runden Knöpfe im Kopf des Protokolls sind auf dem iPad gleich gross und auf einer Höhe.
+- **Aktionsknöpfe eingefärbt:** "Lebenszeichen senden" leicht grün, "Fehler senden" leicht orange, "Alarm senden" leicht rötlich; Stift und Protokoll bleiben neutral. Das X und die runden Knöpfe im Kopf des Protokolls sind auf dem iPad gleich gross und auf einer Höhe.
 - **Code hinzufügen:** Benutzer, Name und Code sind Kapitel (fetter Titel mit Strich davor, wie bei "Routine hinzufügen"); der Einrichtungsassistent nutzt dasselbe Fenster.
 
 ### Behoben

@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **HealthCheck form in chapters:** Service, On self-test failure, On alarm (optional), Interval, each with a title with a bar before it.
 - **Log of HealthCheck services:** the 90-day chart is now a **6-month** chart (more filled in); 90 days is replaced.
-- **Action buttons tinted:** "Send life sign" slightly green, "Send failure" and "Send alarm" slightly orange; pencil and log stay neutral. The cross and the round buttons in the head of the log are the same size and on one line on the iPad.
+- **Action buttons tinted:** "Send life sign" slightly green, "Send failure" slightly orange, "Send alarm" slightly red; pencil and log stay neutral. The cross and the round buttons in the head of the log are the same size and on one line on the iPad.
 - **Add code:** user, name and code are chapters (bold title with a bar before it, like "Add routine"); the setup assistant uses the same window.
 
 ### Fixed
