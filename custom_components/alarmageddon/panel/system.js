@@ -893,7 +893,32 @@ export class SystemUi {
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="code-close">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-sys="code-save" data-id="${esc(c?.id || "")}">${ic("check", 18)}${esc(this._t("save"))}</button></div></div>`;
     dlg.showModal();
-    dlg.querySelector('[data-key="name"]').focus();
+    this._focusName(dlg);
+  }
+
+  // Der Fokus geht gleich ins Feld "Name", damit man lostippen kann, aber das Fenster scrollt dabei nicht (Wunsch des Nutzers 2026-11-21: auf dem iPhone
+  // verschwand der Titel). `preventScroll` hält das Scrollen des Fokus an; öffnet die Tastatur trotzdem eine Verschiebung, steht das Fenster in den ersten
+  // Sekunden wieder oben, solange das Feld dabei über der Tastatur bleibt (sonst bleibt es, wie es ist, das Feld geht vor).
+  _focusName(dlg) {
+    const name = dlg.querySelector('[data-key="name"]');
+    if (!name) return;
+    name.focus({ preventScroll: true });
+    const top = () => {
+      if (!dlg.open) return;
+      const was = [dlg.scrollTop, dlg.querySelector(".ag-dlg-body")?.scrollTop || 0];
+      for (const el of [dlg, dlg.querySelector(".ag-dlg-body")]) if (el) el.scrollTop = 0;
+      window.scrollTo?.(0, 0);
+      const vv = window.visualViewport;
+      const room = (vv ? vv.height : window.innerHeight) - 8;
+      if (name.getBoundingClientRect().bottom > room) {
+        // das Feld läge hinter der Tastatur: den alten Stand zurück
+        dlg.scrollTop = was[0];
+        const body = dlg.querySelector(".ag-dlg-body");
+        if (body) body.scrollTop = was[1];
+      }
+    };
+    top();
+    for (const ms of [80, 260, 520]) window.setTimeout(() => { if (this.host._root.activeElement === name) top(); }, ms);
   }
 
   // Warnung bei einem leicht zu erratenden Code (1.63.0, Wunsch des Nutzers): rot, fett, mit Achtung-Zeichen unter den Codefeldern; Speichern

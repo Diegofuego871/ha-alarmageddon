@@ -3,7 +3,7 @@
 // Server geprüft und in das Format der mitgelieferten Töne gebracht.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, chapter } = await import(`./common.js${V}`);
 
 export const CUSTOM_RE = /^custom_[0-9a-f]{12}$/;
 export const isCustom = (id) => CUSTOM_RE.test(String(id || ""));
@@ -33,6 +33,8 @@ const fmtSeconds = (s) => (s < 10 ? `${s.toFixed(1)} s` : fmtDur(s));
 export const soundInfo = (s) => `${fmtSeconds(Number(s.seconds) || 0)} · ${fmtSize(Number(s.size) || 0)}`;
 
 // Formular zum Hochladen: `attr(name)` liefert das Attribut für die Ereignisse (data-wf oder data-sys), `ui` den Stand {name, error, busy}
+// Seit 1.73.0 (Wunsch des Nutzers 2026-11-21): "Name" und "Datei" sind Kapitel (fetter Titel mit Strich davor) wie im Fenster "Code hinzufügen", nicht mehr
+// kleine Beschriftungen
 export function uploadHtml(t, host, ui, attr) {
   const lim = limits(host);
   const formats = lim.ffmpeg ? "WAV, MP3, OGG, FLAC, M4A" : "WAV";
@@ -40,8 +42,8 @@ export function uploadHtml(t, host, ui, attr) {
   // mit reinen Endungen zeigt es nur die Dateiauswahl. Bewusst ohne .m4a und .ogg (iOS ordnet M4A dem MPEG-4-Typ zu, der als Film gilt); der Server erkennt das Format ohnehin am Inhalt, die Auswahl ist nur eine Vorfilterung.
   const accept = lim.ffmpeg ? ".wav,.mp3,.flac" : ".wav";
   return `<div class="ag-up" data-cs="upload">
-    <div class="ag-ef"><div class="ag-ef-l">${esc(t("upName"))}</div><input class="ag-input" type="text" maxlength="40" value="${esc(ui.name || "")}" ${attr("cs-name")} data-cs="name" placeholder="${esc(t("upNamePh"))}" aria-label="${esc(t("upName"))}"></div>
-    <div class="ag-ef"><div class="ag-ef-l">${esc(t("upFile"))}</div>${pickHtml(t, accept, ui.file)}</div>
+    ${chapter(t("upName"), `<input class="ag-input" type="text" maxlength="40" value="${esc(ui.name || "")}" ${attr("cs-name")} data-cs="name" placeholder="${esc(t("upNamePh"))}" aria-label="${esc(t("upName"))}">`)}
+    ${chapter(t("upFile"), pickHtml(t, accept, ui.file))}
     <div class="ag-pv-note">${ic("info", 14)} ${esc(t("upHint", { formats, seconds: lim.seconds, mb: Math.round(lim.bytes / 1048576) }))}${lim.ffmpeg ? "" : ` ${esc(t("upNoFfmpeg"))}`}</div>
     <div class="ag-dlg-err ag-up-err" aria-live="polite">${esc(ui.error || "")}</div>
     <div class="ag-btnrow"><button type="button" class="ag-btn primary" ${attr("cs-go")} ${ui.busy ? "disabled" : ""}>${ic("check", 18)}${esc(t(ui.busy ? "upBusy" : "upGo"))}</button>

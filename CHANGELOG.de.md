@@ -24,7 +24,8 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 - **"Übernehmen" beim Vorschlag** (Fehler- und Alarm-Zusatz) ist ein kräftiger Knopf mit getöntem Hintergrund und Rand statt eines blassen Links, damit er nicht überlesen wird.
 - **Einrichtungsassistent, "Weitere Funktionen":** Ein runder Pfeil in jeder Zeile springt direkt zur Funktion (Routinen, Codes pro Person, Eigene Töne, HealthCheck): Konfiguration › Anlage öffnet sich mit dem Fenster. Das Schliessen des Fensters führt zurück in den Assistenten auf denselben Schritt; unterwegs wird nichts abgeschlossen. Die Dashboard-Karte hat keinen Sprung (sie steht im Dashboard von Home Assistant).
 - **Zeitraum der Sensoransicht und des Protokolls der HealthCheck-Dienste** (3 Stunden bis 1 Jahr) ist eine Reiterleiste mit gleitender Kapsel wie überall; vorher war es eine ruhende Leiste ohne Kapsel, beim Wechseln bewegte sich nichts.
-- **Code hinzufügen:** Benutzer, Name und Code sind Kapitel (fetter Titel mit Strich davor, wie bei "Routine hinzufügen"); der Einrichtungsassistent nutzt dasselbe Fenster.
+- **Code hinzufügen:** Benutzer, Name und Code sind Kapitel (fetter Titel mit Strich davor, wie bei "Routine hinzufügen"); der Einrichtungsassistent nutzt dasselbe Fenster. Der Fokus geht gleich ins Feld "Name", damit man lostippen kann, das Fenster scrollt dafür aber nicht mehr nach unten (auf dem iPhone verschwand der Titel).
+- **Ton hochladen** (Fenster "Eigene Töne" und Schritt der Aktionen): "Name" und "Datei" sind Kapitel wie bei "Code hinzufügen", mit gleicher Schrift und Grösse.
 
 ### Behoben
 

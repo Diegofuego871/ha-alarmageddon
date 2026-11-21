@@ -1222,7 +1222,8 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-sv-drow:last-child { border-bottom: 0; }
 .ag-sv-drow b { font-weight: 500; text-align: right; overflow-wrap: anywhere; min-width: 0; margin-left: auto; }
 .ag-up { display: grid; gap: 12px; }
-.ag-up-row > .ag-up { flex: 1 1 0; min-width: 0; } .ag-up > * { min-width: 0; } /* das Formular bleibt in der Karte (schmales Fenster) */
+.ag-up-row > .ag-up { flex: 1 1 0; min-width: 0; } .ag-up > * { min-width: 0; }
+.ag-up > .ag-chap { margin-top: 4px; } .ag-up > .ag-chap:first-child { margin-top: 0; } .ag-up .ag-chap > input.ag-input { width: 100%; box-sizing: border-box; } /* Kapitel wie im Fenster "Code hinzufügen" (1.73.0) */ /* das Formular bleibt in der Karte (schmales Fenster) */
 .ag-up-box { margin-top: 12px; }
 /* Dateiwahl der eigenen Töne (1.63.0): Knopf "Hochladen" mit dem echten Dateifeld unsichtbar darüber, daneben der Name der Datei */
 .ag-up-pick { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; min-width: 0; }
