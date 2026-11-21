@@ -7,7 +7,17 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.74.0] - 2026-11-21
+
+Enthält die Änderungen aus 1.72.0 und 1.73.0 (beide wurden nicht als solche veröffentlicht).
+
+### Behoben
+
+- **Update vom Stand, der als "1.73.0" veröffentlicht wurde:** Ein Release mit dem Tag `1.73.0` (ohne "v") wurde versehentlich auf einem Zwischenstand desselben Tages veröffentlicht. Die Versionsnummer war damit vergeben, und Home Assistant bot den fertigen Stand nicht als Update an. 1.74.0 trägt den fertigen Stand von 1.73.0 unter neuer Nummer.
+
 ## [1.73.0] - 2026-11-21
+
+Nicht veröffentlicht; enthalten in 1.74.0.
 
 ### Hinzugefügt
 
@@ -34,6 +44,8 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 - **Ecken der Tabellen auf dem Handy:** Die klebende Kopfzeile der Tabellen in den Fenstern HealthCheck-Dienste und Backups deckte die runden Ecken der Karte zu; die Ecken sind jetzt rund. Die sechs Knöpfe eines Dienstes passen auf dem Handy in die Zeile.
 
 ## [1.72.0] - 2026-11-20
+
+Nicht veröffentlicht; enthalten in 1.74.0.
 
 ### Hinzugefügt
 
@@ -2086,8 +2098,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.73.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.73.0
-[1.72.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.72.0
+[1.74.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0
 [1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0

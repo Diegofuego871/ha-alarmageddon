@@ -7,7 +7,17 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.74.0] - 2026-11-21
+
+Includes the changes from 1.72.0 and 1.73.0 (neither was released as such).
+
+### Fixed
+
+- **Update from the build published as "1.73.0":** a release under the tag `1.73.0` (without "v") was published by mistake on an intermediate state of that day. The version number was already in use, so Home Assistant did not offer the finished state as an update. 1.74.0 carries the finished state of 1.73.0 under a new number.
+
 ## [1.73.0] - 2026-11-21
+
+Not released; included in 1.74.0.
 
 ### Added
 
@@ -34,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Table corners on the phone:** the sticky head row of the tables in the windows HealthCheck services and Backups covered the rounded corners of the card; the corners are round now. The six buttons of a service fit in the row on the phone.
 
 ## [1.72.0] - 2026-11-20
+
+Not released; included in 1.74.0.
 
 ### Added
 
@@ -2086,8 +2098,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.73.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.73.0
-[1.72.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.72.0
+[1.74.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0
 [1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0
