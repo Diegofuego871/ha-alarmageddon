@@ -22,6 +22,9 @@ CONF_HOME_ENABLED: Final = "home_enabled"
 CONF_ALWAYS_ENABLED: Final = "always_enabled"
 # "Überwachung" (1.48.0) als Ganzes ein- oder ausschalten; Standard aus (Entscheid des Nutzers, 2026-11-16). Aus: keine Regel läuft, die Regeln bleiben gespeichert
 CONF_MONITOR_ENABLED: Final = "monitor_enabled"
+CONF_ACCENT: Final = "accent"  # Akzentfarbe der Anlage im Panel (1.75.0, Wunsch des Nutzers 2026-11-21)
+# Auswahl wie im Device Panel; "ha" folgt der Farbe des Home-Assistant-Themes. Die Werte (Farben) stehen im Panel (panel/common.js ACCENTS)
+ACCENTS: Final = ("ha", "sky", "ocean", "teal", "indigo", "pink", "orange", "red", "green", "graphite")
 # Messwert-Sensoren der Anlage (Liste in der Konfiguration, ohne Zone, Modus oder Eingangsverzögerung); der Alarm sieht sie nie
 CONF_MONITOR_SENSORS: Final = "monitor_sensors"
 CONF_AWAY_ENABLED: Final = "away_enabled"
@@ -64,7 +67,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 258  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 259  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"

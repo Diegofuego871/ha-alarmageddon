@@ -56,6 +56,8 @@ from .const import (
     CONF_ALWAYS_ENABLED,
     CONF_NIGHT_ENABLED,
     CONF_MONITOR_ENABLED,
+    CONF_ACCENT,
+    ACCENTS,
     CONF_MONITOR_SENSORS,
     CONF_MONITORS,
     CONF_ROUTINES,
@@ -386,6 +388,7 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "always_enabled": ctl.always_enabled,
                 "routines": entry.options.get(CONF_ROUTINES) or [],
                 "monitor_enabled": ctl.monitor_enabled,
+                "accent": entry.options.get(CONF_ACCENT, "ha"),
                 "monitors": entry.options.get(CONF_MONITORS) or [],
                 # Regeln, die gerade ausserhalb ihrer Grenzen sind: id -> seit wann und welcher Sensor
                 "monitor_active": {rid: {"since": a.get("since"), "entity_id": a.get("entity")} for rid, a in hass.data.get(DATA_MONITOR, {}).get(entry.entry_id, {}).items()},
@@ -578,7 +581,7 @@ def ws_preview_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -> N
     connection.send_result(msg["id"], {"name": name, "error": error, "alarm_entity_id": alarm_id})
 
 
-@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/create_system", vol.Required("name"): vol.All(str, vol.Length(max=60))})
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/create_system", vol.Required("name"): vol.All(str, vol.Length(max=60)), vol.Optional("accent"): vol.In(ACCENTS)})
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_create_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
@@ -594,6 +597,9 @@ async def ws_create_system(hass: HomeAssistant, connection, msg: dict[str, Any])
     if entry is None:
         connection.send_error(msg["id"], "create_failed", "The alarm system could not be created")
         return
+    if "accent" in msg and msg["accent"] != "ha":
+        # Farbe im selben Schritt wählbar (1.75.0): als Option der neuen Anlage
+        hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_ACCENT: msg["accent"]})
     connection.send_result(msg["id"], {"entry_id": entry.entry_id})
 
 
@@ -774,6 +780,7 @@ async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) 
         vol.Optional("night_enabled"): bool,
         vol.Optional("always_enabled"): bool,
         vol.Optional("monitor_enabled"): bool,
+        vol.Optional("accent"): vol.In(ACCENTS),
         vol.Optional("home_enabled"): bool,
         vol.Optional("away_enabled"): bool,
         vol.Optional("routines"): ROUTINES,
@@ -809,6 +816,8 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
         options[CONF_ALWAYS_ENABLED] = msg["always_enabled"]
     if "monitor_enabled" in msg:
         options[CONF_MONITOR_ENABLED] = msg["monitor_enabled"]
+    if "accent" in msg:
+        options[CONF_ACCENT] = msg["accent"]
     if "code_ack_required" in msg:
         # Ohne Code gibt es nichts zu verlangen
         if msg["code_ack_required"] and not entry.runtime_data.controller.has_code:

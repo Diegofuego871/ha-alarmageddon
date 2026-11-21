@@ -17,6 +17,8 @@ from .const import (
     CONF_ALWAYS_ENABLED,
     CONF_HOME_ENABLED,
     CONF_MONITOR_ENABLED,
+    CONF_ACCENT,
+    ACCENTS,
     CONF_MONITOR_SENSORS,
     CONF_MONITORS,
     CONF_ROUTINES,
@@ -547,6 +549,7 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_ROUTINES): ROUTINES,
         vol.Optional(CONF_MONITORS): MONITORS,
         vol.Optional(CONF_MONITOR_ENABLED): bool,
+        vol.Optional(CONF_ACCENT): vol.In(ACCENTS),
         vol.Optional(CONF_MONITOR_SENSORS): _measure_sensors,
         vol.Optional("routines_disarm"): bool,  # nur aus Sicherungen von 1.44.0 (der Schalter entfiel in 1.45.0): wird beim Einlesen verworfen
         vol.Optional(CONF_OPEN_SENSORS): vol.In(OPEN_SENSOR_MODES),

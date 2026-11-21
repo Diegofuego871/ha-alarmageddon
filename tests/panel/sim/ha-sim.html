@@ -832,7 +832,7 @@
         sensors: [], entry_sensors: [], entry_delay_max: { home: 0, away: 0 },
         mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 60, entry_delay: 30, confirm_window: 60 } },
         has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [], night_enabled: false, sensor_options: {},
-        workflows: {}, workflow_running: null, workflow_test: false, events: [], wizard: { state: "open", until: null, step: "welcome" } };
+        workflows: {}, workflow_running: null, workflow_test: false, events: [], accent: msg.accent || "ha", wizard: { state: "open", until: null, step: "welcome" } };
       window.__systems.push(created);
       window.__systems.sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
       window.__setState(created.entity_id, "disarmed", { arm_mode: null, changed_by: null, deadline: null, triggered_by: null, friendly_name: name });
@@ -974,6 +974,7 @@
       if (typeof msg.per_mode_settings === "boolean") sys.per_mode_settings = msg.per_mode_settings;
       if (typeof msg.always_enabled === "boolean") sys.always_enabled = msg.always_enabled;
       if (typeof msg.monitor_enabled === "boolean") sys.monitor_enabled = msg.monitor_enabled;
+      if (msg.accent) sys.accent = msg.accent;
       if (typeof msg.code_ack_required === "boolean") {
         if (msg.code_ack_required && !sys.has_code) throw err("code_missing");
         sys.code_ack_required = msg.code_ack_required;

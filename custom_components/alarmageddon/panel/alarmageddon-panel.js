@@ -9,7 +9,7 @@ const V = new URL(import.meta.url).search;
 // erschien erst nach einem Dutzend Anfragen hintereinander. panel.html meldet die Dateien zusätzlich vorab an (modulepreload).
 const [
   { pickLang, translate }, { CSS },
-  { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, SOFT_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY, copyBtn, copyValue, chapter },
+  { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, SOFT_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY, copyBtn, copyValue, chapter, accentColor, accentGrid },
   { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart }, { filePicked }, { SelfTestUi }, { HealthCheckUi }, { HealthLogView }, { WizardUi },
 ] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader", "customsounds", "selftest", "healthcheck", "healthlog", "wizard"].map((name) => import(`./${name}.js${V}`)));
 /** Nach so langer Abwesenheit startet das Panel wieder auf der Übersicht (Merkzettel für Reiter und Unterreiter) */
@@ -556,8 +556,16 @@ class AlarmageddonPanel extends HTMLElement {
       .join("")}</div>`;
   }
 
+  // Akzentfarbe der gewählten Anlage (1.75.0): überschreibt --ag-primary am Panel; "ha" lässt die Farbe des Themes gelten
+  _applyAccent(key = this._system()?.accent) {
+    const hex = accentColor(key);
+    if (hex) this.style.setProperty("--ag-primary", hex);
+    else this.style.removeProperty("--ag-primary");
+  }
+
   _render() {
     if (!this._content) return;
+    this._applyAccent();
     // Einrichtungsassistent (1.69.0): eigenes Gerüst statt Kopf und Reitern; die eingebetteten Ansichten zeichnen in seinen Platz (_view)
     this._content.classList.toggle("ag-wzc", this.wizard.active);
     if (this.wizard.active) {
@@ -1329,6 +1337,7 @@ class AlarmageddonPanel extends HTMLElement {
       <div class="ag-t2">${esc(this._t("addText"))}</div>
       ${chapter(this._t("addLabel"), `<input class="ag-input" id="ag-add-input" type="text" maxlength="60" required autocomplete="off" placeholder="${esc(this._t("addPlaceholder"))}" style="width:100%;box-sizing:border-box" aria-label="${esc(this._t("addLabel"))}">`)}
       <div class="ag-addprev" id="ag-addprev" aria-live="polite">${this._addPreviewHtml(null)}</div>
+      ${chapter(this._t("accTitle"), accentGrid(this._addAccent = "ha", 'data-act="add-accent"', (k) => this._t(k)))}
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-act="close-add">${esc(this._t("cancel"))}</button><button class="ag-btn primary" type="submit" disabled>${ic("plus", 18)}${esc(this._t("addCreate"))}</button></div></form>`;
     this._addSeq = (this._addSeq || 0) + 1;
@@ -1384,7 +1393,7 @@ class AlarmageddonPanel extends HTMLElement {
     submit.disabled = true;
     let entryId;
     try {
-      entryId = (await this._hass.callWS({ type: "alarmageddon/create_system", name })).entry_id;
+      entryId = (await this._hass.callWS({ type: "alarmageddon/create_system", name, ...(this._addAccent && this._addAccent !== "ha" ? { accent: this._addAccent } : {}) })).entry_id;
     } catch (e) {
       err.textContent = e?.code === "name_taken" ? this._t("renameTaken") : e?.code === "name_required" ? this._t("renameEmpty") : this._t("addFailed", { message: errText(e) });
       submit.disabled = false;
@@ -1802,6 +1811,12 @@ class AlarmageddonPanel extends HTMLElement {
       else this._moreInfo(el.dataset.entity);
     } else if (act === "add") {
       this._openAdd();
+    } else if (act === "add-accent") {
+      this._addAccent = el.dataset.key;
+      for (const b of this._root.querySelectorAll('#ag-add [data-act="add-accent"]')) {
+        b.classList.toggle("on", b === el);
+        b.setAttribute("aria-checked", String(b === el));
+      }
     } else if (act === "close-add") {
       this._closeDialog("ag-add");
     } else if (act === "copy") {

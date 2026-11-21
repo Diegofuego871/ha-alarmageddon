@@ -3,7 +3,7 @@
 // Dieselben Schlüssel wie der Optionsdialog von HA (WebSocket alarmageddon/save_system). Der Code bleibt im Optionsdialog.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, iconTitle, matchQuery, searchField } = await import(`./common.js${V}`);
+const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, iconTitle, matchQuery, searchField, accentGrid } = await import(`./common.js${V}`);
 const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo, soundBadge } = await import(`./customsounds.js${V}`);
 const { RoutinesUi, normRoutines, canon } = await import(`./routines.js${V}`);
 
@@ -119,6 +119,7 @@ export class SystemUi {
       routines: normRoutines(s.routines),
       always: s.always_enabled !== false, // "Immer aktiv" als Ganzes (Standard an)
       monitor: s.monitor_enabled === true, // "Überwachung" als Ganzes (Standard aus)
+      accent: s.accent || "ha", // Akzentfarbe der Anlage (1.75.0)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
       auto: this.autoOf(this.host._data?.auto_backup),
       // Abstand des Selbsttests (1.65.0, Kapitel HealthCheck; gilt für alle Anlagen, gespeichert in den Benachrichtigungen): nicht scharf und solange
@@ -160,6 +161,7 @@ export class SystemUi {
     for (const m of ALL_MODES) if (a.modes[m] !== d.modes[m]) n += 1;
     if (a.always !== d.always) n += 1;
     if (a.monitor !== d.monitor) n += 1;
+    if (a.accent !== d.accent) n += 1;
     if (a.ackCode !== d.ackCode) n += 1;
     if (JSON.stringify(a.auto) !== JSON.stringify(d.auto)) n += 1;
     // Zählt der Abstand, nicht die Einheit (6 Stunden und 360 Minuten sind dasselbe)
@@ -224,7 +226,7 @@ export class SystemUi {
         <div class="ag-subh">${esc(this._t("chapTimes"))}</div>${card(timesRows)}
         <div class="ag-subh">${esc(this._t("chapBehaviour"))}</div>${card(behaviourRows)}</div>`);
     const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + perMode
-      + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._healthHtml(d, bad) + this._backupHtml() + this._wizardHtml() + this._deleteHtml();
+      + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._healthHtml(d, bad) + this._backupHtml() + this._accentHtml(d) + this._wizardHtml() + this._deleteHtml();
     // Beim Tippen nie neu aufbauen (Cursor bliebe nicht stehen), nur bei Schaltern und Auswahl
     h._setHtml(form, html);
     h._placePills();
@@ -561,6 +563,11 @@ export class SystemUi {
   // Anlage löschen (1.32.0): ganz unten, roter Textknopf; die Warnung kommt im Dialog. Nur bei deaktivierter Anlage (der Server prüft es auch).
   // Einrichtungsassistent (1.69.0, Wunsch des Nutzers 2026-11-19): kleines Kapitel vor "Anlage löschen". Zustand und Knopf zum Starten; ist er
   // nicht fertig, geht es mit "Fortsetzen" beim gemerkten Schritt weiter, "Von vorn" beginnt beim Willkommen (alles wie konfiguriert vorgewählt)
+  // Akzentfarbe der Anlage (1.75.0): Entwurf wie alles auf der Seite, gespeichert mit "Speichern"; die gewählte Farbe wirkt sofort als Vorschau
+  _accentHtml(d) {
+    return chapter(this._t("accTitle"), `<div class="ag-card ag-accwrap">${accentGrid(d.accent, 'data-sys="accent"', (k) => this._t(k))}</div>`, this._t("accHint"));
+  }
+
   _wizardHtml() {
     const s = this.system;
     const w = s.wizard || { state: "done", step: "welcome" };
@@ -1044,9 +1051,9 @@ export class SystemUi {
       // Alle Modi (auch abgeschaltete behalten ihre Werte)
       const mode_settings = Object.fromEntries(ALL_MODES.map((m) => [m, { ...d.per[m] }]));
       const saved = await h._hass.callWS({ type: "alarmageddon/save_system", entry_id: s.entry_id, mode_settings, per_mode_settings: d.perMode,
-        home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, routines: d.routines,
+        home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, routines: d.routines,
         ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}) });
-      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code) });
+      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code) });
       // Abstand des Selbsttests (1.65.0): nur dieser Wert der Benachrichtigungen, alles andere bleibt, wie es ist
       const stBase = this.base(s);
       const [off, on] = [stMinutes(d.stOff), stMinutes(d.stOn)];
@@ -1212,6 +1219,11 @@ export class SystemUi {
       this.render();
     } else if (act === "always") {
       d.always = !d.always;
+      this.saveState = null;
+      this.render();
+    } else if (act === "accent") {
+      d.accent = el.dataset.key;
+      this.host._applyAccent?.(d.accent); // Vorschau
       this.saveState = null;
       this.render();
     } else if (act === "monitor") {

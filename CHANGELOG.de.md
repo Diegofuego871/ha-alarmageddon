@@ -7,12 +7,20 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
-## [1.74.7] - 2026-11-21
+## [1.75.0] - 2026-11-21
+
+### Hinzugefügt
+
+- **Akzentfarbe je Alarmanlage:** Unter Konfiguration › Anlage, über dem Einrichtungsassistenten, wählst du die Farbe der Knöpfe, Schalter, Pfeile und Markierungen dieser Alarmanlage, aus denselben zehn Farben wie im Device Panel (Home Assistant, Himmelblau, Ozeanblau, Türkis, Indigo, Rosa, Orange, Rot, Tannengrün, Graphit). "Home Assistant" folgt der Farbe deines Themes. Die Farbe zeigt sich sofort als Vorschau und wird mit "Speichern" der Seite gesichert. Beim Hinzufügen einer Alarmanlage wählst du die Farbe im selben Fenster. Sie gilt überall dort, wo das Panel sein Blau nutzte, und gehört zum Backup.
 
 ### Geändert
 
 - **HealthCheck-Dienste, Knopf "Protokoll":** Der Knopf in der Liste der Dienste hat ein neues Symbol, ein Diagramm im Kasten (vorher eine Uhr mit Pfeil).
 - **HealthCheck-Dienste, "Sortieren nach" auf dem Handy:** Neben der Zahl stehen eine Auswahl (Dienst, Zuletzt, Intervall, Status) und ein Knopf für die Richtung, wie im Device Panel. Die Zeile klebt unter Titel und Suche; am Computer bleiben die sortierbaren Spaltenköpfe der Tabelle.
+
+## [1.74.7] - 2026-11-21
+
+Nicht veröffentlicht; enthalten in 1.75.0.
 
 ## [1.74.6] - 2026-11-21
 
@@ -2151,7 +2159,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.74.7]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.7
+[1.75.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.0
 [1.74.6]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.6
 [1.74.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.5
 [1.74.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.4

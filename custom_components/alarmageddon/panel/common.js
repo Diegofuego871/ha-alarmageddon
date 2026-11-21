@@ -100,6 +100,14 @@ const RAW = {
 };
 // Eine eingestellte Zeit (Sekunden) einheitlich anzeigen: unter 60 s in Sekunden, ab 60 s in Minuten und Sekunden, ab 1 h mit Stunden;
 // Teile, die null sind, entfallen ("2 min", "1 min 30 s", "1 h 5 min"). Die Kürzel sind in Deutsch und Englisch gleich.
+// Akzentfarbe je Anlage (1.75.0, Wunsch des Nutzers 2026-11-21, Auswahl wie im Device Panel). "ha" folgt der Farbe des Home-Assistant-Themes (kein Wert);
+// dieselben Schlüssel wie der Server (const.ACCENTS). Die Farbe gilt überall dort, wo das Panel sein Blau (--ag-primary) nutzt.
+export const ACCENTS = [["ha", null], ["sky", "#4aa8f2"], ["ocean", "#3b82e0"], ["teal", "#3fb0c4"], ["indigo", "#7a82dc"], ["pink", "#e0507d"], ["orange", "#f2953a"], ["red", "#d9453d"], ["green", "#4a8f5f"], ["graphite", "#98a4b3"]];
+export const accentColor = (key) => ACCENTS.find(([k]) => k === key)?.[1] || null;
+// Raster der Farben als Knöpfe (Punkt in der Farbe, Name); `attr` ist das Attribut mit dem Ziel des Klicks, `data-key` der Schlüssel der Farbe
+export const accentGrid = (current, attr, t) => `<div class="ag-acc" role="radiogroup" aria-label="${esc(t("accTitle"))}">${ACCENTS.map(([k, hex]) =>
+  `<button type="button" role="radio" class="ag-accbtn ${current === k ? "on" : ""}" ${attr} data-key="${k}" aria-checked="${current === k}"><span class="ag-accdot" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span><span>${esc(t(`acc_${k}`))}</span></button>`).join("")}</div>`;
+
 export const fmtDur = (seconds) => {
   const n = Math.max(0, Math.round(Number(seconds) || 0));
   if (n < 60) return `${n} s`;

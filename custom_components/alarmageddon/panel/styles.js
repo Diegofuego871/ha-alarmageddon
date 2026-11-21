@@ -1704,6 +1704,13 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-sthfs { margin-left: 0; display: grid; grid-template-columns: max-content minmax(0, auto); justify-content: start; align-items: center; gap: 10px 16px; }
 .ag-sthf { display: contents; }
 /* Liste der Lebenszeichen: Tabelle wie die Backups; die URL steht ganz da und bricht an jeder Stelle um (sie hat keine Leerzeichen) */
+.ag-accwrap { padding: 14px; }
+.ag-acc { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.ag-accbtn { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; border: 1px solid var(--ag-divider); border-radius: 14px; background: var(--ag-card); color: var(--ag-text); font: inherit; text-align: left; cursor: pointer; }
+.ag-accbtn:hover { background: var(--ag-hover); }
+.ag-accbtn.on { border: 2px solid var(--ag-primary); font-weight: 600; padding: 7px 11px; }
+.ag-accdot { flex: none; width: 22px; height: 22px; border-radius: 50%; }
+:host([narrow]) .ag-acc { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ag-hcrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 4px 6px; }
 .ag-hccount { flex: none; white-space: nowrap; }
 .ag-hcsort { display: none; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; flex: 1 1 auto; }
