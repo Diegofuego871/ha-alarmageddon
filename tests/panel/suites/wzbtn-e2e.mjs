@@ -39,14 +39,14 @@ for (const lang of ["de", "en"]) {
     const waved = await s.waitFor(`return r.querySelector('${BTN}')?.classList.contains('wave')`, 9000);
     const after = Date.now() - t0;
     check(`${tag}: der Zauberstab schwingt rund 5 Sekunden nach dem Laden (${after} ms)`, waved && after > 3500 && after < 6800, String(after));
-    const anim = await s.ev(`const b=r.querySelector('${BTN}'); return [getComputedStyle(b.querySelector('.ag-wzstick')).animationName, ...[...b.querySelectorAll('.ag-wzstar')].map((x) => getComputedStyle(x).animationName + ':' + getComputedStyle(x).animationDelay)]`);
-    check(`${tag}: Stab schwingt um den Griff, die Sterne wackeln im selben Augenblick (ohne Lücke), leicht gestaffelt`, J(anim) === J(["ag-wz-swing", "ag-wz-twinkle:0s", "ag-wz-twinkle:0.04s", "ag-wz-twinkle:0.08s"]), J(anim));
+    const anim = await s.ev(`const b=r.querySelector('${BTN}'); return [getComputedStyle(b.querySelector('.ag-wzstick')).animationName, ...[...b.querySelectorAll('.ag-wzstar')].map((x) => getComputedStyle(x).animationName + ':' + getComputedStyle(x).animationDuration)]`);
+    check(`${tag}: Stab schwingt um den Griff (1,4 s); jeder Stern hat eine Zeitleiste für Bewegung und Ein-/Ausblenden (4,4 s: wackeln, Schuss zum Komet, blinkend zurück)`, J(anim) === J(["ag-wz-swing", "ag-wz-star0, ag-wz-fade0:4.4s", "ag-wz-star1, ag-wz-fade1:4.4s", "ag-wz-star2, ag-wz-fade2:4.4s"]), J(anim));
     // Sternschnuppe wie im Device Panel (Wunsch des Nutzers 2026-11-20): nach dem Schwung löst sich der Punkt und huscht mit Schweif um die Linie
     const comet = await s.ev(`const b=r.querySelector('${BTN}'); const c=getComputedStyle(b, '::before'); const d=getComputedStyle(b.querySelector('.ag-wzbtn-dot'));
       return { ring: c.animationName, delay: c.animationDelay, dur: c.animationDuration, timing: c.animationTimingFunction, mask: (c.webkitMaskImage || c.maskImage || '').includes('radial-gradient'), grad: c.backgroundImage.includes('conic-gradient'), dot: d.animationName, dotDur: d.animationDuration }`);
-    check(`${tag}: Sternschnuppe: Ring mit Schweif (conic-gradient, maskiert) startet im selben Augenblick wie der Schwung (0 s), der Punkt fliegt mit und landet wieder`,
-      comet.ring.startsWith("ag-wz-comet") && comet.delay.startsWith("0s") && comet.dur.startsWith("1.4s") && comet.timing.includes("cubic-bezier") && comet.mask && comet.grad && comet.dot === "ag-wz-land" && comet.dotDur === "1.9s", J(comet));
-    check(`${tag}: nach gut 3 Sekunden ist die Welle vorbei`, await s.waitFor(`return !r.querySelector('${BTN}').classList.contains('wave')`, 5000));
+    check(`${tag}: Sternschnuppe: Ring mit Schweif (conic-gradient, maskiert) startet, wenn der Stab fertig ist (1,4 s), der Punkt fliegt mit und landet wieder`,
+      comet.ring.startsWith("ag-wz-comet") && comet.delay.startsWith("1.4s") && comet.dur.startsWith("1.5s") && comet.timing.includes("cubic-bezier") && comet.mask && comet.grad && comet.dot === "ag-wz-land" && comet.dotDur === "3.4s", J(comet));
+    check(`${tag}: nach gut 4 Sekunden ist die Welle vorbei`, await s.waitFor(`return !r.querySelector('${BTN}').classList.contains('wave')`, 7000));
     await s.tap('[data-tab="log"]');
     check(`${tag}: der Knopf steht auch im Reiter Protokoll`, await s.waitFor(`return r.host._tab === 'log' && !!r.querySelector('${BTN}')`));
     await s.tap('[data-tab="overview"]');
@@ -59,7 +59,7 @@ for (const lang of ["de", "en"]) {
       const again = await s.waitFor(`return r.querySelector('${BTN}')?.classList.contains('wave')`, 36000);
       const pause = Date.now() - t1;
       check(`${tag}: nach rund 30 Sekunden Pause bewegt sich der Zauberstab erneut (${pause} ms nach dem Wechsel)`, again && pause > 15000 && pause < 33000, String(pause));
-      check(`${tag}: danach endet die Welle wieder und die nächste ist geplant`, await s.waitFor(`return !r.querySelector('${BTN}').classList.contains('wave')`, 5000) && !!(await s.ev("return r.host._wzWaveTimer")));
+      check(`${tag}: danach endet die Welle wieder und die nächste ist geplant`, await s.waitFor(`return !r.querySelector('${BTN}').classList.contains('wave')`, 7000) && !!(await s.ev("return r.host._wzWaveTimer")));
     }
     // Klick: beim gemerkten Schritt weiter
     await s.sim("window.__wzCalls = []; return 1");
