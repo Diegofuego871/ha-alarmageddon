@@ -1800,6 +1800,13 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .ag-wz-head { padding: 26px 40px 0; max-width: 1120px; box-sizing: border-box; }
 .ag-wz-top { display: flex; align-items: center; gap: 12px; }
+.ag-wz-top.has-badge { align-items: center; gap: 14px; }
+/* Logo des Assistenten: runder Farbverlauf (Primärfarbe zu Violett; Orange heisst "ungespeichert", Rot Alarm) mit weissem Zauberstab und einem Schimmer */
+.ag-wz-badge { position: relative; flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, var(--ag-primary), #8b5cf6); box-shadow: 0 4px 14px color-mix(in srgb, #8b5cf6 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, .35); }
+.ag-wz-badge::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .28); pointer-events: none; }
+.ag-wz-badge svg { display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25)); }
+.ag-wz.narrow .ag-wz-badge { width: 44px; height: 44px; }
 .ag-wz-kicker { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ag-primary); }
 .ag-wz-head h2 { margin: 4px 0 0; font-size: 26px; font-weight: 600; letter-spacing: -.005em; }
 .ag-wz-lead { margin: 8px 0 0; max-width: 780px; color: var(--ag-text2); font-size: 15px; line-height: 1.5; }

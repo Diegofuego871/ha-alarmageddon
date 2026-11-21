@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.74.5] - 2026-11-21
+
+### Added
+
+- **Setup assistant, welcome page:** a logo at the top left, a round badge in a blue-to-violet gradient with the white magic wand (the same wand as the button in the header), so the assistant is recognised again later.
+
 ## [1.74.4] - 2026-11-21
 
 ### Changed
@@ -2128,6 +2134,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.74.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.5
 [1.74.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.4
 [1.74.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.3
 [1.74.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.2

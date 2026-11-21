@@ -413,7 +413,9 @@ export class WizardUi {
     const later = `<button class="ag-btn ag-wz-later" data-wz="later">${narrow ? "" : ic("close", 18)}${esc(this._t("wzLater"))}</button>`;
     const prog = narrow && this.step !== "welcome" ? `<div class="ag-wz-prog">${list.map((x, i) => `<span class="${this.step === "done" || i < n - 1 ? "done" : i === n - 1 ? "cur" : ""}"></span>`).join("")}</div>` : "";
     const label = narrow && this.step !== "welcome" && this.step !== "done" ? `${kicker} · ${this._t(`wzS_${this.step}`)}` : kicker;
-    return `<div class="ag-wz-top"><span class="ag-wz-kicker">${esc(label)}</span>${later}</div>${prog}
+    // Auf der Startseite ein Logo des Assistenten (Zauberstab im Farbverlauf, Wunsch des Nutzers 2026-11-21): derselbe Stab wie im Knopf im Kopf, damit man ihn wiedererkennt
+    const badge = this.step === "welcome" ? `<span class="ag-wz-badge" aria-hidden="true">${ic("wand", narrow ? 24 : 28)}</span>` : "";
+    return `<div class="ag-wz-top ${badge ? "has-badge" : ""}">${badge}<span class="ag-wz-kicker">${esc(label)}</span>${later}</div>${prog}
       <h2>${esc(title)}</h2>${lead ? `<p class="ag-wz-lead">${esc(this._t(lead, { name: this.system?.title || "" }))}</p>` : ""}`;
   }
 

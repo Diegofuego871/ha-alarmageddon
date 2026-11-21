@@ -3,7 +3,8 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
-- 1.74.4 (2026-11-21, noch ohne Tag): Zauberstab wie im Comic (Schwung, Sterne eingesogen, Komet, Explosion, Sterne eingeblendet; 3,6 s; PANEL_VERSION 254). Der Nutzer bekam vorher ein GIF; Rückmeldung steht aus.
+- 1.74.5 (2026-11-21, noch ohne Tag): Logo des Assistenten auf der Startseite (`wizard._headHtml`, `.ag-wz-badge`: runder Farbverlauf Primärfarbe/Violett mit weissem Zauberstab; Suite `wzbadge-e2e.mjs`; PANEL_VERSION 255).
+- 1.74.4 (2026-11-21, Tag `v1.74.4`): Zauberstab wie im Comic.
 - 1.74.3 (2026-11-21, Tag `v1.74.3`): Zauberstab mit Wackeln, Schuss und Blinken (4,4 s).
 - 1.74.2 (2026-11-21, Tag `v1.74.2`): Zauberstab ohne Lücke: Stab, Sterne und Komet starten im selben Augenblick (Komet 1,4 s mit Beschleunigungskurve, Aufblitzen am Punkt bei 1,4 s, Welle 1,9 s; PANEL_VERSION 252). Grund der neuen Nummer: `v1.74.1` war schon veröffentlicht (Tag auf 9b0d19b, ohne diese Animation).
 - 1.74.1 (2026-11-21, Tag `v1.74.1` auf 9b0d19b): HealthCheck-Formular: "Bei Alarm" ohne Zusatz, beide Zusätze von selbst eingesetzt, Test-Knöpfe nur mit Zusatz (Suiten `healthcheck-e2e`, `wzbtn-e2e`). Und: neue Routine beginnt ruhig (`routines.js editorHtml`: `quiet`, `_touched`, `_nameTouched`; Speichern bleibt gesperrt über `problems()`); Suite `routines-e2e.mjs`. Ausserdem (PANEL_VERSION 251): Assistent "Weitere Funktionen": nach dem Schliessen des Fensters stellt `wizard._restoreTop` die Lage des Schritts wieder her (mehrere Versuche, endet bei Wheel/Touch; Suite `wzmore-e2e.mjs`, vergleicht mit der Lage beim Verlassen); "Assistent starten" auf dem Handy linksbündig und nicht über die ganze Breite (`.ag-wzrow`, Suite `deletesystem-e2e.mjs`). 1.74.0 war schon als Release `v1.74.0` veröffentlicht, darum neue Nummer.
