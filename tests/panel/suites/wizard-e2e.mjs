@@ -5,13 +5,13 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { tAlarm: "Alarmmeldung", tMaint: "Wartungsmeldung", tMsgAlarm: "Testmeldung Alarm", tMsgMaint: "Testmeldung Wartung", monAdd: "Messwerte hinzufügen", monChosen: "gewählt", more: "Weitere Funktionen", openCfg: "Konfiguration öffnen", welcome: "Willkommen bei Alarmageddon", welcomeShort: "Willkommen", title: "Einrichtungsassistent", start: "Los geht's", next: "Weiter", finish: "Fertig", skipCode: "Ohne Code weiter",
+  de: { moreTitles: ["Routinen", "Codes pro Person", "Eigene Töne", "HealthCheck", "Dashboard-Karte"], tAlarm: "Alarmmeldung", tMaint: "Wartungsmeldung", tMsgAlarm: "Testmeldung Alarm", tMsgMaint: "Testmeldung Wartung", monAdd: "Messwerte hinzufügen", monChosen: "gewählt", more: "Weitere Funktionen", openCfg: "Konfiguration öffnen", welcome: "Willkommen bei Alarmageddon", welcomeShort: "Willkommen", title: "Einrichtungsassistent", start: "Los geht's", next: "Weiter", finish: "Fertig", skipCode: "Ohne Code weiter",
     askTitle: "Assistent später fortsetzen?", later: "Später", stepOf: (n, total) => `Schritt ${n} von ${total}`, chapter: "Einrichtungsassistent", del: "Anlage löschen",
     stDone: "Abgeschlossen", stLater: "Verschoben bis", stHidden: "Ausgeblendet, bei Schritt 3", run: "Assistent starten", resume: "Bei Schritt 3 fortsetzen", restart: "Von vorn",
     dirty: "Ungespeicherte Änderungen", chosen: (n, total) => `${n} von ${total} gewählt`, codeSome: "Codes dieser Anlage: Diego", codeAnna: "Codes dieser Anlage: Anna",
     siren: "Sirene 3 Minuten", sound: "Alarmton", sumZones: "3 Sensoren · Eingang: Haustür · Verlassen: 60 s · Deaktivieren: 45 s", sumNotify: "an diego · 6 von 7 Meldungen an",
     sumActions: "nur die Alarmmeldung", found: "Gefunden: 3 Sensoren", entry: "Eingangsverzögerung", modes: ["Anwesend", "Abwesend", "Nacht"] },
-  en: { tAlarm: "Alarm notification", tMaint: "Maintenance notification", tMsgAlarm: "Test notification: alarm", tMsgMaint: "Test notification: maintenance", monAdd: "Add measurements", monChosen: "chosen", more: "More features", openCfg: "Open configuration", welcome: "Welcome to Alarmageddon", welcomeShort: "Welcome", title: "Setup assistant", start: "Let's go", next: "Next", finish: "Finish", skipCode: "Continue without code",
+  en: { moreTitles: ["Routines", "Codes per person", "Your own sounds", "HealthCheck", "Dashboard card"], tAlarm: "Alarm notification", tMaint: "Maintenance notification", tMsgAlarm: "Test notification: alarm", tMsgMaint: "Test notification: maintenance", monAdd: "Add measurements", monChosen: "chosen", more: "More features", openCfg: "Open configuration", welcome: "Welcome to Alarmageddon", welcomeShort: "Welcome", title: "Setup assistant", start: "Let's go", next: "Next", finish: "Finish", skipCode: "Continue without code",
     askTitle: "Continue the assistant later?", later: "Later", stepOf: (n, total) => `Step ${n} of ${total}`, chapter: "Setup assistant", del: "Delete alarm system",
     stDone: "Completed", stLater: "Postponed until", stHidden: "Hidden, at step 3", run: "Start assistant", resume: "Continue at step 3", restart: "Start over",
     dirty: "Unsaved changes", chosen: (n, total) => `${n} of ${total} chosen`, codeSome: "Codes of this alarm system: Diego", codeAnna: "Codes of this alarm system: Anna",
@@ -334,7 +334,12 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !r.querySelector('[data-wz=\"nt-test\"][data-group=\"maintenance\"]').classList.contains('ag-running')", 6000);
     // "Weitere Funktionen" (Wunsch des Nutzers 2026-11-20, 08:33: die Kacheln "Wenn du mehr willst" verleiteten zum Klicken): eine Liste zur Information
     check(`${tag}: "${t.more}": eine Liste zur Information (keine Kacheln), je Funktion wo sie steht, unten "${t.openCfg}"`, await s.ev(`const c=[...r.querySelectorAll('.ag-wz .ag-chap')].find((x) => x.querySelector('.ag-chap-t')?.textContent === ${J(t.more)});
-      return !!c && c.querySelectorAll('.ag-wz-morerow').length === 4 && c.querySelectorAll('.ag-wz-where').length === 4 && !c.querySelector('.ag-wz-tile, button.ag-wz-morerow, a') && c.querySelector('[data-wz="settings"]')?.innerText.trim() === ${J(t.openCfg)}`));
+      return !!c && c.querySelectorAll('.ag-wz-morerow').length === 5 && c.querySelectorAll('.ag-wz-where').length === 5 && !c.querySelector('.ag-wz-tile, button.ag-wz-morerow, a') && c.querySelector('[data-wz="settings"]')?.innerText.trim() === ${J(t.openCfg)}`));
+    // Seit 1.72.0 (Wunsch des Nutzers 2026-11-20, 14:00): "Eigene Töne" dazu, Symbole in der Farbe ihres Kapitels unter Konfiguration › Anlage
+    const moreRows = await s.ev(`const c=[...r.querySelectorAll('.ag-wz .ag-chap')].find((x) => x.querySelector('.ag-chap-t')?.textContent === ${J(t.more)});
+      const tint=(sel) => { const e=r.querySelector(sel); return e ? getComputedStyle(e).color : null; };
+      return { titles: [...c.querySelectorAll('.ag-wz-morerow b')].map((b) => b.textContent), colors: [...c.querySelectorAll('.ag-wz-moreic')].map((x) => getComputedStyle(x).color), grey: getComputedStyle(r.querySelector('.ag-wz-morerow small')).color }`);
+    check(`${tag}: "${t.more}": ${t.moreTitles.join(", ")}; jedes Symbol farbig, keines grau, alle verschieden`, J(moreRows.titles) === J(t.moreTitles) && moreRows.colors.every((x) => x !== moreRows.grey) && new Set(moreRows.colors).size === 5, J(moreRows));
     if (mobile) await s.tap('.ag-wz-sum [data-wz="goto"][data-step="code"]');
     else await s.tap('.ag-wz-side [data-wz="goto"][data-step="code"]');
     check(`${tag}: ${mobile ? '"Ändern"' : "Schrittliste"} führt zurück zum Code`, await H.waitStep("code"));

@@ -6,7 +6,7 @@
 // "Weiter" speichert den Schritt; der Server merkt sich den Schritt, damit es nach "Später" genau dort weitergeht.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, onceBtn, DC, OPENINGS, MOTION, MODE_KEY, MODE_ICON, errText, matchQuery, searchField } = await import(`./common.js${V}`);
+const { ic, esc, onceBtn, DC, OPENINGS, MOTION, AIR, measureKind, MODE_KEY, MODE_ICON, errText, matchQuery, searchField } = await import(`./common.js${V}`);
 
 export const WZ_STEPS = ["welcome", "modes", "sensors", "zones", "code", "notify", "actions", "monitor", "done"];
 const ALL_MODES = ["home", "away", "night"];
@@ -21,12 +21,14 @@ const KINDS = [["arm_failed", "window"], ["sensor_offline", "offline"], ["batter
 // Messwerte der Überwachung nach Art (Filter im Fenster "Messwerte hinzufügen" und in der Liste der gewählten; Wunsch des Nutzers 2026-11-20,
 // 08:31: statt aller Messwerte als Knöpfe eine leere Liste, ein Fenster mit Suche und Filtern wie "Sensoren hinzufügen", die gewählten wieder
 // mit Suche und Filtern)
-const AIR = new Set(["carbon_dioxide", "carbon_monoxide", "pm1", "pm25", "pm10", "aqi", "volatile_organic_compounds", "volatile_organic_compounds_parts", "nitrogen_dioxide", "ozone", "sulphur_dioxide"]);
+// (Luftqualität `AIR` und `measureKind` seit 1.72.0 in common.js, gemeinsam mit den Filtern unter Konfiguration › Sensoren)
 const MEASURE_FILTERS = [["all", "filterAll"], ["temperature", "dcTemperature"], ["humidity", "dcHumidity"], ["illuminance", "dcIlluminance"], ["air", "dcAqi"], ["other", "filterOther"]];
-const measureKind = (dc) => (dc === "temperature" || dc === "humidity" || dc === "illuminance" ? dc : AIR.has(dc) ? "air" : "other");
 // Weitere Funktionen am Schluss: nur zur Information, wo sie stehen (Wunsch des Nutzers 2026-11-20, 08:33: die Kacheln verleiteten zum Klicken)
-const MORE = [["flash", "rtTitle", "wzMore_routines", "wzWhere_routines"], ["hand", "sysCodes", "wzMore_codes", "wzWhere_codes"],
-  ["heartPulse", "hcTitle", "wzMore_health", "wzWhere_health"], ["viewOptions", "wzMoreCard", "wzMore_card", "wzWhere_card"]];
+// Seit 1.72.0 (Wunsch des Nutzers 2026-11-20, 14:00) die Symbole in der Farbe ihres Kapitels unter Konfiguration › Anlage (`ag-tint-*`) und "Eigene Töne"
+// dazu, in der Reihenfolge der Kapitel; die Dashboard-Karte hat kein Kapitel und bekommt eine eigene Farbe (`ag-tint-card`)
+const MORE = [["flash", "routines", "rtTitle", "wzMore_routines", "wzWhere_routines"], ["hand", "codes", "sysCodes", "wzMore_codes", "wzWhere_codes"],
+  ["speaker", "sounds", "csTitle", "wzMore_sounds", "wzWhere_sounds"], ["heartPulse", "health", "hcTitle", "wzMore_health", "wzWhere_health"],
+  ["viewOptions", "card", "wzMoreCard", "wzMore_card", "wzWhere_card"]];
 const short = (s) => s.replace(/^notify\.(mobile_app_)?/, "");
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
@@ -827,7 +829,7 @@ export class WizardUi {
     }).join("");
     // Nur zur Information, keine Kacheln (sie verleiteten zum Klicken): je Funktion, was sie tut und wo sie steht; unten ein Knopf, der den
     // Assistenten abschliesst und Konfiguration › Anlage öffnet
-    const more = MORE.map(([icon, title, text, where]) => `<div class="ag-setrow ag-wz-morerow"><span class="ag-wz-moreic">${ic(icon, 20)}</span><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(text))}</small>
+    const more = MORE.map(([icon, tint, title, text, where]) => `<div class="ag-setrow ag-wz-morerow"><span class="ag-wz-moreic ag-tint ag-tint-${tint}">${ic(icon, 20)}</span><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(text))}</small>
       <small class="ag-wz-where">${ic("info", 13)}${esc(this._t(where))}</small></div></div>`).join("");
     return `<div class="ag-card ag-setlist ag-wz-sum">${rows}</div>
       ${this._chap(this._t("wzTry"), `<div class="ag-card ag-setlist">

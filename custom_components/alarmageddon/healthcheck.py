@@ -34,7 +34,7 @@ from urllib.parse import urlsplit
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.dispatcher import async_dispatcher_connect, async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
@@ -47,6 +47,7 @@ from .const import (
     HEALTHCHECK_STORE_KEY,
     HEALTHCHECK_TICK,
     HEALTHCHECK_TIMEOUT,
+    SIGNAL_HEALTHCHECK,
     SIGNAL_SELFTEST,
 )
 from .healthcheck_log import HealthLog
@@ -159,6 +160,29 @@ class HealthCheck:
         """Einträge für das Panel: die gespeicherten Werte (mit der URL, Entscheid des Nutzers), das letzte Lebenszeichen und seit wann der Zustand gilt."""
         return [{**item, "status": self.status.get(item["id"]), "log": self.log.brief(item["id"])} for item in self.items()]
 
+    def summary(self) -> dict[str, int]:
+        """Zustand der Dienste für die Statusentität (Dashboard-Karte, 1.72.0; Wunsch des Nutzers 2026-11-20, 14:01): Zahl der Dienste und wie viele
+        in Ordnung sind, Fehler melden (Selbsttest mit Problemen) oder scheitern; gerechnet wie die Statuskachel des Panels (`healthcheck.js tileHalf`).
+        Nur Zahlen: nie eine URL, ein Name oder ein Rechner (Attribute stehen in jedem Dashboard und in der Aufzeichnung)."""
+        out = {"count": 0, "ok": 0, "report": 0, "fail": 0}
+        for item in self.items():
+            out["count"] += 1
+            brief = self.log.brief(item["id"])
+            state = brief["state"] if brief else None
+            if not state and (status := self.status.get(item["id"])):
+                state = "fail" if status.get("result") != "ok" else "report" if status.get("sent") == "fail" and not status.get("test") else "ok"
+            if state in ("ok", "report", "fail"):
+                out[state] += 1
+        return out
+
+    @callback
+    def _changed(self) -> None:
+        """Statusentitäten nachführen; nie ein Hindernis für ein Lebenszeichen."""
+        try:
+            async_dispatcher_send(self.hass, SIGNAL_HEALTHCHECK)
+        except Exception:  # noqa: BLE001 - die Anzeige ist Zusatz
+            _LOGGER.exception("The health check could not update the status entities")
+
     def problem_count(self) -> int:
         """Zahl der Probleme des Selbsttests ohne gescheiterte Lebenszeichen (für das Protokoll: "Fehler gemeldet, 2 Probleme")."""
         selftest = self.hass.data.get(DATA_SELFTEST)
@@ -202,6 +226,7 @@ class HealthCheck:
         for hid in fresh:
             self._config[hid] = dict(current[hid])
         self._save()
+        self._changed()
         # Neue und geänderte senden gleich (nach dem Start erst nach HEALTHCHECK_START_DELAY, über den Takt)
         if not first:
             for hid in fresh:
@@ -304,6 +329,7 @@ class HealthCheck:
                 async_note(self.hass, None, "ping_failed", hid, place={"area": "healthcheck", "id": hid}, service=host, reason=result,
                            label=str(code) if code is not None else "", name=str(item.get("name") or host))
             self._save()
+            self._changed()
         return status
 
     @callback

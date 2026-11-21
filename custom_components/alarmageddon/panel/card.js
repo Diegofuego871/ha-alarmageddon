@@ -426,7 +426,8 @@ class AlarmageddonStatusCard extends AlarmageddonCardBase {
     const n = Number(a.selftest) || 0;
     const when = a.selftest_last ? this._ago(a.selftest_last) : "";
     const label = !a.selftest_last && !n ? this._t("stRowNone") : n === 0 ? this._t("stRowOk") : n === 1 ? this._t("stRowProblem1") : this._t("stRowProblems", { count: n });
-    const stRow = a.selftest === undefined ? "" : `<div class="ag-row ag-st-row"><span class="ag-mini ${n ? "warn" : "ok"}">${ic("stethoscope", 16)}</span><span class="ag-grow">${esc(label)}${when ? `<small class="ag-t2" style="display:block">${esc(this._t("stRowAgo", { ago: when }))}</small>` : ""}</span></div>`;
+    const single = `<div class="ag-row ag-st-row"><span class="ag-mini ${n ? "warn" : "ok"}">${ic("stethoscope", 16)}</span><span class="ag-grow">${esc(label)}${when ? `<small class="ag-t2" style="display:block">${esc(this._t("stRowAgo", { ago: when }))}</small>` : ""}</span></div>`;
+    const stRow = a.selftest === undefined ? "" : Number(a.healthcheck) > 0 ? this._splitRow(a, n, label, when) : single;
     if (n) items.push(stRow);
     if (!items.length) {
       this._set(`<div class="ag-card ag-sys ag-status ok"><div class="ag-sys-top"><div class="ag-shield" style="background:var(--ag-success-soft);color:var(--ag-success)">${ic("check", 28)}</div>
@@ -435,6 +436,25 @@ class AlarmageddonStatusCard extends AlarmageddonCardBase {
     }
     this._set(`<div class="ag-card ag-sys ag-status warn"><div class="ag-sys-top"><div class="ag-shield" style="background:var(--ag-warning-soft);color:var(--ag-warning-text)">${ic("alert", 28)}</div>
       <div><div class="ag-label">${esc(this._t("statusTitle"))}</div><h2>${esc(this._t("warnTitle", { count: items.length }))}</h2></div></div><div class="ag-rows">${items.join("")}${n ? "" : stRow}</div></div>`);
+  }
+
+  // Sind HealthCheck-Dienste eingerichtet (1.72.0, Wunsch des Nutzers 2026-11-20, 14:01: "bei der Dashboard-Karte den HealthCheck nachziehen"), ist die
+  // Zeile geteilt wie in der Statuskachel des Panels (selftest.js und healthcheck.js tileHalf): links der Selbsttest, rechts die Dienste. Die Karte
+  // öffnet keine Fenster des Panels, darum ohne Pfeil; die Zeit der letzten Prüfung steht im Tooltip. Die Zahlen kommen aus der Statusentität.
+  _splitRow(a, n, label, when) {
+    const stState = !a.selftest_last && !n ? this._t("stHalfNone") : n === 0 ? this._t("stHalfOk") : n === 1 ? this._t("stHalfProblem1") : this._t("stHalfProblems", { count: n });
+    const stTone = n ? "warn" : a.selftest_last ? "ok" : "";
+    const stTip = [label, when ? this._t("stRowAgo", { ago: when }) : ""].filter(Boolean).join(" · ");
+    const count = Number(a.healthcheck) || 0;
+    const fail = Number(a.healthcheck_fail) || 0;
+    const report = Number(a.healthcheck_report) || 0;
+    const none = !fail && !report && !(Number(a.healthcheck_ok) || 0);
+    const hcTone = fail ? "err" : report ? "warn" : none ? "" : "ok";
+    const hcText = fail ? this._t(fail === 1 ? "hcHalfFail1" : "hcHalfFail", { count: fail }) : report ? this._t("hcHalfReport") : none ? this._t("hcHalfNone")
+      : this._t(count === 1 ? "hcHalfOk1" : "hcHalfOk");
+    const half = (cls, tone, icon, title, text, tip) => `<div class="ag-row ag-half ${cls}" title="${esc(tip)}"><span class="ag-mini ${tone}">${ic(icon, 16)}</span>
+      <span class="ag-grow"><span class="ag-half-t">${esc(title)}</span><small class="ag-t2 ag-block">${esc(text)}</small></span></div>`;
+    return `<div class="ag-row ag-split">${half("ag-st-row", stTone, "stethoscope", this._t("stHalfTitle"), stState, stTip)}${half("ag-hc-half", hcTone, "heartPulse", this._t("hcTitle"), hcText, `${this._t("hcListTitle")}: ${hcText}`)}</div>`;
   }
 
   // Wie das Panel (_fmtAgo): auf die Minute gerundet, damit sich der Text nicht bei jeder Änderung von hass ändert

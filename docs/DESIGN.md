@@ -137,6 +137,8 @@ Breite der Fenster (seit 1.67.0, Wunsch des Nutzers 2026-11-19): Listen und Form
   (`.ag-row.ag-split`, zwei `.ag-half`, Linie dazwischen, gleich hoch wie vorher): links "Selbsttest" mit Stethoskop und Zustand ("keine Probleme",
   "1 Problem"), rechts "HealthCheck" mit Herz (grün alle in Ordnung, orange Fehler gemeldet, rot gescheitert, grau noch nichts gesendet), die Zeit
   der Prüfung im Tooltip; auf dem Handy ohne Pfeil (die ganze Hälfte ist der Knopf). Ohne Dienste wie bisher, ohne Einladung, einen einzurichten.
+  Seit 1.72.0 (Wunsch des Nutzers 2026-11-20, 14:01) gleich in der Statuskarte für Dashboards (`card.js _splitRow`), dort ohne Pfeil (die Karte
+  öffnet keine Fenster des Panels); Zahlen aus den Attributen der Statusentität.
 - Fenster `#ag-selftest` (breit, auf dem Handy ganzer Bildschirm): Kopf mit letzter und nächster Prüfung und dem Abstand; je Anlage eine
   Überschrift, die gemeinsamen Befunde unter "Alle Anlagen". Je Befund eine Karte mit farbigem Rand links (gelb, rot), zugeklappt Titel und Art
   ("Einrichtung", "Im Betrieb"); aufgeklappt die Abschnitte "Was ist los?", "Wo" (Fundstellen als Wege wie im Panel, je mit "Öffnen"), "Was das
@@ -262,6 +264,12 @@ Mockups `docs/mockups/einrichtungsassistent-v1/`, Variante B "Seite mit Schrittl
 - Testmeldungen (seit 1.71.0, Wunsch des Nutzers 2026-11-20, 11:40): im Schritt "Meldungen" zwei Play-Knöpfe nebeneinander ("Alarmmeldung",
   "Wartungsmeldung", `.ag-wz-testbtns`, Handy je halbe Breite), unter "Ausprobieren" zwei Zeilen "Testmeldung Alarm" und "Testmeldung Wartung" mit den
   Empfängern; ein Knopf ohne Empfänger seiner Gruppe ist gesperrt.
+- Filter der Sensoren (Konfiguration › Sensoren und Fenster "Sensoren hinzufügen", seit 1.72.0, Wunsch des Nutzers 2026-11-20, 13:56): Pillen
+  Alle, Türen & Fenster, Bewegung, Wasser (14:45), Temperatur, Luftfeuchtigkeit, Helligkeit, Luftqualität, Weitere (`common.js SENSOR_FILTERS`, `sensorKind`); nur
+  Pillen, zu denen die Liste bzw. das Fenster etwas hat (`sensorFilters`), "Alle" immer. Die Pillen der Tabelle stehen in `.ag-senfilters`
+  (`display: contents`) und werden bei jedem Zeichnen nachgeführt, das Fenster rechnet sie aus seinen Kandidaten ohne Suche.
 - "Weitere Funktionen" am Schluss (seit 1.70.0, Wunsch des Nutzers 2026-11-20, 08:33: die Kacheln "Wenn du mehr willst" verleiteten zum Klicken): eine Karte
-  mit Zeilen zur Information (graues Symbol, Name, was es tut, darunter mit Info-Symbol, wo es steht) und unten "Konfiguration öffnen" (Zahnrad),
-  das den Assistenten wie "Fertig" abschliesst und Konfiguration › Anlage öffnet. Keine Kachel und keine Zeile ist klickbar.
+  mit Zeilen zur Information (Symbol, Name, was es tut, darunter mit Info-Symbol, wo es steht) und unten "Konfiguration öffnen" (Zahnrad),
+  das den Assistenten wie "Fertig" abschliesst und Konfiguration › Anlage öffnet. Keine Kachel und keine Zeile ist klickbar. Seit 1.72.0 (Wunsch des
+  Nutzers 2026-11-20, 14:00): Routinen, Codes pro Person, Eigene Töne, HealthCheck (Reihenfolge der Kapitel), Dashboard-Karte; Symbole in der Farbe
+  ihres Kapitels (`ag-tint-routines`, `-codes`, `-sounds`, `-health`; Karte `ag-tint-card`, hellblau).

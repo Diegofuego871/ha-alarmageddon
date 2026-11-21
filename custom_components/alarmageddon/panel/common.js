@@ -217,6 +217,22 @@ export const DC = {
 export const MEASURE_CLASSES = new Set(["temperature", "humidity", "carbon_dioxide", "pressure", "illuminance", "pm25", "pm10", "aqi", "volatile_organic_compounds"]);
 export const OPENINGS = new Set(["door", "window", "opening", "garage_door"]);
 export const MOTION = new Set(["motion", "occupancy", "presence"]);
+// Luftqualität unter den Messwerten (CO2, CO, Feinstaub, VOC, AQI, NO2, Ozon, SO2)
+export const AIR = new Set(["carbon_dioxide", "carbon_monoxide", "pm1", "pm25", "pm10", "aqi", "volatile_organic_compounds", "volatile_organic_compounds_parts", "nitrogen_dioxide", "ozone", "sulphur_dioxide"]);
+// Art eines Messwerts für die Filter: Temperatur, Luftfeuchtigkeit, Helligkeit, Luftqualität, sonst "Weitere" (etwa Luftdruck)
+export const measureKind = (dc) => (dc === "temperature" || dc === "humidity" || dc === "illuminance" ? dc : AIR.has(dc) ? "air" : "other");
+// Filter der Sensoren unter Konfiguration › Sensoren und im Fenster "Sensoren hinzufügen" (seit 1.72.0, Wunsch des Nutzers 2026-11-20, 13:56): Messwerte
+// nach Art statt einer Pille "Messwerte"; Wassermelder mit eigener Pille (Wunsch des Nutzers 14:45: "das kommt oft vor"); "Weitere" nimmt alles, was keine
+// eigene Pille hat (Rauch, Gas, CO, Hitze, Erschütterung, Sabotage, Geräusch, Glasbruch, Schloss, Bewegung eines Geräts, Sicherheit, Luftdruck). Zu sehen
+// sind nur die Pillen, zu denen es Sensoren gibt (`sensorFilters`)
+export const SENSOR_FILTERS = [["all", "filterAll"], ["openings", "filterOpenings"], ["motion", "filterMotion"], ["water", "dcMoisture"], ["temperature", "dcTemperature"],
+  ["humidity", "dcHumidity"], ["illuminance", "dcIlluminance"], ["air", "dcAqi"], ["other", "filterOther"]];
+export const sensorKind = (info) => (info?.kind === "value" ? measureKind(info.device_class) : OPENINGS.has(info?.device_class) ? "openings"
+  : MOTION.has(info?.device_class) ? "motion" : info?.device_class === "moisture" ? "water" : "other");
+export const sensorFilters = (infos) => {
+  const kinds = new Set(infos.map(sensorKind));
+  return SENSOR_FILTERS.filter(([k]) => k === "all" || kinds.has(k));
+};
 export const LOW_BATTERY = 20;
 export const POLL_MS = 30000;
 // Messwerte, Batterie und Empfang: so oft werden die Ansichten höchstens neu gezeichnet, wenn sich nur solche Werte ändern (1.60.0).

@@ -649,6 +649,8 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 /* Handy: das Suchfeld im Fenster darf nicht mit "flex: 1 1 100%" der Seite in die Höhe wachsen (Geräteauswahl der Routinen) */
 :host([narrow]) .ag-dlg-body .list-search { flex: none; height: 48px; }
 .ag-pick-chips { gap: 10px; margin-top: 12px; }
+/* Pillen der Sensorliste (seit 1.72.0 eigener Behälter, den render() nachzeichnet): stehen in der Werkzeugzeile wie vorher */
+.ag-senfilters { display: contents; }
 .ag-step-ed .ag-sys-top h3 { margin: 0; }
 .ag-elist { display: flex; flex-direction: column; max-height: 260px; overflow: auto; border: 1px solid var(--ag-divider); border-radius: 12px; }
 /* Zeilen einer Liste schrumpfen nie: in einer Liste mit fester Höhe drückte der Browser sie sonst auf ihre Mindesthöhe, und lange Namen liefen in
@@ -1768,6 +1770,10 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz.narrow .ag-wz-testbtns > .ag-btn { flex: 1 1 0; min-width: 0; justify-content: center; }
 .ag-wz-morerow { align-items: flex-start; flex-wrap: nowrap; }
 .ag-wz-moreic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; color: var(--ag-text2); background: var(--ag-subtle); }
+/* Seit 1.72.0 in der Farbe des Kapitels unter Konfiguration › Anlage (wie .ag-oav.ag-tint.on) */
+.ag-wz-moreic.ag-tint { background: color-mix(in srgb, var(--ag-tint) 15%, transparent); color: var(--ag-tint); }
+.ag-tint-card { --ag-tint: #0277bd; }
+:host([dark]) .ag-tint-card { --ag-tint: #81d4fa; }
 .ag-wz-where { display: flex !important; align-items: flex-start; gap: 5px; margin-top: 4px; color: var(--ag-text2); }
 .ag-wz-where > .ag-ic, .ag-wz-where > svg { flex: none; margin-top: 2px; }
 .ag-wz-moreopen { justify-content: space-between; }

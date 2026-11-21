@@ -4,8 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { stepTested: "Schritt getestet", stepTestFail: "Test fehlgeschlagen", unfoldAll: "Alle aufklappen", explOut: "bei über 8 °C", explOk1: "bei 7 °C oder tiefer", explOk3: "bei 5 °C oder tiefer", explNow: "Jetzt 5,4 °C", explBuffer: "Pufferzone", explZero: "Ohne Spanne gilt schon die Grenze selbst.", volume: "Lautstärke", measure: "Messwerte", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
-  en: { stepTested: "Step tested", stepTestFail: "Test failed", unfoldAll: "Expand all", explOut: "above 8 °C", explOk1: "at 7 °C or lower", explOk3: "at 5 °C or lower", explNow: "Now 5.4 °C", explBuffer: "buffer zone", explZero: "Without a margin the limit itself counts.", volume: "Volume", measure: "Measurements", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
+  de: { stepTested: "Schritt getestet", stepTestFail: "Test fehlgeschlagen", unfoldAll: "Alle aufklappen", explOut: "bei über 8 °C", explOk1: "bei 7 °C oder tiefer", explOk3: "bei 5 °C oder tiefer", explNow: "Jetzt 5,4 °C", explBuffer: "Pufferzone", explZero: "Ohne Spanne gilt schon die Grenze selbst.", volume: "Lautstärke", measure: "Messwerte", pills: "Alle,Türen & Fenster,Bewegung,Wasser,Temperatur,Luftfeuchtigkeit,Weitere", pickPills: "Alle,Luftqualität", temp: "Temperatur", air: "Luftqualität", mode: "Überwachung", rule: "Kühlschrank zu warm", outside: "Ausserhalb der Grenzen", ok: "Wieder in Ordnung", since: "Ausserhalb seit", name: "Name eingeben", noDevice: "Sensor oder ein Gerät", taken: "Namen gibt es schon", saved: "Gespeichert", push: "Push-Meldung", copy: "Kopie" },
+  en: { stepTested: "Step tested", stepTestFail: "Test failed", unfoldAll: "Expand all", explOut: "above 8 °C", explOk1: "at 7 °C or lower", explOk3: "at 5 °C or lower", explNow: "Now 5.4 °C", explBuffer: "buffer zone", explZero: "Without a margin the limit itself counts.", volume: "Volume", measure: "Measurements", pills: "All,Doors & windows,Motion,Water,Temperature,Humidity,Other", pickPills: "All,Air quality", temp: "Temperature", air: "Air quality", mode: "Monitoring", rule: "Kühlschrank zu warm", outside: "Outside the limits", ok: "Back to normal", since: "Outside since", name: "Enter a name", noDevice: "sensor or device", taken: "exists already", saved: "Saved", push: "Push notification", copy: "copy" },
 };
 const FRIDGE = "sensor.kuehlschrank_temperatur";
 
@@ -59,8 +59,14 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sen="all"][data-mode="home"]');
     check(`${tag}: "Alle" setzt nur echte Sensoren (keine Messwerte, keine Änderung an ihnen)`, await s.ev("return !r.querySelector('.ag-table tr[data-row^=\"sensor.\"] .ag-box.on') && r.querySelectorAll('.ag-table tr[data-row^=\"binary_sensor.\"] [data-box][data-mode=\"home\"].on').length === r.querySelectorAll('.ag-table tr[data-row^=\"binary_sensor.\"]').length"));
     await s.tap('[data-sen="cancel"]');
-    await s.tap('[data-sen="filter"][data-filter="measure"]');
-    check(`${tag}: Filter "${t.measure}" zeigt nur die zwei Messwerte`, await s.waitFor("return r.querySelectorAll('.ag-table tr[data-row]').length === 2 && [...r.querySelectorAll('.ag-table tr[data-row]')].every((x) => x.dataset.row.startsWith('sensor.'))"));
+    // Pillen nach Art (seit 1.72.0, Wunsch des Nutzers 2026-11-20, 13:56): Temperatur, Luftfeuchtigkeit … statt "Messwerte"; nur Arten, die in der
+    // Liste vorkommen (Helligkeit und Luftqualität hat sie nicht)
+    const pills = await s.ev("return [...r.querySelectorAll('[data-sen=\"filter\"]')].map((b) => b.textContent.trim()).join()");
+    check(`${tag}: Pillen der Liste nach Art, nur vorhandene, kein "${t.measure}": ${t.pills}`, pills === t.pills, pills);
+    await s.tap('[data-sen="filter"][data-filter="temperature"]');
+    check(`${tag}: Filter "${t.temp}" zeigt nur den Kühlschrank`, await s.waitFor(`return [...r.querySelectorAll('.ag-table tr[data-row]')].map((x) => x.dataset.row).join() === ${JSON.stringify(FRIDGE)}`));
+    await s.tap('[data-sen="filter"][data-filter="humidity"]');
+    check(`${tag}: Filter Luftfeuchtigkeit zeigt nur den Keller`, await s.waitFor("return [...r.querySelectorAll('.ag-table tr[data-row]')].map((x) => x.dataset.row).join() === 'sensor.keller_luftfeuchtigkeit'"));
     await s.tap('[data-sen="filter"][data-filter="other"]');
     check(`${tag}: Filter "Weitere" enthält keine Messwerte`, await s.waitFor("return ![...r.querySelectorAll('.ag-table tr[data-row]')].some((x) => x.dataset.row.startsWith('sensor.'))"));
     await s.tap('[data-sen="filter"][data-filter="all"]');
@@ -73,11 +79,14 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sen="add"]');
     await s.waitFor("return r.getElementById('ag-pick').open");
     check(`${tag}: das Fenster "+" bietet den CO2-Sensor an (die zwei in der Liste nicht mehr)`, await s.ev("const l=r.querySelector('#ag-pick .ag-elist').innerText; return /CO2/.test(l) && !/Kühlschrank Temperatur|Keller Luftfeuchtigkeit/.test(l)"));
-    await s.tap('[data-sen="pick-filter"][data-filter="measure"]');
-    check(`${tag}: Filter "${t.measure}" im Fenster "+": genau ein Eintrag`, await s.waitFor("return r.querySelectorAll('#ag-pick [data-sen=\"pick-toggle\"]').length === 1"));
+    const pickPills = await s.ev("return [...r.querySelectorAll('#ag-pick [data-sen=\"pick-filter\"]')].map((b) => b.textContent.trim()).join()");
+    check(`${tag}: Pillen im Fenster "+": nur was es anbieten kann (${t.pickPills})`, pickPills === t.pickPills, pickPills);
+    await s.tap('[data-sen="pick-filter"][data-filter="air"]');
+    check(`${tag}: Filter "${t.air}" im Fenster "+": genau der CO2-Sensor`, await s.waitFor("const l=[...r.querySelectorAll('#ag-pick [data-sen=\"pick-toggle\"]')]; return l.length === 1 && l[0].dataset.ent === 'sensor.wohnzimmer_co2'"));
     await s.tap('[data-sen="pick-toggle"]');
     await s.tap('[data-sen="pick-add"]');
     check(`${tag}: der CO2-Sensor steht als graue Zeile in der Liste, eine Änderung`, await s.waitFor("return !!r.querySelector('.ag-table tr[data-row=\"sensor.wohnzimmer_co2\"] .ag-box.dis') && /1/.test(r.querySelector('.ag-foot').innerText)"));
+    check(`${tag}: mit dem CO2-Sensor bekommt die Liste die Pille "${t.air}" (vor "Weitere")`, await s.waitFor("const f=[...r.querySelectorAll('[data-sen=\"filter\"]')].map((b) => b.dataset.filter); return f.join() === 'all,openings,motion,water,temperature,humidity,air,other'"));
     await s.tap('[data-sen="save"]');
     check(`${tag}: gespeichert (monitor_sensors im Server), danach keine Änderung mehr`, await s.waitFor("return /Gespeichert|Saved/.test(r.querySelector('.ag-foot').innerText)", 8000)
       && await s.sim("return window.__systems[0].monitor_sensors.includes('sensor.wohnzimmer_co2') && !window.__systems[0].sensors.some((x) => x.startsWith('sensor.'))"));

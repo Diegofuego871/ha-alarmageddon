@@ -20,7 +20,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 
-from .const import DATA_SELFTEST, DEFAULT_NOTIFY, SIGNAL_SELFTEST
+from .const import DATA_HEALTHCHECK, DATA_SELFTEST, DEFAULT_NOTIFY, SIGNAL_HEALTHCHECK, SIGNAL_SELFTEST
 from .controller import AlarmController
 from .devices import battery_of
 from .entity import AlarmageddonEntity
@@ -83,6 +83,14 @@ class StatusSensor(AlarmageddonEntity, SensorEntity):
             return 0, None
         return len(selftest.for_entry(self._entry.entry_id)), selftest.last
 
+    def _healthcheck(self) -> dict[str, int]:
+        """Zusammenfassung der HealthCheck-Dienste (1.72.0, für die Dashboard-Karte): nur Zahlen, nie eine URL; ohne Dienste alles 0."""
+        healthcheck = self.hass.data.get(DATA_HEALTHCHECK) if self.hass is not None else None
+        try:
+            return healthcheck.summary() if healthcheck is not None else {"count": 0, "ok": 0, "report": 0, "fail": 0}
+        except Exception:  # noqa: BLE001 - nur eine Anzeige: die übrigen Angaben der Entität bleiben
+            return {"count": 0, "ok": 0, "report": 0, "fail": 0}
+
     @property
     def native_value(self) -> int:
         alarm, offline, low = self._problems()
@@ -92,12 +100,15 @@ class StatusSensor(AlarmageddonEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         alarm, offline, low = self._problems()
         selftest, last = self._selftest()
-        return {"alarm": alarm, "offline": offline, "low_battery": low, "battery_threshold": self._threshold(), "selftest": selftest, "selftest_last": last}
+        hc = self._healthcheck()
+        return {"alarm": alarm, "offline": offline, "low_battery": low, "battery_threshold": self._threshold(), "selftest": selftest, "selftest_last": last,
+                "healthcheck": hc["count"], "healthcheck_ok": hc["ok"], "healthcheck_report": hc["report"], "healthcheck_fail": hc["fail"]}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self.async_on_remove(self._ctl.add_listener(self._refresh))
         self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_SELFTEST, self._refresh))
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_HEALTHCHECK, self._refresh))
         sensors, batteries = self._watched()
         watched = sorted(sensors | set(batteries.values()))
         if watched:
@@ -111,7 +122,7 @@ class StatusSensor(AlarmageddonEntity, SensorEntity):
     def _refresh(self) -> None:
         # Nur schreiben, wenn sich etwas ändert: Sensoren melden ständig neue Attribute
         alarm, offline, low = self._problems()
-        key = (alarm, tuple(offline), tuple((x["entity_id"], x["battery"]) for x in low), self._selftest())
+        key = (alarm, tuple(offline), tuple((x["entity_id"], x["battery"]) for x in low), self._selftest(), tuple(self._healthcheck().values()))
         if key != self._last:
             self._last = key
             self.async_write_ha_state()

@@ -7,6 +7,18 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.72.0] - 2026-11-20
+
+### Added
+
+- **Status card with HealthCheck:** once HealthCheck services are set up, the status card on a dashboard shows them next to the self-test, like the status tile of the panel (all OK, failure reported, failed). The status entity carries the numbers as attributes (`healthcheck`, `healthcheck_ok`, `healthcheck_report`, `healthcheck_fail`), never an address.
+- **Setup assistant, "More features":** "Your own sounds" is listed too.
+
+### Changed
+
+- **Filters for sensors** (Configuration › Sensors and "Add sensors"): a filter of its own for water sensors; with monitoring on, measurements are filtered by kind, temperature, humidity, brightness and air quality, instead of one filter "Measurements". "Other" holds everything that has no filter of its own (smoke, gas, heat, vibration, tamper, sound, glass break and the like, air pressure). Only the filters for which there are sensors appear.
+- **Setup assistant, "More features":** the symbols have the colour of their chapter under Configuration › Alarm system.
+
 ## [1.71.0] - 2026-11-20
 
 ### Added
@@ -2048,6 +2060,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.72.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.72.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0
 [1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0

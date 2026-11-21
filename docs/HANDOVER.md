@@ -3,6 +3,15 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
+- 1.72.0 (Basis: `main` @ `1aa5196` = Tag `v1.71.0`, vom Nutzer am 2026-11-20 committet und getaggt, Baum gleich der Lieferung von 1.71.0;
+  Wünsche des Nutzers vom 2026-11-20, 13:56 bis 14:01, mit Bildschirmfotos). Protokoll: `docs/UEBERGABE-1.72.0.md`. `PANEL_VERSION` 237.
+  - **Filter der Sensoren (13:56, Wasser 14:45):** `common.js SENSOR_FILTERS`, `sensorKind`, `sensorFilters` (auch `AIR`, `measureKind`, vorher in `wizard.js`);
+    Tabelle (`sensors.js _chosen`, `_filters`, Behälter `.ag-senfilters`) und Fenster (`_pickPool`, `_pickChips`) zeigen nur vorhandene Arten.
+  - **"Weitere Funktionen" (14:00):** Symbole in der Farbe des Kapitels, "Eigene Töne" dazu (`MORE` mit Farbe).
+  - **Statuskarte (14:01):** `HealthCheck.summary` (nur Zahlen), Attribute der Statusentität `healthcheck*`, `SIGNAL_HEALTHCHECK`; `card.js
+    _splitRow` wie die Statuskachel. Test `test_healthcheck.py -k status_entity`, Suite `card-e2e.mjs`.
+  - **Offen:** `dragscroll-e2e.mjs` scheitert selten bei "bis in die weit entfernte Liste ziehen" (unter Last öfter, einzeln 1 von 6); am Stand
+    `v1.70.0` einzeln 3 von 3 bestanden. Ursache nicht nachgewiesen, vermutlich Zeitverhalten des automatischen Scrollens im Test.
 - 1.71.0 (Basis: `main` @ `c13bfa7` = Tag `v1.70.0`, vom Nutzer am 2026-11-20 committet und getaggt, Baum gleich der Lieferung von 1.70.0;
   Wünsche des Nutzers vom 2026-11-20, 11:30 bis 11:40, Entscheide 11:48). Protokoll: `docs/UEBERGABE-1.71.0.md`. `PANEL_VERSION` 236. Eine
   vorbereitete 1.70.1 (nur die Listen) wurde nie geliefert und ist darin aufgegangen.

@@ -307,7 +307,10 @@ Umsetzung:
   "HealthCheck" in `scripts/mutation_check.py`, Suite `healthcheck-e2e.mjs`. Nie die echte Ping-URL eines Nutzers (Bildschirmfoto) in Code, Tests
   oder Bildern verwenden; der Nachbau hat erfundene Adressen (`?hc=sample`). Das Fenster der Dienste erklärt sie unter der Liste zum Aufklappen
   ("Was sind HealthCheck-Dienste?", seit 1.67.0, Wunsch des Nutzers; Name bleibt "HealthCheck-Dienste", Entscheid des Nutzers 2026-11-19) mit den
-  Beispielen `EXAMPLES` in `healthcheck.js` (Links in neuem Fenster, dieselben Anbieter wie `KNOWN`).
+  Beispielen `EXAMPLES` in `healthcheck.js` (Links in neuem Fenster, dieselben Anbieter wie `KNOWN`). Statusentität und Statuskarte (seit 1.72.0,
+  Wunsch des Nutzers 2026-11-20): `HealthCheck.summary` gibt nur Zahlen (`healthcheck`, `_ok`, `_report`, `_fail` als Attribute), **nie URL, Name
+  oder Rechner** (Attribute stehen in jedem Dashboard und in der Aufzeichnung; Test `test_healthcheck.py -k status_entity`); `SIGNAL_HEALTHCHECK` nach
+  jedem Lebenszeichen und jeder Änderung der Liste (`_changed`, im `try`).
 - Protokoll der HealthCheck-Dienste (seit 1.68.0, `healthcheck_log.py`, `panel/healthlog.js`; Wunsch und Entscheide des Nutzers vom 2026-11-19,
   17:06 bis 17:48, Mockups `healthcheck-protokoll-v1`/`-v2`): je Aufruf Zeit, Art (`ok`, `report`, `fail`, `test`), Ergebnis, HTTP-Status,
   Antwortzeit und Auslöser; **nie die URL und nie der Text einer Ausnahme** (Test in `test_security.py`). Aufbewahrt: einzelne Aufrufe

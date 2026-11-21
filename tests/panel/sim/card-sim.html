@@ -39,6 +39,10 @@
   // Selbsttest (1.65.0): ?selftest=N Befunde (Standard keine), die letzte Prüfung vor zwei Stunden; ?selftest=old: Server vor 1.65.0 (ohne Attribute)
   const st = params.get("selftest");
   const selftest = st === "old" ? {} : { selftest: Number(st || 0), selftest_last: new Date(Date.now() - 2 * 3600e3).toISOString() };
+  // HealthCheck-Dienste (1.72.0): ?hc=ok|fail|report|none, Zahl mit ?hcn=N (Standard 1); ohne ?hc wie ein Server ohne Dienste (alles 0)
+  const hc = params.get("hc");
+  const hcn = Number(params.get("hcn") || 1);
+  if (st !== "old") Object.assign(selftest, { healthcheck: hc ? hcn : 0, healthcheck_ok: hc === "ok" ? hcn : 0, healthcheck_report: hc === "report" ? 1 : 0, healthcheck_fail: hc === "fail" ? 1 : 0 });
   const statusAttrs = params.get("status") === "warn"
     ? { alarm: false, offline: ["binary_sensor.fenster_bad"], low_battery: [{ entity_id: "binary_sensor.haustuer", battery: 12 }], battery_threshold: 20, ...selftest }
     : { alarm: false, offline: [], low_battery: [], battery_threshold: 20, ...selftest };

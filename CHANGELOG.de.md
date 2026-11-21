@@ -7,6 +7,18 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.72.0] - 2026-11-20
+
+### Hinzugefügt
+
+- **Statuskarte mit HealthCheck:** Sobald HealthCheck-Dienste eingerichtet sind, zeigt die Statuskarte auf einem Dashboard sie neben dem Selbsttest, wie die Statuskachel des Panels (alle in Ordnung, Fehler gemeldet, gescheitert). Die Statusentität trägt die Zahlen als Attribute (`healthcheck`, `healthcheck_ok`, `healthcheck_report`, `healthcheck_fail`), nie eine Adresse.
+- **Einrichtungsassistent, "Weitere Funktionen":** "Eigene Töne" stehen jetzt auch in der Liste.
+
+### Geändert
+
+- **Filter der Sensoren** (Konfiguration › Sensoren und "Sensoren hinzufügen"): ein eigener Filter für Wassermelder; bei eingeschalteter Überwachung filtern Temperatur, Luftfeuchtigkeit, Helligkeit und Luftqualität die Messwerte nach Art, statt eines Filters "Messwerte". "Weitere" nimmt alles, was keinen eigenen Filter hat (Rauch, Gas, Hitze, Erschütterung, Sabotage, Geräusch, Glasbruch und Ähnliches, Luftdruck). Es erscheinen nur die Filter, zu denen es Sensoren gibt.
+- **Einrichtungsassistent, "Weitere Funktionen":** Die Symbole haben die Farbe ihres Kapitels unter Konfiguration › Anlage.
+
 ## [1.71.0] - 2026-11-20
 
 ### Hinzugefügt
@@ -2048,6 +2060,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.72.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.72.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0
 [1.69.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.69.0

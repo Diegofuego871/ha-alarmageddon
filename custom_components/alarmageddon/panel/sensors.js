@@ -3,7 +3,7 @@
 // Änderungen sind ein Entwurf mit "Abbrechen" und "Speichern" (Regel aus ha-device-panel).
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur, DC, OPENINGS, MOTION, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, DC, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText, sensorKind, sensorFilters } = await import(`./common.js${V}`);
 const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
@@ -255,22 +255,27 @@ export class SensorsUi {
 
   // ----- Zeilen -----
 
-  rows() {
-    const h = this.host;
+  // Nur Sensoren, die der Nutzer für diese Anlage gewählt hat (Plus); sonst wäre alles drin, was HA kennt.
+  // Messwerte stehen nur bei eingeschalteter Überwachung in der Liste (ihre Wahl bleibt sonst gespeichert).
+  _chosen() {
     const d = this.ensureDraft();
     if (!d) return [];
+    return Object.entries(this.host._known()).filter(([id, info]) => (info.kind === "value" ? this.monitorOn && d.monitorSensors.has(id) : d.sensors.has(id)));
+  }
+
+  // Pillen der Liste: nur Arten, die in der Liste vorkommen; fällt die gewählte weg, gilt "Alle"
+  _filters() {
+    const shown = sensorFilters(this._chosen().map(([, info]) => info));
+    if (!shown.some(([k]) => k === this.filter)) this.filter = "all";
+    return shown.map(([k, label]) => `<button class="ag-chip ${this.filter === k ? "on" : ""}" data-sen="filter" data-filter="${k}">${esc(this._t(label))}</button>`).join("");
+  }
+
+  rows() {
+    const h = this.host;
     const q = this.q.trim().toLowerCase();
-    return Object.entries(h._known())
+    return this._chosen()
       .filter(([id, info]) => {
-        // Nur Sensoren, die der Nutzer für diese Anlage gewählt hat (Plus); sonst wäre alles drin, was HA kennt.
-        // Messwerte stehen nur bei eingeschalteter Überwachung in der Liste (ihre Wahl bleibt sonst gespeichert).
-        const value = info.kind === "value";
-        if (value ? !(this.monitorOn && d.monitorSensors.has(id)) : !d.sensors.has(id)) return false;
-        const dc = info.device_class;
-        if (this.filter === "measure" && !value) return false;
-        if (this.filter === "openings" && (value || !OPENINGS.has(dc))) return false;
-        if (this.filter === "motion" && (value || !MOTION.has(dc))) return false;
-        if (this.filter === "other" && (value || OPENINGS.has(dc) || MOTION.has(dc))) return false;
+        if (this.filter !== "all" && sensorKind(info) !== this.filter) return false;
         if (!q) return true;
         return [h._name(id), id, info.area, info.integration].some((v) => String(v || "").toLowerCase().includes(q));
       })
@@ -283,9 +288,8 @@ export class SensorsUi {
 
   html() {
     const narrow = this.host.hasAttribute("narrow");
-    if (!this.monitorOn && this.filter === "measure") this.filter = "all";
-    const filters = [["all", "filterAll"], ["openings", "filterOpenings"], ["motion", "filterMotion"], ["other", "filterOther"], ...(this.monitorOn ? [["measure", "filterMeasure"]] : [])]
-      .map(([k, label]) => `<button class="ag-chip ${this.filter === k ? "on" : ""}" data-sen="filter" data-filter="${k}">${esc(this._t(label))}</button>`).join("");
+    // Die Pillen zeichnet render() nach (.ag-senfilters): neue Sensoren bringen neue Arten mit
+    const filters = `<span class="ag-senfilters">${this._filters()}</span>`;
     return `<div class="ag-tools">
         <label class="list-search">${ic("search", 18)}<input type="search" data-sen="search" placeholder="${esc(this._t("search"))}" value="${esc(this.q)}" aria-label="${esc(this._t("search"))}">
           <button class="ag-clear" data-sen="clear" aria-label="${esc(this._t("clearSearch"))}" ${this.q ? "" : "hidden"}>${ic("close", 16)}</button></label>
@@ -300,6 +304,8 @@ export class SensorsUi {
     const view = this.host._view;
     const body = view?.querySelector(".ag-gbody");
     if (!body || !this.ensureDraft()) return;
+    const pills = view.querySelector(".ag-senfilters");
+    if (pills) this.host._setHtml(pills, this._filters());
     const rows = this.rows();
     // Nach dem Speichern sofort ohne Markierung (die neuen Daten kommen erst mit dem Neuladen der Anlage)
     const changed = this.host._isSaved(this) ? new Set() : this.changedIds();
@@ -631,14 +637,23 @@ export class SensorsUi {
     const h = this.host;
     const q = (this.pick?.q || "").trim().toLowerCase();
     const f = this.pick?.filter || "all";
-    const kind = (info) => (info.kind === "value" ? "measure" : OPENINGS.has(info.device_class) ? "openings" : MOTION.has(info.device_class) ? "motion" : "other");
-    return Object.entries(h._known())
-      // Messwerte nur bei eingeschalteter Überwachung (sie haben eine eigene Liste)
-      .filter(([id, info]) => !info.missing && !this.draft.sensors.has(id) && !this.draft.monitorSensors.has(id) && (info.kind !== "value" || this.monitorOn)
-        && (f === "all" || kind(info) === f)
-        && (!q || [h._name(id), id, info.area, info.integration].some((v) => String(v || "").toLowerCase().includes(q))))
+    return this._pickPool()
+      .filter(([id, info]) => (f === "all" || sensorKind(info) === f) && (!q || [h._name(id), id, info.area, info.integration].some((v) => String(v || "").toLowerCase().includes(q))))
       .map(([id, info]) => ({ id, info, name: h._name(id), area: info.area || this._t("noArea") }))
       .sort((a, b) => Number(!a.info.area) - Number(!b.info.area) || a.area.localeCompare(b.area) || a.name.localeCompare(b.name));
+  }
+
+  // Alles, was das Fenster anbieten kann: erkannt und noch nicht in der Liste; Messwerte nur bei eingeschalteter Überwachung (eigene Liste)
+  _pickPool() {
+    return Object.entries(this.host._known())
+      .filter(([id, info]) => !info.missing && !this.draft.sensors.has(id) && !this.draft.monitorSensors.has(id) && (info.kind !== "value" || this.monitorOn));
+  }
+
+  // Pillen des Fensters: nur Arten, die es anbieten kann (gewählt oder nicht, ohne Suche); fällt die gewählte weg, gilt "Alle"
+  _pickChips() {
+    const shown = sensorFilters(this._pickPool().map(([, info]) => info));
+    if (!shown.some(([k]) => k === this.pick.filter)) this.pick.filter = "all";
+    return shown.map(([k, label]) => `<button class="ag-chip ${this.pick.filter === k ? "on" : ""}" data-sen="pick-filter" data-filter="${k}">${esc(this._t(label))}</button>`).join("");
   }
 
   // Das Fenster öffnet sofort (mit den Kandidaten vom letzten Mal, beim ersten Mal mit der Ladeanzeige); die Liste aller Sensoren des
@@ -718,7 +733,7 @@ export class SensorsUi {
     this.host._setHtml(dlg, `<div class="ag-dlg-body"><h3>${esc(this._t("pickTitle"))}</h3><div class="ag-t2">${esc(this._t("pickHint"))}</div>
       <label class="list-search" style="margin-top:12px">${ic("search", 18)}<input type="search" data-sen="pick-q" placeholder="${esc(this._t("search"))}" value="${esc(this.pick.q)}" aria-label="${esc(this._t("search"))}">
         <button class="ag-clear" data-sen="pick-clear" aria-label="${esc(this._t("clearSearch"))}" ${this.pick.q ? "" : "hidden"}>${ic("close", 16)}</button></label>
-      <div class="ag-tools ag-pick-chips">${[["all", "filterAll"], ["openings", "filterOpenings"], ["motion", "filterMotion"], ["other", "filterOther"], ...(this.monitorOn ? [["measure", "filterMeasure"]] : [])].map(([k, label]) => `<button class="ag-chip ${this.pick.filter === k ? "on" : ""}" data-sen="pick-filter" data-filter="${k}">${esc(this._t(label))}</button>`).join("")}</div>
+      <div class="ag-tools ag-pick-chips">${this._pickChips()}</div>
       <div class="ag-elist" style="margin-top:10px;max-height:min(46vh,380px)">${this._pickListHtml()}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sen="pick-close">${esc(this._t("cancel"))}</button>
         <button class="ag-btn primary" data-sen="pick-add" ${this.pick.sel.size ? "" : "disabled"}>${ic("plus", 18)}${esc(this._t("pickAdd", { count: this.pick.sel.size }))}</button></div></div>`);

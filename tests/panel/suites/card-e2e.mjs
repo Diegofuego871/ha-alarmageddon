@@ -135,6 +135,26 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: Server ohne Selbsttest: keine Zeile, kein Fehler`, await s.waitFor(`const r=root(1); return !!r.querySelector('.ag-status.ok') && !r.querySelector('.ag-st-row')`) && s.errors.length === 0, s.errors.join(" | "));
       await s.ctx.close();
     }
+    // ----- HealthCheck-Dienste (1.72.0, Wunsch des Nutzers 2026-11-20, 14:01): geteilte Zeile wie die Statuskachel des Panels -----
+    {
+      const h = { de: { st: "Selbsttest", ok: "keine Probleme", hc: "HealthCheck", ok1: "in Ordnung", okN: "alle in Ordnung", fail: "1 gescheitert", report: "Fehler gemeldet", none: "noch nichts gesendet", ago: "geprüft vor 2 Std.", two: "2 Probleme" },
+        en: { st: "Self-test", ok: "no problems", hc: "HealthCheck", ok1: "OK", okN: "all OK", fail: "1 failed", report: "failure reported", none: "nothing sent yet", ago: "checked 2 hr. ago", two: "2 problems" } }[lang];
+      const halves = "const r=root(1); const row=r.querySelector('.ag-split'); if (!row) return null; return [...row.querySelectorAll('.ag-half')].map((x) => ({ t: x.querySelector('.ag-half-t').textContent, s: x.querySelector('small').textContent, tone: x.querySelector('.ag-mini').className.replace('ag-mini', '').trim(), tip: x.title, w: Math.round(x.getBoundingClientRect().width), right: x.getBoundingClientRect().right <= innerWidth + 1 }))";
+      for (const [query, text, tone] of [["&hc=ok", h.ok1, "ok"], ["&hc=ok&hcn=3", h.okN, "ok"], ["&hc=fail&hcn=2", h.fail, "err"], ["&hc=report", h.report, "warn"], ["&hc=none", h.none, ""]]) {
+        const s = await open(query);
+        await s.waitFor("const r=root(1); return !!r.querySelector('.ag-split')");
+        const x = await s.ev(halves);
+        check(`${tag}: ${query}: Zeile geteilt, links "${h.st}: ${h.ok}" (Tooltip "${h.ago}"), rechts "${h.hc}: ${text}" (${tone || "grau"}), gleich breit, im Bild`, !!x && x.length === 2
+          && x[0].t === h.st && x[0].s === h.ok && x[0].tone === "ok" && x[0].tip.includes(h.ago) && x[1].t === h.hc && x[1].s === text && x[1].tone === tone && Math.abs(x[0].w - x[1].w) <= 2 && x.every((y) => y.right), JSON.stringify(x));
+        check(`${tag}: ${query}: Status bleibt "${t.ok}", nur eine Zeile`, await s.ev(`const r=root(1); return r.querySelector('.ag-status.ok h2')?.textContent === '${t.ok}' && r.querySelectorAll('.ag-rows > .ag-row').length === 1`));
+        check(`${tag}: ${query}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
+        await s.ctx.close();
+      }
+      const s = await open("&hc=ok&status=warn&selftest=2");
+      const x = await s.ev(halves);
+      check(`${tag}: mit Warnungen und zwei Befunden: geteilte Zeile mit "${h.two}", zählt mit (3 brauchen Aufmerksamkeit)`, await s.waitFor("const r=root(1); return !!r.querySelector('.ag-status.warn') && /3/.test(r.querySelector('h2').textContent)") && !!x && x[0].s === h.two && x[0].tone === "warn", JSON.stringify(x));
+      await s.ctx.close();
+    }
     // ----- Code-Review 1.63.0: die Karte durchsucht die Registrierung nur, wenn sie sich ändert, nicht bei jeder Zustandsänderung im Haus -----
     {
       const s = await open();

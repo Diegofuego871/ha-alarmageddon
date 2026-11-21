@@ -23,7 +23,11 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Fenster mit allen erkannten, noch nicht gewählten`, await s.waitFor("const d=r.getElementById('ag-pick'); return d.open && !!d.querySelector('[data-sen=\"pick-toggle\"][data-ent=\"binary_sensor.bewegung_garage\"]') && !!d.querySelector('[data-sen=\"pick-toggle\"][data-ent=\"binary_sensor.wasser_keller\"]')"));
     check(`${tag}: schon gewählte nicht angeboten`, await s.ev(`return !r.querySelector('#ag-pick [data-ent="${zoned[0]}"]')`));
     check(`${tag}: Hinzufügen gesperrt ohne Auswahl`, await s.ev("return r.querySelector('#ag-pick [data-sen=\"pick-add\"]').disabled"));
-    check(`${tag}: gleiche Filterpillen wie die Liste`, await s.ev("const c=[...r.querySelectorAll('#ag-pick [data-sen=\"pick-filter\"]')].map((b) => b.dataset.filter); return c.join() === 'all,openings,motion,other'"));
+    // Pillen nur für vorhandene Arten (seit 1.72.0); Wasser mit eigener Pille (Wunsch des Nutzers 2026-11-20, 14:45), "Weitere" fehlt hier (nichts dafür)
+    const pickPills = await s.ev("return [...r.querySelectorAll('#ag-pick [data-sen=\"pick-filter\"]')].map((b) => b.dataset.filter).join()");
+    check(`${tag}: Filterpillen nur für vorhandene Arten: Alle, Türen & Fenster, Bewegung, Wasser`, pickPills === 'all,openings,motion,water', pickPills);
+    await s.tap('#ag-pick [data-sen="pick-filter"][data-filter="water"]');
+    check(`${tag}: Filter Wasser zeigt nur den Wassermelder`, await s.waitFor("const l=[...r.querySelectorAll('#ag-pick [data-sen=\"pick-toggle\"]')]; return l.length === 1 && l[0].dataset.ent === 'binary_sensor.wasser_keller'"));
     await s.tap('#ag-pick [data-sen="pick-filter"][data-filter="motion"]');
     check(`${tag}: Filter Bewegung zeigt nur Bewegungsmelder`, await s.waitFor("const l=[...r.querySelectorAll('#ag-pick [data-sen=\"pick-toggle\"]')]; return l.length === 1 && l[0].dataset.ent === 'binary_sensor.bewegung_garage'"));
     await s.tap('#ag-pick [data-sen="pick-filter"][data-filter="all"]');

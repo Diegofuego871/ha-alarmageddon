@@ -206,6 +206,39 @@ async def test_arming_does_not_change_the_interval(hass: HomeAssistant, freezer,
     assert calls(aioclient_mock) == [HC, HC]
 
 
+async def test_the_status_entity_sums_up_the_services_without_their_address(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
+    """Dashboard-Karte (1.72.0, Wunsch des Nutzers 2026-11-20, 14:01): die Statusentität fasst die Dienste zusammen wie die Statuskachel des Panels
+    (Zahl, in Ordnung, melden Fehler, gescheitert), nur als Zahlen: nie URL, Name oder Rechner (Attribute stehen in jedem Dashboard und in der
+    Aufzeichnung). Ein Lebenszeichen und das Entfernen eines Dienstes führen sie sofort nach."""
+    aioclient_mock.get(HC, status=200)
+    aioclient_mock.get(f"{HC}/fail", status=200)
+    aioclient_mock.get(BS, status=500)
+    await setup_alarm(hass)
+
+    def summary() -> tuple[int, int, int, int]:
+        a = hass.states.get("sensor.haus_status").attributes
+        return a["healthcheck"], a["healthcheck_ok"], a["healthcheck_report"], a["healthcheck_fail"]
+
+    assert summary() == (0, 0, 0, 0)
+    client = await hass_ws_client(hass)
+    first = await add(client, name="Erster Dienst", interval=3600)
+    second = await add(client, name="Zweiter Dienst", url=BS, interval=3600)
+    assert first["success"] and second["success"]
+    await advance(hass, freezer, 2)
+    assert summary() == (2, 1, 0, 1), "einer in Ordnung, einer gescheitert"
+    await advance(hass, freezer, HEALTHCHECK_MIN_GAP + 5)
+    # Probleme des Selbsttests: der erste meldet den Fehler, der zweite scheitert weiter (seine Fehler-URL antwortet nicht)
+    st.async_note(hass, None, "backup_failed", "auto")
+    await advance(hass, freezer, 2)
+    assert summary() == (2, 0, 1, 1)
+    text = str(dict(hass.states.get("sensor.haus_status").attributes))
+    for secret in (HC, BS, "hc-ping.com", "betterstack", "00000000-1111", "Erster Dienst", "Zweiter Dienst", "/fail"):
+        assert secret not in text, secret
+    assert (await ws(client, type=f"{DOMAIN}/healthcheck_delete", check_id=second["result"]["id"]))["success"]
+    await hass.async_block_till_done()
+    assert summary() == (1, 0, 1, 0)
+
+
 async def test_a_service_without_failure_address_only_sends_the_heartbeat(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
     url = "https://x.example/ok"
     aioclient_mock.get(url, status=200)
