@@ -7,12 +7,18 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.74.2] - 2026-11-21
+
+### Changed
+
+- **Setup assistant wand:** wand, stars and shooting star start at the same moment, without a gap: while the wand swings the stars wiggle and the shooting star sets off from the dot, slowly at first and faster and faster (a short acceleration curve) once around the button; when the wand comes to rest the dot flashes briefly and stays.
+
 ## [1.74.1] - 2026-11-21
 
 ### Changed
 
 - **HealthCheck form:** the title "On alarm (optional)" is now "On alarm"; both suffixes are optional. For a service Alarmageddon recognizes, both are filled in for you (as long as you have not touched them); you can empty them or save without them. Without a failure or alarm suffix the matching test button ("Send failure", "Send alarm") is not shown, in the list and in the head of the log.
-- **Setup assistant wand:** wand, stars and shooting star start at the same moment, without a gap: while the wand swings the stars wiggle and the shooting star sets off from the dot, slowly at first and faster and faster (a short acceleration curve) once around the button; when the wand comes to rest the dot flashes briefly and stays.
+- **Setup assistant wand:** as soon as the wand stops moving, the stars start to wiggle and at the same time the shooting star sets off from the dot, slowly at first and faster and faster (a short acceleration curve) once around the button; at the end the dot flashes briefly and stays.
 
 ### Fixed
 
@@ -2110,6 +2116,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.74.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.2
 [1.74.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.1
 [1.74.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0

@@ -7,12 +7,18 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.74.2] - 2026-11-21
+
+### Geändert
+
+- **Zauberstab des Assistenten:** Stab, Sterne und Sternschnuppe beginnen im selben Augenblick, ohne Lücke: während der Stab schwingt, wackeln die Sterne, und die Sternschnuppe fährt vom Punkt aus los, erst langsam und dann immer schneller (kurze Beschleunigungskurve) einmal um den Knopf; sobald der Stab zur Ruhe kommt, blitzt der Punkt kurz auf und bleibt stehen.
+
 ## [1.74.1] - 2026-11-21
 
 ### Geändert
 
 - **Formular der HealthCheck-Dienste:** Der Titel "Bei Alarm (freiwillig)" heisst jetzt "Bei Alarm"; beide Zusätze sind freiwillig. Bei einem erkannten Dienst setzt Alarmageddon beide für dich ein (solange du sie nicht angefasst hast); du kannst sie leeren oder ohne sie speichern. Ohne Fehler- oder Alarm-Zusatz wird der passende Test-Knopf ("Fehler senden", "Alarm senden") nicht angezeigt, in der Liste und im Kopf des Protokolls.
-- **Zauberstab des Assistenten:** Stab, Sterne und Sternschnuppe beginnen im selben Augenblick, ohne Lücke: während der Stab schwingt, wackeln die Sterne, und die Sternschnuppe fährt vom Punkt aus los, erst langsam und dann immer schneller (kurze Beschleunigungskurve) einmal um den Knopf; sobald der Stab zur Ruhe kommt, blitzt der Punkt kurz auf und bleibt stehen.
+- **Zauberstab des Assistenten:** Sobald der Stab aufhört sich zu bewegen, fangen die Sterne an zu wackeln, und gleichzeitig fährt die Sternschnuppe vom Punkt aus los, erst langsam und dann immer schneller (kurze Beschleunigungskurve) einmal um den Knopf; am Ende blitzt der Punkt kurz auf und bleibt stehen.
 
 ### Behoben
 
@@ -2110,6 +2116,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.74.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.2
 [1.74.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.1
 [1.74.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
