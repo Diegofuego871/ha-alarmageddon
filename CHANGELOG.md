@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Log of HealthCheck services:** the 90-day chart is now a **6-month** chart (more filled in); 90 days is replaced.
 - **Action buttons tinted:** "Send life sign" slightly green, "Send failure" slightly orange, "Send alarm" slightly red; pencil and log stay neutral. The cross and the round buttons in the head of the log are the same size and on one line on the iPad.
 - **"Use" next to a suggestion** (failure and alarm suffix) is a bold button with a tinted background and a border instead of a faint link, so it is not overlooked.
+- **Setup assistant, "More features":** a round arrow in each row jumps straight to the feature (Routines, Codes per person, Your own sounds, HealthCheck): Configuration › Alarm system opens with its window. Closing the window brings you back to the assistant on the same step; nothing is completed on the way. The dashboard card has no jump (it lives in the Home Assistant dashboard).
 - **Add code:** user, name and code are chapters (bold title with a bar before it, like "Add routine"); the setup assistant uses the same window.
 
 ### Fixed

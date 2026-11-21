@@ -1462,7 +1462,7 @@ class AlarmageddonPanel extends HTMLElement {
   // Sprung an eine Stelle der Konfiguration (Selbsttest, 1.65.0): Aktionen (mit Auslöser), Routinen (die Liste öffnet sich), Sensoren,
   // Benachrichtigungen. Bei einer anderen Anlage fragt das Panel wie überall zuerst nach ungespeicherten Änderungen.
   openPlace(kind, entry, trigger) {
-    const sub = { actions: "actions", routines: "system", healthcheck: "system", sensors: "sensors", notify: "notify" }[kind] || "sensors";
+    const sub = { actions: "actions", routines: "system", codes: "system", sounds: "system", healthcheck: "system", sensors: "sensors", notify: "notify" }[kind] || "sensors";
     const go = () => {
       if (entry && this._sel !== entry) {
         this._sel = entry;
@@ -1481,6 +1481,9 @@ class AlarmageddonPanel extends HTMLElement {
       if (kind === "routines") window.requestAnimationFrame(() => this.systemUi.rt?.openList());
       // HealthCheck (1.65.0): gilt für alle Anlagen, die Liste der Lebenszeichen öffnet über dem Reiter Anlage
       if (kind === "healthcheck") window.requestAnimationFrame(() => this.healthcheck.openList());
+      // Codes pro Person und Eigene Töne (1.73.0, Sprung aus "Weitere Funktionen" im Einrichtungsassistenten)
+      if (kind === "codes") window.requestAnimationFrame(() => this.systemUi.openCodeList());
+      if (kind === "sounds") window.requestAnimationFrame(() => this.systemUi.openCsList());
     };
     if (entry && this._sel !== entry) this._guard(go);
     else go();

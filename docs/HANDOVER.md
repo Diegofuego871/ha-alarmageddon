@@ -8,6 +8,7 @@ Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
     vier Kapiteln, Vorschläge mit englischer Nachricht (Cronitor `?state=fail&message=…`, Kuma `?status=down&msg=…`; Healthchecks.io und Better Stack nur `/fail` und `/2`,
     die Nachricht geht dort nur per POST; **offen:** nicht geprüft, wie `/2` bei den Diensten angezeigt wird). Der Fehler-Aufruf kommt nur bei Problemen des Selbsttests.
   - **6 Monate** statt 90 Tage im Protokoll; Aktionsknöpfe eingefärbt; X und Knöpfe im Kopf des Protokolls auf dem iPad gleich gross.
+  - **Weitere Funktionen** (Wunsch 2026-11-21): runder Pfeil je Funktion springt zur Funktion, Schliessen des Fensters führt zurück zum Assistenten (`wizard._goMore`, `openPlace` kennt `codes` und `sounds`); Suite `wzmore-e2e.mjs`.
   - **Zauberstab** wiederholt sich alle 30 s mit Sternschnuppe; **Ecken der Tabellen** auf dem Handy (Suite `corners-e2e.mjs`); **Code hinzufügen** in Kapiteln.
   - Mutationsprobe "hängender Dienst": unter eingefrorener Zeit endet `asyncio.sleep`/`wait_for` nie; der Test lässt den Dienst darum in einem Thread mit echter Zeit
     schlafen (`time.sleep` im Executor) und prüft, dass `async_block_till_done` nicht auf ihn wartet (Hintergrundaufgabe). Zeile "keine Hintergrundaufgabe" in `scripts/mutation_check.py`.

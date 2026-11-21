@@ -380,8 +380,10 @@ Umsetzung:
   je Schritt aus. Er öffnet sich nie über ungespeicherte Änderungen oder ein offenes Fenster; der Start von Hand fragt vorher. Der Code ist
   freiwillig (ein Hauptcode zählt), "Schnell hinzufügen" nur Sirene 3 Minuten und Alarmton (Entscheid: ohne Licht), "Überwachung" nur mit
   passenden Messwerten oder eingeschalteter Überwachung (seit 1.70.0: solange die Messwerte laden, bleibt ein angefangener Schritt "Überwachung" stehen,
-  `_monitorFits`; Messwerte über das Fenster `#ag-wzpick`, nie alle als Knöpfe, Wunsch des Nutzers 2026-11-20). "Weitere Funktionen" am Schluss ist
-  nur Information, der einzige Knopf "Konfiguration öffnen" schliesst ab wie "Fertig". Testmeldungen im Assistenten (seit 1.71.0, Wunsch des Nutzers
+  `_monitorFits`; Messwerte über das Fenster `#ag-wzpick`, nie alle als Knöpfe, Wunsch des Nutzers 2026-11-20). "Weitere Funktionen" am Schluss hat seit 1.73.0 je Funktion (ausser der Dashboard-Karte)
+  einen runden Pfeil (`data-wz="more-go"`, `wizard._goMore`, `MORE`): er schliesst den Assistenten **ohne ihn abzuschliessen**, springt mit `openPlace` (Routinen,
+  Codes, Töne, HealthCheck) nach Konfiguration › Anlage und öffnet das Fenster; das Schliessen des Fensters (`close`-Ereignis) startet den Assistenten wieder
+  auf "Fertig" (`start`, offene Änderungen fragen vorher). Suite `wzmore-e2e.mjs`. Der Knopf "Konfiguration öffnen" schliesst ab wie "Fertig". Testmeldungen im Assistenten (seit 1.71.0, Wunsch des Nutzers
   2026-11-20, 11:40): je eine an die Standard-Empfänger der Alarme und der Wartung (`test_notify` mit `group`, `Notifier.send_group_test`: ohne
   Empfänger der Gruppe geht nichts hinaus, nie an die Empfänger einer Art; `kind` und `group` schliessen sich aus). Knopf im Kopf (seit 1.71.0,
   Entscheide des Nutzers 11:48): rund neben dem Stift (`_wizardBtn`), nur solange der Assistent nicht `done` ist, führt beim gemerkten Schritt weiter

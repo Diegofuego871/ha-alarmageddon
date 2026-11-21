@@ -26,9 +26,11 @@ const MEASURE_FILTERS = [["all", "filterAll"], ["temperature", "dcTemperature"],
 // Weitere Funktionen am Schluss: nur zur Information, wo sie stehen (Wunsch des Nutzers 2026-11-20, 08:33: die Kacheln verleiteten zum Klicken)
 // Seit 1.72.0 (Wunsch des Nutzers 2026-11-20, 14:00) die Symbole in der Farbe ihres Kapitels unter Konfiguration › Anlage (`ag-tint-*`) und "Eigene Töne"
 // dazu, in der Reihenfolge der Kapitel; die Dashboard-Karte hat kein Kapitel und bekommt eine eigene Farbe (`ag-tint-card`)
-const MORE = [["flash", "routines", "rtTitle", "wzMore_routines", "wzWhere_routines"], ["hand", "codes", "sysCodes", "wzMore_codes", "wzWhere_codes"],
-  ["speaker", "sounds", "csTitle", "wzMore_sounds", "wzWhere_sounds"], ["heartPulse", "health", "hcTitle", "wzMore_health", "wzWhere_health"],
-  ["viewOptions", "card", "wzMoreCard", "wzMore_card", "wzWhere_card"]];
+// Seit 1.73.0 (Wunsch des Nutzers 2026-11-21) springt ein runder Pfeil je Funktion direkt dorthin (`openPlace`); das Fenster schliesst man, und der
+// Assistent steht wieder auf diesem Schritt. Die Dashboard-Karte steht im Dashboard von Home Assistant und hat keinen Sprung.
+const MORE = [["flash", "routines", "rtTitle", "wzMore_routines", "wzWhere_routines", "routines", "ag-rtlist"], ["hand", "codes", "sysCodes", "wzMore_codes", "wzWhere_codes", "codes", "ag-codelist"],
+  ["speaker", "sounds", "csTitle", "wzMore_sounds", "wzWhere_sounds", "sounds", "ag-cslist"], ["heartPulse", "health", "hcTitle", "wzMore_health", "wzWhere_health", "healthcheck", "ag-hclist"],
+  ["viewOptions", "card", "wzMoreCard", "wzMore_card", "wzWhere_card", "", ""]];
 const short = (s) => s.replace(/^notify\.(mobile_app_)?/, "");
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
@@ -263,6 +265,26 @@ export class WizardUi {
     const list = this.steps();
     const i = list.indexOf(this.step);
     if (i > 0) this.go(list[i - 1]);
+  }
+
+  // Weitere Funktionen: direkt zur Funktion springen (Konfiguration › Anlage, das Fenster öffnet sich). Der Assistent bleibt offen im Sinn des
+  // Servers (nichts wird abgeschlossen); schliesst man das Fenster, öffnet er sich wieder auf diesem Schritt. Offene Änderungen (Routinen sind
+  // ein Entwurf der Seite) fragen dabei wie überall (`start`); man bleibt dann in der Konfiguration, der Knopf im Kopf führt weiter.
+  _goMore(kind) {
+    const h = this.host;
+    const row = MORE.find((m) => m[5] === kind);
+    if (!row || this.busy) return;
+    const entry = this.entry;
+    this.close();
+    h.openPlace(kind, entry);
+    const dlgId = row[6];
+    const wait = (n = 0) => {
+      const dlg = h._root.getElementById(dlgId);
+      if (dlg?.open) {
+        dlg.addEventListener("close", () => { if (!this.active) this.start("done"); }, { once: true });
+      } else if (n < 40) window.setTimeout(() => wait(n + 1), 50);
+    };
+    window.requestAnimationFrame(() => wait());
   }
 
   async later(action) {
@@ -829,8 +851,8 @@ export class WizardUi {
     }).join("");
     // Nur zur Information, keine Kacheln (sie verleiteten zum Klicken): je Funktion, was sie tut und wo sie steht; unten ein Knopf, der den
     // Assistenten abschliesst und Konfiguration › Anlage öffnet
-    const more = MORE.map(([icon, tint, title, text, where]) => `<div class="ag-setrow ag-wz-morerow"><span class="ag-wz-moreic ag-tint ag-tint-${tint}">${ic(icon, 20)}</span><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(text))}</small>
-      <small class="ag-wz-where">${ic("info", 13)}${esc(this._t(where))}</small></div></div>`).join("");
+    const more = MORE.map(([icon, tint, title, text, where, go]) => `<div class="ag-setrow ag-wz-morerow"><span class="ag-wz-moreic ag-tint ag-tint-${tint}">${ic(icon, 20)}</span><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(text))}</small>
+      <small class="ag-wz-where">${ic("info", 13)}${esc(this._t(where))}</small></div>${go ? `<div class="ag-wf-btns ag-wz-gowrap"><button class="ag-iconbtn ag-wz-go" data-wz="more-go" data-go="${go}" ${this.busy ? "disabled" : ""} aria-label="${esc(this._t("wzMoreGo", { name: this._t(title) }))}" title="${esc(this._t("wzMoreGo", { name: this._t(title) }))}">${ic("chevRight", 18)}</button></div>` : ""}</div>`).join("");
     return `<div class="ag-card ag-setlist ag-wz-sum">${rows}</div>
       ${this._chap(this._t("wzTry"), `<div class="ag-card ag-setlist">
         <div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzTestActions"))}</b><small>${esc(testHint)}</small></div>${testBtn}</div>
@@ -979,6 +1001,8 @@ export class WizardUi {
       this.host._closeDialog("ag-wzpick");
     } else if (act === "mpick-add") {
       this._pickAdd();
+    } else if (act === "more-go") {
+      this._goMore(el.dataset.go);
     } else if (act === "settings") {
       // Weitere Funktionen: schliesst den Assistenten wie "Fertig" (alles ist gespeichert) und öffnet Konfiguration › Anlage
       this.finishTo = "system";

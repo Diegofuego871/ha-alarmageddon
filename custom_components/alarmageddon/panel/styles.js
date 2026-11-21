@@ -1812,6 +1812,7 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz-moreic.ag-tint { background: color-mix(in srgb, var(--ag-tint) 15%, transparent); color: var(--ag-tint); }
 .ag-tint-card { --ag-tint: #0277bd; }
 :host([dark]) .ag-tint-card { --ag-tint: #81d4fa; }
+.ag-wz-morerow > .ag-wz-gowrap, :host([narrow]) .ag-wz-morerow > .ag-wz-gowrap { flex: none; width: 44px; min-width: 0; margin: 0 0 0 auto; align-self: center; }
 .ag-wz-where { display: flex !important; align-items: flex-start; gap: 5px; margin-top: 4px; color: var(--ag-text2); }
 .ag-wz-where > .ag-ic, .ag-wz-where > svg { flex: none; margin-top: 2px; }
 .ag-wz-moreopen { justify-content: space-between; }

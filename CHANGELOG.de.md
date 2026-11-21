@@ -22,6 +22,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 - **Protokoll der HealthCheck-Dienste:** Die Grafik für 90 Tage ist jetzt eine **6-Monats**-Grafik (voller); 90 Tage entfällt.
 - **Aktionsknöpfe eingefärbt:** "Lebenszeichen senden" leicht grün, "Fehler senden" leicht orange, "Alarm senden" leicht rötlich; Stift und Protokoll bleiben neutral. Das X und die runden Knöpfe im Kopf des Protokolls sind auf dem iPad gleich gross und auf einer Höhe.
 - **"Übernehmen" beim Vorschlag** (Fehler- und Alarm-Zusatz) ist ein kräftiger Knopf mit getöntem Hintergrund und Rand statt eines blassen Links, damit er nicht überlesen wird.
+- **Einrichtungsassistent, "Weitere Funktionen":** Ein runder Pfeil in jeder Zeile springt direkt zur Funktion (Routinen, Codes pro Person, Eigene Töne, HealthCheck): Konfiguration › Anlage öffnet sich mit dem Fenster. Das Schliessen des Fensters führt zurück in den Assistenten auf denselben Schritt; unterwegs wird nichts abgeschlossen. Die Dashboard-Karte hat keinen Sprung (sie steht im Dashboard von Home Assistant).
 - **Code hinzufügen:** Benutzer, Name und Code sind Kapitel (fetter Titel mit Strich davor, wie bei "Routine hinzufügen"); der Einrichtungsassistent nutzt dasselbe Fenster.
 
 ### Behoben
