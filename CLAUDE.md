@@ -318,11 +318,11 @@ Umsetzung:
   Probleme zählen nur bei `fail`); Dienste ohne Alarm-Zusatz bleiben unberührt. Wie jedes Lebenszeichen eine Hintergrundaufgabe mit `HEALTHCHECK_TIMEOUT`:
   **nie etwas, das einen Alarm aufhält** (Test `test_healthcheck.py -k hanging_service`). Der Testknopf "Alarm senden" (`healthcheck_ping` kind `alarm`)
   gibt es nur mit Alarm-Zusatz. Protokoll: Art `report`, Ereignisse tragen `sent: "alarm"` und laufen nie mit Fehlern des Selbsttests zusammen. Das Panel
-  schlägt den Alarm-Zusatz nur vor ("Übernehmen"), füllt ihn nie von selbst; Nachrichten der Vorschläge bleiben Englisch (Vorgabe des Nutzers). Tests
+  setzt bei einem erkannten Dienst **beide** Zusätze von selbst ein, solange sie niemand berührt hat (`alarmTouched`/`touched`, seit 1.74.1, Wunsch des Nutzers 2026-11-21; danach steht "Übernehmen" daneben); beide sind freiwillig (leer speichern geht), ohne Zusatz fehlt der Test-Knopf "Fehler senden" bzw. "Alarm senden" in Liste und Protokollkopf; Nachrichten der Vorschläge bleiben Englisch (Vorgabe des Nutzers). Tests
   `tests/test_healthcheck.py -k alarm`, `tests/test_healthcheck_log.py -k alarm_call`, Suite `hcalarm-e2e.mjs`, Zeilen "HealthCheck Alarm" in `scripts/mutation_check.py`.
   Das Protokoll hat statt 90 Tagen 6 Monate (`HEALTHLOG_RANGES`: 3, 12, 24, 168, 720, 4320, 8760 Stunden).
 - Zauberstab des Einrichtungsassistenten (seit 1.73.0, Wunsch des Nutzers): wiederholt sich alle `WAVE_PAUSE_MS` (30 s) nach dem Ende (`WAVE_LEN_MS`) und endet
-  mit der Sternschnuppe wie im Device Panel (`ag-wz-comet`, `ag-wz-land`), auch bei "Bewegung reduzieren"; der Zeitgeber stoppt, wenn der Knopf weg ist.
+  mit der Sternschnuppe wie im Device Panel (`ag-wz-comet`, `ag-wz-land`), auch bei "Bewegung reduzieren". Ablauf (seit 1.74.1): Stab 0 bis 1,4 s; sobald er still steht, wackeln die Sterne (`ag-wz-twinkle`) und gleichzeitig fährt der Komet vom Punkt aus los (Beschleunigungskurve, 1,15 s, einmal herum), am Ende blitzt der Punkt auf (2,55 s) und bleibt; der Zeitgeber stoppt, wenn der Knopf weg ist.
 - Ecken der Tabellen (seit 1.73.0): die klebende Kopfzeile einer Tabelle in einer Karte mit rundem Rand trägt dort denselben inneren Radius (17 px); auf dem
   Handy ist die Zeile selbst gerundet und ihre `th` transparent. Jede neue Tabelle in einer Karte kommt in `tests/panel/suites/corners-e2e.mjs`.
 - Protokoll der HealthCheck-Dienste (seit 1.68.0, `healthcheck_log.py`, `panel/healthlog.js`; Wunsch und Entscheide des Nutzers vom 2026-11-19,

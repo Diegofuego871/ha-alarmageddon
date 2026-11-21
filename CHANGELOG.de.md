@@ -9,6 +9,11 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [1.74.1] - 2026-11-21
 
+### Geändert
+
+- **Formular der HealthCheck-Dienste:** Der Titel "Bei Alarm (freiwillig)" heisst jetzt "Bei Alarm"; beide Zusätze sind freiwillig. Bei einem erkannten Dienst setzt Alarmageddon beide für dich ein (solange du sie nicht angefasst hast); du kannst sie leeren oder ohne sie speichern. Ohne Fehler- oder Alarm-Zusatz wird der passende Test-Knopf ("Fehler senden", "Alarm senden") nicht angezeigt, in der Liste und im Kopf des Protokolls.
+- **Zauberstab des Assistenten:** Sobald der Stab aufhört sich zu bewegen, fangen die Sterne an zu wackeln, und gleichzeitig fährt die Sternschnuppe vom Punkt aus los, erst langsam und dann immer schneller (kurze Beschleunigungskurve) einmal um den Knopf; am Ende blitzt der Punkt kurz auf und bleibt stehen.
+
 ### Behoben
 
 - **Neue Routine:** Das Feld "Name" war rot und eine Meldung zur Zahl der Zeichen stand da, sobald das Fenster aufging, als hätte jemand schon versucht zu speichern. Das Formular beginnt jetzt ruhig: Der Name wird erst rot, wenn man ihn angefasst hat, die Meldung erscheint nach der ersten Änderung im Formular, und "Speichern" bleibt gesperrt, solange etwas fehlt. Fokus und Lage des Fensters bleiben, wie sie waren.

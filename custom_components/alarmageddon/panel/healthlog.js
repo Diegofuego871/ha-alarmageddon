@@ -278,7 +278,7 @@ export class HealthLogView extends SensorView {
     const hc = this.host.healthcheck;
     const busy = (kind) => Boolean(hc.busy?.has(`${item.id}|${kind}`));
     const btn = (act, icon, label, off = false) => `<button type="button" class="ag-iconbtn" data-sv="${act}" title="${esc(label)}" aria-label="${esc(label)}" ${off ? "disabled" : ""}>${ic(icon, 18)}</button>`;
-    return `<div class="ag-wf-btns ag-hcbtns ag-sv-ha ag-hl-acts">${btn("test-fail", "alert", t(item.fail_suffix ? "hcTestFail" : "hcTestFailNone"), !item.fail_suffix || busy("fail"))}${item.alarm_suffix ? btn("test-alarm", "bell", t("hcTestAlarm"), busy("alarm")) : ""}${btn("test-ok", "check", t("hcTestOk"), busy("ok"))}${btn("edit", "pencil", t("hcEdit"))}</div>`;
+    return `<div class="ag-wf-btns ag-hcbtns ag-sv-ha ag-hl-acts">${item.fail_suffix ? btn("test-fail", "alert", t("hcTestFail"), busy("fail")) : ""}${item.alarm_suffix ? btn("test-alarm", "bell", t("hcTestAlarm"), busy("alarm")) : ""}${btn("test-ok", "check", t("hcTestOk"), busy("ok"))}${btn("edit", "pencil", t("hcEdit"))}</div>`;
   }
 
   _rangeSeg() {

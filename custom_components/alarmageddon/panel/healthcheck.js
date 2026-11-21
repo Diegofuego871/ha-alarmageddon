@@ -245,7 +245,7 @@ export class HealthCheckUi {
         <td class="ag-t2 ag-hclast">${esc(i.status ? this._when(i.status.at) : "–")}</td>
         <td class="ag-t2 ag-hcint">${esc(fmtDur(i.interval))}</td>
         <td class="ag-hcst"><span class="ag-hcstate ${this._statusTone(i.status)}">${esc(this._statusText(i.status))}</span></td>
-        <td class="ag-acts"><div class="ag-wf-btns ag-hcbtns">${btn("log", "history", t("hlOpen"), i.id)}${btn("test-fail", "alert", t(i.fail_suffix ? "hcTestFail" : "hcTestFailNone"), i.id, !i.fail_suffix)}${i.alarm_suffix ? btn("test-alarm", "bell", t("hcTestAlarm"), i.id) : ""}${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
+        <td class="ag-acts"><div class="ag-wf-btns ag-hcbtns">${btn("log", "history", t("hlOpen"), i.id)}${i.fail_suffix ? btn("test-fail", "alert", t("hcTestFail"), i.id) : ""}${i.alarm_suffix ? btn("test-alarm", "bell", t("hcTestAlarm"), i.id) : ""}${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
     }).join("");
     const th = (k, label, cls = "") => {
       const on = sort.key === k;
@@ -262,7 +262,7 @@ export class HealthCheckUi {
     if (!item && this.items.length >= this.max) return;
     const interval = item?.interval ?? 300;
     const hours = interval % 3600 === 0;
-    this.form = { id: item?.id || null, name: item?.name || "", url: item?.url || "", suffix: item?.fail_suffix ?? "", alarm: item?.alarm_suffix ?? "", touched: Boolean(item),
+    this.form = { id: item?.id || null, name: item?.name || "", url: item?.url || "", suffix: item?.fail_suffix ?? "", alarm: item?.alarm_suffix ?? "", touched: Boolean(item), alarmTouched: Boolean(item),
       value: hours ? interval / 3600 : Math.round(interval / 60), unit: hours ? "h" : "min", error: "", saving: false };
     this.renderForm(true);
     const dlg = this.formDlg;
@@ -302,7 +302,7 @@ export class HealthCheckUi {
       offer: known && known.suffix !== String(f.suffix || "").trim()
         ? `<div class="ag-hcoffer"><span class="ag-t2">${esc(t("hcSuggest", { name: known.name, suffix: known.suffix }))}</span><button type="button" class="ag-link" data-hc="f-take">${esc(t("hcTake"))}</button></div>` : "",
       prev: preview ? `${esc(t("hcPreview"))} <span class="ag-mono">${esc(preview)}</span>` : esc(t(String(f.suffix || "").trim() ? "hcPreviewNone" : "hcPreviewEmpty")),
-      // Alarm-Zusatz (1.73.0): ein Vorschlag steht nur daneben ("Übernehmen"), er füllt das Feld nie von selbst (ein Alarm-Aufruf soll bewusst gewollt sein)
+      // Alarm-Zusatz: wie der Fehler-Zusatz (seit 1.74.1 setzt ihn ein erkannter Dienst von selbst ein, solange ihn niemand berührt hat); danach steht nur noch "Übernehmen" daneben
       offerAlarm: known?.alarm && known.alarm !== String(f.alarm || "").trim()
         ? `<div class="ag-hcoffer"><span class="ag-t2">${esc(t("hcSuggest", { name: known.name, suffix: known.alarm }))}</span><button type="button" class="ag-link" data-hc="f-take-alarm">${esc(t("hcTake"))}</button></div>` : "",
       prevAlarm: previewAlarm ? `${esc(t("hcPreviewAlarm"))} <span class="ag-mono">${esc(previewAlarm)}</span>` : esc(t(String(f.alarm || "").trim() ? "hcPreviewNone" : "hcPreviewAlarmEmpty")),
@@ -486,6 +486,7 @@ export class HealthCheckUi {
       const known = suggest(this.form?.url);
       if (this.form && known?.alarm) {
         this.form.alarm = known.alarm;
+        this.form.alarmTouched = true;
         this._refreshFormParts();
       }
     } else if (act === "search" || act.startsWith("f-")) return true; // Felder: Eingaben kommen über onInput
@@ -512,11 +513,14 @@ export class HealthCheckUi {
       // Vorschlag nur, solange niemand den Zusatz berührt hat: der Nutzer hat das letzte Wort
       const known = suggest(f.url);
       if (!f.touched) f.suffix = known ? known.suffix : "";
+      // Seit 1.74.1 (Wunsch des Nutzers 2026-11-21) setzt ein erkannter Dienst auch den Alarm-Zusatz ein, solange ihn niemand berührt hat; beide Zusätze bleiben freiwillig
+      if (!f.alarmTouched) f.alarm = known?.alarm ?? "";
     } else if (act === "f-suffix") {
       f.suffix = el.value;
       f.touched = true;
     } else if (act === "f-alarm") {
       f.alarm = el.value;
+      f.alarmTouched = true;
     } else if (act === "f-value") {
       f.value = el.value.trim() === "" ? "" : Number(el.value);
     } else if (act === "f-unit") {

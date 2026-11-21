@@ -13,13 +13,13 @@ const T = {
     preview: "Aufruf bei Fehler:", errUrl: "vollständige http- oder https-URL", errSuffix: "muss mit /, ? oder & beginnen", errInterval: "1 Minute bis 24 Stunden",
     saved: "Dienst gespeichert", okSent: "Lebenszeichen gesendet", failSent: "Fehler gesendet", failed: "Gescheitert", noAnswer: "keine Antwort", test: "Test",
     failedRow: "1 Dienst: letztes Lebenszeichen gescheitert", noMatch: "Kein Dienst passt zur Suche.", editTitle: "Dienst bearbeiten", removeTitle: "Dienst entfernen?",
-    errName: "Einen Namen eingeben.", chaps: ["Dienst", "Bei Selbsttest-Fehler", "Bei Alarm (freiwillig)", "Intervall"], alarmEmpty: "Ohne Zusatz wird diesem Dienst kein Alarm gemeldet." },
+    errName: "Einen Namen eingeben.", chaps: ["Dienst", "Bei Selbsttest-Fehler", "Bei Alarm", "Intervall"], alarmEmpty: "Ohne Zusatz wird diesem Dienst kein Alarm gemeldet." },
   en: { chapter: "HealthCheck", none: "No external service", one: "1 of 5 services", three: "3 of 5 services", five: "5 of 5 services", add: "Add service", show: "Show services",
     title: "HealthCheck services", empty: "No service yet.", known: "Recognized: Healthchecks.io", suggest: "Suggestion for Healthchecks.io: /fail", take: "Use",
     preview: "Call on failure:", errUrl: "complete http or https URL", errSuffix: "must start with /, ? or &", errInterval: "1 minute to 24 hours",
     saved: "Service saved", okSent: "Life sign sent", failSent: "Failure sent", failed: "Failed", noAnswer: "no answer", test: "test",
     failedRow: "1 service: last life sign failed", noMatch: "No service matches the search.", editTitle: "Edit service", removeTitle: "Remove service?",
-    errName: "Enter a name.", chaps: ["Service", "On self-test failure", "On alarm (optional)", "Interval"], alarmEmpty: "Without a suffix no alarm is reported to this service." },
+    errName: "Enter a name.", chaps: ["Service", "On self-test failure", "On alarm", "Interval"], alarmEmpty: "Without a suffix no alarm is reported to this service." },
 };
 // Erfundene Adressen (nie eine echte Ping-URL)
 const HC = "https://hc-ping.com/0a1b2c3d-1111-4222-8333-444455556666";
@@ -56,23 +56,27 @@ for (const lang of ["de", "en"]) {
     let f = await form();
     check(`${tag}: Healthchecks.io erkannt, Zusatz "/fail" vorgeschlagen und eingetragen (Feld unberührt), Vorschau der Fehler-URL`,
       f.known.includes(t.known) && f.suffix === "/fail" && f.prev.includes(t.preview) && f.prev.includes(`${HC}/fail`) && !f.offer, JSON.stringify(f));
+    check(`${tag}: Healthchecks.io erkannt: auch der Alarm-Zusatz "/2" ist eingesetzt`, await s.ev("return r.querySelector('#ag-hcform [data-hc=\"f-alarm\"]').value === '/2'"));
     check(`${tag}: Fokus bleibt beim Tippen in der URL`, await s.ev("return r.activeElement?.dataset.hc === 'f-url'"));
     // Andere URL: der Vorschlag folgt, solange niemand den Zusatz berührt hat
     await (await s.el('[data-hc="f-url"]')).fill(CRON);
     f = await form();
     check(`${tag}: Cronitor: Zusatz mit englischer Meldung folgt (unberührt)`, f.suffix === "?state=fail&message=Self-test+failed" && f.prev.includes(`${CRON}?state=fail&message=Self-test+failed`), JSON.stringify(f));
-    // Alarm-Zusatz (1.73.0): eigenes Kapitel, Vorschlag nur daneben (füllt das Feld nie), Vorschau mit der Adresse; Kapitel wie in den Fenstern der Routinen
+    // Alarm-Zusatz: eigenes Kapitel ohne Zusatz "freiwillig" im Titel; seit 1.74.1 (Wunsch des Nutzers 2026-11-21) setzt ein erkannter Dienst beide Zusätze von selbst ein,
+    // solange sie niemand berührt hat; beide bleiben freiwillig (leer speichern geht, dann entfällt der Testknopf)
     const chapters = await s.ev("const d=r.getElementById('ag-hcform'); return [...d.querySelectorAll('section.ag-chap > h3.ag-chap-t')].map((h) => h.textContent)");
     check(`${tag}: Formular in vier Kapiteln mit Titel (Strich davor): ${t.chaps.join(", ")}`, JSON.stringify(chapters) === JSON.stringify(t.chaps), JSON.stringify(chapters));
     const alarm = await s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { value: q('[data-hc=\"f-alarm\"]').value, offer: q('[data-hcp=\"offerAlarm\"]').innerText, prev: q('[data-hcp=\"prevAlarm\"]').innerText }");
-    check(`${tag}: Alarm-Zusatz leer, Vorschlag für Cronitor daneben ("?state=fail&message=Alarm+triggered"), kein Alarm-Aufruf in der Vorschau`,
-      alarm.value === "" && alarm.offer.includes("?state=fail&message=Alarm+triggered") && alarm.offer.includes(t.take) && alarm.prev === t.alarmEmpty, JSON.stringify(alarm));
+    check(`${tag}: Cronitor erkannt: der Alarm-Zusatz ist von selbst eingesetzt ("?state=fail&message=Alarm+triggered"), Vorschau mit der Adresse, kein Vorschlag daneben`,
+      alarm.value === "?state=fail&message=Alarm+triggered" && !alarm.offer && alarm.prev.includes(`${CRON}?state=fail&message=Alarm+triggered`), JSON.stringify(alarm));
+    // Der Nutzer ändert den Zusatz: der Vorschlag steht wieder daneben ("Übernehmen")
+    await (await s.el('[data-hc="f-alarm"]')).fill("/meinalarm");
     // "Übernehmen" ist ein kräftiger Knopf (fett, getönter Hintergrund, Rand, mindestens 34 px hoch), beim Fehler- wie beim Alarm-Zusatz
     const loud = await s.ev("const d=r.getElementById('ag-hcform'); return [...d.querySelectorAll('.ag-hcoffer > button.ag-link')].map((b) => { const c=getComputedStyle(b); return { w: parseInt(c.fontWeight), h: Math.round(b.getBoundingClientRect().height), bg: c.backgroundColor, bw: c.borderTopWidth }; })");
     check(`${tag}: "${t.take}" ist ein kräftiger Knopf (fett, Hintergrund, Rand, mind. 34 px)`, loud.length >= 1 && loud.every((l) => l.w >= 700 && l.h >= 34 && l.bg !== "rgba(0, 0, 0, 0)" && l.bw === "1px"), JSON.stringify(loud));
     await s.tap('#ag-hcform [data-hc="f-take-alarm"]');
     const taken = await s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { value: q('[data-hc=\"f-alarm\"]').value, offer: q('[data-hcp=\"offerAlarm\"]').innerText, prev: q('[data-hcp=\"prevAlarm\"]').innerText }");
-    check(`${tag}: "${t.take}" setzt den Alarm-Zusatz, Vorschau mit der Adresse, kein Vorschlag mehr`, taken.value === "?state=fail&message=Alarm+triggered" && !taken.offer && taken.prev.includes(`${CRON}?state=fail&message=Alarm+triggered`), JSON.stringify(taken));
+    check(`${tag}: "${t.take}" setzt den Alarm-Zusatz wieder, Vorschau mit der Adresse, kein Vorschlag mehr`, taken.value === "?state=fail&message=Alarm+triggered" && !taken.offer && taken.prev.includes(`${CRON}?state=fail&message=Alarm+triggered`), JSON.stringify(taken));
     await (await s.el('[data-hc="f-alarm"]')).fill("");
     // Eigener Zusatz: das letzte Wort hat der Nutzer
     await (await s.el('[data-hc="f-suffix"]')).fill("/meins");
@@ -143,7 +147,7 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return r.getElementById('ag-hclist').open && r.querySelectorAll('#ag-hclist [data-hc-row]').length === 2");
     const garage = await s.sim("return window.__healthchecks.find((x) => x.url.includes('garage')).id");
     const hc = await s.sim("return window.__healthchecks.find((x) => x.url.includes('hc-ping')).id");
-    check(`${tag}: "Fehler senden" ohne Zusatz gesperrt, mit Zusatz frei`, await s.ev(`return r.querySelector('#ag-hclist [data-hc="test-fail"][data-id="${garage}"]').disabled && !r.querySelector('#ag-hclist [data-hc="test-fail"][data-id="${hc}"]').disabled`));
+    check(`${tag}: "Fehler senden" gibt es nur mit Fehler-Zusatz (ohne Zusatz fehlt der Knopf, wie "Alarm senden")`, await s.ev(`const q=(id) => r.querySelector('#ag-hclist [data-hc="test-fail"][data-id="' + id + '"]'); return !q("${garage}") && !!q("${hc}") && !q("${hc}").disabled`));
     const search = await s.el('#ag-hclist input[type="search"]');
     await search.type("garage");
     check(`${tag}: Suche "garage": eine Zeile, Fokus bleibt im Feld, X sichtbar`, await s.waitFor(`return r.querySelectorAll('#ag-hclist [data-hc-row]').length === 1 && r.activeElement?.dataset.hc === 'search' && !r.querySelector('#ag-hclist [data-hc="search-clear"]').hidden`));

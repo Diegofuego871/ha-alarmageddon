@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.74.1] - 2026-11-21
 
+### Changed
+
+- **HealthCheck form:** the title "On alarm (optional)" is now "On alarm"; both suffixes are optional. For a service Alarmageddon recognizes, both are filled in for you (as long as you have not touched them); you can empty them or save without them. Without a failure or alarm suffix the matching test button ("Send failure", "Send alarm") is not shown, in the list and in the head of the log.
+- **Setup assistant wand:** as soon as the wand stops moving, the stars start to wiggle and at the same time the shooting star sets off from the dot, slowly at first and faster and faster (a short acceleration curve) once around the button; at the end the dot flashes briefly and stays.
+
 ### Fixed
 
 - **New routine:** the field "Name" was red and an error about the number of characters was shown as soon as the window opened, as if saving had already been tried. The form now starts quiet: the name turns red only after you have touched it, the message appears after the first change in the form, and "Save" stays disabled as long as something is missing. The focus and the position of the window stay as they were.
