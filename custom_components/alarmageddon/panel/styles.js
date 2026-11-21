@@ -1132,6 +1132,12 @@ dialog.ag-svdlg[open] { height: min(92vh, 860px); }
 .ag-sv-seg { display: inline-grid; grid-auto-flow: column; gap: 2px; padding: 3px; margin-top: 14px; border-radius: 13px; background: color-mix(in srgb, var(--ag-text) 6%, transparent); }
 .ag-sv-seg button { min-height: 34px; padding: 0 18px; border: 0; border-radius: 10px; background: transparent; color: var(--ag-text2); font: inherit; font-size: 13.5px; white-space: nowrap; cursor: pointer; }
 .ag-sv-seg button.on { background: var(--ag-card); color: var(--ag-primary); font-weight: 500; box-shadow: var(--ag-shadow-s); }
+/* Zeitraum der Sensoransicht und des Protokolls: Reiterleiste mit gleitender Kapsel (1.73.0), Mass und Abstand wie die frühere ruhende Leiste */
+.ag-seg.ag-sv-range { margin-top: 14px; border-radius: 13px; background: color-mix(in srgb, var(--ag-text) 6%, transparent); }
+.ag-seg.ag-sv-range > .ag-pill { border-radius: 10px; }
+.ag-seg.ag-sv-range > button { min-height: 34px; padding: 0 18px; font-size: 13.5px; }
+:host([narrow]) .ag-seg.ag-sv-range, :host([narrow]) .ag-seg.ag-sv-range:has(> button:nth-child(5)) { display: grid; grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 1fr; } /* eine Zeile, auch ab fünf Tasten (die allgemeine Regel bricht sonst um) */
+:host([narrow]) .ag-seg.ag-sv-range > button { min-height: 40px; padding: 0 4px; min-width: auto; } /* wie die frühere Leiste: eine Taste ist nie schmaler als ihr Text */
 .ag-sv-kpis { display: flex; gap: 22px; margin-top: 14px; overflow: hidden; }
 .ag-sv-kpi b { display: block; font-size: 20px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ag-sv-kpi span { font-size: 12.5px; color: var(--ag-text2); white-space: nowrap; }
@@ -1315,8 +1321,8 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-hl-sum b { color: var(--ag-text); font-weight: 600; font-variant-numeric: tabular-nums; }
 /* Sieben Zeiträume (seit 90 Tagen und 1 Jahr, Entscheid des Nutzers 2026-11-19): auf dem Handy in einer Zeile mit etwas kleinerer Schrift, auf sehr
    schmalen Handys (bis 360 px) in zwei Zeilen */
-:host([narrow]) .ag-hl .ag-sv-range button { padding: 0 1px; font-size: 12.5px; letter-spacing: -.1px; }
-@media (max-width: 360px) { :host([narrow]) .ag-hl .ag-sv-range { grid-auto-flow: row; grid-template-columns: repeat(4, 1fr); } }
+:host([narrow]) .ag-hl .ag-sv-range button { padding: 0 3px; font-size: 12px; letter-spacing: -.1px; }
+@media (max-width: 360px) { :host([narrow]) .ag-hl .ag-seg.ag-sv-range, :host([narrow]) .ag-hl .ag-seg.ag-sv-range:has(> button:nth-child(5)) { grid-auto-flow: row; grid-template-columns: repeat(4, 1fr); } }
 .ag-hl-mono b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; font-weight: 400; }
 .ag-sv-note.ag-hl-lead { margin: 0 24px 10px; }
 .ag-hl-keep { margin: 4px 0 0; }

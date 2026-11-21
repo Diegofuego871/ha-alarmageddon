@@ -282,7 +282,7 @@ export class HealthLogView extends SensorView {
   }
 
   _rangeSeg() {
-    return `<div class="ag-sv-seg ag-sv-range" role="group">${RANGES.map((h) => `<button type="button" data-sv="range" data-hours="${h}" class="${h === this.range ? "on" : ""}" aria-pressed="${h === this.range}">${esc(this._t(RANGE_LABEL[h]))}</button>`).join("")}</div>`;
+    return `<div class="ag-seg ag-sv-range" data-seg="sv-range" role="group">${RANGES.map((h) => `<button type="button" data-sv="range" data-hours="${h}" class="${h === this.range ? "on" : ""}" aria-pressed="${h === this.range}">${esc(this._t(RANGE_LABEL[h]))}</button>`).join("")}</div>`;
   }
 
   // Verlauf und Antwortzeit: Zeitraum, Kennzahlen, Grafik, Legende; darunter die Liste. Mit alten Daten bleibt alles gedimmt stehen und die

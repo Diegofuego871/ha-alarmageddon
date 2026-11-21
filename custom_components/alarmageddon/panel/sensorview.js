@@ -306,8 +306,10 @@ export class SensorView {
 
   _rangeSeg() {
     const cur = this.hours[this.tab];
-    // Eigene, ruhende Leiste (nicht .ag-seg): deren wandernde Kapsel wird vom Panel vermessen und passt nicht in ein Fenster, das neu zeichnet
-    return `<div class="ag-sv-seg ag-sv-range" role="group">${RANGES[this.tab].map((h) => `<button type="button" data-sv="range" data-hours="${h}" class="${h === cur ? "on" : ""}" aria-pressed="${h === cur}">${esc(this._t(RANGE_LABEL[h]))}</button>`).join("")}</div>`;
+    // Reiterleiste mit gleitender Kapsel wie überall (1.73.0, Wunsch des Nutzers 2026-11-21; vorher eine ruhende Leiste ohne Kapsel). Das Panel merkt sich
+    // die Lage je Leiste (`data-seg`), auch wenn das Fenster beim Laden neu zeichnet: die neue Kapsel fährt von der alten Stelle los. Je Reiter ein eigener
+    // Schlüssel, damit die Kapsel beim Wechsel des Reiters nicht zwischen zwei verschiedenen Leisten fährt.
+    return `<div class="ag-seg ag-sv-range" data-seg="sv-range-${this.tab}" role="group">${RANGES[this.tab].map((h) => `<button type="button" data-sv="range" data-hours="${h}" class="${h === cur ? "on" : ""}" aria-pressed="${h === cur}">${esc(this._t(RANGE_LABEL[h]))}</button>`).join("")}</div>`;
   }
 
   _kpis(items) {

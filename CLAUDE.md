@@ -459,6 +459,10 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   Reiterleiste mit gleitender Kapsel am gewählten Knopf. Nie eine eigene
   Segmentleiste ohne Kapsel. Grösse darf abweichen, Stil nie. Eine Leiste
   ohne gewählten Knopf zeigt keine Kapsel.
+- **Auch der Zeitraum ist eine Reiterleiste mit Kapsel (seit 1.73.0, Wunsch des Nutzers 2026-11-21):** die Leiste 3 Std. bis 1 Jahr in der Sensoransicht und im
+  Protokoll der HealthCheck-Dienste ist `.ag-seg.ag-sv-range` mit `data-seg` (in der Sensoransicht je Reiter einer), die Kapsel fährt auch, wenn das Fenster beim Laden
+  neu zeichnet (`_segSync` merkt die Lage je Leiste). Nie wieder eine eigene Leiste ohne Kapsel (`.ag-sv-seg` gibt es nur noch als Stil für andere Stellen). Suite
+  `rangeslide-e2e.mjs` misst die Zwischenstände der Kapsel.
 - **Reiter der Modi:** Jede Leiste, die zwischen den Modi wechselt
   (Sensoren, Aktionen, Benachrichtigungen, Anlage), trägt `ag-modeseg`:
   Symbole dunkelrot, "Überwachung" orange, Rand am gewählten Reiter, Text
