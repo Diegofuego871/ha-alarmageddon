@@ -584,11 +584,15 @@ export class RoutinesUi {
     const bad = new Set(this.problems());
     const modes = ALL_MODES.filter((m) => this.draft.modes[m]);
     const actions = [...ALL_MODES.filter((m) => modes.includes(m) || f.action === m).map((m) => [m, this._t(MODE_KEY[m]), MODE_ICON[m]]), ["off", this._t("rtDo_off"), "shieldOff"]];
-    const message = bad.has("name") ? this._t("rtErrName") : bad.has("nameTaken") ? this._t("rtErrNameTaken") : bad.has("times") ? this._t("rtErrTimes")
+    // Ein neues Formular beginnt ruhig (Wunsch des Nutzers 2026-11-21): der Rand des Namens ist erst rot, wenn man den Namen angefasst hat, und die Meldung
+    // steht erst da, wenn man im Formular etwas geändert hat. "Speichern" bleibt von Anfang an gesperrt, solange etwas fehlt (`problems`).
+    const quiet = !f._touched;
+    const nameBad = bad.has("name") && Boolean(f._nameTouched);
+    const message = quiet ? "" : bad.has("name") ? this._t("rtErrName") : bad.has("nameTaken") ? this._t("rtErrNameTaken") : bad.has("times") ? this._t("rtErrTimes")
       : bad.has("noDevice") ? this._t("rtErrNoDevice") : bad.has("emptyGroup") ? this._t("rtEmptyGroup") : bad.has("window") ? this._t("rtErrWindow")
       : bad.has("tooMany") ? this._t("rtErrTooMany") : bad.has("hold") ? this._t("invalidNumber", { min: 0, max: HOLD_MAX }) : bad.has("states") ? this._t("rtErrStates")
       : bad.has("armedModes") ? this._t("rtErrArmedModes") : bad.has("unsafe") ? this._t("rtErrUnsafe") : "";
-    const nameField = `<input class="ag-input ag-rtname ${bad.has("name") || bad.has("nameTaken") ? "bad" : ""}" data-sys="rt-name" maxlength="${NAME_MAX}" value="${esc(f.name)}" placeholder="${esc(this._t("rtNamePh"))}" aria-label="${esc(this._t("rtName"))}">`;
+    const nameField = `<input class="ag-input ag-rtname ${nameBad || bad.has("nameTaken") ? "bad" : ""}" data-sys="rt-name" maxlength="${NAME_MAX}" value="${esc(f.name)}" placeholder="${esc(this._t("rtNamePh"))}" aria-label="${esc(this._t("rtName"))}">`;
     const when = f.trigger.type === "schedule" ? chapter(this._t("rtWhenTitle"), this._timesHtml(bad)) : chapter(this._t("rtIfTitle"), this._treeHtml(bad));
     return `<div class="ag-dlg-body ag-rt-ed">${iconTitle("flash", RT_TINT, this._t(this.index >= 0 ? "rtEditTitle" : "rtNewTitle"))}
       ${chapter(this._t("rtName"), nameField)}
@@ -600,7 +604,7 @@ export class RoutinesUi {
       ${chapter(this._t("rtFlowTitle"), this.flowHtml())}
       <div class="ag-dlg-err ${message ? "show" : ""}" aria-live="polite">${esc(message)}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="rt-cancel">${esc(this._t("cancel"))}</button>
-        <button class="ag-btn primary" data-sys="rt-save" ${message ? "disabled" : ""}>${ic("check", 18)}${esc(this._t("save"))}</button></div></div>`;
+        <button class="ag-btn primary" data-sys="rt-save" ${this.problems().length ? "disabled" : ""}>${ic("check", 18)}${esc(this._t("save"))}</button></div></div>`;
   }
 
   // ----- Geräteauswahl (ersetzt den Inhalt des Fensters, bis ein Gerät gewählt ist) -----
@@ -817,6 +821,7 @@ export class RoutinesUi {
       this.dlg.querySelector("[data-sys-list]").innerHTML = this.pickList();
     } else if (act === "rt-name") {
       f.name = el.value;
+      f._nameTouched = true;
       this._refresh();
     } else if (act === "rt-time") {
       f._times[Number(el.dataset.index)].time = el.value;
@@ -837,6 +842,7 @@ export class RoutinesUi {
   // Beim Tippen nicht neu aufbauen (der Cursor bliebe nicht stehen): nur Meldung und Speichern-Knopf nachführen
   _refresh() {
     const dlg = this.dlg;
+    if (this.form) this.form._touched = true; // ab der ersten Änderung zeigt das Formular, was noch fehlt
     const html = this.editorHtml();
     const tmp = document.createElement("div");
     tmp.innerHTML = html;

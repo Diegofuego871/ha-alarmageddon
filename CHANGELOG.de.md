@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.74.1] - 2026-11-21
+
+### Behoben
+
+- **Neue Routine:** Das Feld "Name" war rot und eine Meldung zur Zahl der Zeichen stand da, sobald das Fenster aufging, als hätte jemand schon versucht zu speichern. Das Formular beginnt jetzt ruhig: Der Name wird erst rot, wenn man ihn angefasst hat, die Meldung erscheint nach der ersten Änderung im Formular, und "Speichern" bleibt gesperrt, solange etwas fehlt. Fokus und Lage des Fensters bleiben, wie sie waren.
+
 ## [1.74.0] - 2026-11-21
 
 Enthält die Änderungen aus 1.72.0 und 1.73.0 (beide wurden nicht als solche veröffentlicht).
@@ -2098,6 +2104,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.74.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.1
 [1.74.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0

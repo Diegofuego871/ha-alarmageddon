@@ -3,6 +3,7 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
+- 1.74.1 (2026-11-21): neue Routine beginnt ruhig (`routines.js editorHtml`: `quiet`, `_touched`, `_nameTouched`; Speichern bleibt gesperrt über `problems()`); Suite `routines-e2e.mjs`. 1.74.0 war schon als Release `v1.74.0` veröffentlicht, darum neue Nummer.
 - **1.74.0 = fertiger Stand von 1.73.0** (Nutzer, 2026-11-21: ein Release `1.73.0` ohne "v" war versehentlich auf einem Zwischenstand `575d279` veröffentlicht und eingespielt; die Nummer war vergeben, Home Assistant bot den Rest nicht als Update an; darum neue Nummer 1.74.0, Notes fassen 1.72.0 und 1.73.0 zusammen; der Quelltext nennt die Arbeit weiter "1.73.0"). **Tag-Prüfung künftig gezielt auch ohne "v"** (`list_tags` ordnet `1.7x.x` ans Ende, die ersten Treffer zeigen es nicht; `get_release_by_tag` mit `X.Y.Z`).
 - 1.73.0 (Basis: `main` @ `75b574f` = 1.72.0, von dieser Session gepusht; Wünsche des Nutzers vom 2026-11-20 mit Bildschirmfotos). `PANEL_VERSION` 238.
   - **Alarm-Aufruf** der HealthCheck-Dienste (`alarm_suffix`, `healthcheck.py _tick/_send`, `selftest.any_alarm`), zweiter Knopf in Liste und Protokollkopf, Formular in

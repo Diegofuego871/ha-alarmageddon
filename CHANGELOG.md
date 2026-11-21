@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.74.1] - 2026-11-21
+
+### Fixed
+
+- **New routine:** the field "Name" was red and an error about the number of characters was shown as soon as the window opened, as if saving had already been tried. The form now starts quiet: the name turns red only after you have touched it, the message appears after the first change in the form, and "Save" stays disabled as long as something is missing. The focus and the position of the window stay as they were.
+
 ## [1.74.0] - 2026-11-21
 
 Includes the changes from 1.72.0 and 1.73.0 (neither was released as such).
@@ -2098,6 +2104,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.74.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.1
 [1.74.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0

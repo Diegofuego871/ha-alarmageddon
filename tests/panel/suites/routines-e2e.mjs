@@ -71,6 +71,15 @@ for (const lang of ["de", "en"]) {
     // ----- Neue Routine mit Gerät, Gruppe, Oder -----
     await tapIn('[data-sys="rt-add"]');
     check(`${tag}: Editor offen, Speichern gesperrt (Name fehlt)`, await s.waitFor("return r.getElementById('ag-step').open && !!r.querySelector('.ag-rt-ed') && r.querySelector('[data-sys=\"rt-save\"]').disabled"));
+    // 1.74.0 (Wunsch des Nutzers 2026-11-21): ein neues Formular beginnt ruhig, der Name ist nicht rot und keine Meldung steht da, Speichern bleibt gesperrt
+    check(`${tag}: neue Routine beginnt ruhig: Namensfeld nicht rot, keine Meldung, Speichern gesperrt`, await s.ev("const n=r.querySelector('[data-sys=\"rt-name\"]'); const e=r.querySelector('.ag-rt-ed .ag-dlg-err'); return !n.classList.contains('bad') && getComputedStyle(n).borderTopColor !== getComputedStyle(r.host).getPropertyValue('--ag-error') && !e.classList.contains('show') && e.textContent === '' && r.querySelector('[data-sys=\"rt-save\"]').disabled"));
+    // Fokus im Namen, ohne dass das Fenster dafür scrollt
+    check(`${tag}: neue Routine: Fenster steht oben (kein Runterscrollen)`, await s.ev("const d=r.getElementById('ag-step'); return d.scrollTop === 0 && (d.querySelector('.ag-dlg-body')?.scrollTop || 0) === 0"));
+    // Nach dem Tippen und Leeren des Namens wird er rot, die Meldung nennt die Länge
+    const name0 = await s.el('[data-sys="rt-name"]');
+    await name0.fill("x");
+    await name0.fill("");
+    check(`${tag}: Name angefasst und wieder leer: rot, Meldung zur Länge`, await s.ev("const n=r.querySelector('[data-sys=\"rt-name\"]'); const e=r.querySelector('.ag-rt-ed .ag-dlg-err'); return n.classList.contains('bad') && e.classList.contains('show') && e.textContent.length > 5"));
     const name = await s.el('[data-sys="rt-name"]');
     await name.fill("Haus verlassen");
     check(`${tag}: Fokus bleibt im Namen beim Tippen`, await s.ev("return r.activeElement?.dataset.sys === 'rt-name'"));
