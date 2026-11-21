@@ -641,12 +641,11 @@ export class SystemUi {
   openCreateBackup() {
     const dlg = this._codeDlg(true);
     dlg.innerHTML = `<form class="ag-dlg-body" data-form="backup">${iconTitle("archive", TINT.backup, this._t("bkNameTitle"))}
-      <label class="ag-t2 ag-small" for="ag-bk-name">${esc(this._t("bkNameLabel"))}</label>
-      <input class="ag-input" id="ag-bk-name" type="text" maxlength="60" placeholder="${esc(this._t("bkNamePlaceholder"))}" style="width:100%;box-sizing:border-box" autocomplete="off">
+      ${chapter(this._t("bkNameLabel"), `<input class="ag-input" id="ag-bk-name" type="text" maxlength="60" placeholder="${esc(this._t("bkNamePlaceholder"))}" style="width:100%;box-sizing:border-box" autocomplete="off" aria-label="${esc(this._t("bkNameLabel"))}">`)}
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-sys="code-close">${esc(this._t("cancel"))}</button><button class="ag-btn primary" type="submit">${esc(this._t("bkSave"))}</button></div></form>`;
     dlg.showModal();
-    dlg.querySelector("input").focus();
+    dlg.querySelector("input").focus({ preventScroll: true }); // kein Runterscrollen beim Fokus (1.73.0, wie im Fenster "Code hinzufügen")
   }
 
   createBackup(name = "") {

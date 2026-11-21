@@ -9,7 +9,7 @@ const V = new URL(import.meta.url).search;
 // erschien erst nach einem Dutzend Anfragen hintereinander. panel.html meldet die Dateien zusätzlich vorab an (modulepreload).
 const [
   { pickLang, translate }, { CSS },
-  { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, SOFT_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY, copyBtn, copyValue },
+  { ic, esc, MODE_ICON, MODE_KEY, ARMED, DC, GONE, POLL_MS, SOFT_MS, WS_TIMEOUT_MS, errText, isConnectionError, LOW_BATTERY, copyBtn, copyValue, chapter },
   { ListUi }, { SensorsUi }, { SystemUi }, { ActionsUi }, { NotifyUi }, { LogUi }, { SensorView }, { loaderHtml, loaderStart }, { filePicked }, { SelfTestUi }, { HealthCheckUi }, { HealthLogView }, { WizardUi },
 ] = await Promise.all(["strings", "styles", "common", "list", "sensors", "system", "actions", "notify", "log", "sensorview", "loader", "customsounds", "selftest", "healthcheck", "healthlog", "wizard"].map((name) => import(`./${name}.js${V}`)));
 /** Nach so langer Abwesenheit startet das Panel wieder auf der Übersicht (Merkzettel für Reiter und Unterreiter) */
@@ -1228,8 +1228,7 @@ class AlarmageddonPanel extends HTMLElement {
     const dlg = this._root.getElementById("ag-rename");
     dlg.innerHTML = `<form class="ag-dlg-body" data-form="rename" data-entry="${esc(s.entry_id)}">
       <h3>${esc(this._t("renameTitle"))}</h3>
-      <label class="ag-t2 ag-small" for="ag-rename-input">${esc(this._t("renameLabel"))}</label>
-      <input class="ag-input" id="ag-rename-input" type="text" maxlength="60" value="${esc(s.title)}" required style="width:100%;box-sizing:border-box">
+      ${chapter(this._t("renameLabel"), `<input class="ag-input" id="ag-rename-input" type="text" maxlength="60" value="${esc(s.title)}" required style="width:100%;box-sizing:border-box" aria-label="${esc(this._t("renameLabel"))}">`)}
       <label class="ag-orow ag-rename-ids"><div class="ag-otx"><b>${esc(this._t("renameIds"))}</b><small>${esc(this._t("renameIdsHint"))}</small></div>
         <button type="button" class="ag-toggle" data-act="rename-ids" role="switch" aria-checked="false" aria-label="${esc(this._t("renameIds"))}"></button></label>
       <div class="ag-dlg-err" aria-live="polite"></div>
@@ -1277,12 +1276,12 @@ class AlarmageddonPanel extends HTMLElement {
       <div class="ag-t2 ag-small">${esc(this._t("delOutside", { entity: s.entity_id }))}</div>
       <label class="ag-orow ag-rename-ids"><div class="ag-otx"><b>${esc(this._t("delBackup"))}</b><small>${esc(this._t("delBackupHint"))}</small></div>
         <button type="button" class="ag-toggle on" data-act="delete-backup" role="switch" aria-checked="true" aria-label="${esc(this._t("delBackup"))}"></button></label>
-      <label class="ag-t2 ag-small" for="ag-del-input" style="margin-top:14px;display:block">${esc(this._t("delConfirmLabel"))} <b class="ag-delname">${esc(s.title)}</b></label>
-      <input class="ag-input" id="ag-del-input" type="text" maxlength="60" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(this._t("delConfirmPlaceholder"))}" style="width:100%;box-sizing:border-box">
+      <section class="ag-chap"><h3 class="ag-chap-t">${esc(this._t("delConfirmTitle"))}</h3><p class="ag-chap-h">${esc(this._t("delConfirmLabel"))} <b class="ag-delname">${esc(s.title)}</b></p>
+        <input class="ag-input" id="ag-del-input" type="text" maxlength="60" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(this._t("delConfirmPlaceholder"))}" style="width:100%;box-sizing:border-box" aria-label="${esc(this._t("delConfirmTitle"))}"></section>
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-act="close-delete">${esc(this._t("cancel"))}</button><button class="ag-btn danger" type="submit" disabled>${ic("trash", 18)}${esc(this._t("delConfirm"))}</button></div></form>`;
     dlg.showModal();
-    dlg.querySelector("input").focus();
+    dlg.querySelector("input").focus({ preventScroll: true }); // kein Runterscrollen beim Fokus (1.73.0)
   }
 
   // Frei erst, wenn der Name genau stimmt (Gross-/Kleinschreibung zählt, mehrere Leerzeichen nicht)
@@ -1328,14 +1327,13 @@ class AlarmageddonPanel extends HTMLElement {
     dlg.innerHTML = `<form class="ag-dlg-body" data-form="add">
       <h3>${esc(this._t("addTitle"))}</h3>
       <div class="ag-t2">${esc(this._t("addText"))}</div>
-      <label class="ag-t2 ag-small" for="ag-add-input">${esc(this._t("addLabel"))}</label>
-      <input class="ag-input" id="ag-add-input" type="text" maxlength="60" required autocomplete="off" placeholder="${esc(this._t("addPlaceholder"))}" style="width:100%;box-sizing:border-box">
+      ${chapter(this._t("addLabel"), `<input class="ag-input" id="ag-add-input" type="text" maxlength="60" required autocomplete="off" placeholder="${esc(this._t("addPlaceholder"))}" style="width:100%;box-sizing:border-box" aria-label="${esc(this._t("addLabel"))}">`)}
       <div class="ag-addprev" id="ag-addprev" aria-live="polite">${this._addPreviewHtml(null)}</div>
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-act="close-add">${esc(this._t("cancel"))}</button><button class="ag-btn primary" type="submit" disabled>${ic("plus", 18)}${esc(this._t("addCreate"))}</button></div></form>`;
     this._addSeq = (this._addSeq || 0) + 1;
     dlg.showModal();
-    dlg.querySelector("input").focus();
+    dlg.querySelector("input").focus({ preventScroll: true }); // kein Runterscrollen beim Fokus (1.73.0)
   }
 
   // Vorschau der Identität: Gerät und Alarm-Entität; ohne Name oder mit Fehler ein Hinweis statt der Werte. Hinter der Alarm-Entität ein Knopf zum
@@ -1719,7 +1717,7 @@ class AlarmageddonPanel extends HTMLElement {
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-act="close-code">${esc(this._t("cancel"))}</button><button class="ag-btn primary" type="submit">${esc(this._t("ok"))}</button></div></form>`;
     dlg.showModal();
-    dlg.querySelector("input").focus();
+    dlg.querySelector("input").focus({ preventScroll: true }); // kein Runterscrollen beim Fokus (1.73.0)
   }
 
   _closeDialog(id) {

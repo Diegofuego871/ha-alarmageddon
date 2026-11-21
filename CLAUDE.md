@@ -514,6 +514,10 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   Überwachung) über `common.js onceBtn`, `paintOnce`, `runOnce`: rot bis zur Antwort, mindestens `ONCE_MS`, Stopp beendet nur die Anzeige. Beim Wechsel
   nur die Knöpfe ummalen (`paintOnce`), nie die Seite neu zeichnen (ein Neuzeichnen während des Neuladens nach dem Speichern liess die Ladeanzeige
   stehen). Ein neuer Play-Knopf kommt in `tests/panel/suites/play-e2e.mjs`.
+- **Felder in Fenstern sind Kapitel (seit 1.73.0, Vorgabe des Nutzers 2026-11-21: "es soll überall gleich aussehen"):** jedes Feld eines Fensters (Code hinzufügen, Ton hochladen,
+  Backup erstellen, Anlage hinzufügen, umbenennen, löschen) trägt seinen Titel als `chapter()` (fetter Titel mit Strich davor), nie als kleine graue Beschriftung (`.ag-label`, `.ag-ef-l`,
+  `label.ag-t2.ag-small`). Der Fokus geht mit `focus({ preventScroll: true })` ins erste Feld. Suite `dlgchapters-e2e.mjs`. **Noch nicht angeglichen:** die Editoren der Aktionen und der
+  Überwachung (`actions.js`, `monitor.js`, Feldtitel `.ag-ef-l`) und die Filter im Protokoll (`log.js`): grössere Umbauten, nur auf Wunsch.
 - **Kapitel:** Einstellungen stehen in Kapiteln; jedes hat einen Titel mit
   einem Strich davor (`chapter()` in `panel/common.js`), darunter die Karte. Das Fenster "Ansicht" folgt dem seit 1.34.4 (Vorgabe
   des Nutzers 2026-11-14): Abschnitte als Kapitel statt kleiner grauer Grossbuchstaben (`.ag-label`). Andere Fenster mit `.ag-label`
