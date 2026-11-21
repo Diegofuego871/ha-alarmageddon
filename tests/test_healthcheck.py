@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 from datetime import timedelta
 import logging
+import time
 from typing import Any
 
 import pytest
@@ -513,14 +514,19 @@ async def test_the_alarm_test_button_needs_an_alarm_suffix_and_sends_exactly_tha
 
 
 async def test_a_hanging_service_never_holds_up_the_alarm(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker, monkeypatch) -> None:
-    """Sicherheitsregel: der Alarm-Aufruf ist eine eigene Aufgabe mit Zeitgrenze; ein Dienst, der nie antwortet, hält den Alarm nicht auf."""
-    # Zeitgrenze länger als der Test: nur die eigene Hintergrundaufgabe sorgt dafür, dass nichts auf den Aufruf wartet
+    """
+    Sicherheitsregel: der Alarm-Aufruf ist eine eigene Hintergrundaufgabe mit Zeitgrenze; ein Dienst, der nicht antwortet, hält den Alarm nicht auf.
+    Der Dienst "hängt" in einem Thread mit echter Zeit (unter der eingefrorenen Zeit endet `asyncio.sleep` und `wait_for` nie): ist der Aufruf keine
+    Hintergrundaufgabe, wartet `async_block_till_done` auf ihn, und der Aufruf ist danach schon fertig (die Mutationsprobe sieht das).
+    """
     monkeypatch.setattr("custom_components.alarmageddon.healthcheck.HEALTHCHECK_TIMEOUT", 60)
     aioclient_mock.get(HC, status=200)
+    finished: list[bool] = []
 
     async def hang(*_args) -> AiohttpClientMockResponse:
-        await asyncio.sleep(30)
-        raise AssertionError("nie erreicht")
+        await hass.loop.run_in_executor(None, time.sleep, 1.0)  # echte Zeit, vom freezer unberührt
+        finished.append(True)
+        return AiohttpClientMockResponse("GET", f"{HC}/2", status=200)
 
     aioclient_mock.get(f"{HC}/2", side_effect=hang)
     await setup_alarm(hass)
@@ -529,16 +535,13 @@ async def test_a_hanging_service_never_holds_up_the_alarm(hass: HomeAssistant, f
     await advance(hass, freezer, 2)
     await advance(hass, freezer, HEALTHCHECK_START_DELAY + 1)
     await call(hass, "alarm_arm_home")
-    await asyncio.wait_for(open_sensor(hass, WINDOW), 2)
+    await open_sensor(hass, WINDOW)
     assert hass.states.get(ALARM).state == "triggered"
     freezer.tick(timedelta(seconds=12))
     async_fire_time_changed(hass)
-    try:
-        await asyncio.wait_for(hass.async_block_till_done(), 2)  # wartet nicht auf den hängenden Aufruf
-        await asyncio.sleep(0)
-        assert f"{HC}/2" in calls(aioclient_mock), "der Alarm-Aufruf ist wirklich hinausgegangen (und hängt)"
-        assert hass.states.get(ALARM).state == "triggered"
-    finally:
-        # Der Aufruf hängt unter eingefrorener Zeit für immer: aufräumen, damit der Test auch im Fehlerfall endet statt zu hängen
-        for task in list(hass._tasks):
-            task.cancel()
+    await hass.async_block_till_done()  # darf nicht auf den hängenden Aufruf warten
+    assert f"{HC}/2" in calls(aioclient_mock), "der Alarm-Aufruf ist hinausgegangen"
+    assert finished == [], "der Aufruf läuft noch: nichts hat auf ihn gewartet"
+    assert hass.states.get(ALARM).state == "triggered"
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert finished == [True]
