@@ -40,12 +40,12 @@ for (const lang of ["de", "en"]) {
     const after = Date.now() - t0;
     check(`${tag}: der Zauberstab schwingt rund 5 Sekunden nach dem Laden (${after} ms)`, waved && after > 3500 && after < 6800, String(after));
     const anim = await s.ev(`const b=r.querySelector('${BTN}'); return [getComputedStyle(b.querySelector('.ag-wzstick')).animationName, ...[...b.querySelectorAll('.ag-wzstar')].map((x) => getComputedStyle(x).animationName + ':' + getComputedStyle(x).animationDelay)]`);
-    check(`${tag}: Stab schwingt um den Griff, die Sterne wackeln erst, wenn er still steht (1,4 s), fast gleichzeitig`, J(anim) === J(["ag-wz-swing", "ag-wz-twinkle:1.4s", "ag-wz-twinkle:1.44s", "ag-wz-twinkle:1.48s"]), J(anim));
+    check(`${tag}: Stab schwingt um den Griff, die Sterne wackeln im selben Augenblick (ohne Lücke), leicht gestaffelt`, J(anim) === J(["ag-wz-swing", "ag-wz-twinkle:0s", "ag-wz-twinkle:0.04s", "ag-wz-twinkle:0.08s"]), J(anim));
     // Sternschnuppe wie im Device Panel (Wunsch des Nutzers 2026-11-20): nach dem Schwung löst sich der Punkt und huscht mit Schweif um die Linie
     const comet = await s.ev(`const b=r.querySelector('${BTN}'); const c=getComputedStyle(b, '::before'); const d=getComputedStyle(b.querySelector('.ag-wzbtn-dot'));
       return { ring: c.animationName, delay: c.animationDelay, dur: c.animationDuration, timing: c.animationTimingFunction, mask: (c.webkitMaskImage || c.maskImage || '').includes('radial-gradient'), grad: c.backgroundImage.includes('conic-gradient'), dot: d.animationName, dotDur: d.animationDuration }`);
-    check(`${tag}: Sternschnuppe: Ring mit Schweif (conic-gradient, maskiert) startet nach dem Schwung (1,5 s), der Punkt fliegt mit und landet wieder`,
-      comet.ring.startsWith("ag-wz-comet") && comet.delay.startsWith("1.4s") && comet.dur.startsWith("1.15s") && comet.timing.includes("cubic-bezier") && comet.mask && comet.grad && comet.dot === "ag-wz-land" && comet.dotDur === "3s", J(comet));
+    check(`${tag}: Sternschnuppe: Ring mit Schweif (conic-gradient, maskiert) startet im selben Augenblick wie der Schwung (0 s), der Punkt fliegt mit und landet wieder`,
+      comet.ring.startsWith("ag-wz-comet") && comet.delay.startsWith("0s") && comet.dur.startsWith("1.4s") && comet.timing.includes("cubic-bezier") && comet.mask && comet.grad && comet.dot === "ag-wz-land" && comet.dotDur === "1.9s", J(comet));
     check(`${tag}: nach gut 3 Sekunden ist die Welle vorbei`, await s.waitFor(`return !r.querySelector('${BTN}').classList.contains('wave')`, 5000));
     await s.tap('[data-tab="log"]');
     check(`${tag}: der Knopf steht auch im Reiter Protokoll`, await s.waitFor(`return r.host._tab === 'log' && !!r.querySelector('${BTN}')`));

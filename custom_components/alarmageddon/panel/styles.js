@@ -1026,28 +1026,28 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 .ag-wzbtn g { transform-box: view-box; }
 .ag-wzbtn-dot { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--ag-primary); border: 2px solid var(--ag-card); pointer-events: none; }
 .ag-wzbtn.wave .ag-wzstick { transform-origin: 3px 21px; animation: ag-wz-swing 1.4s ease-in-out both; }
-.ag-wzbtn.wave .ag-wzstar { transform-origin: center; transform-box: fill-box; animation: ag-wz-twinkle 1s ease-in-out 1.4s both; }
-.ag-wzbtn.wave .s1 { animation-delay: 1.44s; }
-.ag-wzbtn.wave .s2 { animation-delay: 1.48s; }
+.ag-wzbtn.wave .ag-wzstar { transform-origin: center; transform-box: fill-box; animation: ag-wz-twinkle 1.4s ease-in-out both; }
+.ag-wzbtn.wave .s1 { animation-delay: .04s; }
+.ag-wzbtn.wave .s2 { animation-delay: .08s; }
 /* Sternschnuppe wie im Device Panel (dp-comet und dp-land, docs/mockups/shootingstar-v1; "ein Markenzeichen", Wunsch des Nutzers 2026-11-20, 21:29): nach dem
-   Schwung löst sich der Punkt vom Knopf, huscht mit Schweif einmal um die Linie und setzt sich kurz vergrössert wieder hin. Eine Welle dauert 3 Sekunden
-   und kommt alle 30 Sekunden Pause wieder, solange der Knopf steht. Ablauf (Wunsch des Nutzers 2026-11-21): der Stab schwingt 0 bis 1,4 s; in dem Moment, in dem er
-   still steht, fangen die Sterne an zu wackeln (1,4 bis 2,5 s) und gleichzeitig fährt der Komet los, anfangs langsam und bis zum Schluss immer schneller
-   (Beschleunigungskurve, 1,15 s, von der Stelle des Punktes einmal herum bis wieder dorthin, 1,4 bis 2,55 s); dort blitzt der Punkt kurz auf (2,55 bis 3 s) und bleibt stehen. */
+   Schwung löst sich der Punkt vom Knopf, huscht mit Schweif einmal um die Linie und setzt sich kurz vergrössert wieder hin. Eine Welle dauert 1,9 Sekunden
+   und kommt nach 30 Sekunden Pause wieder, solange der Knopf steht. Ablauf (Wunsch des Nutzers 2026-11-21, ohne Lücke): Stab, Sterne und Komet beginnen im selben
+   Augenblick (0 s). Der Stab schwingt 1,4 s, die Sterne wackeln in dieser Zeit (leicht gestaffelt), der Komet fährt vom Punkt los, anfangs langsam und bis zum Schluss immer
+   schneller (Beschleunigungskurve, 1,4 s, einmal herum bis wieder zum Punkt); dort blitzt der Punkt kurz auf (1,4 bis 1,9 s) und bleibt stehen. */
 .ag-wzbtn.wave::before { content: ""; position: absolute; inset: -1px; border-radius: 50%; pointer-events: none; opacity: 0;
   background: conic-gradient(from 0deg, transparent 0deg, transparent 240deg, color-mix(in srgb, var(--ag-primary) 14%, transparent) 240deg, color-mix(in srgb, var(--ag-primary) 92%, #fff) 354deg, #fff3e0 358deg, transparent 360deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  animation: ag-wz-comet 1.15s cubic-bezier(.5, 0, .95, .55) 1.4s both, ag-wz-comet-vis 1.15s linear 1.4s both; }
-.ag-wzbtn.wave .ag-wzbtn-dot { animation: ag-wz-land 3s linear both; }
+  animation: ag-wz-comet 1.4s cubic-bezier(.5, 0, .95, .55) both, ag-wz-comet-vis 1.4s linear both; }
+.ag-wzbtn.wave .ag-wzbtn-dot { animation: ag-wz-land 1.9s linear both; }
 /* Der Kopf des Kometen liegt bei 358 Grad des Verlaufs; mit 47 Grad Drehung steht er genau am Punkt (oben rechts) und kommt nach 360 Grad wieder dort an. Die Beschleunigung
    steckt im Zeitverlauf der Drehung, das Ein- und Ausblenden läuft getrennt und linear. */
 @keyframes ag-wz-comet { from { transform: rotate(47deg) } to { transform: rotate(407deg) } }
 @keyframes ag-wz-comet-vis { 0% { opacity: 0 } 4% { opacity: 1 } 94% { opacity: 1 } 100% { opacity: 0 } }
-/* Der Punkt verschwindet, wenn der Komet losfährt (1,4 s), und blitzt bei der Ankunft (2,55 s von 3 s = 85 %) kurz auf und bleibt stehen */
-@keyframes ag-wz-land { 0%, 45% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent; filter: none }
-  47%, 84.9% { transform: scale(.3); opacity: 0; box-shadow: 0 0 0 0 transparent; filter: none }
-  85% { transform: scale(2); opacity: 1; box-shadow: 0 0 6px 2px color-mix(in srgb, var(--ag-primary) 80%, #fff); filter: brightness(1.7) }
-  91% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 10px 6px transparent; filter: brightness(1.3) }
+/* Der Punkt verschwindet, wenn der Komet losfährt (ab 3 % = 0,06 s), und blitzt bei der Ankunft (1,4 s von 1,9 s = 73,7 %) kurz auf und bleibt stehen */
+@keyframes ag-wz-land { 0%, 2% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent; filter: none }
+  3%, 73.6% { transform: scale(.3); opacity: 0; box-shadow: 0 0 0 0 transparent; filter: none }
+  73.7% { transform: scale(2); opacity: 1; box-shadow: 0 0 6px 2px color-mix(in srgb, var(--ag-primary) 80%, #fff); filter: brightness(1.7) }
+  84% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 10px 6px transparent; filter: brightness(1.3) }
   100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent; filter: none } }
 @keyframes ag-wz-swing { 0% { transform: rotate(0) } 22% { transform: rotate(-24deg) } 52% { transform: rotate(16deg) } 74% { transform: rotate(-6deg) } 100% { transform: rotate(0) } }
 @keyframes ag-wz-twinkle { 0% { transform: scale(1) rotate(0) } 20% { transform: scale(1.5) rotate(25deg) } 45% { transform: scale(.75) rotate(-25deg) } 70% { transform: scale(1.3) rotate(12deg) } 100% { transform: scale(1) rotate(0) } }

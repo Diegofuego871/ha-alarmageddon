@@ -12,7 +12,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 ### Geändert
 
 - **Formular der HealthCheck-Dienste:** Der Titel "Bei Alarm (freiwillig)" heisst jetzt "Bei Alarm"; beide Zusätze sind freiwillig. Bei einem erkannten Dienst setzt Alarmageddon beide für dich ein (solange du sie nicht angefasst hast); du kannst sie leeren oder ohne sie speichern. Ohne Fehler- oder Alarm-Zusatz wird der passende Test-Knopf ("Fehler senden", "Alarm senden") nicht angezeigt, in der Liste und im Kopf des Protokolls.
-- **Zauberstab des Assistenten:** Sobald der Stab aufhört sich zu bewegen, fangen die Sterne an zu wackeln, und gleichzeitig fährt die Sternschnuppe vom Punkt aus los, erst langsam und dann immer schneller (kurze Beschleunigungskurve) einmal um den Knopf; am Ende blitzt der Punkt kurz auf und bleibt stehen.
+- **Zauberstab des Assistenten:** Stab, Sterne und Sternschnuppe beginnen im selben Augenblick, ohne Lücke: während der Stab schwingt, wackeln die Sterne, und die Sternschnuppe fährt vom Punkt aus los, erst langsam und dann immer schneller (kurze Beschleunigungskurve) einmal um den Knopf; sobald der Stab zur Ruhe kommt, blitzt der Punkt kurz auf und bleibt stehen.
 
 ### Behoben
 

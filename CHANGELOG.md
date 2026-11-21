@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **HealthCheck form:** the title "On alarm (optional)" is now "On alarm"; both suffixes are optional. For a service Alarmageddon recognizes, both are filled in for you (as long as you have not touched them); you can empty them or save without them. Without a failure or alarm suffix the matching test button ("Send failure", "Send alarm") is not shown, in the list and in the head of the log.
-- **Setup assistant wand:** as soon as the wand stops moving, the stars start to wiggle and at the same time the shooting star sets off from the dot, slowly at first and faster and faster (a short acceleration curve) once around the button; at the end the dot flashes briefly and stays.
+- **Setup assistant wand:** wand, stars and shooting star start at the same moment, without a gap: while the wand swings the stars wiggle and the shooting star sets off from the dot, slowly at first and faster and faster (a short acceleration curve) once around the button; when the wand comes to rest the dot flashes briefly and stays.
 
 ### Fixed
 
