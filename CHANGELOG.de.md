@@ -13,6 +13,10 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 - **Einrichtungsassistent, Startseite:** Oben links ein Logo, ein runder Farbverlauf von Blau zu Violett mit dem weissen Zauberstab (derselbe Stab wie im Knopf im Kopf), damit man den Assistenten später wiedererkennt.
 
+### Geändert
+
+- **Zauberstab des Assistenten:** Der Punkt bleibt die ganze Zeit sichtbar: Nach dem Einsaugen der Sterne fährt er selbst als Kopf der Sternschnuppe um den Knopf, den Schweif hinter sich (vorher verschwand er und tauchte am Ende wieder auf). Die Runde dauert 1,3 statt 1 Sekunde, eine Welle 3,9 Sekunden.
+
 ## [1.74.4] - 2026-11-21
 
 ### Geändert

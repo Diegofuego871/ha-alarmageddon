@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **Setup assistant, welcome page:** a logo at the top left, a round badge in a blue-to-violet gradient with the white magic wand (the same wand as the button in the header), so the assistant is recognised again later.
 
+### Changed
+
+- **Setup assistant wand:** the dot now stays visible the whole time: after it has sucked in the stars it travels around the button itself as the head of the shooting star, with the tail behind it (it used to disappear and reappear at the end). The lap takes 1.3 seconds instead of 1 second; a wave takes 3.9 seconds.
+
 ## [1.74.4] - 2026-11-21
 
 ### Changed

@@ -5,7 +5,7 @@
 // schnippt zum Punkt; schon beim Schnippen gleiten die Sterne hin und werden vom Punkt eingesogen (er schwillt mit jedem Stern an); kaum ist der letzte
 // drin, rast der Punkt als Komet los, dreht eine Runde, blitzt bei der Ankunft auf und explodiert in einem Ring, und im selben Augenblick werden die
 // Sterne an ihrem Platz langsam wieder eingeblendet. Jeder Teil beginnt, wenn der vorige endet. Zeiten in Millisekunden; WAVE_LEN_MS im Panel liegt darüber.
-const WAVE = { swing: 1100, suck: 800, comet: 1000, fade: 900, total: 3600 };
+const WAVE = { swing: 1100, suck: 800, comet: 1300, fade: 900, total: 3900 };
 // Mittelpunkte der Sterne und des Punktes in Einheiten des Symbols (viewBox 24, Symbol 22 px, gemessen im Nachbau): Ziel der Sterne ist der Punkt
 const WAVE_DOT = [26.7, -2.7];
 const WAVE_STAR_AT = [[7.5, 4.5], [19.5, 4.5], [19.5, 16.5]];
@@ -23,19 +23,24 @@ const WAVE_LAUNCH = Math.max(...WAVE_FLY.map((f) => f.arrive)); // der letzte St
 const WAVE_BOOM = WAVE_LAUNCH + WAVE.comet; // Ankunft, Aufblitzen und Explosion; die Sterne kommen zurück
 // Wieder eingeblendet, von innen nach aussen: zuerst der Stern, der dem Punkt am nächsten ist
 const WAVE_BACK = WAVE_FLY.map((f) => WAVE_BOOM + 110 * [...WAVE_FLY].sort((p, q) => p.arrive - q.arrive).indexOf(f));
-// Der Punkt schwillt mit jedem eingesogenen Stern an, wird zum Kometen (verschwindet), blitzt bei der Ankunft auf und setzt sich
+// Der Punkt bleibt immer sichtbar (Wunsch des Nutzers): er schwillt mit jedem eingesogenen Stern an, fährt dann selbst als Kopf des Kometen einmal um den
+// Knopf (Drehung um die Mitte des Knopfes, gleiche Kurve wie der Schweif; Mitte des Knopfes liegt (-9, 18) px vom Mittelpunkt des Punktes entfernt:
+// translate(v) rotate() translate(-v) dreht um diesen Punkt, scale() wirkt davor am Punkt selbst), blitzt bei der Ankunft auf und setzt sich
 const WAVE_LAND = (() => {
   const hits = WAVE_FLY.map((f) => f.arrive).sort((p, q) => p - q);
   const glow = (n) => `0 0 ${2 + 2 * n}px ${Math.round(n * 0.6 * 10) / 10}px color-mix(in srgb, var(--ag-primary) 60%, #fff)`;
-  const rows = [`0%, ${pc(hits[0] - 1)} { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent; filter: none }`];
+  const tf = (deg, sc) => `translate(-13.5px, 13.5px) rotate(${deg}deg) translate(13.5px, -13.5px) scale(${sc})`;
+  const rows = [`0%, ${pc(hits[0] - 1)} { transform: ${tf(0, 1)}; box-shadow: 0 0 0 0 transparent; filter: none }`];
   hits.forEach((t, n) => {
-    rows.push(`${pc(t)} { transform: scale(${(1.3 + n * 0.2).toFixed(2)}); opacity: 1; box-shadow: ${glow(n + 1)}; filter: brightness(${(1.2 + n * 0.15).toFixed(2)}) }`);
-    if (n < hits.length - 1) rows.push(`${pc(t + 50)} { transform: scale(${(1.15 + n * 0.2).toFixed(2)}); opacity: 1; box-shadow: ${glow(n)}; filter: brightness(1.1) }`);
+    rows.push(`${pc(t)} { transform: ${tf(0, (1.3 + n * 0.2).toFixed(2))}; box-shadow: ${glow(n + 1)}; filter: brightness(${(1.2 + n * 0.15).toFixed(2)}) }`);
+    if (n < hits.length - 1) rows.push(`${pc(t + 50)} { transform: ${tf(0, (1.15 + n * 0.2).toFixed(2))}; box-shadow: ${glow(n)}; filter: brightness(1.1) }`);
   });
-  rows.push(`${pc(WAVE_LAUNCH + 50)}, ${pc(WAVE_BOOM - 10)} { transform: scale(.3); opacity: 0; box-shadow: 0 0 0 0 transparent; filter: none }`);
-  rows.push(`${pc(WAVE_BOOM)} { transform: scale(2.2); opacity: 1; box-shadow: 0 0 10px 4px color-mix(in srgb, var(--ag-primary) 70%, #fff); filter: brightness(1.8) }`);
-  rows.push(`${pc(WAVE_BOOM + 250)} { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px 3px transparent; filter: brightness(1.3) }`);
-  rows.push(`${pc(WAVE_BOOM + 600)}, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent; filter: none }`);
+  // Start der Runde: der Punkt hat seine volle Grösse und rast los (Kurve wie der Schweif)
+  rows.push(`${pc(WAVE_LAUNCH)} { transform: ${tf(0, 1.35)}; box-shadow: ${glow(1)}; filter: brightness(1.3); animation-timing-function: cubic-bezier(.5, 0, .3, 1) }`);
+  rows.push(`${pc(WAVE_BOOM - 1)} { transform: ${tf(360, 1.35)}; box-shadow: ${glow(1)}; filter: brightness(1.3) }`);
+  rows.push(`${pc(WAVE_BOOM)} { transform: ${tf(360, 2.2)}; box-shadow: 0 0 10px 4px color-mix(in srgb, var(--ag-primary) 70%, #fff); filter: brightness(1.8) }`);
+  rows.push(`${pc(WAVE_BOOM + 250)} { transform: ${tf(360, 1.3)}; box-shadow: 0 0 8px 3px transparent; filter: brightness(1.3) }`);
+  rows.push(`${pc(WAVE_BOOM + 600)}, 100% { transform: ${tf(360, 1)}; box-shadow: 0 0 0 0 transparent; filter: none }`);
   return rows.join("\n  ");
 })();
 // Je Stern eine Zeitleiste: ruhig, beim Schnippen eingesogen (erst langsam, dann immer schneller, kleiner werdend und sich drehend), weg, bei der

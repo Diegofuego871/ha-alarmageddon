@@ -40,12 +40,12 @@ for (const lang of ["de", "en"]) {
     const after = Date.now() - t0;
     check(`${tag}: der Zauberstab schwingt rund 5 Sekunden nach dem Laden (${after} ms)`, waved && after > 3500 && after < 6800, String(after));
     const anim = await s.ev(`const b=r.querySelector('${BTN}'); return [getComputedStyle(b.querySelector('.ag-wzstick')).animationName, ...[...b.querySelectorAll('.ag-wzstar')].map((x) => getComputedStyle(x).animationName + ':' + getComputedStyle(x).animationDuration)]`);
-    check(`${tag}: Stab schwingt um den Griff; jeder Stern hat eine Zeitleiste für Bewegung und Ein-/Ausblenden (3,6 s: eingesogen, nach der Explosion wieder eingeblendet)`, J(anim) === J(["ag-wz-swing", "ag-wz-star0, ag-wz-fade0:3.6s", "ag-wz-star1, ag-wz-fade1:3.6s", "ag-wz-star2, ag-wz-fade2:3.6s"]), J(anim));
+    check(`${tag}: Stab schwingt um den Griff; jeder Stern hat eine Zeitleiste für Bewegung und Ein-/Ausblenden (3,9 s: eingesogen, nach der Explosion wieder eingeblendet)`, J(anim) === J(["ag-wz-swing", "ag-wz-star0, ag-wz-fade0:3.9s", "ag-wz-star1, ag-wz-fade1:3.9s", "ag-wz-star2, ag-wz-fade2:3.9s"]), J(anim));
     // Sternschnuppe wie im Device Panel (Wunsch des Nutzers 2026-11-20): nach dem Schwung löst sich der Punkt und huscht mit Schweif um die Linie
     const comet = await s.ev(`const b=r.querySelector('${BTN}'); const c=getComputedStyle(b, '::before'); const d=getComputedStyle(b.querySelector('.ag-wzbtn-dot'));
       return { ring: c.animationName, delay: c.animationDelay, dur: c.animationDuration, timing: c.animationTimingFunction, mask: (c.webkitMaskImage || c.maskImage || '').includes('radial-gradient'), grad: c.backgroundImage.includes('conic-gradient'), dot: d.animationName, dotDur: d.animationDuration }`);
-    check(`${tag}: Sternschnuppe: Ring mit Schweif (conic-gradient, maskiert) startet, sobald der letzte Stern eingesogen ist (1,445 s), der Punkt fliegt mit und landet wieder`,
-      comet.ring.startsWith("ag-wz-comet") && comet.delay.startsWith("1.445s") && comet.dur.startsWith("1s") && comet.timing.includes("cubic-bezier") && comet.mask && comet.grad && comet.dot === "ag-wz-land" && comet.dotDur === "3.6s", J(comet));
+    check(`${tag}: Sternschnuppe: Ring mit Schweif (conic-gradient, maskiert) startet, sobald der letzte Stern eingesogen ist (1,445 s), der Punkt bleibt sichtbar, fährt als Kopf mit und landet wieder`,
+      comet.ring.startsWith("ag-wz-comet") && comet.delay.startsWith("1.445s") && comet.dur.startsWith("1.3s") && comet.timing.includes("cubic-bezier") && comet.mask && comet.grad && comet.dot === "ag-wz-land" && comet.dotDur === "3.9s", J(comet));
     check(`${tag}: nach knapp 4 Sekunden ist die Welle vorbei`, await s.waitFor(`return !r.querySelector('${BTN}').classList.contains('wave')`, 7000));
     await s.tap('[data-tab="log"]');
     check(`${tag}: der Knopf steht auch im Reiter Protokoll`, await s.waitFor(`return r.host._tab === 'log' && !!r.querySelector('${BTN}')`));
