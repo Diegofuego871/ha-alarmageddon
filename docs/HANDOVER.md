@@ -3,6 +3,13 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
+- 1.73.0 (Basis: `main` @ `75b574f` = 1.72.0, von dieser Session gepusht; Wünsche des Nutzers vom 2026-11-20 mit Bildschirmfotos). `PANEL_VERSION` 238.
+  - **Alarm-Aufruf** der HealthCheck-Dienste (`alarm_suffix`, `healthcheck.py _tick/_send`, `selftest.any_alarm`), zweiter Knopf in Liste und Protokollkopf, Formular in
+    vier Kapiteln, Vorschläge mit englischer Nachricht (Cronitor `?state=fail&message=…`, Kuma `?status=down&msg=…`; Healthchecks.io und Better Stack nur `/fail` und `/2`,
+    die Nachricht geht dort nur per POST; **offen:** nicht geprüft, wie `/2` bei den Diensten angezeigt wird). Der Fehler-Aufruf kommt nur bei Problemen des Selbsttests.
+  - **6 Monate** statt 90 Tage im Protokoll; Aktionsknöpfe eingefärbt; X und Knöpfe im Kopf des Protokolls auf dem iPad gleich gross.
+  - **Zauberstab** wiederholt sich alle 30 s mit Sternschnuppe; **Ecken der Tabellen** auf dem Handy (Suite `corners-e2e.mjs`); **Code hinzufügen** in Kapiteln.
+  - Mutationsprobe: "hängender Dienst" ist nicht probenbar (eingefrorene Zeit lässt das Warten nie enden); der Test sichert es trotzdem.
 - 1.72.0 (Basis: `main` @ `1aa5196` = Tag `v1.71.0`, vom Nutzer am 2026-11-20 committet und getaggt, Baum gleich der Lieferung von 1.71.0;
   Wünsche des Nutzers vom 2026-11-20, 13:56 bis 14:01, mit Bildschirmfotos). Protokoll: `docs/UEBERGABE-1.72.0.md`. `PANEL_VERSION` 237.
   - **Filter der Sensoren (13:56, Wasser 14:45):** `common.js SENSOR_FILTERS`, `sensorKind`, `sensorFilters` (auch `AIR`, `measureKind`, vorher in `wizard.js`);

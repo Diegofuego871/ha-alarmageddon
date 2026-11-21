@@ -64,7 +64,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 237  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 238  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -293,7 +293,7 @@ HEALTHCHECK_TICK: Final = 10
 HEALTHCHECK_START_DELAY: Final = 30  # erstes Lebenszeichen nach dem Start
 HEALTHCHECK_STORE_KEY: Final = f"{DOMAIN}.healthcheck"
 # Protokoll je Dienst (1.68.0, Wunsch und Entscheide des Nutzers 2026-11-19, healthcheck_log.py): einzelne Aufrufe HEALTHLOG_CALL_HOURS Stunden,
-# Stundenwerte für die Grafik HEALTHLOG_HOUR_DAYS Tage, Tageswerte HEALTHLOG_DAY_DAYS Tage (90 Tage und 1 Jahr, Entscheid 18:35), Ereignisse
+# Stundenwerte für die Grafik HEALTHLOG_HOUR_DAYS Tage, Tageswerte HEALTHLOG_DAY_DAYS Tage (6 Monate und 1 Jahr, Entscheide 18:35 und 2026-11-20 19:01), Ereignisse
 # HEALTHLOG_EVENT_DAYS Tage und höchstens HEALTHLOG_EVENT_MAX je Dienst. Bei 5 Minuten Abstand üblich rund 60 KB je Dienst, höchstens rund 160 KB.
 # Geschrieben gesammelt (HEALTHLOG_SAVE_DELAY), nie bei jedem Aufruf. Ein Tag gilt in der Grafik als Lücke ab HEALTHLOG_GAP_DAY_MINUTES ohne Daten.
 HEALTHLOG_STORE_KEY: Final = f"{DOMAIN}.healthcheck_log"
@@ -304,7 +304,7 @@ HEALTHLOG_EVENT_DAYS: Final = 366
 HEALTHLOG_EVENT_MAX: Final = 1000
 HEALTHLOG_SAVE_DELAY: Final = 600
 HEALTHLOG_GAP_DAY_MINUTES: Final = 30
-HEALTHLOG_RANGES: Final = (3, 12, 24, 168, 720, 2160, 8760)
+HEALTHLOG_RANGES: Final = (3, 12, 24, 168, 720, 4320, 8760)
 DATA_HEALTHCHECK: Final = f"{DOMAIN}_healthcheck"
 PUSH_ACTION_DISARM: Final = "ALARMAGEDDON_DISARM_"  # + entry_id
 PUSH_ACTION_OPEN: Final = "ALARMAGEDDON_OPEN"

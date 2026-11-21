@@ -876,18 +876,19 @@ export class SystemUi {
     // Ein verknüpfter Benutzer, den Home Assistant nicht mehr als aktiv listet, bleibt wählbar (sonst löste ihn jedes Speichern still)
     const gone = own && !users.some((u) => u.id === own) ? `<option value="${esc(own)}" selected>${esc(this._t("codeUserGone"))}</option>` : "";
     const options = users.filter((u) => !taken.has(u.id)).map((u) => `<option value="${esc(u.id)}" ${u.id === own ? "selected" : ""}>${esc(u.name)}</option>`).join("");
-    const secret = (key, label, hint = "") => `<div class="ag-fld"><label class="ag-label" for="ag-cf-${key}">${esc(label)}</label>
-        <span class="ag-pwfld"><input class="ag-input" id="ag-cf-${key}" type="password" inputmode="numeric" autocomplete="new-password" data-sys="cf" data-key="${key}" data-secret maxlength="8">
-          <button type="button" class="ag-iconbtn ag-pweye" data-sys="code-eye" aria-pressed="false" aria-label="${esc(this._t("codeShow"))}" title="${esc(this._t("codeShow"))}">${ic("eye", 18)}</button></span>
-        ${hint ? `<small class="ag-t2">${esc(hint)}</small>` : ""}</div>`;
+    // Seit 1.73.0 (Wunsch des Nutzers): jedes Feld ist ein Kapitel (fetter Titel mit Strich davor, wie bei "Routine hinzufügen"); der Titel ersetzt die
+    // kleine Beschriftung, das Feld trägt sie als aria-label. Der Einrichtungsassistent öffnet dasselbe Fenster und übernimmt es damit.
+    const secret = (key, label) => `<span class="ag-pwfld"><input class="ag-input" id="ag-cf-${key}" type="password" inputmode="numeric" autocomplete="new-password" data-sys="cf" data-key="${key}" data-secret maxlength="8" aria-label="${esc(label)}">
+          <button type="button" class="ag-iconbtn ag-pweye" data-sys="code-eye" aria-pressed="false" aria-label="${esc(this._t("codeShow"))}" title="${esc(this._t("codeShow"))}">${ic("eye", 18)}</button></span>`;
     const dlg = this._codeDlg(true);
-    dlg.innerHTML = `<div class="ag-dlg-body">${iconTitle("hand", TINT.codes, this._t(c ? "codeEdit" : "codeAdd"))}
-      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeUser"))}</span><select class="ag-input" data-sys="cf" data-key="user_id" data-init="${esc(own)}" aria-label="${esc(this._t("codeUser"))}">
-        <option value="">${esc(this._t("codeUserNone"))}</option>${gone}${options}</select>
-        <small class="ag-t2">${esc(this._t("codeUserHint"))}</small></label>
-      <label class="ag-fld"><span class="ag-label">${esc(this._t("codeName"))}</span><input class="ag-input" data-sys="cf" data-key="name" maxlength="40" autocomplete="off" value="${esc(c?.name || mine?.name || "")}" data-init="${esc(c?.name || "")}" aria-label="${esc(this._t("codeName"))}"></label>
-      ${secret("code", this._t("codeValue"), c ? this._t("codeKeepHint") : "")}
-      ${secret("code2", this._t("codeRepeat"))}
+    const userBody = `<select class="ag-input" data-sys="cf" data-key="user_id" data-init="${esc(own)}" aria-label="${esc(this._t("codeUser"))}">
+        <option value="">${esc(this._t("codeUserNone"))}</option>${gone}${options}</select>`;
+    const nameBody = `<input class="ag-input" data-sys="cf" data-key="name" maxlength="40" autocomplete="off" value="${esc(c?.name || mine?.name || "")}" data-init="${esc(c?.name || "")}" aria-label="${esc(this._t("codeName"))}">`;
+    const codeBody = `<div class="ag-fld">${secret("code", this._t("codeValue"))}${secret("code2", this._t("codeRepeat"))}</div>`;
+    dlg.innerHTML = `<div class="ag-dlg-body ag-codeform">${iconTitle("hand", TINT.codes, this._t(c ? "codeEdit" : "codeAdd"))}
+      ${chapter(this._t("codeUser"), userBody, this._t("codeUserHint"))}
+      ${chapter(this._t("codeName"), nameBody)}
+      ${chapter(this._t("codeValue"), codeBody, c ? this._t("codeKeepHint") : "")}
       <div class="ag-codewarn" hidden aria-live="polite">${ic("alert", 18)}<span></span></div>
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sys="code-close">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-sys="code-save" data-id="${esc(c?.id || "")}">${ic("check", 18)}${esc(this._t("save"))}</button></div></div>`;

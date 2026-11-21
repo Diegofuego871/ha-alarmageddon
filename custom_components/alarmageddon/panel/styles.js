@@ -473,6 +473,14 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-btns .ag-iconbtn:hover { background: var(--ag-hover); }
 .ag-wf-btns .ag-iconbtn[data-wf="delete"] { color: var(--ag-error); }
 .ag-wf-btns .ag-iconbtn:disabled { opacity: .3; cursor: default; }
+/* Knöpfe, die eine Aktion auslösen (1.73.0, Wunsch des Nutzers 2026-11-20): "Lebenszeichen senden" leicht grün, "Fehler senden" und "Alarm senden" leicht orange; Stift und Papierkorb
+   bleiben neutral. Läuft der Test (ag-running), gilt der rote Stopp-Knopf. */
+.ag-wf-btns .ag-iconbtn[data-hc="test-ok"]:not(.ag-running), .ag-wf-btns .ag-iconbtn[data-sv="test-ok"]:not(.ag-running) { color: var(--ag-success); background: var(--ag-success-soft); border-color: color-mix(in srgb, var(--ag-success) 45%, transparent); }
+.ag-wf-btns .ag-iconbtn[data-hc="test-fail"]:not(.ag-running), .ag-wf-btns .ag-iconbtn[data-sv="test-fail"]:not(.ag-running),
+.ag-wf-btns .ag-iconbtn[data-hc="test-alarm"]:not(.ag-running), .ag-wf-btns .ag-iconbtn[data-sv="test-alarm"]:not(.ag-running) { color: var(--ag-warning-text); background: var(--ag-warning-soft); border-color: color-mix(in srgb, var(--ag-warning) 50%, transparent); }
+.ag-wf-btns .ag-iconbtn[data-hc="test-ok"]:not(.ag-running):hover, .ag-wf-btns .ag-iconbtn[data-sv="test-ok"]:not(.ag-running):hover { background: color-mix(in srgb, var(--ag-success) 24%, transparent); }
+.ag-wf-btns .ag-iconbtn[data-hc="test-fail"]:not(.ag-running):hover, .ag-wf-btns .ag-iconbtn[data-sv="test-fail"]:not(.ag-running):hover,
+.ag-wf-btns .ag-iconbtn[data-hc="test-alarm"]:not(.ag-running):hover, .ag-wf-btns .ag-iconbtn[data-sv="test-alarm"]:not(.ag-running):hover { background: color-mix(in srgb, var(--ag-warning) 28%, transparent); }
 /* Läuft ein Test, ist der Stopp-Knopf rot und pulsiert: auf einen Blick zu sehen, wo man es wieder anhält */
 /* Laufender Play-Knopf, überall gleich (Vorgabe des Nutzers, 2026-11-17): rot, weisses Stopp-Symbol, pulsiert (common.js onceBtn, paintOnce) */
 .ag-iconbtn.ag-running, .ag-btn.ag-running { background: var(--ag-error); border-color: var(--ag-error); color: #fff; animation: ag-running 1.4s ease-out infinite; }
@@ -777,6 +785,9 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 
 #ag-codes .ag-dlg-body { gap: 14px; }
 #ag-codes .ag-fld small { font-size: 12.5px; }
+.ag-codeform .ag-chap:first-of-type { margin-top: 14px; }
+.ag-codeform .ag-chap > .ag-fld { gap: 10px; }
+.ag-codeform .ag-chap > input.ag-input { width: 100%; box-sizing: border-box; }
 /* Codefeld mit Auge (1.63.0): blendet nur den gerade getippten Code ein und aus */
 .ag-pwfld { position: relative; display: flex; align-items: center; }
 .ag-pwfld > .ag-input { flex: 1; min-width: 0; padding-right: 48px; }
@@ -1017,6 +1028,17 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 .ag-wzbtn.wave .ag-wzstar { transform-origin: center; transform-box: fill-box; animation: ag-wz-pop 1.4s ease-out both; }
 .ag-wzbtn.wave .s1 { animation-delay: .12s; }
 .ag-wzbtn.wave .s2 { animation-delay: .24s; }
+/* Sternschnuppe wie im Device Panel (dp-comet und dp-land, docs/mockups/shootingstar-v1; "ein Markenzeichen", Wunsch des Nutzers 2026-11-20, 21:29): nach dem
+   Schwung löst sich der Punkt vom Knopf, huscht mit Schweif einmal um die Linie und setzt sich kurz vergrössert wieder hin. Eine Welle dauert 3 Sekunden
+   (Schwung 0 bis 1,4 s, Sternschnuppe 1,5 bis 2,5 s, Ankunft bis 3 s) und kommt alle 30 Sekunden Pause wieder, solange der Knopf steht. */
+.ag-wzbtn.wave::before { content: ""; position: absolute; inset: -1px; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: conic-gradient(from 0deg, transparent 0deg, transparent 240deg, color-mix(in srgb, var(--ag-primary) 14%, transparent) 240deg, color-mix(in srgb, var(--ag-primary) 92%, #fff) 354deg, #fff3e0 358deg, transparent 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  animation: ag-wz-comet 1s linear 1.5s both; }
+.ag-wzbtn.wave .ag-wzbtn-dot { animation: ag-wz-land 3s linear both; }
+@keyframes ag-wz-comet { 0% { transform: rotate(15deg); opacity: 0 } 8% { transform: rotate(45deg); opacity: 1 } 92% { transform: rotate(405deg); opacity: 1 } 100% { transform: rotate(428deg); opacity: 0 } }
+@keyframes ag-wz-land { 0%, 46% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent } 50%, 82% { transform: scale(.3); opacity: 0; box-shadow: 0 0 0 0 transparent }
+  83% { transform: scale(1.6); opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, var(--ag-primary) 70%, transparent) } 88% { transform: scale(1.3); opacity: 1 } 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 8px transparent } }
 @keyframes ag-wz-swing { 0% { transform: rotate(0) } 22% { transform: rotate(-24deg) } 52% { transform: rotate(16deg) } 74% { transform: rotate(-6deg) } 100% { transform: rotate(0) } }
 @keyframes ag-wz-pop { 0%, 30% { transform: scale(1); opacity: 1 } 40% { transform: scale(.2); opacity: .2 } 60% { transform: scale(1.45) rotate(45deg); opacity: 1 } 100% { transform: scale(1) rotate(90deg); opacity: 1 } }
 .ag-head-cfg > .ag-tabs, .ag-head-cfg > .ag-seg { margin-right: auto; }
@@ -1084,6 +1106,8 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 :host([narrow]) .ag-ov-tools select.ag-select { order: 4; flex: 1 1 0; min-width: 0; }
 /* ----- Sensoransicht (1.9.0): Desktop Fenster in der Breite der Voreinstellungen, Handy ganzer Bildschirm. Oben fest, nur die Liste scrollt ----- */
 dialog.ag-svdlg[open] { height: min(92vh, 860px); }
+/* Das X der Ansichten (1.73.0, Wunsch des Nutzers 2026-11-20, iPad): 44 px wie die runden Knöpfe der Kopfzeile und auf deren Höhe (Kopf beginnt 20 px unter dem Rand, Zeile 44 px) */
+:host(:not([narrow])) dialog.ag-svdlg .ag-dlg-x { top: 20px; right: 20px; width: 44px; height: 44px; }
 .ag-sv { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .ag-sv-fix { flex: none; padding: 20px 24px 0; user-select: none; -webkit-user-select: none; }
 .ag-sv-head { display: flex; align-items: center; gap: 12px; min-height: 44px; padding-right: 54px; }
@@ -1387,6 +1411,10 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 /* Liste der Sicherungen im Popup: das Popup scrollt, der Tabellenkopf bleibt oben stehen */
 .ag-bkwrap { overflow: visible; }
 .ag-bkwrap .ag-table th { position: sticky; top: -22px; z-index: 2; background: var(--ag-card); height: 46px; box-shadow: 0 1px 0 var(--ag-divider); }
+/* Ecken der Tabellen in Fenstern (1.73.0, Wunsch des Nutzers 2026-11-20): die klebende Kopfzeile deckte mit ihren eckigen Ecken den runden Rand der Karte
+   (18 px, innen 17 px) zu; sie bekommt dieselben runden Ecken wie die Karte */
+.ag-bkwrap .ag-table tr:first-child th:first-child { border-top-left-radius: 17px; }
+.ag-bkwrap .ag-table tr:first-child th:last-child { border-top-right-radius: 17px; }
 .ag-bkwrap .ag-table td { height: 52px; }
 .ag-bkwrap .ag-sortbtn { padding: 14px; }
 .ag-rtempty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 34px 18px; text-align: center; } .ag-rtfoot { margin: 0 4px; }
@@ -1462,6 +1490,8 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 :host([narrow]) .ag-bktable, :host([narrow]) .ag-bktable tbody { display: block; width: 100%; }
 :host([narrow]) .ag-bktable tr { display: flex; flex-wrap: wrap; align-items: center; }
 :host([narrow]) .ag-bkwrap .ag-bktable tr:first-child { position: sticky; top: -16px; z-index: 2; background: var(--ag-card); box-shadow: 0 1px 0 var(--ag-divider); }
+:host([narrow]) .ag-bkwrap .ag-bktable tr:first-child, :host([narrow]) .ag-hc-pop .ag-hctable tr:first-child { border-radius: 17px 17px 0 0; }
+:host([narrow]) .ag-bkwrap .ag-bktable tr:first-child th, :host([narrow]) .ag-hc-pop .ag-hctable tr:first-child th { background: transparent; border-radius: inherit; }
 :host([narrow]) .ag-bkwrap .ag-bktable tr:first-child th { position: static; box-shadow: none; }
 :host([narrow]) .ag-bktable th:first-child, :host([narrow]) .ag-bktable tr[data-bk] > td:first-child { flex: 1 1 0; min-width: 0; }
 :host([narrow]) .ag-bktable th:nth-child(2), :host([narrow]) .ag-bktable td.ag-bkdate { flex: 0 0 128px; }
@@ -1628,6 +1658,9 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 :host([narrow]) .ag-hctable tr:last-child td.ag-acts { border-bottom: 0; }
 :host([narrow]) .ag-hc-m { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; font-size: 12px; }
 :host([narrow]) .ag-hcbtns { gap: 14px; margin-top: 0; }
+/* Sechs Knöpfe (mit "Alarm senden") passen mit dem kleineren Abstand noch in die Zeile; sonst bricht sie um, nie über den Rand (1.73.0) */
+:host([narrow]) .ag-hcbtns { flex-wrap: wrap; }
+:host([narrow]) .ag-hcbtns:has(> :nth-child(6)) { gap: 6px; }
 /* Formular eines Dienstes */
 .ag-hcform { display: flex; flex-direction: column; gap: 16px; }
 .ag-hcform > h3 { margin: 0; }

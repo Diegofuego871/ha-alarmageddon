@@ -7,6 +7,26 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.73.0] - 2026-11-21
+
+### Added
+
+- **Alarm call for HealthCheck services:** besides the failure suffix (self-test has problems) a service can have an **alarm suffix** (optional). When an alarm system is triggered, Alarmageddon calls the service with it at once (seen within 10 seconds, never held up by the minimum gap), so the service reports "Alarm triggered" instead of "Self-test failed". When the alarm ends, the normal life sign goes out. An alarm has precedence over a self-test failure. Services without an alarm suffix behave as before. A hanging service never holds up an alarm.
+- **Second button "Send alarm"** in the list of services and in the head of the log, only for a service with an alarm suffix; the log records the call as its own kind of event.
+- **Suggestions with a message in English:** for Cronitor (`?state=fail&message=…`) and Uptime Kuma (`?status=down&msg=…`) the failure suffix and the alarm suffix carry a short message; for Healthchecks.io and Better Stack (the message can only be sent with POST there) `/fail` and, for the alarm, `/2`. The alarm suffix is only suggested ("Use"), never filled in by itself.
+- **Setup assistant wand:** it repeats after a pause of 30 seconds and ends with a shooting star around the button, like in Device Panel.
+
+### Changed
+
+- **HealthCheck form in chapters:** Service, On self-test failure, On alarm (optional), Interval, each with a title with a bar before it.
+- **Log of HealthCheck services:** the 90-day chart is now a **6-month** chart (more filled in); 90 days is replaced.
+- **Action buttons tinted:** "Send life sign" slightly green, "Send failure" and "Send alarm" slightly orange; pencil and log stay neutral. The cross and the round buttons in the head of the log are the same size and on one line on the iPad.
+- **Add code:** user, name and code are chapters (bold title with a bar before it, like "Add routine"); the setup assistant uses the same window.
+
+### Fixed
+
+- **Table corners on the phone:** the sticky head row of the tables in the windows HealthCheck services and Backups covered the rounded corners of the card; the corners are round now. The six buttons of a service fit in the row on the phone.
+
 ## [1.72.0] - 2026-11-20
 
 ### Added
@@ -2060,6 +2080,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.73.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.73.0
 [1.72.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.72.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0

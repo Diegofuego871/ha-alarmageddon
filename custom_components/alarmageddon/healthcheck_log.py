@@ -5,7 +5,7 @@ Je Dienst hält es jeden Aufruf fest: Zeit, Art, Ergebnis, HTTP-Status, Antwortz
 
 - einzelne Aufrufe der letzten HEALTHLOG_CALL_HOURS Stunden (Reiter "Alle Aufrufe"; ältere nur zusammengefasst, Entscheid des Nutzers),
 - Stundenwerte für die Grafik über HEALTHLOG_HOUR_DAYS Tage (Anzahl je Art, Summe, Zahl und Höchstwert der Antwortzeiten, Zahl ohne Antwort),
-- Tageswerte über HEALTHLOG_DAY_DAYS Tage für 90 Tage und 1 Jahr (Wunsch des Nutzers 18:24, "Langzeitstatistik"; dieselben Zahlen und dazu die
+- Tageswerte über HEALTHLOG_DAY_DAYS Tage für 6 Monate und 1 Jahr (Wunsch des Nutzers 18:24, "Langzeitstatistik"; dieselben Zahlen und dazu die
   Sekunden ohne Daten), je Tag in der Ortszeit von Home Assistant,
 - Ereignisse über HEALTHLOG_EVENT_DAYS Tage, höchstens HEALTHLOG_EVENT_MAX je Dienst: gescheitert, Fehler gemeldet (der Selbsttest hat Probleme),
   Test, wieder in Ordnung, erstes Lebenszeichen nach dem Start. Aufeinanderfolgende gescheiterte Aufrufe (und ebenso gemeldete Fehler) sind ein
@@ -55,7 +55,7 @@ _LOGGER = logging.getLogger(__name__)
 
 KINDS = ("ok", "report", "fail", "test")
 RESULTS = ("ok", "http", "timeout", "error")
-BY = ("tick", "selftest", "test", "start", "save")
+BY = ("tick", "selftest", "test", "start", "save", "alarm")
 EVENT_KINDS = ("fail", "report", "test", "back", "start")
 LIST_MAX = 300  # Zeilen je Liste in einer Antwort (neueste zuerst), wie die Sensoransicht; die Zahl gilt immer für den ganzen Zeitraum
 HOUR = 3600
@@ -68,7 +68,7 @@ def call_kind(sent: str, result: str, test: bool) -> str:
         return "fail"
     if test:
         return "test"
-    return "report" if sent == "fail" else "ok"
+    return "report" if sent in ("fail", "alarm") else "ok"
 
 
 def gap_limit(interval: int) -> int:
@@ -107,7 +107,7 @@ def _parse_call(row: Any) -> tuple | None:
         ms_v = int(ms) if ms else None
     except ValueError:
         return None
-    if kind not in KINDS or result not in RESULTS or by not in BY or sent not in ("ok", "fail") or t <= 0 or (ms_v is not None and ms_v < 0):
+    if kind not in KINDS or result not in RESULTS or by not in BY or sent not in ("ok", "fail", "alarm") or t <= 0 or (ms_v is not None and ms_v < 0):
         return None
     return (t, kind, result, code_v, ms_v, by, sent)
 
@@ -156,7 +156,7 @@ def _parse_event(value: Any) -> dict[str, Any] | None:
     for key in ("code", "ms", "n", "end", "problems"):
         if (v := _int(value.get(key))) is not None:
             out[key] = v
-    if value.get("sent") in ("ok", "fail"):
+    if value.get("sent") in ("ok", "fail", "alarm"):
         out["sent"] = value["sent"]
     if value.get("from") in ("fail", "report"):
         out["from"] = value["from"]
@@ -322,13 +322,15 @@ class HealthLog:
                 e.pop("open", None)
         open_event = next((e for e in reversed(events) if e.get("open")), None)
         if kind in ("fail", "report"):
-            if open_event is not None and open_event["k"] == kind and state == kind and by != "start":
+            # Ein Alarm-Aufruf ist ein eigenes Ereignis (1.73.0): er läuft nie in einem Fehler des Selbsttests auf, und umgekehrt
+            if open_event is not None and open_event["k"] == kind and state == kind and by != "start" and (open_event.get("sent") == "alarm") == (sent == "alarm"):
                 open_event["n"] = open_event.get("n", 1) + 1
                 open_event["end"] = ts
             else:
                 if open_event is not None:
                     open_event.pop("open", None)
-                events.append({**base, "k": kind, "n": 1, "end": ts, "open": True, **({"problems": problems} if kind == "report" and problems is not None else {})})
+                events.append({**base, "k": kind, "n": 1, "end": ts, "open": True, **({"problems": problems} if kind == "report" and problems is not None else {}),
+                               **({"sent": "alarm"} if kind == "report" and sent == "alarm" else {})})
         else:
             if open_event is not None:
                 open_event.pop("open", None)

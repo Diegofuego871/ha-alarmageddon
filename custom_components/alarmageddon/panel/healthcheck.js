@@ -9,7 +9,7 @@
 // eigenen Zeile unter dem Eintrag (Wunsch des Nutzers 2026-11-19). Seit 1.68.0 als erster Knopf "Protokoll" (healthlog.js, Wunsch des Nutzers: an der
 // eingekreisten Stelle links von "Fehler senden").
 const V = new URL(import.meta.url).search;
-const { ic, esc, errText, fmtDur, iconTitle, matchQuery, searchField } = await import(`./common.js${V}`);
+const { chapter, ic, esc, errText, fmtDur, iconTitle, matchQuery, searchField } = await import(`./common.js${V}`);
 
 // Tönung der Zeile im Kapitel HealthCheck, auch im Titel der Fenster (1.66.2)
 const HC_TINT = "ag-tint ag-tint-health on";
@@ -18,15 +18,17 @@ const MAX = 86400;
 // Schnellwahl des Abstands (Wunsch des Nutzers: "schlaue" Eingabe); dazu Zahl und Einheit für jeden anderen Wert von 1 Minute bis 24 Stunden
 const PRESETS = [60, 300, 900, 3600, 21600, 86400];
 
-// Bekannte Dienste: Name und vorgeschlagener Fehler-Zusatz. Nur ein Vorschlag (der Nutzer entscheidet), geprüft an den Unterlagen der Dienste
-// (Healthchecks.io und Better Stack "/fail", Cronitor "?state=fail"); Uptime Kuma "?status=down" nach der Push-URL ("status=up"), nicht an einem
-// echten Uptime Kuma geprüft.
+// Bekannte Dienste: Name und vorgeschlagene Zusätze, `suffix` für den Fehler des Selbsttests, `alarm` für den Alarm. Nur ein Vorschlag (der Nutzer
+// entscheidet), geprüft an den Unterlagen der Dienste (2026-11-21): Healthchecks.io und Better Stack kennen "/fail" und "/<Exit-Code>" und nehmen
+// eine Nachricht nur im Körper eines POST an (Alarmageddon sendet nur GET): dort unterscheidet der Exit-Code "/2" den Alarm vom Fehler "/fail".
+// Cronitor nimmt die Nachricht als Parameter "message" (URL-kodiert, bis 2000 Zeichen); Uptime Kuma (Quelltext der Push-Route) "msg" bei "status=down".
+// Die Nachricht steht auf Englisch (Wunsch des Nutzers 2026-11-20): sie geht an den Dienst, nicht an die Oberfläche.
 const KNOWN = [
-  { name: "Healthchecks.io", suffix: "/fail", test: (u) => u.hostname === "hc-ping.com" },
-  { name: "Healthchecks", suffix: "/fail", test: (u) => /^\/ping\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(u.pathname) },
-  { name: "Better Stack", suffix: "/fail", test: (u) => /(^|\.)(betterstack\.com|betteruptime\.com)$/.test(u.hostname) && u.pathname.includes("/heartbeat/") },
-  { name: "Cronitor", suffix: "?state=fail", test: (u) => u.hostname === "cronitor.link" },
-  { name: "Uptime Kuma", suffix: "?status=down", test: (u) => u.pathname.includes("/api/push/") },
+  { name: "Healthchecks.io", suffix: "/fail", alarm: "/2", test: (u) => u.hostname === "hc-ping.com" },
+  { name: "Healthchecks", suffix: "/fail", alarm: "/2", test: (u) => /^\/ping\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(u.pathname) },
+  { name: "Better Stack", suffix: "/fail", alarm: "/2", test: (u) => /(^|\.)(betterstack\.com|betteruptime\.com)$/.test(u.hostname) && u.pathname.includes("/heartbeat/") },
+  { name: "Cronitor", suffix: "?state=fail&message=Self-test+failed", alarm: "?state=fail&message=Alarm+triggered", test: (u) => u.hostname === "cronitor.link" },
+  { name: "Uptime Kuma", suffix: "?status=down&msg=Self-test+failed", alarm: "?status=down&msg=Alarm+triggered", test: (u) => u.pathname.includes("/api/push/") },
 ];
 
 // Beispiele im Fenster (Wunsch des Nutzers 2026-11-19: drei, vier Anbieter zum Aufklappen); dieselben, für die KNOWN den Fehler-Zusatz vorschlägt.
@@ -127,7 +129,7 @@ export class HealthCheckUi {
   tileHalf() {
     const items = this.items;
     if (!items.length) return "";
-    const state = (i) => i.log?.state || (i.status ? (i.status.result !== "ok" ? "fail" : i.status.sent === "fail" && !i.status.test ? "report" : "ok") : null);
+    const state = (i) => i.log?.state || (i.status ? (i.status.result !== "ok" ? "fail" : (i.status.sent === "fail" || i.status.sent === "alarm") && !i.status.test ? "report" : "ok") : null);
     const states = items.map(state);
     const fail = states.filter((x) => x === "fail").length;
     const report = states.filter((x) => x === "report").length;
@@ -209,7 +211,7 @@ export class HealthCheckUi {
 
   _statusText(s) {
     if (!s) return this._t("hcStNone");
-    const what = this._t(s.sent === "fail" ? "hcStFailSent" : "hcStOkSent");
+    const what = this._t(s.sent === "alarm" ? "hcStAlarmSent" : s.sent === "fail" ? "hcStFailSent" : "hcStOkSent");
     const test = s.test ? ` (${this._t("hcStTest")})` : "";
     if (s.result === "ok") return `${what}${test} · HTTP ${s.code}`;
     const why = s.result === "http" ? `HTTP ${s.code}` : this._t(s.result === "timeout" ? "hcStTimeout" : "hcStError");
@@ -219,31 +221,31 @@ export class HealthCheckUi {
   _statusTone(s) {
     if (!s) return "none";
     if (s.result !== "ok") return "err";
-    return s.sent === "fail" ? "warn" : "ok";
+    return s.sent === "fail" || s.sent === "alarm" ? "warn" : "ok";
   }
 
   _body() {
     const t = (k, v) => this._t(k, v);
     const items = this.items;
     if (!items.length) return `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(t("hcEmpty"))}</span><button class="ag-btn primary" data-hc="add">${ic("plus", 18)}${esc(t("hcAdd"))}</button></div>`;
-    const shown = items.filter((i) => matchQuery(this.q, i.name || "", i.url, i.fail_suffix, suggest(i.url)?.name || "", fmtDur(i.interval), this._statusText(i.status)));
+    const shown = items.filter((i) => matchQuery(this.q, i.name || "", i.url, i.fail_suffix, i.alarm_suffix, suggest(i.url)?.name || "", fmtDur(i.interval), this._statusText(i.status)));
     if (!shown.length) return `<div class="ag-card ag-popempty"><span class="ag-t2">${esc(t("hcNoMatch"))}</span></div>`;
     const sort = this.sort;
     const val = { name: (i) => (i.name || i.url).toLowerCase(), last: (i) => i.status?.at || "", interval: (i) => i.interval, status: (i) => this._statusText(i.status) }[sort.key];
     const cmp = (a, b) => (typeof a === "number" ? a - b : String(a).localeCompare(String(b), this.host._lang || "en", { numeric: true }));
     const list = [...shown].sort((a, b) => cmp(val(a), val(b)) * (sort.dir === "desc" ? -1 : 1) || cmp(a.name || "", b.name || "") || cmp(a.url, b.url));
-    const testing = (act, id) => (act === "test-fail" || act === "test-ok") && this.busy.has(`${id}|${act === "test-fail" ? "fail" : "ok"}`);
+    const testing = (act, id) => (act === "test-fail" || act === "test-ok" || act === "test-alarm") && this.busy.has(`${id}|${act === "test-fail" ? "fail" : act === "test-alarm" ? "alarm" : "ok"}`);
     const btn = (act, icon, label, id, off = false) => `<button class="ag-iconbtn" data-hc="${act}" data-id="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}" ${off || testing(act, id) ? "disabled" : ""}>${ic(icon, 18)}</button>`;
     const rows = list.map((i) => {
       const known = suggest(i.url);
       return `<tr data-hc-row="${esc(i.id)}"><td class="ag-hcurl"><b class="ag-hcname">${esc(i.name || i.url)}</b><span class="ag-mono ag-hcaddr" title="${esc(i.url)}">${esc(i.url)}</span>
-          <small class="ag-t2 ag-hcinfo">${known ? `<span class="ag-tag none">${esc(known.name)}</span> ` : ""}${esc(i.fail_suffix ? t("hcSuffixShort", { suffix: i.fail_suffix }) : t("hcSuffixNone"))}</small>
+          <small class="ag-t2 ag-hcinfo">${known ? `<span class="ag-tag none">${esc(known.name)}</span> ` : ""}${esc(i.fail_suffix ? t("hcSuffixShort", { suffix: i.fail_suffix }) : t("hcSuffixNone"))}${i.alarm_suffix ? ` · ${esc(t("hcAlarmShort", { suffix: i.alarm_suffix }))}` : ""}</small>
           <div class="ag-hc-m"><span class="ag-hcstate ${this._statusTone(i.status)}">${esc(this._statusText(i.status))}</span>
             <span class="ag-t2">${esc(`${t("hcColInterval")}: ${fmtDur(i.interval)} · ${t("hcColLast")}: ${i.status ? this._when(i.status.at) : "–"}`)}</span></div></td>
         <td class="ag-t2 ag-hclast">${esc(i.status ? this._when(i.status.at) : "–")}</td>
         <td class="ag-t2 ag-hcint">${esc(fmtDur(i.interval))}</td>
         <td class="ag-hcst"><span class="ag-hcstate ${this._statusTone(i.status)}">${esc(this._statusText(i.status))}</span></td>
-        <td class="ag-acts"><div class="ag-wf-btns ag-hcbtns">${btn("log", "history", t("hlOpen"), i.id)}${btn("test-fail", "alert", t(i.fail_suffix ? "hcTestFail" : "hcTestFailNone"), i.id, !i.fail_suffix)}${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
+        <td class="ag-acts"><div class="ag-wf-btns ag-hcbtns">${btn("log", "history", t("hlOpen"), i.id)}${btn("test-fail", "alert", t(i.fail_suffix ? "hcTestFail" : "hcTestFailNone"), i.id, !i.fail_suffix)}${i.alarm_suffix ? btn("test-alarm", "bell", t("hcTestAlarm"), i.id) : ""}${btn("test-ok", "check", t("hcTestOk"), i.id)}${btn("edit", "pencil", t("hcEdit"), i.id)}${btn("delete", "trash", t("remove"), i.id)}</div></td></tr>`;
     }).join("");
     const th = (k, label, cls = "") => {
       const on = sort.key === k;
@@ -260,7 +262,7 @@ export class HealthCheckUi {
     if (!item && this.items.length >= this.max) return;
     const interval = item?.interval ?? 300;
     const hours = interval % 3600 === 0;
-    this.form = { id: item?.id || null, name: item?.name || "", url: item?.url || "", suffix: item?.fail_suffix ?? "", touched: Boolean(item),
+    this.form = { id: item?.id || null, name: item?.name || "", url: item?.url || "", suffix: item?.fail_suffix ?? "", alarm: item?.alarm_suffix ?? "", touched: Boolean(item),
       value: hours ? interval / 3600 : Math.round(interval / 60), unit: hours ? "h" : "min", error: "", saving: false };
     this.renderForm(true);
     const dlg = this.formDlg;
@@ -280,6 +282,7 @@ export class HealthCheckUi {
     if (!name || name.length > 60) out.name = this._t(name ? "hcErrNameLong" : "hcErrName");
     if (!validUrl(f.url)) out.url = this._t(String(f.url || "").trim() ? "hcErrUrl" : "hcErrUrlEmpty");
     if (String(f.suffix || "").trim() && (!/^[/?&]/.test(f.suffix.trim()) || !applySuffix(f.url, f.suffix) || /\s/.test(f.suffix.trim()))) out.suffix = this._t("hcErrSuffix");
+    if (String(f.alarm || "").trim() && (!/^[/?&]/.test(f.alarm.trim()) || !applySuffix(f.url, f.alarm) || /\s/.test(f.alarm.trim()))) out.alarm = this._t("hcErrAlarm");
     const sec = this._seconds(f);
     if (!Number.isFinite(sec) || sec < MIN || sec > MAX) out.interval = this._t("hcErrInterval");
     return out;
@@ -292,12 +295,18 @@ export class HealthCheckUi {
     const bad = this._formProblems();
     const known = suggest(f.url);
     const preview = validUrl(f.url) && !bad.suffix ? applySuffix(f.url, f.suffix) : null;
-    const err = (key) => (bad[key] && (f.shown || String({ url: f.url, suffix: f.suffix, name: f.name }[key] ?? "x").trim()) ? `<small class="ag-err ag-block">${esc(bad[key])}</small>` : "");
+    const previewAlarm = validUrl(f.url) && !bad.alarm ? applySuffix(f.url, f.alarm) : null;
+    const err = (key) => (bad[key] && (f.shown || String({ url: f.url, suffix: f.suffix, alarm: f.alarm, name: f.name }[key] ?? "x").trim()) ? `<small class="ag-err ag-block">${esc(bad[key])}</small>` : "");
     return {
       known: known ? `<span class="ag-tag none ag-hcknown">${esc(t("hcKnown", { name: known.name }))}</span>` : "",
       offer: known && known.suffix !== String(f.suffix || "").trim()
         ? `<div class="ag-hcoffer"><span class="ag-t2">${esc(t("hcSuggest", { name: known.name, suffix: known.suffix }))}</span><button type="button" class="ag-link" data-hc="f-take">${esc(t("hcTake"))}</button></div>` : "",
       prev: preview ? `${esc(t("hcPreview"))} <span class="ag-mono">${esc(preview)}</span>` : esc(t(String(f.suffix || "").trim() ? "hcPreviewNone" : "hcPreviewEmpty")),
+      // Alarm-Zusatz (1.73.0): ein Vorschlag steht nur daneben ("Übernehmen"), er füllt das Feld nie von selbst (ein Alarm-Aufruf soll bewusst gewollt sein)
+      offerAlarm: known?.alarm && known.alarm !== String(f.alarm || "").trim()
+        ? `<div class="ag-hcoffer"><span class="ag-t2">${esc(t("hcSuggest", { name: known.name, suffix: known.alarm }))}</span><button type="button" class="ag-link" data-hc="f-take-alarm">${esc(t("hcTake"))}</button></div>` : "",
+      prevAlarm: previewAlarm ? `${esc(t("hcPreviewAlarm"))} <span class="ag-mono">${esc(previewAlarm)}</span>` : esc(t(String(f.alarm || "").trim() ? "hcPreviewNone" : "hcPreviewAlarmEmpty")),
+      "err-alarm": err("alarm"),
       "err-name": err("name"),
       "err-url": err("url"),
       "err-suffix": err("suffix"),
@@ -313,23 +322,24 @@ export class HealthCheckUi {
     const t = (k, v) => this._t(k, v);
     const p = this._parts();
     const bad = this._formProblems();
+    // Kapitel mit Strich vor dem Titel, wie die Fenster der Routinen (Wunsch des Nutzers 2026-11-20): Dienst, Selbsttest-Fehler, Alarm, Abstand
+    const field = (key, body) => `<label class="ag-hcfield"><span class="ag-hclabel">${esc(t(key))}</span>${body}</label>`;
     this.host._setHtml(dlg, `<form class="ag-dlg-body ag-hcform" data-form="hc" novalidate>${iconTitle("heartPulse", HC_TINT, t(f.id ? "hcEditTitle" : "hcAddTitle"))}
       <div class="ag-t2 ag-small">${esc(t("hcFormHint"))}</div>
-      <label class="ag-hcfield"><span class="ag-hclabel">${esc(t("hcName"))}</span>
-        <input class="ag-input" type="text" data-hc="f-name" value="${esc(f.name)}" placeholder="${esc(t("hcNamePh"))}" autocomplete="off" maxlength="60" required>
-        <span data-hcp="err-name">${p["err-name"]}</span></label>
-      <label class="ag-hcfield"><span class="ag-hclabel">${esc(t("hcUrl"))}</span>
-        <input class="ag-input" type="url" inputmode="url" data-hc="f-url" value="${esc(f.url)}" placeholder="https://…" autocomplete="off" spellcheck="false" maxlength="500">
-        <small class="ag-t2 ag-block">${esc(t("hcUrlHint"))}</small><span data-hcp="known">${p.known}</span><span data-hcp="err-url">${p["err-url"]}</span></label>
-      <label class="ag-hcfield"><span class="ag-hclabel">${esc(t("hcSuffix"))}</span>
-        <input class="ag-input" type="text" data-hc="f-suffix" value="${esc(f.suffix)}" placeholder="/fail" autocomplete="off" spellcheck="false" maxlength="200">
+      ${chapter(t("hcChapService"), `${field("hcName", `<input class="ag-input" type="text" data-hc="f-name" value="${esc(f.name)}" placeholder="${esc(t("hcNamePh"))}" autocomplete="off" maxlength="60" required>
+        <span data-hcp="err-name">${p["err-name"]}</span>`)}
+        ${field("hcUrl", `<input class="ag-input" type="url" inputmode="url" data-hc="f-url" value="${esc(f.url)}" placeholder="https://…" autocomplete="off" spellcheck="false" maxlength="500">
+        <small class="ag-t2 ag-block">${esc(t("hcUrlHint"))}</small><span data-hcp="known">${p.known}</span><span data-hcp="err-url">${p["err-url"]}</span>`)}`)}
+      ${chapter(t("hcChapFail"), field("hcSuffix", `<input class="ag-input" type="text" data-hc="f-suffix" value="${esc(f.suffix)}" placeholder="/fail" autocomplete="off" spellcheck="false" maxlength="200">
         <small class="ag-t2 ag-block">${esc(t("hcSuffixHint"))}</small><div data-hcp="offer">${p.offer}</div>
-        <small class="ag-t2 ag-block ag-hcprev" data-hcp="prev">${p.prev}</small><span data-hcp="err-suffix">${p["err-suffix"]}</span></label>
-      <div class="ag-hcfield"><span class="ag-hclabel">${esc(t("hcInterval"))}</span>
-        <div class="ag-hcint-row"><span class="ag-num ${bad.interval ? "bad" : ""}"><input type="number" min="1" max="${f.unit === "h" ? 24 : 1440}" step="1" inputmode="numeric" data-hc="f-value" value="${esc(f.value)}" aria-label="${esc(t("hcInterval"))}"></span>
+        <small class="ag-t2 ag-block ag-hcprev" data-hcp="prev">${p.prev}</small><span data-hcp="err-suffix">${p["err-suffix"]}</span>`))}
+      ${chapter(t("hcChapAlarm"), field("hcAlarm", `<input class="ag-input" type="text" data-hc="f-alarm" value="${esc(f.alarm)}" placeholder="/2" autocomplete="off" spellcheck="false" maxlength="200">
+        <small class="ag-t2 ag-block">${esc(t("hcAlarmHint"))}</small><div data-hcp="offerAlarm">${p.offerAlarm}</div>
+        <small class="ag-t2 ag-block ag-hcprev" data-hcp="prevAlarm">${p.prevAlarm}</small><span data-hcp="err-alarm">${p["err-alarm"]}</span>`))}
+      ${chapter(t("hcChapInterval"), `<div class="ag-hcfield"><div class="ag-hcint-row"><span class="ag-num ${bad.interval ? "bad" : ""}"><input type="number" min="1" max="${f.unit === "h" ? 24 : 1440}" step="1" inputmode="numeric" data-hc="f-value" value="${esc(f.value)}" aria-label="${esc(t("hcInterval"))}"></span>
           <select class="ag-input" data-hc="f-unit" aria-label="${esc(t("hcUnit"))}"><option value="min" ${f.unit === "min" ? "selected" : ""}>${esc(t("hcMinutes"))}</option><option value="h" ${f.unit === "h" ? "selected" : ""}>${esc(t("hcHours"))}</option></select></div>
         <div class="ag-zline ag-hcpresets" data-hcp="presets">${p.presets}</div>
-        <small class="ag-t2 ag-block">${esc(t("hcIntervalHint"))}</small><span data-hcp="err-interval">${p["err-interval"]}</span></div>
+        <small class="ag-t2 ag-block">${esc(t("hcIntervalHint"))}</small><span data-hcp="err-interval">${p["err-interval"]}</span></div>`)}
       <div class="ag-dlg-err" aria-live="polite">${esc(f.error || "")}</div>
       <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-hc="f-cancel">${esc(t("cancel"))}</button><button class="ag-btn primary" type="submit" ${f.saving ? "disabled" : ""}>${ic("check", 18)}${esc(t("save"))}</button></div></form>`);
   }
@@ -347,6 +357,8 @@ export class HealthCheckUi {
     }
     const suffix = dlg.querySelector('[data-hc="f-suffix"]');
     if (suffix && suffix !== this.host._root.activeElement && suffix.value !== f.suffix) suffix.value = f.suffix;
+    const alarm = dlg.querySelector('[data-hc="f-alarm"]');
+    if (alarm && alarm !== this.host._root.activeElement && alarm.value !== f.alarm) alarm.value = f.alarm;
     const value = dlg.querySelector('[data-hc="f-value"]');
     if (value) {
       value.max = f.unit === "h" ? "24" : "1440";
@@ -369,7 +381,7 @@ export class HealthCheckUi {
     f.error = "";
     this.renderForm();
     try {
-      const res = await h._hass.callWS({ type: "alarmageddon/healthcheck_save", ...(f.id ? { check_id: f.id } : {}), name: String(f.name).trim(), url: f.url.trim(), fail_suffix: String(f.suffix || "").trim(), interval: this._seconds() });
+      const res = await h._hass.callWS({ type: "alarmageddon/healthcheck_save", ...(f.id ? { check_id: f.id } : {}), name: String(f.name).trim(), url: f.url.trim(), fail_suffix: String(f.suffix || "").trim(), alarm_suffix: String(f.alarm || "").trim(), interval: this._seconds() });
       if (h._data) h._data.healthchecks = res.healthchecks;
       this.form = null;
       this.formDlg.close();
@@ -438,6 +450,7 @@ export class HealthCheckUi {
     else if (act === "delete") this.remove(el.dataset.id);
     else if (act === "test-ok") this.test(el.dataset.id, "ok");
     else if (act === "test-fail") this.test(el.dataset.id, "fail");
+    else if (act === "test-alarm") this.test(el.dataset.id, "alarm");
     else if (act === "sort") {
       const k = el.dataset.key;
       this.sort = { key: k, dir: this.sort.key === k ? (this.sort.dir === "asc" ? "desc" : "asc") : k === "last" ? "desc" : "asc" };
@@ -469,6 +482,12 @@ export class HealthCheckUi {
         this.form.touched = true;
         this._refreshFormParts();
       }
+    } else if (act === "f-take-alarm") {
+      const known = suggest(this.form?.url);
+      if (this.form && known?.alarm) {
+        this.form.alarm = known.alarm;
+        this._refreshFormParts();
+      }
     } else if (act === "search" || act.startsWith("f-")) return true; // Felder: Eingaben kommen über onInput
     else return false;
     return true;
@@ -496,6 +515,8 @@ export class HealthCheckUi {
     } else if (act === "f-suffix") {
       f.suffix = el.value;
       f.touched = true;
+    } else if (act === "f-alarm") {
+      f.alarm = el.value;
     } else if (act === "f-value") {
       f.value = el.value.trim() === "" ? "" : Number(el.value);
     } else if (act === "f-unit") {

@@ -41,16 +41,25 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: der Zauberstab schwingt rund 5 Sekunden nach dem Laden (${after} ms)`, waved && after > 3500 && after < 6800, String(after));
     const anim = await s.ev(`const b=r.querySelector('${BTN}'); return [getComputedStyle(b.querySelector('.ag-wzstick')).animationName, ...[...b.querySelectorAll('.ag-wzstar')].map((x) => getComputedStyle(x).animationName + ':' + getComputedStyle(x).animationDelay)]`);
     check(`${tag}: Variante A: Stab schwingt um den Griff, die drei Sterne blitzen nacheinander auf`, J(anim) === J(["ag-wz-swing", "ag-wz-pop:0s", "ag-wz-pop:0.12s", "ag-wz-pop:0.24s"]), J(anim));
-    check(`${tag}: nach gut 1,6 Sekunden ist die Bewegung vorbei`, await s.waitFor(`return !r.querySelector('${BTN}').classList.contains('wave')`, 3000));
+    // Sternschnuppe wie im Device Panel (Wunsch des Nutzers 2026-11-20): nach dem Schwung löst sich der Punkt und huscht mit Schweif um die Linie
+    const comet = await s.ev(`const b=r.querySelector('${BTN}'); const c=getComputedStyle(b, '::before'); const d=getComputedStyle(b.querySelector('.ag-wzbtn-dot'));
+      return { ring: c.animationName, delay: c.animationDelay, dur: c.animationDuration, mask: (c.webkitMaskImage || c.maskImage || '').includes('radial-gradient'), grad: c.backgroundImage.includes('conic-gradient'), dot: d.animationName, dotDur: d.animationDuration }`);
+    check(`${tag}: Sternschnuppe: Ring mit Schweif (conic-gradient, maskiert) startet nach dem Schwung (1,5 s), der Punkt fliegt mit und landet wieder`,
+      comet.ring === "ag-wz-comet" && comet.delay === "1.5s" && comet.dur === "1s" && comet.mask && comet.grad && comet.dot === "ag-wz-land" && comet.dotDur === "3s", J(comet));
+    check(`${tag}: nach gut 3 Sekunden ist die Welle vorbei`, await s.waitFor(`return !r.querySelector('${BTN}').classList.contains('wave')`, 5000));
     await s.tap('[data-tab="log"]');
     check(`${tag}: der Knopf steht auch im Reiter Protokoll`, await s.waitFor(`return r.host._tab === 'log' && !!r.querySelector('${BTN}')`));
     await s.tap('[data-tab="overview"]');
     check(`${tag}: der Knopf steht in jedem Reiter im Kopf`, await s.waitFor(`return !!r.querySelector('${BTN}')`));
+    // Nach einer Pause von 30 Sekunden kommt die nächste Welle (Wunsch des Nutzers 2026-11-20); der Wechsel des Reiters startet keine zweite (ein Zeitgeber)
+    const timer = await s.ev("return r.host._wzWaveTimer");
+    check(`${tag}: die nächste Welle ist geplant, der Wechsel des Reiters hat keinen zweiten Zeitgeber gestartet`, !!timer && await s.ev("return r.host._wzWaved === true") && await s.ev(`return !r.querySelector('${BTN}').classList.contains('wave')`));
     if (!mobile && lang === "de") {
-      await s.page.waitForTimeout(5800);
-      check(`${tag}: der Wechsel des Reiters lässt ihn nicht noch einmal schwingen`, await s.ev(`return !r.querySelector('${BTN}').classList.contains('wave') && !r.host._wzWaveTimer`));
-    } else {
-      check(`${tag}: der Wechsel des Reiters lässt ihn nicht noch einmal schwingen (nichts geplant)`, await s.ev("return r.host._wzWaved === true && !r.host._wzWaveTimer"));
+      const t1 = Date.now();
+      const again = await s.waitFor(`return r.querySelector('${BTN}')?.classList.contains('wave')`, 36000);
+      const pause = Date.now() - t1;
+      check(`${tag}: nach rund 30 Sekunden Pause bewegt sich der Zauberstab erneut (${pause} ms nach dem Wechsel)`, again && pause > 15000 && pause < 33000, String(pause));
+      check(`${tag}: danach endet die Welle wieder und die nächste ist geplant`, await s.waitFor(`return !r.querySelector('${BTN}').classList.contains('wave')`, 5000) && !!(await s.ev("return r.host._wzWaveTimer")));
     }
     // Klick: beim gemerkten Schritt weiter
     await s.sim("window.__wzCalls = []; return 1");

@@ -13,13 +13,13 @@ const T = {
     preview: "Aufruf bei Fehler:", errUrl: "vollständige http- oder https-URL", errSuffix: "muss mit /, ? oder & beginnen", errInterval: "1 Minute bis 24 Stunden",
     saved: "Dienst gespeichert", okSent: "Lebenszeichen gesendet", failSent: "Fehler gesendet", failed: "Gescheitert", noAnswer: "keine Antwort", test: "Test",
     failedRow: "1 Dienst: letztes Lebenszeichen gescheitert", noMatch: "Kein Dienst passt zur Suche.", editTitle: "Dienst bearbeiten", removeTitle: "Dienst entfernen?",
-    errName: "Einen Namen eingeben." },
+    errName: "Einen Namen eingeben.", chaps: ["Dienst", "Bei Selbsttest-Fehler", "Bei Alarm (freiwillig)", "Intervall"], alarmEmpty: "Ohne Zusatz wird diesem Dienst kein Alarm gemeldet." },
   en: { chapter: "HealthCheck", none: "No external service", one: "1 of 5 services", three: "3 of 5 services", five: "5 of 5 services", add: "Add service", show: "Show services",
     title: "HealthCheck services", empty: "No service yet.", known: "Recognized: Healthchecks.io", suggest: "Suggestion for Healthchecks.io: /fail", take: "Use",
     preview: "Call on failure:", errUrl: "complete http or https URL", errSuffix: "must start with /, ? or &", errInterval: "1 minute to 24 hours",
     saved: "Service saved", okSent: "Life sign sent", failSent: "Failure sent", failed: "Failed", noAnswer: "no answer", test: "test",
     failedRow: "1 service: last life sign failed", noMatch: "No service matches the search.", editTitle: "Edit service", removeTitle: "Remove service?",
-    errName: "Enter a name." },
+    errName: "Enter a name.", chaps: ["Service", "On self-test failure", "On alarm (optional)", "Interval"], alarmEmpty: "Without a suffix no alarm is reported to this service." },
 };
 // Erfundene Adressen (nie eine echte Ping-URL)
 const HC = "https://hc-ping.com/0a1b2c3d-1111-4222-8333-444455556666";
@@ -60,7 +60,17 @@ for (const lang of ["de", "en"]) {
     // Andere URL: der Vorschlag folgt, solange niemand den Zusatz berührt hat
     await (await s.el('[data-hc="f-url"]')).fill(CRON);
     f = await form();
-    check(`${tag}: Cronitor: Zusatz "?state=fail" folgt (unberührt)`, f.suffix === "?state=fail" && f.prev.includes(`${CRON}?state=fail`), JSON.stringify(f));
+    check(`${tag}: Cronitor: Zusatz mit englischer Meldung folgt (unberührt)`, f.suffix === "?state=fail&message=Self-test+failed" && f.prev.includes(`${CRON}?state=fail&message=Self-test+failed`), JSON.stringify(f));
+    // Alarm-Zusatz (1.73.0): eigenes Kapitel, Vorschlag nur daneben (füllt das Feld nie), Vorschau mit der Adresse; Kapitel wie in den Fenstern der Routinen
+    const chapters = await s.ev("const d=r.getElementById('ag-hcform'); return [...d.querySelectorAll('section.ag-chap > h3.ag-chap-t')].map((h) => h.textContent)");
+    check(`${tag}: Formular in vier Kapiteln mit Titel (Strich davor): ${t.chaps.join(", ")}`, JSON.stringify(chapters) === JSON.stringify(t.chaps), JSON.stringify(chapters));
+    const alarm = await s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { value: q('[data-hc=\"f-alarm\"]').value, offer: q('[data-hcp=\"offerAlarm\"]').innerText, prev: q('[data-hcp=\"prevAlarm\"]').innerText }");
+    check(`${tag}: Alarm-Zusatz leer, Vorschlag für Cronitor daneben ("?state=fail&message=Alarm+triggered"), kein Alarm-Aufruf in der Vorschau`,
+      alarm.value === "" && alarm.offer.includes("?state=fail&message=Alarm+triggered") && alarm.offer.includes(t.take) && alarm.prev === t.alarmEmpty, JSON.stringify(alarm));
+    await s.tap('#ag-hcform [data-hc="f-take-alarm"]');
+    const taken = await s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { value: q('[data-hc=\"f-alarm\"]').value, offer: q('[data-hcp=\"offerAlarm\"]').innerText, prev: q('[data-hcp=\"prevAlarm\"]').innerText }");
+    check(`${tag}: "${t.take}" setzt den Alarm-Zusatz, Vorschau mit der Adresse, kein Vorschlag mehr`, taken.value === "?state=fail&message=Alarm+triggered" && !taken.offer && taken.prev.includes(`${CRON}?state=fail&message=Alarm+triggered`), JSON.stringify(taken));
+    await (await s.el('[data-hc="f-alarm"]')).fill("");
     // Eigener Zusatz: das letzte Wort hat der Nutzer
     await (await s.el('[data-hc="f-suffix"]')).fill("/meins");
     await (await s.el('[data-hc="f-url"]')).fill(HC);

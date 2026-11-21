@@ -17,9 +17,9 @@ const { loaderStart } = await import(`./loader.js${V}`);
 const { SensorView } = await import(`./sensorview.js${V}`);
 const { applySuffix, suggest } = await import(`./healthcheck.js${V}`);
 
-// 90 Tage und 1 Jahr seit dem Wunsch des Nutzers vom 2026-11-19, 18:24 ("Langzeitstatistik"); dort ein Raster Monat × Tag (Entscheid 18:35, Mockup v3 "B")
-const RANGES = [3, 12, 24, 168, 720, 2160, 8760];
-const RANGE_LABEL = { 3: "svR3h", 12: "svR12h", 24: "svR1d", 168: "svR7d", 720: "svR30d", 2160: "svR90d", 8760: "svR1y" };
+// 6 Monate und 1 Jahr (zuerst 90 Tage, Wunsch des Nutzers 2026-11-19, 18:24 "Langzeitstatistik"; 2026-11-20 19:01: "aus den 90 Tagen eine 6-Monats-Grafik, etwas gefüllter"); dort ein Raster Monat × Tag (Entscheid 18:35, Mockup v3 "B")
+const RANGES = [3, 12, 24, 168, 720, 4320, 8760];
+const RANGE_LABEL = { 3: "svR3h", 12: "svR12h", 24: "svR1d", 168: "svR7d", 720: "svR30d", 4320: "svR6m", 8760: "svR1y" };
 const TABS = ["history", "latency", "service"];
 const TAB_ICON = { history: "history", latency: "timer", service: "heartPulse" };
 const RANK = { ok: 0, test: 1, report: 2, fail: 3 };
@@ -165,10 +165,10 @@ export class HealthLogView extends SensorView {
       this.load(false);
     } else if (act === "edit") {
       this.host.healthcheck.openForm(this.id);
-    } else if (act === "test-ok" || act === "test-fail") {
+    } else if (act === "test-ok" || act === "test-fail" || act === "test-alarm") {
       // Wie in der Liste; danach das Protokoll neu holen (der Aufruf steht dort als Test)
       const id = this.id;
-      const run = this.host.healthcheck.test(id, act === "test-ok" ? "ok" : "fail");
+      const run = this.host.healthcheck.test(id, act === "test-ok" ? "ok" : act === "test-alarm" ? "alarm" : "fail");
       this.render();
       run.then(() => {
         if (this.dlg?.open && this.id === id) this.load(true);
@@ -205,7 +205,7 @@ export class HealthLogView extends SensorView {
     const live = this.data?.id === item.id ? this.data.state : null;
     if (live?.state) return live;
     if (item.log?.state) return item.log;
-    if (item.status) return { state: item.status.result !== "ok" ? "fail" : item.status.sent === "fail" && !item.status.test ? "report" : "ok", since: null };
+    if (item.status) return { state: item.status.result !== "ok" ? "fail" : (item.status.sent === "fail" || item.status.sent === "alarm") && !item.status.test ? "report" : "ok", since: null };
     return { state: null, since: null };
   }
 
@@ -278,7 +278,7 @@ export class HealthLogView extends SensorView {
     const hc = this.host.healthcheck;
     const busy = (kind) => Boolean(hc.busy?.has(`${item.id}|${kind}`));
     const btn = (act, icon, label, off = false) => `<button type="button" class="ag-iconbtn" data-sv="${act}" title="${esc(label)}" aria-label="${esc(label)}" ${off ? "disabled" : ""}>${ic(icon, 18)}</button>`;
-    return `<div class="ag-wf-btns ag-hcbtns ag-sv-ha ag-hl-acts">${btn("test-fail", "alert", t(item.fail_suffix ? "hcTestFail" : "hcTestFailNone"), !item.fail_suffix || busy("fail"))}${btn("test-ok", "check", t("hcTestOk"), busy("ok"))}${btn("edit", "pencil", t("hcEdit"))}</div>`;
+    return `<div class="ag-wf-btns ag-hcbtns ag-sv-ha ag-hl-acts">${btn("test-fail", "alert", t(item.fail_suffix ? "hcTestFail" : "hcTestFailNone"), !item.fail_suffix || busy("fail"))}${item.alarm_suffix ? btn("test-alarm", "bell", t("hcTestAlarm"), busy("alarm")) : ""}${btn("test-ok", "check", t("hcTestOk"), busy("ok"))}${btn("edit", "pencil", t("hcEdit"))}</div>`;
   }
 
   _rangeSeg() {
@@ -537,7 +537,7 @@ export class HealthLogView extends SensorView {
     return "ok";
   }
 
-  // 90 Tage und 1 Jahr: Raster Monat × Tag (Entscheid des Nutzers 2026-11-19, 18:35, Mockup v3 "B"), das Raster der 30 Tage eine Stufe gröber. Eine
+  // 6 Monate und 1 Jahr: Raster Monat × Tag (Entscheid des Nutzers 2026-11-19, 18:35, Mockup v3 "B"), das Raster der 30 Tage eine Stufe gröber. Eine
   // Zeile je Monat, eine Zelle je Tag in der Farbe des Tages; am Computer ein Test als blauer Punkt. Tage ausserhalb des Zeitraums bleiben leer.
   _monthRaster(d, W) {
     const narrow = W < 500;
@@ -612,9 +612,9 @@ export class HealthLogView extends SensorView {
       }).filter(Boolean);
       fails = d.points.filter((p) => p[1] === "fail").map((p) => ms(p[0]));
     } else if (d.hours > 720) {
-      // Tageswerte (90 Tage, 1 Jahr): je Abschnitt das Mittel, gewichtet mit der Zahl der Aufrufe mit Antwort (Computer 1 oder 2 Tage, Handy 2 oder
+      // Tageswerte (6 Monate, 1 Jahr): je Abschnitt das Mittel, gewichtet mit der Zahl der Aufrufe mit Antwort (Computer 1 oder 2 Tage, Handy 2 oder
       // 7 Tage); eine Marke an jedem Tag mit gescheitertem Aufruf. Ein Abschnitt ohne Antwort unterbricht die Linie.
-      const per = W > 500 ? (d.hours > 2160 ? 2 : 1) : d.hours > 2160 ? 7 : 2;
+      const per = W > 500 ? (d.hours > 4320 ? 2 : 1) : d.hours > 4320 ? 7 : 2;
       const days = this._days(d);
       const index = new Map(days.map((day, i) => [this._dayKey(day), i]));
       const sums = new Map();
@@ -694,8 +694,9 @@ export class HealthLogView extends SensorView {
     const t = (k, v) => this._t(k, v);
     let text;
     if (e.kind === "fail") text = t("hlEvFail");
+    else if (e.kind === "report" && e.sent === "alarm") text = t("hlEvAlarm");
     else if (e.kind === "report") text = e.problems ? t(e.problems === 1 ? "hlEvReportOne" : "hlEvReportMany", { n: e.problems }) : t("hlEvReport");
-    else if (e.kind === "test") text = t(e.sent === "fail" ? "hlEvTestFail" : "hlEvTestOk");
+    else if (e.kind === "test") text = t(e.sent === "alarm" ? "hlEvTestAlarm" : e.sent === "fail" ? "hlEvTestFail" : "hlEvTestOk");
     else if (e.kind === "back") text = t(e.from === "report" ? "hlEvBackReport" : "hlEvBack");
     else text = t("hlEvStart");
     // Eine Folge gescheiterter Aufrufe (oder gemeldeter Fehler) ist ein Ereignis mit Anzahl und Ende
@@ -703,7 +704,8 @@ export class HealthLogView extends SensorView {
   }
 
   _callText(c) {
-    if (c.kind === "test") return this._t(c.sent === "fail" ? "hlEvTestFail" : "hlEvTestOk");
+    if (c.kind === "test") return this._t(c.sent === "alarm" ? "hlEvTestAlarm" : c.sent === "fail" ? "hlEvTestFail" : "hlEvTestOk");
+    if (c.kind === "report" && c.sent === "alarm") return this._t("hlEvAlarm");
     return this._t({ ok: "hcStOkSent", report: "hlEvReport", fail: "hlEvFail" }[c.kind] || "hlEvFail");
   }
 

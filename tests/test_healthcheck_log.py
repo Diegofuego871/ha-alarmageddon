@@ -97,6 +97,18 @@ async def test_counts_and_lists_follow_the_chosen_period(hass: HomeAssistant) ->
     assert log.history("a", 168, 300, now=now)["summary"]["no_answer"] == log.history("a", 24, 300, now=now)["summary"]["no_answer"] == 1
 
 
+async def test_an_alarm_call_is_its_own_event_and_never_merges_with_a_self_test_report(hass: HomeAssistant) -> None:
+    """1.73.0: der Alarm-Aufruf ist ein "Fehler gemeldet" mit sent "alarm"; er läuft nie in einem Fehler des Selbsttests auf, und umgekehrt."""
+    log = log_with(hass)
+    assert call_kind("alarm", "ok", False) == "report" and call_kind("alarm", "error", False) == "fail"
+    rec(log, 0, sent="fail", by="selftest", problems=1)
+    rec(log, 1, sent="alarm", by="alarm")
+    rec(log, 2, sent="alarm", by="alarm")
+    rec(log, 3, sent="fail", by="selftest", problems=1)
+    events = [(e["k"], e.get("sent"), e.get("n")) for e in log.events["a"]]
+    assert events == [("report", None, 1), ("report", "alarm", 2), ("report", None, 1)]
+
+
 async def test_old_data_runs_out(hass: HomeAssistant) -> None:
     """Einzelne Aufrufe 24 Stunden, Stundenwerte 30 Tage, Tageswerte und Ereignisse ein Jahr (Entscheid des Nutzers), höchstens HEALTHLOG_EVENT_MAX."""
     log = log_with(hass)
@@ -130,30 +142,30 @@ async def test_daily_values_for_90_days_and_a_year(hass: HomeAssistant) -> None:
     day0 = dt_util.start_of_local_day(dt_util.as_local(T0)) + timedelta(hours=8)  # 08:00 Ortszeit
     at = lambda days, minutes=0: day0 + timedelta(days=days, minutes=minutes)  # noqa: E731
     put = lambda when, **kw: log.record("a", at=when, sent=kw.pop("sent", "ok"), result=kw.pop("result", "ok"), code=kw.pop("code", 200), ms=kw.pop("ms", 100), by=kw.pop("by", "tick"), interval=300, **kw)  # noqa: E731
-    put(at(-120), by="start")  # vor 120 Tagen: nur im Jahr
-    put(at(-120, 5), result="timeout", code=None, ms=None)
-    put(at(-120, 10))
-    for m in range(0, 120, 5):  # vor 10 Tagen zwei Stunden (davor seit 120 Tagen nichts), dann Home Assistant drei Stunden aus
+    put(at(-200), by="start")  # vor 200 Tagen: nur im Jahr
+    put(at(-200, 5), result="timeout", code=None, ms=None)
+    put(at(-200, 10))
+    for m in range(0, 120, 5):  # vor 10 Tagen zwei Stunden (davor seit 200 Tagen nichts), dann Home Assistant drei Stunden aus
         put(at(-10, m))
     put(at(-10, 120 + 180), by="start")
     put(at(0, 0), by="start")  # danach zehn Tage nichts
     now = at(0, 30)  # 08:30, der letzte Aufruf um 08:00: seit 08:05 ohne Daten (länger als zwei Intervalle)
-    quarter = log.history("a", 2160, 300, now=now)
+    half = log.history("a", 4320, 300, now=now)
     year = log.history("a", 8760, 300, now=now)
-    assert quarter["hourly"] == [] and quarter["points"] == [] and quarter["gaps"] == []
-    assert datetime.fromisoformat(quarter["start"]) == dt_util.start_of_local_day(dt_util.as_local(now)) - timedelta(days=89)
-    days = {row[0]: row for row in quarter["daily"]}
+    assert half["hourly"] == [] and half["points"] == [] and half["gaps"] == []
+    assert datetime.fromisoformat(half["start"]) == dt_util.start_of_local_day(dt_util.as_local(now)) - timedelta(days=179)
+    days = {row[0]: row for row in half["daily"]}
     ten = days[local_day(at(-10))]
-    # Minuten ohne Daten: 00:00 bis 08:00 (seit 120 Tagen nichts), 10:00 bis 13:00 (ab dem Intervall nach dem letzten Aufruf), 13:05 bis Mitternacht
+    # Minuten ohne Daten: 00:00 bis 08:00 (seit 200 Tagen nichts), 10:00 bis 13:00 (ab dem Intervall nach dem letzten Aufruf), 13:05 bis Mitternacht
     assert ten[1:5] == [25, 0, 0, 0] and ten[5] == 100 and ten[7] == 0 and ten[8] == 480 + 180 + 655
     assert days[local_day(at(-5))][8] == 1440 and days[local_day(at(-5))][1:5] == [0, 0, 0, 0]
     assert days[local_day(at(0))][8] == 480 + 25  # bis 08:00 noch die zehn Tage, dazu 08:05 bis 08:30, gerade ohne Daten
-    assert local_day(at(-120)) not in days and local_day(at(-120)) in {row[0] for row in year["daily"]}
-    assert quarter["summary"]["total"] == 26 and year["summary"]["total"] == 29 and year["summary"]["fail"] == year["summary"]["no_answer"] == 1
+    assert local_day(at(-200)) not in days and local_day(at(-200)) in {row[0] for row in year["daily"]}
+    assert half["summary"]["total"] == 26 and year["summary"]["total"] == 29 and year["summary"]["fail"] == year["summary"]["no_answer"] == 1
     assert year["summary"]["rate"] == round(100 * 28 / 29, 2)
-    # Ereignisse folgen denselben Tagen: der Ausfall vor 120 Tagen nur im Jahr
-    assert "fail" not in [e["kind"] for e in quarter["events"]] and "fail" in [e["kind"] for e in year["events"]]
-    assert quarter["events_total"] == len(quarter["events"]) and year["events_total"] == len(year["events"])
+    # Ereignisse folgen denselben Tagen: der Ausfall vor 200 Tagen nur im Jahr
+    assert "fail" not in [e["kind"] for e in half["events"]] and "fail" in [e["kind"] for e in year["events"]]
+    assert half["events_total"] == len(half["events"]) and year["events_total"] == len(year["events"])
     assert [m[2] for m in year["marks"]] == ["fail"]
     # Die Lücke steht in den Tageswerten, auch nach dem Neustart (der letzte Aufruf ist gemerkt)
     assert log.days["a"][local_day(at(-10))][8] == (480 + 180 + 655) * 60 and log.last["a"] == int(at(0).timestamp())
@@ -216,6 +228,9 @@ async def test_recorded_from_the_real_service_with_trigger_and_time(hass: HomeAs
     # Die Liste der Dienste nennt den Zustand seit wann (Auswahl im Kopf des Protokolls); ein Test ändert ihn nicht
     data = (await ws(client, type=f"{DOMAIN}/data"))["result"]
     assert data["healthchecks"][0]["log"] == {"state": "report", "since": out["state"]["since"]} == out["state"]
+    for good in (720, 4320, 8760):  # 30 Tage, 6 Monate (1.73.0, ersetzen 90 Tage) und 1 Jahr; 2160 (90 Tage) gibt es nicht mehr
+        assert (await ws(client, type=f"{DOMAIN}/healthcheck_history", check_id=hid, hours=good))["success"], good
+    assert (await ws(client, type=f"{DOMAIN}/healthcheck_history", check_id=hid, hours=2160))["success"] is False
     for bad in ({"check_id": "nichtda", "hours": 3}, {"check_id": hid, "hours": 5}):
         answer = await ws(client, type=f"{DOMAIN}/healthcheck_history", **bad)
         assert answer["success"] is False
@@ -278,7 +293,7 @@ async def test_written_within_the_delay_even_with_calls_every_minute(hass: HomeA
     assert len(stored.get("calls", {}).get(hid, [])) >= HEALTHLOG_SAVE_DELAY // 60, "nach der Verzögerung geschrieben, ohne Beenden"
 
 
-@pytest.mark.parametrize("hours", [3, 12, 24, 168, 720, 2160, 8760])
+@pytest.mark.parametrize("hours", [3, 12, 24, 168, 720, 4320, 8760])
 async def test_every_period_answers(hass: HomeAssistant, hours: int) -> None:
     log = log_with(hass)
     rec(log, 0, by="start")

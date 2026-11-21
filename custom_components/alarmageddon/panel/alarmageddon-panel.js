@@ -15,7 +15,9 @@ const [
 /** Nach so langer Abwesenheit startet das Panel wieder auf der Übersicht (Merkzettel für Reiter und Unterreiter) */
 const AWAY_MS = 30 * 60 * 1000;
 // Knopf des Einrichtungsassistenten im Kopf (1.71.0): der Zauberstab schwingt einmal, so lange nach dem Erscheinen (Wunsch des Nutzers: "nach 5 Sekunden")
-const WAVE_MS = 5000;
+const WAVE_MS = 5000; // erste Welle: so lange nach dem Erscheinen des Knopfes
+const WAVE_PAUSE_MS = 30000; // Pause zwischen den Wellen (Wunsch des Nutzers 2026-11-20)
+const WAVE_LEN_MS = 3300; // eine Welle: Schwung und Sternschnuppe (3 s) mit etwas Luft
 // Symbol "wand" (common.js) in Teilen: Stab und drei Sterne, damit sie sich einzeln bewegen
 const WAND_STICK = "M13.34,12.78L15.78,10.34L13.66,8.22L11.22,10.66L13.34,12.78M14.37,7.29L16.71,9.63C17.1,10 17.1,10.65 16.71,11.04L5.04,22.71C4.65,23.1 4,23.1 3.63,22.71L1.29,20.37C0.9,20 0.9,19.35 1.29,18.96L12.96,7.29C13.35,6.9 14,6.9 14.37,7.29Z";
 const WAND_STARS = ["M7.5,5.6L5,7L6.4,4.5L5,2L7.5,3.4L10,2L8.6,4.5L10,7L7.5,5.6Z", "M22,2L20.6,4.5L22,7L19.5,5.6L17,7L18.4,4.5L17,2L19.5,3.4L22,2Z",
@@ -1126,20 +1128,29 @@ class AlarmageddonPanel extends HTMLElement {
     return `<button class="ag-wzbtn" data-wz="run" data-step="${esc(step)}" title="${esc(tip)}" aria-label="${esc(tip)}">${svg}<span class="ag-wzbtn-dot"></span></button>`;
   }
 
-  // Einmal je Laden des Panels schwingt der Zauberstab, WAVE_MS nachdem der Knopf zu sehen ist: nach dem Laden der Daten, oder später, wenn er erst
-  // dann erscheint (etwa nach "Später" im Assistenten). Nie bei jedem Wechsel des Reiters. "Bewegung reduzieren" gilt hier bewusst nicht
-  // (Entscheid des Nutzers 2026-11-20, 11:48: "immer animieren")
+  // Der Zauberstab bewegt sich: WAVE_MS nachdem der Knopf zu sehen ist (nach dem Laden der Daten, oder später, wenn er erst dann erscheint, etwa nach
+  // "Später" im Assistenten), dann nach jeweils WAVE_PAUSE_MS Pause wieder (seit 1.73.0, Wunsch des Nutzers 2026-11-20, 21:29): erst der Stab mit den
+  // Sternen, dann die Sternschnuppe wie im Device Panel. Nie bei jedem Wechsel des Reiters ein Neustart: ein Zeitgeber läuft, bis der Knopf verschwindet
+  // (Assistent fertig). "Bewegung reduzieren" gilt hier bewusst nicht (Entscheid des Nutzers 2026-11-20, 11:48: "immer animieren")
   _waveLater() {
-    if (this._wzWaved || this._wzWaveTimer || !this._content?.querySelector(".ag-headsys .ag-wzbtn")) return;
+    if (this._wzWaveTimer || !this._content?.querySelector(".ag-headsys .ag-wzbtn")) return;
+    this._waveSchedule(WAVE_MS);
+  }
+
+  _waveSchedule(delay) {
     this._wzWaveTimer = setTimeout(() => {
-      this._wzWaveTimer = null;
       const btn = this._content?.querySelector(".ag-headsys .ag-wzbtn");
-      if (!btn || this._wzWaved) return;
+      if (!btn) {
+        this._wzWaveTimer = null; // kein Knopf mehr: `_waveLater` startet neu, wenn er wieder erscheint
+        return;
+      }
       this._wzWaved = true;
-      // Ende mit dem letzten Stern (später gestartet als der Stab), sonst spränge er am Schluss zurück
-      btn.addEventListener("animationend", (ev) => { if (ev.target.classList?.contains("s2")) btn.classList.remove("wave"); });
       btn.classList.add("wave");
-    }, WAVE_MS);
+      this._wzWaveTimer = setTimeout(() => {
+        this._content?.querySelector(".ag-headsys .ag-wzbtn")?.classList.remove("wave");
+        this._waveSchedule(WAVE_PAUSE_MS);
+      }, WAVE_LEN_MS);
+    }, delay);
   }
 
   _sysBar(systems, cur) {

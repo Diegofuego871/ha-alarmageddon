@@ -777,6 +777,21 @@ def async_resolve(hass: HomeAssistant, entry_id: str | None, code: str, subject:
         _LOGGER.exception("The self-test could not clear a problem")
 
 
+def any_alarm(hass: HomeAssistant) -> bool:
+    """
+    Ist eine Anlage im Alarm (ausgelöst)? Für den Alarm-Aufruf der HealthCheck-Dienste (1.73.0, Wunsch des Nutzers 2026-11-20): nur lesen, nie ein
+    Fehler (im Zweifel "nein", der Dienst bekommt dann wie bisher das Lebenszeichen).
+    """
+    try:
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            controller = getattr(getattr(entry, "runtime_data", None), "controller", None) if entry.state is ConfigEntryState.LOADED else None
+            if controller is not None and controller.state == AlarmControlPanelState.TRIGGERED:
+                return True
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("The health check could not read the state of the alarm systems")
+    return False
+
+
 def any_armed(hass: HomeAssistant) -> bool:
     """
     Ist eine Anlage scharf? Jeder Zustand ausser "deaktiviert" zählt (Ausgangsverzögerung, scharf, Eingangsverzögerung, Alarm). Für den kürzeren

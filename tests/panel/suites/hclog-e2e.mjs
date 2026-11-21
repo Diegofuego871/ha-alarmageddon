@@ -7,11 +7,11 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { log: "Protokoll", edit: "Bearbeiten", testFail: "Fehler senden", testOk: "Lebenszeichen senden", tabs: ["Verlauf", "Antwortzeit", "Dienst"], ranges: ["3 Std.", "12 Std.", "1 Tag", "7 Tage", "30 Tage", "90 Tage", "1 Jahr"], ok: "in Ordnung",
+  de: { log: "Protokoll", edit: "Bearbeiten", testFail: "Fehler senden", testOk: "Lebenszeichen senden", tabs: ["Verlauf", "Antwortzeit", "Dienst"], ranges: ["3 Std.", "12 Std.", "1 Tag", "7 Tage", "30 Tage", "6 Monate", "1 Jahr"], ok: "in Ordnung",
     okSince: "in Ordnung seit", failed: "gescheitert", failedSince: "gescheitert seit", every: "alle 5 min", kpis: ["erfolgreich", "Lebenszeichen", "gescheitert", "Fehler gemeldet", "Antwortzeit im Mittel"],
     latKpis: ["aktuell", "im Mittel", "langsamster Aufruf", "ohne Antwort"], zones: ["schnell", "langsam", "sehr langsam"], events: "Ereignisse", calls: "Alle Aufrufe",
     callsDay: "Einzelne Aufrufe bleiben 24 Stunden", noData: "Noch nichts aufgezeichnet", st: "Selbsttest", url: "Ping-URL", keep: "Aufbewahrt:", fail: "Gescheitert", start: "Erstes Lebenszeichen nach dem Start" },
-  en: { log: "Log", edit: "Edit", testFail: "Send failure", testOk: "Send life sign", tabs: ["History", "Response time", "Service"], ranges: ["3 h", "12 h", "1 day", "7 days", "30 days", "90 days", "1 year"], ok: "OK",
+  en: { log: "Log", edit: "Edit", testFail: "Send failure", testOk: "Send life sign", tabs: ["History", "Response time", "Service"], ranges: ["3 h", "12 h", "1 day", "7 days", "30 days", "6 months", "1 year"], ok: "OK",
     okSince: "OK since", failed: "Failed", failedSince: "Failed since", every: "every 5 min", kpis: ["successful", "life signs", "failed", "failures reported", "mean response time"],
     latKpis: ["now", "on average", "slowest call", "without answer"], zones: ["fast", "slow", "very slow"], events: "Events", calls: "All calls",
     callsDay: "Single calls are kept for 24 hours", noData: "Nothing recorded yet", st: "Self-test", url: "Ping URL", keep: "Kept:", fail: "Failed", start: "First life sign after the start" },
@@ -76,7 +76,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Kacheln ${t.tabs.join(", ")}; "Verlauf" gewählt mit "${t.okSince} …", Antwortzeit in ms, Dienst "Healthchecks.io"`,
       tiles.map((x) => x.label).join() === t.tabs.join() && tiles[0].on && tiles[0].value.startsWith(t.okSince) && /^\d+ ms$/.test(tiles[1].value) && tiles[2].value === "Healthchecks.io", JSON.stringify(tiles));
     const seg = await dlg("return [...d.querySelectorAll('.ag-sv-range button')].map((b) => b.textContent + (b.classList.contains('on') ? '*' : ''))");
-    check(`${tag}: Zeitraum 3 Std. bis 1 Jahr (90 Tage und 1 Jahr seit dem Wunsch des Nutzers 18:24), "1 Tag" gewählt`, JSON.stringify(seg) === JSON.stringify(t.ranges.map((v, i) => (i === 2 ? `${v}*` : v))), JSON.stringify(seg));
+    check(`${tag}: Zeitraum 3 Std. bis 1 Jahr (6 Monate und 1 Jahr, 90 Tage wurden am 2026-11-20 zu 6 Monaten), "1 Tag" gewählt`, JSON.stringify(seg) === JSON.stringify(t.ranges.map((v, i) => (i === 2 ? `${v}*` : v))), JSON.stringify(seg));
     const row = await dlg("const b=[...d.querySelectorAll('.ag-sv-range button')]; const r0=b[0].getBoundingClientRect(); const g=d.querySelector('.ag-sv-range'); return { one: b.every((x) => Math.abs(x.getBoundingClientRect().top - r0.top) < 1), clipped: b.filter((x) => x.scrollWidth > x.clientWidth + 1).map((x) => x.textContent), inside: g.getBoundingClientRect().right <= d.getBoundingClientRect().right }");
     check(`${tag}: alle sieben Zeiträume in einer Zeile, keiner abgeschnitten${mobile ? " (Handy: kleinere Schrift)" : ""}`, row.one && !row.clipped.length && row.inside, JSON.stringify(row));
     const kpis = await dlg("return [...d.querySelectorAll('.ag-sv-kpi span')].map((x) => x.textContent)");
@@ -86,7 +86,7 @@ for (const lang of ["de", "en"]) {
       beat.bars > (mobile ? 60 : 200) && beat.ok > 50 && beat.fail >= 1 && beat.report >= 1 && beat.test >= 1 && beat.gap >= 1 && beat.lane >= beat.bars && beat.marks >= 3 && beat.band === 0 && beat.legend === 5, JSON.stringify(beat));
 
     // ----- Zeitraum: Grafik je Zeitraum, Zahl und Liste genau nach dem Zeitraum (Vorgabe des Nutzers) -----
-    for (const hours of [3, 12, 168, 720, 2160, 8760, 24]) {
+    for (const hours of [3, 12, 168, 720, 4320, 8760, 24]) {
       await s.tap(`#ag-hclog [data-sv="range"][data-hours="${hours}"]`);
       const loaded = await ready(hours);
       const exp = await expected(HC.id, hours);
@@ -94,7 +94,7 @@ for (const lang of ["de", "en"]) {
       const shape = hours <= 24 ? chart.lane > 0 && chart.band === 0
         : hours === 168 ? chart.band >= 7 && chart.days === 7 && chart.lane === 0
           : hours === 720 ? chart.rects === 720 && chart.cells > 600 && chart.lane === 0
-            : chart.dayCells === hours / 24 && chart.kinds.includes("fail") && chart.kinds.includes("ok") && chart.kinds.includes("gap") && chart.sum.length > 10 && (hours === 2160 || chart.kinds.includes("none"));
+            : chart.dayCells === hours / 24 && chart.kinds.includes("fail") && chart.kinds.includes("ok") && chart.kinds.includes("gap") && chart.sum.length > 10 && (hours === 4320 || chart.kinds.includes("none"));
       const what = hours <= 24 ? "Herzschlag mit Band" : hours === 168 ? "Zeitleiste mit einer Zeile je Tag" : hours === 720 ? "Raster mit 30 Tagen zu 24 Stunden" : `Raster Monat × Tag mit ${hours / 24} Tagen und der Zahl der Tage darunter`;
       check(`${tag}: ${hours} Std.: ${what}`, loaded && shape, JSON.stringify(chart));
       const ev = await dlg("return { n: d.querySelector('[data-sv=\"pane\"][data-pane=\"events\"] .ag-sv-n').textContent, rows: d.querySelectorAll('.ag-sv-rows tbody tr:not(.day)').length, total: d.querySelectorAll('.ag-sv-kpi b')[1].textContent.replace(/\\D/g, '') }");

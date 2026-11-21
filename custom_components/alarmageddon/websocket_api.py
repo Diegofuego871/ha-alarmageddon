@@ -1044,6 +1044,7 @@ def loaded_healthcheck(hass: HomeAssistant) -> Any:
         vol.Required("name"): vol.All(str, vol.Length(max=HEALTHCHECK_NAME_MAX * 2)),
         vol.Required("url"): vol.All(str, vol.Length(max=HEALTHCHECK_URL_MAX)),
         vol.Optional("fail_suffix", default=""): vol.All(str, vol.Length(max=HEALTHCHECK_SUFFIX_MAX)),
+        vol.Optional("alarm_suffix", default=""): vol.All(str, vol.Length(max=HEALTHCHECK_SUFFIX_MAX)),
         vol.Required("interval"): vol.All(int, vol.Range(min=HEALTHCHECK_INTERVAL_RANGE[0], max=HEALTHCHECK_INTERVAL_RANGE[1])),
     }
 )
@@ -1071,9 +1072,13 @@ async def ws_healthcheck_save(hass: HomeAssistant, connection, msg: dict[str, An
     if suffix is None:
         connection.send_error(msg["id"], "invalid_suffix", "The failure suffix must start with /, ? or &")
         return
+    alarm_suffix = valid_fail_suffix(url, msg["alarm_suffix"])
+    if alarm_suffix is None:
+        connection.send_error(msg["id"], "invalid_suffix", "The alarm suffix must start with /, ? or &")
+        return
     settings = await async_get_settings(hass)
     items = [dict(i) for i in settings.healthchecks]
-    entry = {"name": name, "url": url, "fail_suffix": suffix, "interval": msg["interval"]}
+    entry = {"name": name, "url": url, "fail_suffix": suffix, "alarm_suffix": alarm_suffix, "interval": msg["interval"]}
     if "check_id" in msg:
         index = next((n for n, i in enumerate(items) if i["id"] == msg["check_id"]), None)
         if index is None:
@@ -1110,14 +1115,14 @@ async def ws_healthcheck_delete(hass: HomeAssistant, connection, msg: dict[str, 
 
 
 @websocket_api.websocket_command(
-    {vol.Required("type"): f"{DOMAIN}/healthcheck_ping", vol.Required("check_id"): vol.All(str, vol.Length(min=1, max=16)), vol.Required("kind"): vol.In(("ok", "fail"))}
+    {vol.Required("type"): f"{DOMAIN}/healthcheck_ping", vol.Required("check_id"): vol.All(str, vol.Length(min=1, max=16)), vol.Required("kind"): vol.In(("ok", "fail", "alarm"))}
 )
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_healthcheck_ping(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """
-    Testknöpfe "OK senden" und "Fehler senden" (Wunsch des Nutzers): genau das sofort an den Dienst, wartet auf die Antwort (höchstens
-    HEALTHCHECK_TIMEOUT). "Fehler" ohne Fehler-Zusatz gibt es nicht.
+    Testknöpfe "OK senden", "Fehler senden" und "Alarm senden" (seit 1.73.0, Wunsch des Nutzers): genau das sofort an den Dienst, wartet auf die
+    Antwort (höchstens HEALTHCHECK_TIMEOUT). "Fehler" ohne Fehler-Zusatz und "Alarm" ohne Alarm-Zusatz gibt es nicht.
     """
     if (healthcheck := loaded_healthcheck(hass)) is None or (task := healthcheck.async_ping(msg["check_id"], test=msg["kind"])) is None:
         connection.send_error(msg["id"], "not_found", "No such health check")

@@ -149,6 +149,8 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   // ----- Hinzufügen: Auge und Warnung -----
   await s.tap('#ag-codelist [data-sys="code-add"]');
   check(`${tag}: "${t.add}" öffnet das leere Fenster über der Liste`, await s.waitFor(`const d=r.getElementById('ag-codes'); return d.open && d.querySelector('h3').innerText.trim() === ${JSON.stringify(t.add)} && d.querySelector('[data-key="name"]').value === '' && !d.innerText.includes(${JSON.stringify(t.keep)})`));
+  // 1.73.0: Benutzer, Name und Code sind Kapitel (fetter Titel mit Strich davor), nicht mehr kleine Beschriftungen
+  check(`${tag}: Fenster in drei Kapiteln (Benutzer, Name, Code) mit Strich vor dem Titel`, await s.ev(`const d=r.getElementById('ag-codes'); const ts=[...d.querySelectorAll('.ag-chap > h3.ag-chap-t')]; return ts.length === 3 && !d.querySelector('label.ag-label, span.ag-label') && ts.every((h) => getComputedStyle(h, '::before').width === '4px' && parseInt(getComputedStyle(h).fontWeight) >= 600)`));
   // Auge: blendet den getippten Code ein und wieder aus
   await (await s.el('#ag-codes [data-key="code"]')).fill("4718");
   const eye = '#ag-codes .ag-pwfld:has([data-key="code"]) [data-sys="code-eye"]';

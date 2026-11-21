@@ -311,6 +311,20 @@ Umsetzung:
   Wunsch des Nutzers 2026-11-20): `HealthCheck.summary` gibt nur Zahlen (`healthcheck`, `_ok`, `_report`, `_fail` als Attribute), **nie URL, Name
   oder Rechner** (Attribute stehen in jedem Dashboard und in der Aufzeichnung; Test `test_healthcheck.py -k status_entity`); `SIGNAL_HEALTHCHECK` nach
   jedem Lebenszeichen und jeder Änderung der Liste (`_changed`, im `try`).
+- Alarm-Aufruf der HealthCheck-Dienste (seit 1.73.0, Wunsch des Nutzers 2026-11-20): Ein Dienst kann neben `fail_suffix` einen `alarm_suffix` haben
+  (freiwillig, `alarm_url`). Löst eine Anlage aus (`selftest.any_alarm`, nie ein Fehler), ruft `HealthCheck._tick` jeden Dienst mit Alarm-Zusatz
+  sofort damit auf (`by: "alarm"`, **nie** `respect_gap`; erkannt im Takt, höchstens `HEALTHCHECK_TICK` Sekunden, kein Zuhörer am Automaten); das Ende
+  des Alarms sendet das Lebenszeichen (mit Mindestabstand). **Der Alarm hat Vorrang vor dem Fehler des Selbsttests** (`status["sent"]`: `alarm`/`fail`/`ok`,
+  Probleme zählen nur bei `fail`); Dienste ohne Alarm-Zusatz bleiben unberührt. Wie jedes Lebenszeichen eine Hintergrundaufgabe mit `HEALTHCHECK_TIMEOUT`:
+  **nie etwas, das einen Alarm aufhält** (Test `test_healthcheck.py -k hanging_service`). Der Testknopf "Alarm senden" (`healthcheck_ping` kind `alarm`)
+  gibt es nur mit Alarm-Zusatz. Protokoll: Art `report`, Ereignisse tragen `sent: "alarm"` und laufen nie mit Fehlern des Selbsttests zusammen. Das Panel
+  schlägt den Alarm-Zusatz nur vor ("Übernehmen"), füllt ihn nie von selbst; Nachrichten der Vorschläge bleiben Englisch (Vorgabe des Nutzers). Tests
+  `tests/test_healthcheck.py -k alarm`, `tests/test_healthcheck_log.py -k alarm_call`, Suite `hcalarm-e2e.mjs`, Zeilen "HealthCheck Alarm" in `scripts/mutation_check.py`.
+  Das Protokoll hat statt 90 Tagen 6 Monate (`HEALTHLOG_RANGES`: 3, 12, 24, 168, 720, 4320, 8760 Stunden).
+- Zauberstab des Einrichtungsassistenten (seit 1.73.0, Wunsch des Nutzers): wiederholt sich alle `WAVE_PAUSE_MS` (30 s) nach dem Ende (`WAVE_LEN_MS`) und endet
+  mit der Sternschnuppe wie im Device Panel (`ag-wz-comet`, `ag-wz-land`), auch bei "Bewegung reduzieren"; der Zeitgeber stoppt, wenn der Knopf weg ist.
+- Ecken der Tabellen (seit 1.73.0): die klebende Kopfzeile einer Tabelle in einer Karte mit rundem Rand trägt dort denselben inneren Radius (17 px); auf dem
+  Handy ist die Zeile selbst gerundet und ihre `th` transparent. Jede neue Tabelle in einer Karte kommt in `tests/panel/suites/corners-e2e.mjs`.
 - Protokoll der HealthCheck-Dienste (seit 1.68.0, `healthcheck_log.py`, `panel/healthlog.js`; Wunsch und Entscheide des Nutzers vom 2026-11-19,
   17:06 bis 17:48, Mockups `healthcheck-protokoll-v1`/`-v2`): je Aufruf Zeit, Art (`ok`, `report`, `fail`, `test`), Ergebnis, HTTP-Status,
   Antwortzeit und Auslöser; **nie die URL und nie der Text einer Ausnahme** (Test in `test_security.py`). Aufbewahrt: einzelne Aufrufe

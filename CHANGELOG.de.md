@@ -7,6 +7,26 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.73.0] - 2026-11-21
+
+### Hinzugefügt
+
+- **Alarm-Aufruf der HealthCheck-Dienste:** Neben dem Fehler-Zusatz (der Selbsttest hat Probleme) kann ein Dienst einen **Alarm-Zusatz** haben (freiwillig). Löst eine Anlage aus, ruft Alarmageddon den Dienst sofort damit auf (erkannt innerhalb von 10 Sekunden, nie vom Mindestabstand aufgehalten), damit der Dienst "Alarm ausgelöst" statt "Selbsttest fehlgeschlagen" meldet. Endet der Alarm, geht das normale Lebenszeichen hinaus. Ein Alarm hat Vorrang vor einem Fehler des Selbsttests. Dienste ohne Alarm-Zusatz verhalten sich wie bisher. Ein hängender Dienst hält einen Alarm nie auf.
+- **Zweiter Knopf "Alarm senden"** in der Liste der Dienste und im Kopf des Protokolls, nur bei einem Dienst mit Alarm-Zusatz; das Protokoll hält den Aufruf als eigene Art Ereignis fest.
+- **Vorschläge mit Nachricht auf Englisch:** Für Cronitor (`?state=fail&message=…`) und Uptime Kuma (`?status=down&msg=…`) tragen Fehler- und Alarm-Zusatz eine kurze Nachricht; für Healthchecks.io und Better Stack (die Nachricht geht dort nur per POST) `/fail` und für den Alarm `/2`. Den Alarm-Zusatz schlägt das Fenster nur vor ("Übernehmen"), es füllt ihn nie von selbst aus.
+- **Zauberstab des Einrichtungsassistenten:** Er wiederholt sich nach 30 Sekunden Pause und endet mit einer Sternschnuppe rund um den Knopf, wie im Device Panel.
+
+### Geändert
+
+- **Formular der HealthCheck-Dienste in Kapiteln:** Dienst, Bei Fehler des Selbsttests, Bei Alarm (freiwillig), Intervall, je mit Titel und Strich davor.
+- **Protokoll der HealthCheck-Dienste:** Die Grafik für 90 Tage ist jetzt eine **6-Monats**-Grafik (voller); 90 Tage entfällt.
+- **Aktionsknöpfe eingefärbt:** "Lebenszeichen senden" leicht grün, "Fehler senden" und "Alarm senden" leicht orange; Stift und Protokoll bleiben neutral. Das X und die runden Knöpfe im Kopf des Protokolls sind auf dem iPad gleich gross und auf einer Höhe.
+- **Code hinzufügen:** Benutzer, Name und Code sind Kapitel (fetter Titel mit Strich davor, wie bei "Routine hinzufügen"); der Einrichtungsassistent nutzt dasselbe Fenster.
+
+### Behoben
+
+- **Ecken der Tabellen auf dem Handy:** Die klebende Kopfzeile der Tabellen in den Fenstern HealthCheck-Dienste und Backups deckte die runden Ecken der Karte zu; die Ecken sind jetzt rund. Die sechs Knöpfe eines Dienstes passen auf dem Handy in die Zeile.
+
 ## [1.72.0] - 2026-11-20
 
 ### Hinzugefügt
@@ -2060,6 +2080,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.73.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.73.0
 [1.72.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.72.0
 [1.71.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.71.0
 [1.70.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.70.0
