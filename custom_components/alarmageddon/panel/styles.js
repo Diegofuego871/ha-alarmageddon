@@ -1672,6 +1672,10 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-hcknown { margin-top: 4px; }
 .ag-hcoffer { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; font-size: 13px; }
 .ag-hcoffer:empty, [data-hcp="offer"]:empty { display: none; }
+/* "Übernehmen" beim Vorschlag (1.73.0, Wunsch des Nutzers 2026-11-21): ein kräftiger Knopf statt eines blassen Links, damit er nicht überlesen wird */
+.ag-hcoffer > button.ag-link { min-height: 34px; padding: 0 16px; border-radius: 17px; font-size: 14px; font-weight: 700; color: var(--ag-primary); background: color-mix(in srgb, var(--ag-primary) 16%, transparent); border: 1px solid color-mix(in srgb, var(--ag-primary) 55%, transparent); }
+.ag-hcoffer > button.ag-link:hover { background: color-mix(in srgb, var(--ag-primary) 28%, transparent); }
+.ag-hcoffer > button.ag-link:focus-visible { outline: 2px solid var(--ag-primary); outline-offset: 2px; }
 .ag-hcprev .ag-mono { overflow-wrap: anywhere; word-break: break-all; font-size: 12px; }
 .ag-hcint-row { display: flex; gap: 10px; align-items: center; }
 .ag-hcint-row select { width: auto; min-width: 9em; }

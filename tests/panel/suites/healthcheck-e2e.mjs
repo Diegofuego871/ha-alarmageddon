@@ -67,6 +67,9 @@ for (const lang of ["de", "en"]) {
     const alarm = await s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { value: q('[data-hc=\"f-alarm\"]').value, offer: q('[data-hcp=\"offerAlarm\"]').innerText, prev: q('[data-hcp=\"prevAlarm\"]').innerText }");
     check(`${tag}: Alarm-Zusatz leer, Vorschlag für Cronitor daneben ("?state=fail&message=Alarm+triggered"), kein Alarm-Aufruf in der Vorschau`,
       alarm.value === "" && alarm.offer.includes("?state=fail&message=Alarm+triggered") && alarm.offer.includes(t.take) && alarm.prev === t.alarmEmpty, JSON.stringify(alarm));
+    // "Übernehmen" ist ein kräftiger Knopf (fett, getönter Hintergrund, Rand, mindestens 34 px hoch), beim Fehler- wie beim Alarm-Zusatz
+    const loud = await s.ev("const d=r.getElementById('ag-hcform'); return [...d.querySelectorAll('.ag-hcoffer > button.ag-link')].map((b) => { const c=getComputedStyle(b); return { w: parseInt(c.fontWeight), h: Math.round(b.getBoundingClientRect().height), bg: c.backgroundColor, bw: c.borderTopWidth }; })");
+    check(`${tag}: "${t.take}" ist ein kräftiger Knopf (fett, Hintergrund, Rand, mind. 34 px)`, loud.length >= 1 && loud.every((l) => l.w >= 700 && l.h >= 34 && l.bg !== "rgba(0, 0, 0, 0)" && l.bw === "1px"), JSON.stringify(loud));
     await s.tap('#ag-hcform [data-hc="f-take-alarm"]');
     const taken = await s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { value: q('[data-hc=\"f-alarm\"]').value, offer: q('[data-hcp=\"offerAlarm\"]').innerText, prev: q('[data-hcp=\"prevAlarm\"]').innerText }");
     check(`${tag}: "${t.take}" setzt den Alarm-Zusatz, Vorschau mit der Adresse, kein Vorschlag mehr`, taken.value === "?state=fail&message=Alarm+triggered" && !taken.offer && taken.prev.includes(`${CRON}?state=fail&message=Alarm+triggered`), JSON.stringify(taken));
