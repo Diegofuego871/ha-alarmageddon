@@ -1129,9 +1129,6 @@ dialog.ag-svdlg[open] { height: min(92vh, 860px); }
 .ag-sv-tx { min-width: 0; max-width: 100%; text-align: center; }
 .ag-sv-tx small { display: block; text-align: center; font-size: 12px; color: var(--ag-text2); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ag-sv-tx b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ag-sv-seg { display: inline-grid; grid-auto-flow: column; gap: 2px; padding: 3px; margin-top: 14px; border-radius: 13px; background: color-mix(in srgb, var(--ag-text) 6%, transparent); }
-.ag-sv-seg button { min-height: 34px; padding: 0 18px; border: 0; border-radius: 10px; background: transparent; color: var(--ag-text2); font: inherit; font-size: 13.5px; white-space: nowrap; cursor: pointer; }
-.ag-sv-seg button.on { background: var(--ag-card); color: var(--ag-primary); font-weight: 500; box-shadow: var(--ag-shadow-s); }
 /* Zeitraum der Sensoransicht und des Protokolls: Reiterleiste mit gleitender Kapsel (1.73.0), Mass und Abstand wie die frühere ruhende Leiste */
 .ag-seg.ag-sv-range { margin-top: 14px; border-radius: 13px; background: color-mix(in srgb, var(--ag-text) 6%, transparent); }
 .ag-seg.ag-sv-range > .ag-pill { border-radius: 10px; }
@@ -1271,8 +1268,6 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-sv-tile[data-tab="state"] .ag-sv-tx b, :host([narrow]) .ag-sv-tile[data-tab="device"] .ag-sv-tx b { display: none; }
 :host([narrow]) .ag-sv-tile[data-tab="battery"] .ag-sv-tx small, :host([narrow]) .ag-sv-tile[data-tab="signal"] .ag-sv-tx small { display: none; }
 :host([narrow]) .ag-sv-tile[data-tab="state"] .ag-sv-tx small, :host([narrow]) .ag-sv-tile[data-tab="device"] .ag-sv-tx small { font-weight: 600; color: inherit; }
-:host([narrow]) .ag-sv-seg { display: grid; grid-auto-columns: 1fr; }
-:host([narrow]) .ag-sv-seg button { min-height: 40px; padding: 0 4px; }
 :host([narrow]) .ag-sv-kpis { gap: 18px; margin-top: 12px; }
 :host([narrow]) .ag-sv-kpi b { font-size: 17px; }
 :host([narrow]) .ag-sv-table th:first-child, :host([narrow]) .ag-sv-table td:first-child { padding-left: 16px; }
