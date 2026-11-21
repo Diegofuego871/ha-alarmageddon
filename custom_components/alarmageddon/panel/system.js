@@ -365,7 +365,7 @@ export class SystemUi {
     // Handy untereinander unter dem Text, je mit Zahl und Einheit (Minuten oder Stunden)
     const stLine = (key, which, label, icon) => {
       const f = d[which];
-      return `<div class="ag-sthf"><span class="ag-sthf-l">${ic(icon, 16)}${esc(label)}</span>
+      return `<div class="ag-sthf"><span class="ag-sthf-l"><span class="ag-sthf-ic ${which === "stOn" ? "armed" : "disarmed"}">${ic(icon, 16)}</span>${esc(label)}</span>
       <span class="ag-num ${bad.has(key) ? "bad" : ""}"><input type="number" min="1" max="${f.unit === "h" ? 24 : 1440}" step="1" inputmode="numeric" data-sys="st-value" data-st-which="${which}" value="${esc(Number.isFinite(f.value) ? f.value : "")}" aria-label="${esc(`${t("stEveryLabel")}: ${label}`)}">
         <select class="ag-input ag-unit" data-sys="st-unit" data-st-which="${which}" aria-label="${esc(`${t("stEveryLabel")}: ${label}, ${t("hcUnit")}`)}"><option value="min" ${f.unit === "min" ? "selected" : ""}>${esc(t("hcMinutes"))}</option><option value="h" ${f.unit === "h" ? "selected" : ""}>${esc(t("hcHours"))}</option></select></span></div>`;
     };

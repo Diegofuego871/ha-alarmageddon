@@ -1621,6 +1621,9 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-sthours .ag-num .ag-unit { margin-left: 0; min-width: 9em; max-width: 100%; }
 :host([narrow]) .ag-sthours .ag-num .ag-unit { min-width: 0; }
 /* Sehr schmal (320 px): die Einheit rückt unter das Feld, nie aus der Karte */
+.ag-sthf-ic { display: inline-flex; } /* nur das Symbol, nicht die Schrift (1.73.0): "Scharf" rot und "Nicht scharf" grün wie auf der Karte der Anlage */
+.ag-sthf-ic.armed { color: var(--ag-error); }
+.ag-sthf-ic.disarmed { color: var(--ag-success); }
 .ag-sthfs { margin-left: 0; display: grid; grid-template-columns: max-content minmax(0, auto); justify-content: start; align-items: center; gap: 10px 16px; }
 .ag-sthf { display: contents; }
 /* Liste der Lebenszeichen: Tabelle wie die Backups; die URL steht ganz da und bricht an jeder Stelle um (sie hat keine Leerzeichen) */
