@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.74.6] - 2026-11-21
+
+### Behoben
+
+- **Zauberstab des Assistenten, Schweif und Punkt:** Der Schweif kommt jetzt wirklich aus dem Punkt. Der Punkt ist der Träger der Sternschnuppe (er dreht um die Mitte des Knopfes, und der Schweif gehört zu ihm), darum kann der Schweif dem Punkt weder vorauslaufen noch hinterherhinken. Der dunkle Rand um den Punkt ist dünner und weicher, der Punkt bleibt auf der Fahrt kleiner, und die Explosion am Ende ist ein dünner Ring in der Farbe des Punktes.
+
 ## [1.74.5] - 2026-11-21
 
 ### Hinzugefügt
@@ -2138,6 +2144,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.74.6]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.6
 [1.74.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.5
 [1.74.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.4
 [1.74.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.3

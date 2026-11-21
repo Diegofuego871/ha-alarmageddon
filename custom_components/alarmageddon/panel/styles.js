@@ -26,18 +26,21 @@ const WAVE_BACK = WAVE_FLY.map((f) => WAVE_BOOM + 110 * [...WAVE_FLY].sort((p, q
 // Der Punkt bleibt immer sichtbar (Wunsch des Nutzers): er schwillt mit jedem eingesogenen Stern an, fährt dann selbst als Kopf des Kometen einmal um den
 // Knopf (Drehung um die Mitte des Knopfes, gleiche Kurve wie der Schweif; Mitte des Knopfes liegt (-9, 18) px vom Mittelpunkt des Punktes entfernt:
 // translate(v) rotate() translate(-v) dreht um diesen Punkt, scale() wirkt davor am Punkt selbst), blitzt bei der Ankunft auf und setzt sich
+// Drehung des Trägers: ruht bis zum Start, dann einmal um den Knopf (Kurve wie sie zu einem Kometen passt: langsam an, schnell, sanft an)
+const WAVE_ORBIT = `0%, ${pc(WAVE_LAUNCH)} { transform: rotate(0deg); animation-timing-function: cubic-bezier(.5, 0, .3, 1) }
+  ${pc(WAVE_BOOM)}, 100% { transform: rotate(360deg) }`;
 const WAVE_LAND = (() => {
   const hits = WAVE_FLY.map((f) => f.arrive).sort((p, q) => p - q);
   const glow = (n) => `0 0 ${2 + 2 * n}px ${Math.round(n * 0.6 * 10) / 10}px color-mix(in srgb, var(--ag-primary) 60%, #fff)`;
-  const tf = (deg, sc) => `translate(-13.5px, 13.5px) rotate(${deg}deg) translate(13.5px, -13.5px) scale(${sc})`;
+  const tf = (deg, sc) => `scale(${sc})`;
   const rows = [`0%, ${pc(hits[0] - 1)} { transform: ${tf(0, 1)}; box-shadow: 0 0 0 0 transparent; filter: none }`];
   hits.forEach((t, n) => {
-    rows.push(`${pc(t)} { transform: ${tf(0, (1.3 + n * 0.2).toFixed(2))}; box-shadow: ${glow(n + 1)}; filter: brightness(${(1.2 + n * 0.15).toFixed(2)}) }`);
-    if (n < hits.length - 1) rows.push(`${pc(t + 50)} { transform: ${tf(0, (1.15 + n * 0.2).toFixed(2))}; box-shadow: ${glow(n)}; filter: brightness(1.1) }`);
+    rows.push(`${pc(t)} { transform: ${tf(0, (1.2 + n * 0.12).toFixed(2))}; box-shadow: ${glow(n + 1)}; filter: brightness(${(1.2 + n * 0.15).toFixed(2)}) }`);
+    if (n < hits.length - 1) rows.push(`${pc(t + 50)} { transform: ${tf(0, (1.1 + n * 0.12).toFixed(2))}; box-shadow: ${glow(n)}; filter: brightness(1.1) }`);
   });
   // Start der Runde: der Punkt hat seine volle Grösse und rast los (Kurve wie der Schweif)
-  rows.push(`${pc(WAVE_LAUNCH)} { transform: ${tf(0, 1.35)}; box-shadow: ${glow(1)}; filter: brightness(1.3); animation-timing-function: cubic-bezier(.5, 0, .3, 1) }`);
-  rows.push(`${pc(WAVE_BOOM - 1)} { transform: ${tf(360, 1.35)}; box-shadow: ${glow(1)}; filter: brightness(1.3) }`);
+  rows.push(`${pc(WAVE_LAUNCH)} { transform: ${tf(0, 1.2)}; box-shadow: ${glow(1)}; filter: brightness(1.3); animation-timing-function: cubic-bezier(.5, 0, .3, 1) }`);
+  rows.push(`${pc(WAVE_BOOM - 1)} { transform: ${tf(360, 1.2)}; box-shadow: ${glow(1)}; filter: brightness(1.3) }`);
   rows.push(`${pc(WAVE_BOOM)} { transform: ${tf(360, 2.2)}; box-shadow: 0 0 10px 4px color-mix(in srgb, var(--ag-primary) 70%, #fff); filter: brightness(1.8) }`);
   rows.push(`${pc(WAVE_BOOM + 250)} { transform: ${tf(360, 1.3)}; box-shadow: 0 0 8px 3px transparent; filter: brightness(1.3) }`);
   rows.push(`${pc(WAVE_BOOM + 600)}, 100% { transform: ${tf(360, 1)}; box-shadow: 0 0 0 0 transparent; filter: none }`);
@@ -1088,29 +1091,32 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 .ag-wzbtn:hover { background: color-mix(in srgb, var(--ag-primary) 22%, transparent); }
 .ag-wzbtn svg { display: block; overflow: visible; }
 .ag-wzbtn g { transform-box: view-box; }
-.ag-wzbtn-dot { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--ag-primary); border: 2px solid var(--ag-card); pointer-events: none; }
+.ag-wzbtn-dot { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--ag-primary); border: 1.5px solid color-mix(in srgb, var(--ag-card) 45%, transparent); pointer-events: none; }
 .ag-wzbtn.wave .ag-wzstick { transform-origin: 3px 21px; animation: ag-wz-swing ${WAVE.swing}ms cubic-bezier(.45, 0, .35, 1) both; }
 /* Ablauf der Welle: siehe WAVE oben. Die Sterne haben je eine Zeitleiste für Bewegung und Ein-/Ausblenden über die ganze Welle. */
 .ag-wzbtn.wave .ag-wzstar { transform-origin: center; transform-box: fill-box; animation-timing-function: ease-in-out; animation-fill-mode: both; animation-duration: ${WAVE.total}ms; }
 .ag-wzbtn.wave .s0 { animation-name: ag-wz-star0, ag-wz-fade0; }
 .ag-wzbtn.wave .s1 { animation-name: ag-wz-star1, ag-wz-fade1; }
 .ag-wzbtn.wave .s2 { animation-name: ag-wz-star2, ag-wz-fade2; }
-/* Sternschnuppe wie im Device Panel (dp-comet, docs/mockups/shootingstar-v1; "ein Markenzeichen", Wunsch des Nutzers 2026-11-20): der Punkt rast mit Schweif
-   einmal um die Linie. Der Kopf liegt bei 358 Grad des Verlaufs; mit 47 Grad Drehung steht er genau am Punkt (oben rechts) und kommt nach 360 Grad wieder dort an.
-   Er startet geladen (hell) und rast los, nimmt Fahrt auf und kommt sanft am Punkt an. */
-.ag-wzbtn.wave::before { content: ""; position: absolute; inset: -1px; border-radius: 50%; pointer-events: none; opacity: 0;
-  background: conic-gradient(from 0deg, transparent 0deg, transparent 240deg, color-mix(in srgb, var(--ag-primary) 14%, transparent) 240deg, color-mix(in srgb, var(--ag-primary) 92%, #fff) 354deg, #fff3e0 358deg, transparent 360deg);
+/* Sternschnuppe wie im Device Panel (dp-comet, docs/mockups/shootingstar-v1; "ein Markenzeichen", Wunsch des Nutzers 2026-11-20). Der Punkt ist selbst der Träger:
+   er dreht um die Knopfmitte (Ursprung (-9, 18) px, gemessen vom Punkt), und der Schweif ist sein ::before, dreht also zwangsläufig mit und kann ihm nie vorauslaufen
+   (Wunsch des Nutzers 2026-11-21: "der Schweif muss aus dem Kometen kommen"). Der sichtbare Punkt ist sein ::after (so wird er für das Anschwellen allein skaliert).
+   Während der Welle ist der Punkt selbst unsichtbar; ausserhalb gilt der einfache Punkt oben. */
+.ag-wzbtn.wave .ag-wzbtn-dot { background: transparent; border-color: transparent; transform-origin: -9px 18px; animation: ag-wz-orbit ${WAVE.total}ms linear both; }
+.ag-wzbtn.wave .ag-wzbtn-dot::after { content: ""; position: absolute; inset: -1.5px; border-radius: 50%; background: var(--ag-primary); border: 1.5px solid color-mix(in srgb, var(--ag-card) 45%, transparent); animation: ag-wz-land ${WAVE.total}ms linear both; }
+/* Schweif: Ring von der Grösse des Knopfes um dessen Mitte (Knopf 40 px; der Punkt liegt bei (29, 2) px, sein Innenrand bei (31, 4) px). Der Kopf liegt bei 358 Grad des
+   Verlaufs; mit 47 Grad Drehung steht er genau auf dem Punkt (oben rechts). Er blendet beim Start schnell ein und am Ende aus. */
+.ag-wzbtn.wave .ag-wzbtn-dot::before { content: ""; position: absolute; left: -31px; top: -4px; width: 40px; height: 40px; border-radius: 50%; pointer-events: none; opacity: 0; transform: rotate(47deg);
+  background: conic-gradient(from 0deg, transparent 0deg, transparent 250deg, color-mix(in srgb, var(--ag-primary) 12%, transparent) 250deg, color-mix(in srgb, var(--ag-primary) 90%, #fff) 354deg, #fff3e0 358deg, transparent 360deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  animation: ag-wz-comet ${WAVE.comet}ms cubic-bezier(.5, 0, .3, 1) ${WAVE_LAUNCH}ms both, ag-wz-comet-vis ${WAVE.comet}ms linear ${WAVE_LAUNCH}ms both, ag-wz-comet-boost ${WAVE.comet}ms linear ${WAVE_LAUNCH}ms both; }
+  animation: ag-wz-comet-vis ${WAVE.comet}ms linear ${WAVE_LAUNCH}ms both; }
 /* Explosion bei der Ankunft: ein Ring breitet sich vom Punkt aus und verglimmt */
 .ag-wzbtn.wave::after { content: ""; position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; pointer-events: none; opacity: 0;
-  border: 2px solid color-mix(in srgb, var(--ag-primary) 55%, #fff); box-shadow: 0 0 6px 1px color-mix(in srgb, var(--ag-primary) 60%, #fff);
+  border: 1.5px solid color-mix(in srgb, var(--ag-primary) 80%, #fff); box-shadow: 0 0 5px 0 color-mix(in srgb, var(--ag-primary) 50%, transparent);
   animation: ag-wz-burst 650ms cubic-bezier(.2, .7, .3, 1) ${WAVE_BOOM}ms both; }
-.ag-wzbtn.wave .ag-wzbtn-dot { animation: ag-wz-land ${WAVE.total}ms linear both; }
-@keyframes ag-wz-comet { from { transform: rotate(47deg) } to { transform: rotate(407deg) } }
-@keyframes ag-wz-comet-vis { 0% { opacity: 0 } 3% { opacity: 1 } 95% { opacity: 1 } 100% { opacity: 0 } }
-@keyframes ag-wz-comet-boost { 0% { filter: brightness(1.8) } 45%, 100% { filter: brightness(1) } }
-@keyframes ag-wz-burst { 0% { transform: scale(.6); opacity: 0 } 8% { transform: scale(1); opacity: 1 } 100% { transform: scale(4.2); opacity: 0 } }
+@keyframes ag-wz-orbit { ${WAVE_ORBIT} }
+@keyframes ag-wz-comet-vis { 0% { opacity: 0 } 18% { opacity: 1 } 88% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes ag-wz-burst { 0% { transform: scale(.6); opacity: 0 } 8% { transform: scale(1); opacity: .85 } 100% { transform: scale(3.8); opacity: 0 } }
 @keyframes ag-wz-land { ${WAVE_LAND} }
 /* Schwung im Kreis um den Griff, dann ein Schnippen zum Punkt (bei 75 %, wenn die Sterne losgleiten) und zurück in die Ruhe */
 @keyframes ag-wz-swing { 0% { transform: none } 20% { transform: translate(-.6px, .6px) rotate(-18deg) } 40% { transform: translate(-1px, -.4px) rotate(-30deg) }

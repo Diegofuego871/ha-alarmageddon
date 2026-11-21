@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.74.6] - 2026-11-21
+
+### Fixed
+
+- **Setup assistant wand, tail and dot:** the tail now really comes out of the dot. The dot is the carrier of the shooting star (it turns around the middle of the button and the tail is part of it), so the tail can no longer run ahead of the dot or lag behind it. The dark edge around the dot is thinner and softer, the dot stays smaller while it travels, and the burst at the end is a thin ring in the colour of the dot.
+
 ## [1.74.5] - 2026-11-21
 
 ### Added
@@ -2138,6 +2144,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.74.6]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.6
 [1.74.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.5
 [1.74.4]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.4
 [1.74.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.3
