@@ -1031,13 +1031,13 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 .ag-wzbtn.wave .s2 { animation-delay: .24s; }
 /* Sternschnuppe wie im Device Panel (dp-comet und dp-land, docs/mockups/shootingstar-v1; "ein Markenzeichen", Wunsch des Nutzers 2026-11-20, 21:29): nach dem
    Schwung löst sich der Punkt vom Knopf, huscht mit Schweif einmal um die Linie und setzt sich kurz vergrössert wieder hin. Eine Welle dauert 3 Sekunden
-   (Schwung 0 bis 1,4 s, Sternschnuppe 1,5 bis 2,5 s, Ankunft bis 3 s) und kommt alle 30 Sekunden Pause wieder, solange der Knopf steht. */
+   (Schwung 0 bis 1,4 s, Sternschnuppe 1,4 bis 2,4 s, ohne Pause nach dem Schwung, Ankunft bis 3 s) und kommt alle 30 Sekunden Pause wieder, solange der Knopf steht. */
 .ag-wzbtn.wave::before { content: ""; position: absolute; inset: -1px; border-radius: 50%; pointer-events: none; opacity: 0;
   background: conic-gradient(from 0deg, transparent 0deg, transparent 240deg, color-mix(in srgb, var(--ag-primary) 14%, transparent) 240deg, color-mix(in srgb, var(--ag-primary) 92%, #fff) 354deg, #fff3e0 358deg, transparent 360deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  animation: ag-wz-comet 1s linear 1.5s both; }
+  animation: ag-wz-comet 1s linear 1.4s both; }
 .ag-wzbtn.wave .ag-wzbtn-dot { animation: ag-wz-land 3s linear both; }
-@keyframes ag-wz-comet { 0% { transform: rotate(15deg); opacity: 0 } 8% { transform: rotate(45deg); opacity: 1 } 92% { transform: rotate(405deg); opacity: 1 } 100% { transform: rotate(428deg); opacity: 0 } }
+@keyframes ag-wz-comet { 0% { transform: rotate(15deg); opacity: 0 } 2% { transform: rotate(30deg); opacity: 1 } 92% { transform: rotate(405deg); opacity: 1 } 100% { transform: rotate(428deg); opacity: 0 } }
 @keyframes ag-wz-land { 0%, 46% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 transparent } 50%, 82% { transform: scale(.3); opacity: 0; box-shadow: 0 0 0 0 transparent }
   83% { transform: scale(1.6); opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, var(--ag-primary) 70%, transparent) } 88% { transform: scale(1.3); opacity: 1 } 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 8px transparent } }
 @keyframes ag-wz-swing { 0% { transform: rotate(0) } 22% { transform: rotate(-24deg) } 52% { transform: rotate(16deg) } 74% { transform: rotate(-6deg) } 100% { transform: rotate(0) } }

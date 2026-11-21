@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Alarm call for HealthCheck services:** besides the failure suffix (self-test has problems) a service can have an **alarm suffix** (optional). When an alarm system is triggered, Alarmageddon calls the service with it at once (seen within 10 seconds, never held up by the minimum gap), so the service reports "Alarm triggered" instead of "Self-test failed". When the alarm ends, the normal life sign goes out. An alarm has precedence over a self-test failure. Services without an alarm suffix behave as before. A hanging service never holds up an alarm.
 - **Second button "Send alarm"** in the list of services and in the head of the log, only for a service with an alarm suffix; the log records the call as its own kind of event.
 - **Suggestions with a message in English:** for Cronitor (`?state=fail&message=…`) and Uptime Kuma (`?status=down&msg=…`) the failure suffix and the alarm suffix carry a short message; for Healthchecks.io and Better Stack (the message can only be sent with POST there) `/fail` and, for the alarm, `/2`. The alarm suffix is only suggested ("Use"), never filled in by itself.
-- **Setup assistant wand:** it repeats after a pause of 30 seconds and ends with a shooting star around the button, like in Device Panel.
+- **Setup assistant wand:** it repeats after a pause of 30 seconds and ends with a shooting star around the button, like in Device Panel; the shooting star starts the moment the wand stops moving.
 
 ### Changed
 
