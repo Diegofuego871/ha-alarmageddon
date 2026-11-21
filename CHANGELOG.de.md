@@ -16,6 +16,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Behoben
 
+- **Einrichtungsassistent, "Weitere Funktionen":** nach dem Sprung in ein Fenster der Konfiguration und dem Schliessen bleibt der letzte Schritt an der Stelle, an der du ihn verlassen hast (vorher sprang er nach oben). Auf dem Handy ist "Assistent starten" (Konfiguration › Anlage) linksbündig und so breit wie "Anlage löschen" darunter, nicht über die ganze Breite.
 - **Neue Routine:** Das Feld "Name" war rot und eine Meldung zur Zahl der Zeichen stand da, sobald das Fenster aufging, als hätte jemand schon versucht zu speichern. Das Formular beginnt jetzt ruhig: Der Name wird erst rot, wenn man ihn angefasst hat, die Meldung erscheint nach der ersten Änderung im Formular, und "Speichern" bleibt gesperrt, solange etwas fehlt. Fokus und Lage des Fensters bleiben, wie sie waren.
 
 ## [1.74.0] - 2026-11-21

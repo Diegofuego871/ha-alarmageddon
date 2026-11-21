@@ -137,6 +137,31 @@ export class WizardUi {
     this._enter();
     h._render();
     this._loadCandidates();
+    this._restoreTop();
+  }
+
+  // Nach der Rückkehr aus einem Fenster der Konfiguration: Lage wie vorher (der Inhalt wächst noch kurz, darum mehrere Versuche)
+  _restoreTop() {
+    const top = this._resumeTop;
+    this._resumeTop = null;
+    if (!top) return;
+    // Die Lage wird mehrfach gesetzt: der Inhalt wächst noch (Messwerte, Listen), und die Ansicht dahinter stellt kurz ihre eigene Lage wieder her.
+    // Fasst der Benutzer den Inhalt an, hört das sofort auf.
+    const c = this.host._content;
+    if (!c) return;
+    // Jeder Lauf hat eine Nummer: ein neuer Lauf oder das Verlassen des Assistenten beendet die Zeitgeber des alten (sonst überschrieben sie die Lage nach einem schnellen zweiten Sprung)
+    const id = (this._restoreId = (this._restoreId || 0) + 1);
+    let stop = false;
+    const halt = () => { stop = true; };
+    c.addEventListener("wheel", halt, { once: true, passive: true });
+    c.addEventListener("touchstart", halt, { once: true, passive: true });
+    const set = () => {
+      if (stop || !this.active || id !== this._restoreId) return;
+      if (Math.abs(c.scrollTop - top) > 1) c.scrollTop = top;
+    };
+    set();
+    window.requestAnimationFrame(set);
+    for (const ms of [60, 150, 300, 600, 1000, 1600]) window.setTimeout(set, ms);
   }
 
   close() {
@@ -275,13 +300,20 @@ export class WizardUi {
     const row = MORE.find((m) => m[5] === kind);
     if (!row || this.busy) return;
     const entry = this.entry;
+    // Lage merken: nach dem Schliessen des Fensters steht der Schritt wieder dort, wo man ihn verlassen hat
+    const top = h._content?.scrollTop || 0;
+    this._restoreId = (this._restoreId || 0) + 1;
     this.close();
     h.openPlace(kind, entry);
     const dlgId = row[6];
     const wait = (n = 0) => {
       const dlg = h._root.getElementById(dlgId);
       if (dlg?.open) {
-        dlg.addEventListener("close", () => { if (!this.active) this.start("done"); }, { once: true });
+        dlg.addEventListener("close", () => {
+          if (this.active) return;
+          this._resumeTop = top;
+          this.start("done");
+        }, { once: true });
       } else if (n < 40) window.setTimeout(() => wait(n + 1), 50);
     };
     window.requestAnimationFrame(() => wait());

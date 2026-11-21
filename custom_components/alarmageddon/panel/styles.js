@@ -1464,6 +1464,8 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-rtsum .ag-btnrow { margin-left: auto; }
 :host([narrow]) .ag-rtsum .ag-btnrow { flex: 1 1 100%; margin-left: 0; }
 :host([narrow]) .ag-rtsum .ag-btnrow > .ag-btn { flex: 1 1 0; justify-content: center; } /* gleich breit in jeder Zeile (Routinen, eigene Töne, Codes; 1.64.0): reicht der Platz nicht, behält der längere seinen Text */
+:host([narrow]) .ag-wzrow .ag-btnrow { justify-content: flex-start; }
+:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn { flex: 0 0 auto; } /* Assistent starten: linksbündig und so gross wie "Anlage löschen" darunter, nicht über die ganze Breite (Wunsch des Nutzers 2026-11-21) */
 /* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */
 :host([narrow]) .ag-cs-pop .ag-csrow { flex-wrap: wrap; }
 :host([narrow]) .ag-cs-pop .ag-csrow .ag-settx { flex: 1 1 0; min-width: 0; }

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Setup assistant, "More features":** after jumping to a window in the configuration and closing it, the last step now stays where you left it (it used to jump back to the top). On the phone "Start assistant" (Configuration › Alarm system) is left-aligned and as wide as "Delete alarm system" below it, not across the whole width.
 - **New routine:** the field "Name" was red and an error about the number of characters was shown as soon as the window opened, as if saving had already been tried. The form now starts quiet: the name turns red only after you have touched it, the message appears after the first change in the form, and "Save" stays disabled as long as something is missing. The focus and the position of the window stay as they were.
 
 ## [1.74.0] - 2026-11-21
