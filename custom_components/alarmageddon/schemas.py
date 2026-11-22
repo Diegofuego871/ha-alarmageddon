@@ -120,6 +120,10 @@ STEP_SCHEMAS = {
         vol.Required("type"): "healthcheck",
         vol.Required("check_id"): vol.All(str, vol.Match(r"^[a-z0-9]{1,16}$")),
         vol.Required("suffix"): vol.All(str, vol.Length(min=1, max=HEALTHCHECK_SUFFIX_MAX), vol.Match(r"^[/?&]\S*$")),
+        # Nur im Ablauf des Alarms (1.80.0, Wunsch des Nutzers 2026-11-22): die Meldung bis zum Ende des Alarms im Abstand des Dienstes wiederholen und
+        # dessen normale Lebenszeichen so lange pausieren. Ohne Angabe (ältere Schritte) wie bisher: nichts davon.
+        vol.Optional("repeat"): bool,
+        vol.Optional("pause"): bool,
     }),
     # Alarm quittieren (1.1.0): beendet den Alarm, die Anlage bleibt scharf
     "acknowledge": vol.Schema({vol.Required("type"): "acknowledge"}),

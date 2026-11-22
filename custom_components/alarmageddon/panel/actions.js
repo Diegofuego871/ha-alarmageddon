@@ -167,7 +167,7 @@ const canonNotices = (map, trigger) => JSON.stringify(stable(normNotices(map, tr
 
 // ----- Schritt des Servers <-> Formular -----
 
-const blank = () => ({ delay: false, kind: "custom", hcId: "", hcSuffix: "", hcTouched: false, targets: [], ntTargets: null, restore: false, seconds: 30, wait: false, ntTitle: "", ntMessage: "", ntCritical: null, ntVolume: null, ntButtons: {}, ntClick: null, ntClickPath: "", until: false, playSeconds: 30, sound: "siren", setVolume: true, volume: 0.7, repeat: 3, action: "on", opts: {}, optsOn: {}, domain: "", service: "", data: {}, extra: {}, gName: "", gMode: "count", gCount: 3, gSeconds: 60, gSteps: [] });
+const blank = () => ({ delay: false, kind: "custom", hcId: "", hcSuffix: "", hcTouched: false, hcRepeat: false, hcPause: false, targets: [], ntTargets: null, restore: false, seconds: 30, wait: false, ntTitle: "", ntMessage: "", ntCritical: null, ntVolume: null, ntButtons: {}, ntClick: null, ntClickPath: "", until: false, playSeconds: 30, sound: "siren", setVolume: true, volume: 0.7, repeat: 3, action: "on", opts: {}, optsOn: {}, domain: "", service: "", data: {}, extra: {}, gName: "", gMode: "count", gCount: 3, gSeconds: 60, gSteps: [] });
 
 export function fromStep(step) {
   return { ...fromStepBase(step), wait: waits(step) };
@@ -176,7 +176,7 @@ export function fromStep(step) {
 function fromStepBase(step) {
   const f = blank();
   if (step.type === "notify") return { ...f, kind: "notify", ntTitle: step.title || "", ntMessage: step.message || "", ntCritical: step.critical ?? null, ntVolume: step.volume ?? null, ntButtons: { ...(step.buttons || {}) }, ntClick: step.click ?? null, ntClickPath: step.click_path || "", ntTargets: step.targets?.length ? [...step.targets] : null };
-  if (step.type === "healthcheck") return { ...f, kind: "healthcheck", hcId: String(step.check_id || ""), hcSuffix: String(step.suffix || ""), hcTouched: true };
+  if (step.type === "healthcheck") return { ...f, kind: "healthcheck", hcId: String(step.check_id || ""), hcSuffix: String(step.suffix || ""), hcTouched: true, hcRepeat: step.repeat === true, hcPause: step.pause === true };
   if (step.type === "wait") return { ...f, kind: "wait", seconds: step.seconds };
   if (step.type === "acknowledge") return { ...f, kind: "acknowledge" };
   if (step.type === "group") return { ...f, kind: "group", gName: step.name || "", gMode: ["count", "duration", "until_disarmed"].includes(step.mode) ? step.mode : "count", gCount: step.count ?? 2, gSeconds: step.seconds ?? 60, gSteps: Array.isArray(step.steps) ? step.steps : [] };
@@ -216,6 +216,8 @@ function fromStepBase(step) {
 export function toStep(f, path = "main") {
   const zone = baseZone(path); // die Regeln der Liste gelten auch in ihren Gruppen
   const step = toStepBase(f);
+  // "HealthCheck melden": Wiederholen und Pausieren gibt es nur im Ablauf des Alarms; dort immer mit Angabe geschrieben (ein älterer Schritt ohne sie tut beides nicht)
+  if (step.type === "healthcheck" && zone === "main") Object.assign(step, { repeat: Boolean(f.hcRepeat), pause: Boolean(f.hcPause) });
   if (step.type === "group") {
     // "Bis deaktiviert" gibt es nur im Ablauf des Alarms (nur dort deaktiviert oder quittiert jemand) und wartet nie; die Schritte der
     // Gruppe werden wie die der Liste geschrieben
@@ -1427,7 +1429,7 @@ export class ActionsUi {
   // Neuer Schritt: der erste Dienst, bei einem erkannten gleich mit dem Vorschlag
   _hcInitial() {
     const item = this._hcItems()[0];
-    return { hcId: item?.id || "", hcSuffix: item ? this._hcSuggestion(item.id) : "", hcTouched: false };
+    return { hcId: item?.id || "", hcSuffix: item ? this._hcSuggestion(item.id) : "", hcTouched: false, hcRepeat: true, hcPause: true }; // neue Schritte: beide Schalter an (Wunsch des Nutzers, 1.80.0)
   }
 
   _hcAddress(f) {
@@ -1481,10 +1483,18 @@ export class ActionsUi {
     // Reine Anzeige, kein Feld (Wunsch des Nutzers, 1.79.1): Text ohne Rahmen eines Eingabefelds, zum Markieren, mit Knopf zum Kopieren
     const address = this._hcAddress(f);
     const preview = `<div class="ag-ef"><div class="ag-hccall"><code class="ag-mono ag-hcpreview ${address ? "" : "none"}" data-hcp="preview">${esc(address || this._t("fldHcPreviewNone"))}</code>${copyBtn(address, this._t("fldHcCopy"), `data-wf="hc-copy" data-hcp="copy" ${address ? "" : "hidden"}`)}</div><div class="ag-ef-h">${esc(this._t("fldHcPreviewHint"))}</div></div>`;
+    // Nur im Ablauf des Alarms (1.80.0): Meldung wiederholen und die Lebenszeichen pausieren, beides bis der Alarm endet. Der Abstand der Wiederholung ist der des
+    // Dienstes (nie einstellbar), damit beim Anbieter nichts angepasst werden muss.
+    const every = fmtDur(this._hcItem(f.hcId)?.interval || 0);
+    const row = (key, attr, on) => `<div class="ag-ef-row"><div class="ag-settx"><b>${esc(this._t(key))}</b><small>${esc(this._t(`${key}Hint`, { every }))}</small></div>${this._toggle(attr, on, key)}</div>`;
+    const hold = baseZone(this.edit?.zone) === "main"
+      ? this._sec("fldHcWhile", `${row("fldHcRepeat", 'data-wf="hc-repeat"', f.hcRepeat)}${row("fldHcPause", 'data-wf="hc-pause"', f.hcPause)}`)
+      : "";
     return `<div class="ag-t2 ag-grp-intro">${esc(this._t("fldHcIntro"))}</div>
       ${this._sec("fldHcService", service)}
       ${this._sec("fldHcSuffix", suffix)}
-      ${this._sec("fldHcPreview", preview)}`;
+      ${this._sec("fldHcPreview", preview)}
+      ${hold}`;
   }
 
   _waitFields(f) {
@@ -2242,6 +2252,9 @@ export class ActionsUi {
       // Je Medienplayer einzeln: jeder beginnt mit dem gemeinsamen Wert
       form.perVolume = !form.perVolume;
       if (form.perVolume) form.volumes = Object.fromEntries(form.targets.map((id) => [id, form.volumes?.[id] ?? form.volume]));
+      this.renderEditor();
+    } else if (act === "hc-repeat" || act === "hc-pause") {
+      form[act === "hc-repeat" ? "hcRepeat" : "hcPause"] = !form[act === "hc-repeat" ? "hcRepeat" : "hcPause"];
       this.renderEditor();
     } else if (act === "hc-copy") {
       copyValue(el, this.host._root.ownerDocument);

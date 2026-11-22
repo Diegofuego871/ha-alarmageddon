@@ -40,6 +40,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    DATA_HEALTHCHECK_HOLDS,
     DATA_HEALTHCHECK,
     DATA_SELFTEST,
     HEALTHCHECK_MIN_GAP,
@@ -106,6 +107,8 @@ class HealthCheck:
         self._fails: dict[str, int] = {}
         self._fail_since: dict[str, float] = {}
         self._down: set[str] = set()
+        self._repeats: dict[tuple[str, str, str], CALLBACK_TYPE] = {}  # wiederholte Meldungen eines Alarms (Anlage, Dienst, Zusatz)
+        self._paused: set[str] = set()  # Dienste, deren normale Lebenszeichen ein Alarm pausiert
         self.log = HealthLog(hass)
         self.started = False
 
@@ -135,13 +138,15 @@ class HealthCheck:
         self._unsubs.append(async_dispatcher_connect(self.hass, SIGNAL_SELFTEST, self._on_selftest))
         self._unsubs.append(async_track_time_interval(self.hass, self._tick, timedelta(seconds=HEALTHCHECK_TICK)))
         self._unsubs.append(async_call_later(self.hass, HEALTHCHECK_START_DELAY, self._tick))
+        self.async_sync_holds()  # ein Alarm, der beim Neustart lief, meldet und pausiert weiter
         self.async_reconfigure(first=True)
 
     async def async_stop(self) -> None:
-        for unsub in [*self._unsubs, *self._later.values()]:
+        for unsub in [*self._unsubs, *self._later.values(), *self._repeats.values()]:
             unsub()
         self._unsubs.clear()
         self._later.clear()
+        self._repeats.clear()
         self._config.clear()
         self.started = False
         await self._store.async_save(self._stored())
@@ -239,6 +244,8 @@ class HealthCheck:
         if not self.started or now < self._hold_until:
             return
         for item in self.items():
+            if item["id"] in self._paused:
+                continue  # ein Alarm hält dieses Lebenszeichen an (1.80.0)
             if now - self._last_auto.get(item["id"], 0.0) >= int(item["interval"]):
                 self.async_ping(item["id"], by="start" if item["id"] in self._fresh else "tick")
 
@@ -266,6 +273,9 @@ class HealthCheck:
         if test:
             self._last_try[hid] = dt_util.utcnow().timestamp()
             return self.hass.async_create_background_task(self._send(item, test, "test"), f"alarmageddon health check test {hid}")
+        # Ein Alarm pausiert die normalen Lebenszeichen dieses Dienstes (1.80.0); ein Fehler des Selbsttests geht trotzdem hinaus
+        if hid in self._paused and not self.failing():
+            return None
         if respect_gap:
             wait = HEALTHCHECK_MIN_GAP - (dt_util.utcnow().timestamp() - self._last_try.get(hid, 0.0))
             if wait > 0:
@@ -283,7 +293,7 @@ class HealthCheck:
         return self.hass.async_create_background_task(self._send(item, None, by), f"alarmageddon health check {hid}")
 
     @callback
-    def async_report(self, hid: str, suffix: str, test: bool = False) -> asyncio.Task | None:
+    def async_report(self, hid: str, suffix: str, test: bool = False, by: str = "action") -> asyncio.Task | None:
         """
         Die Aktion "HealthCheck melden" (1.77.0, Wunsch des Nutzers 2026-11-22): ruft die URL des Dienstes `hid` mit dem Zusatz `suffix` auf, als eigene
         Aufgabe, nie abwarten (eine Aktion hält nie den Ablauf einer Alarmaktion auf; der Aufruf wartet höchstens HEALTHCHECK_TIMEOUT). Es gibt keinen Dienst
@@ -292,7 +302,61 @@ class HealthCheck:
         item = self.item(hid)
         if item is None or not valid_fail_suffix(str(item.get("url") or ""), suffix):
             return None
-        return self.hass.async_create_background_task(self._send(item, "report" if test else None, "action", report=suffix), f"alarmageddon health check report {hid}")
+        return self.hass.async_create_background_task(self._send(item, "report" if test else None, by, report=suffix), f"alarmageddon health check report {hid}")
+
+    @callback
+    def async_sync_holds(self, ended: bool = False) -> None:
+        """
+        Die Halteliste der Alarme (1.80.0) abgleichen: wiederholte Meldungen starten und enden, die Pause der Lebenszeichen gilt, solange ein Alarm sie hält.
+        `ended`: der Alarm ist zu Ende (nicht nur neu geladen): die frei gewordenen Dienste senden gleich wieder ihr normales Lebenszeichen. Nie ein Fehler.
+        """
+        try:
+            wanted: dict[tuple[str, str, str], bool] = {}
+            paused: set[str] = set()
+            for owner, entries in holds(self.hass).items():
+                for entry in entries:
+                    hid = str(entry.get("hid") or "")
+                    if self.item(hid) is None:
+                        continue
+                    if entry.get("pause"):
+                        paused.add(hid)
+                    if entry.get("repeat"):
+                        wanted[(owner, hid, str(entry.get("suffix") or ""))] = bool(entry.get("now"))
+            for key in [k for k in self._repeats if k not in wanted]:
+                self._repeats.pop(key)()
+            for key, now in wanted.items():
+                if key not in self._repeats:
+                    if now:
+                        self.async_report(key[1], key[2], by="repeat")  # nach einem Neustart gleich: der Dienst soll den Alarm wieder sehen
+                    self._schedule_repeat(key)
+            for entries in holds(self.hass).values():
+                for entry in entries:
+                    entry["now"] = False
+            released, self._paused = self._paused - paused, paused
+            if ended:
+                for hid in released:
+                    self.async_ping(hid, respect_gap=True, by="end")
+        except Exception:  # noqa: BLE001 - die Halteliste hält nie etwas auf
+            _LOGGER.exception("The health check could not update the holds of an alarm")
+
+    def _schedule_repeat(self, key: tuple[str, str, str]) -> None:
+        """Die nächste Wiederholung im Abstand des Dienstes (der des normalen Lebenszeichens, nie ein eigener)."""
+        item = self.item(key[1])
+        if item is None:
+            return
+        self._repeats[key] = async_call_later(self.hass, max(int(item["interval"]), 1), partial(self._repeat, key))
+
+    @callback
+    def _repeat(self, key: tuple[str, str, str], _now: Any = None) -> None:
+        self._repeats.pop(key, None)
+        try:
+            owner, hid, suffix = key
+            if not any(e.get("hid") == hid and e.get("suffix") == suffix and e.get("repeat") for e in holds(self.hass).get(owner, [])) or self.item(hid) is None:
+                return
+            self.async_report(hid, suffix, by="repeat")
+            self._schedule_repeat(key)
+        except Exception:  # noqa: BLE001 - eine Wiederholung hält nie etwas auf
+            _LOGGER.exception("A repeated health check report failed")
 
     @callback
     def _ping_later(self, hid: str, _now: Any = None) -> None:
@@ -391,6 +455,12 @@ class HealthCheck:
             reason = text(self.hass, f"hc_reason_{result}")
         when = dt_util.as_local(dt_util.utc_from_timestamp(since)).strftime(text(self.hass, "time_format")) if since else ""
         return {"name": str(item.get("name") or host_of(item["url"])), "host": host_of(item["url"]), "reason": reason, "count": str(count), "since": when}
+
+
+# Halteliste des Alarms (1.80.0): welche Anlage welchen Dienst gerade wiederholt meldet und pausiert. Sie steht in hass.data (nicht im HealthCheck), weil die
+# Aktionen beim Neustart vor dem HealthCheck starten; der HealthCheck gleicht sie beim Start und bei jeder Änderung ab (`async_sync_holds`).
+def holds(hass: HomeAssistant) -> dict[str, list[dict[str, Any]]]:
+    return hass.data.setdefault(DATA_HEALTHCHECK_HOLDS, {})
 
 
 async def async_get_healthcheck(hass: HomeAssistant, settings: Any) -> HealthCheck:

@@ -7,12 +7,20 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
-## [1.79.1] - 2026-11-22
+## [1.80.0] - 2026-11-22
+
+### Hinzugefügt
+
+- **"HealthCheck melden": Meldung wiederholen und Lebenszeichen pausieren (nur im Ablauf des Alarms):** unter "Bis der Alarm endet" hat die Aktion zwei Schalter, bei einer neuen Aktion beide **an**. **"Meldung wiederholen"** sendet die Meldung bis zum Ende des Alarms erneut, **im selben Abstand wie die Lebenszeichen des gewählten Dienstes**: der Abstand steht im Text und lässt sich hier nicht ändern, beim Anbieter muss also nichts angepasst werden. **"Lebenszeichen pausieren"** hält die normalen Lebenszeichen dieses Dienstes bis zum Ende des Alarms zurück, damit sie die Meldung nicht überschreiben (die Fehlermeldung des Selbsttests geht weiter hinaus). Beides endet mit Deaktivieren oder Quittieren; die Lebenszeichen laufen dann gleich wieder an. Es gilt nie in einem Test und nie in den Listen neben dem Alarm und hält nie einen Schritt oder den Alarm auf. Nach einem Neustart mitten im Alarm geht es weiter (eine Meldung geht gleich hinaus). Aktionen, die vor dieser Version gespeichert wurden, tragen die Schalter nicht und verhalten sich wie bisher (Schalter aus); das Protokoll des Dienstes zeigt die Wiederholungen als "Wiederholte Meldung".
 
 ### Geändert
 
 - **"HealthCheck melden" ganz unten in der Liste:** in der Auswahl einer neuen Aktion steht der Schritt jetzt zuunterst, nach der Gruppe, in jeder Liste.
 - **"Aufruf" in der Aktion "HealthCheck melden" ist eine reine Anzeige:** er sieht nicht mehr wie ein Textfeld aus (keine Eingabefläche), die Adresse steht als lesbarer Text da, und ein Kopierknopf daneben legt die ganze Adresse in die Zwischenablage.
+
+## [1.79.1] - 2026-11-22
+
+Nicht veröffentlicht; enthalten in 1.80.0.
 
 ## [1.79.0] - 2026-11-22
 
@@ -2234,7 +2242,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.79.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.1
+[1.80.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.80.0
 [1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0
 [1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0
 [1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0

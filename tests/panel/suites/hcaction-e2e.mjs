@@ -5,8 +5,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { title: "HealthCheck melden", take: "Vorschlag übernehmen", gone: "Dienst fehlt", open: "HealthCheck-Dienste öffnen", sugHc: "Vorschlag für Healthchecks.io: /2" },
-  en: { title: "Report to HealthCheck", take: "Use suggestion", gone: "Service missing", open: "Open HealthCheck services", sugHc: "Suggestion for Healthchecks.io: /2" },
+  de: { while: "Bis der Alarm endet", repeat: "Meldung wiederholen", pause: "Lebenszeichen pausieren", title: "HealthCheck melden", take: "Vorschlag übernehmen", gone: "Dienst fehlt", open: "HealthCheck-Dienste öffnen", sugHc: "Vorschlag für Healthchecks.io: /2" },
+  en: { while: "Until the alarm ends", repeat: "Repeat the report", pause: "Pause life signs", title: "Report to HealthCheck", take: "Use suggestion", gone: "Service missing", open: "Open HealthCheck services", sugHc: "Suggestion for Healthchecks.io: /2" },
 };
 const HC = "a1b2c3d4e5f6"; // Healthchecks.io (erfunden, ?hc=sample)
 const CRON = "b2c3d4e5f6a1";
@@ -49,7 +49,14 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: "Aufruf" ist keine Eingabefläche (kein Feld, ohne Rand und Hintergrund wie ein Feld) und hat einen Kopierknopf`, addr.tag === "CODE" && !addr.field && addr.border === "0px" && addr.bg !== addr.inpBg && addr.copy, JSON.stringify(addr));
     await s.tap('#ag-step [data-hcp="copy"]');
     check(`${tag}: der Kopierknopf meldet das Ergebnis am Knopf (Häkchen oder Warnzeichen) und trägt die ganze Adresse`, await s.waitFor("const b=r.querySelector('#ag-step [data-hcp=\"copy\"]'); return b.classList.contains('done') || b.classList.contains('fail')") && await s.ev("const b=r.querySelector('#ag-step [data-hcp=\"copy\"]'); return b.dataset.value.startsWith('https://')"));
-    check(`${tag}: drei Kapitel (Dienst, Zusatz, Aufruf) und der Link "${t.open}"`, f.chaps.length === 3 && await s.ev(`return [...r.querySelectorAll('#ag-step [data-wf="hc-open"]')].some((b) => b.textContent.trim() === ${JSON.stringify(t.open)})`), JSON.stringify(f.chaps));
+    // Wiederholen und Pausieren (1.80.0): zwei Schalter nur im Ablauf des Alarms, beide an, der Abstand ist der des Dienstes (nicht einstellbar)
+    const sw = await s.ev("const d=r.getElementById('ag-step'); const rows=[...d.querySelectorAll('[data-wf=\"hc-repeat\"], [data-wf=\"hc-pause\"]')]; return { on: rows.map((b) => b.classList.contains('on')), names: rows.map((b) => b.closest('.ag-ef-row').querySelector('b').textContent), hint: rows[0]?.closest('.ag-ef-row').querySelector('small').textContent || '', input: !!rows[0]?.closest('.ag-ef-row').querySelector('input, select'), left: rows.map((b) => b.getBoundingClientRect().left < b.closest('.ag-ef-row').querySelector('.ag-settx').getBoundingClientRect().left) }");
+    check(`${tag}: zwei Schalter "${t.repeat}" und "${t.pause}", beide an; der Abstand steht im Text und ist kein Feld; Schalter links vom Text`, sw.on.join() === "true,true" && sw.names[0] === t.repeat && sw.names[1] === t.pause && /5 (min|Min)|300 s/i.test(sw.hint) && !sw.input && sw.left.every(Boolean), JSON.stringify(sw));
+    await s.tap('#ag-step [data-wf="hc-pause"]');
+    const off = await s.ev("const d=r.getElementById('ag-step'); return { pause: d.querySelector('[data-wf=\"hc-pause\"]').classList.contains('on'), repeat: d.querySelector('[data-wf=\"hc-repeat\"]').classList.contains('on'), form: r.host.actions.edit.form.hcPause }");
+    check(`${tag}: ein Schalter lässt sich einzeln ausschalten (die Pause aus, das Wiederholen bleibt an)`, off.pause === false && off.repeat === true && off.form === false, JSON.stringify(off));
+    await s.tap('#ag-step [data-wf="hc-pause"]');
+    check(`${tag}: im Ablauf des Alarms vier Kapitel (Dienst, Zusatz, Aufruf, "${t.while}") und der Link "${t.open}"`, f.chaps.length === 4 && await s.ev(`return [...r.querySelectorAll('#ag-step [data-wf="hc-open"]')].some((b) => b.textContent.trim() === ${JSON.stringify(t.open)})`), JSON.stringify(f.chaps));
     // Anderer Dienst: der Vorschlag folgt, solange niemand den Zusatz berührt hat
     await s.ev(`const sel=r.querySelector('#ag-step [data-wf="hc-id"]'); sel.value=${JSON.stringify(CRON)}; sel.dispatchEvent(new Event('input',{bubbles:true}));`);
     f = await form();
@@ -76,7 +83,7 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !r.getElementById('ag-step').open");
     const steps = await draft();
     const made = steps[0] && steps.find((x) => x.type === "healthcheck");
-    check(`${tag}: der Schritt steht im Entwurf: nur Kennung des Dienstes und Zusatz, nie die Adresse`, steps.length === before + 1 && made && made.check_id === CRON && made.suffix === CRON_ALARM && Object.keys(made).sort().join() === "check_id,suffix,type", JSON.stringify(made));
+    check(`${tag}: der Schritt steht im Entwurf: Kennung des Dienstes, Zusatz und die beiden Schalter (neu an), nie die Adresse`, steps.length === before + 1 && made && made.check_id === CRON && made.suffix === CRON_ALARM && made.repeat === true && made.pause === true && Object.keys(made).sort().join() === "check_id,pause,repeat,suffix,type", JSON.stringify(made));
     const card = await s.ev("const c=[...r.querySelectorAll('.ag-wf-main > .ag-wf-step')].find((x) => x.querySelector('.k-healthcheck')); return c ? { title: c.querySelector('b').textContent, sum: c.querySelector('.ag-wf-text .ag-small').textContent, play: !!c.querySelector('[data-wf=\"test-step\"]'), pill: !!c.querySelector('.ag-waitpill') } : null");
     check(`${tag}: Karte: "${t.title}", Dienst und Zusatz in der Zeile, Play-Knopf wie bei jedem Schritt, keine Pille "Wartet"`, card && card.title === t.title && card.sum.includes("Cronitor") && card.sum.includes(CRON_ALARM) && card.play && !card.pill, JSON.stringify(card));
     // Play: Rückfrage, dann geht genau dieser Schritt an den Server (wie jeder Schritt)

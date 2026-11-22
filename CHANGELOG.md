@@ -7,12 +7,20 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.79.1] - 2026-11-22
+## [1.80.0] - 2026-11-22
+
+### Added
+
+- **"Report to HealthCheck": repeat and pause life signs (in the alarm flow only):** under "Until the alarm ends" the action has two switches, both **on** for a new action. **"Repeat the report"** sends the report again until the alarm ends, **in the same interval as the life signs of the chosen service**: the interval is shown in the text and cannot be changed here, so nothing has to be adjusted at the provider. **"Pause life signs"** holds back the normal life signs of this service until the alarm ends, so they do not overwrite the report (the failure message of the self-test still goes out). Both end with disarming or acknowledging; the life signs then continue at once. They never run in a test, never in the lists beside the alarm, and never hold up a step or the alarm. After a restart in the middle of an alarm they carry on (one report goes out at once). Actions saved before this version have no switches and behave as before (switches off); the log of the service shows the repeats as "Repeated report".
 
 ### Changed
 
 - **"Report to HealthCheck" at the bottom of the list:** in the selection of a new action the step now stands last, after the group, in every list.
 - **"Call" in the action "Report to HealthCheck" is plain display:** it no longer looks like a text field (no input surface), the address stands as readable text, and a copy button next to it puts the whole address on the clipboard.
+
+## [1.79.1] - 2026-11-22
+
+Not released; included in 1.80.0.
 
 ## [1.79.0] - 2026-11-22
 
@@ -2234,7 +2242,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.79.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.1
+[1.80.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.80.0
 [1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0
 [1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0
 [1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0

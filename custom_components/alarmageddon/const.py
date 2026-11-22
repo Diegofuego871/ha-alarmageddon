@@ -67,7 +67,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 276  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 277  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -266,6 +266,8 @@ DATA_SELFTEST: Final = f"{DOMAIN}_selftest"
 DATA_SELFTEST_LOCK: Final = f"{DOMAIN}_selftest_lock"
 SIGNAL_SELFTEST: Final = f"{DOMAIN}_selftest_updated"
 # Ein Lebenszeichen ist gesendet oder ein Dienst kam dazu oder fiel weg (1.72.0): die Statusentität fasst die Dienste für die Dashboard-Karte zusammen
+# Halteliste der Alarme für "HealthCheck melden" (1.80.0): Anlage -> Einträge {hid, suffix, repeat, pause}; steht in hass.data, weil die Aktionen beim Neustart vor dem HealthCheck starten
+DATA_HEALTHCHECK_HOLDS: Final = "alarmageddon_healthcheck_holds"
 SIGNAL_HEALTHCHECK: Final = f"{DOMAIN}_healthcheck_updated"
 # Seit 1.67.0 jede Minute (vorher 5): der kürzeste Abstand ist 5 Minuten und soll nicht zu 10 werden; der Takt schaut nur, ob es Zeit ist
 SELFTEST_TICK: Final = 60

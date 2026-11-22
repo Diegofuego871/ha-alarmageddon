@@ -35,6 +35,7 @@ from .const import (
     CUSTOM_SOUND_ID_RE,
     DATA_CUSTOM_SOUNDS,
     DATA_HEALTHCHECK,
+    DATA_HEALTHCHECK_HOLDS,
     GROUP_EXCLUDED,
     GROUP_MAX_ROUNDS,
     GROUP_MIN_ROUND,
@@ -266,6 +267,8 @@ class WorkflowRunner:
                     self._spawn(saved, int(also.get("index", 0) or 0), str(also["trigger"]))
                 for entry in list(saved.get("undo") or []):
                     self._arm_undo(saved, entry)  # Restzeit; war die Zeit schon um, schaltet es sofort zurück
+                if saved.get("hc"):
+                    self._hc_apply(list(saved["hc"]), now=True)  # Wiederholen und Pausieren gehen nach dem Neustart weiter (1.80.0)
             else:
                 await self.async_stop()
         if self._ctl.state == AlarmControlPanelState.TRIGGERED and self._run is None and not silenced:
@@ -289,6 +292,7 @@ class WorkflowRunner:
             unsub()
         self._unsubs.clear()
         self._cancel_timers()
+        self._hc_release(False)  # ein Neuladen beendet den Alarm nicht: die Pause bleibt nicht hängen, nach dem Start gilt sie wieder
         await self._cancel_task()
         if self._run is not None and not self._run.get("test"):
             # Stand des laufenden Alarms sofort schreiben (nicht erst verzögert): nach dem Neuladen geht es beim richtigen Schritt
@@ -1036,8 +1040,35 @@ class WorkflowRunner:
                 self._selftest(False, "healthcheck.report", [], "no_service")
             else:
                 self._selftest(True, "healthcheck.report", [])  # derselbe Aufruf klappt wieder: der Befund ist behoben
+                if not test and (step.get("repeat") is True or step.get("pause") is True):
+                    self._hc_hold({"hid": str(step.get("check_id") or ""), "suffix": str(step.get("suffix") or ""), "repeat": step.get("repeat") is True, "pause": step.get("pause") is True})
         except Exception:  # noqa: BLE001 - Sicherheitsregel: ein fehlerhafter Schritt stoppt die anderen nicht
             _LOGGER.exception("%s: a health check step of the alarm actions failed", self.entry.title)
+
+    # Wiederholen und Pausieren bei "HealthCheck melden" (1.80.0): nur im Ablauf eines echten Alarms (nie im Test, nie in den Läufen neben dem Alarm). Der Eintrag
+    # steht im gespeicherten Stand des Laufs (run["hc"]), damit er einen Neustart mitten im Alarm übersteht; er endet mit dem Alarm (async_stop). Nichts hier hält
+    # einen Schritt oder den Alarm auf: alles läuft im HealthCheck als Zeitgeber und Hintergrundaufgabe, jeder Fehler steht nur im Log.
+    def _hc_hold(self, entry: dict[str, Any], now: bool = False) -> None:
+        run = self._run
+        if run is None or run.get("test") or run.get("after") or run.get("phase"):
+            return
+        entries = run.setdefault("hc", [])
+        if entry not in entries:
+            entries.append(entry)
+        self._hc_apply(entries, now)
+
+    def _hc_apply(self, entries: list[dict[str, Any]], now: bool = False) -> None:
+        self.hass.data.setdefault(DATA_HEALTHCHECK_HOLDS, {})[self.entry.entry_id] = [dict(e, now=now) for e in entries]
+        if (healthcheck := self.hass.data.get(DATA_HEALTHCHECK)) is not None:
+            healthcheck.async_sync_holds()
+
+    def _hc_release(self, ended: bool) -> None:
+        """`ended`: der Alarm ist vorbei (die Lebenszeichen laufen wieder an); sonst nur ein Neuladen (der Alarm geht weiter)."""
+        try:
+            if self.hass.data.setdefault(DATA_HEALTHCHECK_HOLDS, {}).pop(self.entry.entry_id, None) is not None and (healthcheck := self.hass.data.get(DATA_HEALTHCHECK)) is not None:
+                healthcheck.async_sync_holds(ended=ended)
+        except Exception:  # noqa: BLE001 - das Ende des Alarms geht in jedem Fall weiter
+            _LOGGER.exception("%s: the health check holds of the alarm could not be released", self.entry.title)
 
     def _record(self, step: dict[str, Any], test: bool) -> None:
         """Zeitachse des Alarms: welcher Schritt wann gestartet ist (ohne Daten, nur Art, Aktion und Ziele)."""
@@ -1558,6 +1589,8 @@ class WorkflowRunner:
         # Zuerst und ohne Warten: ab hier gehört ein neuer Lauf (echter Alarm, Start durch den Wächter) nicht mehr zu diesem Stopp
         run, self._run = self._run, None
         await self._cancel_task()
+        if run and run.get("hc"):
+            self._hc_release(True)  # der Alarm ist vorbei: Wiederholen endet, die normalen Lebenszeichen laufen wieder
         if run:
             await self._flush_undos(run)
             await self._restore(run)
