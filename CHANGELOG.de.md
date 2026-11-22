@@ -7,12 +7,15 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
-## [1.81.0] - 2026-11-22
+## [1.82.0] - 2026-11-22
 
-Enthält die Änderungen aus 1.80.0 und 1.79.1.
+Enthält die Änderungen aus 1.81.0, 1.80.0 und 1.79.1.
 
 ### Hinzugefügt
 
+- **Roter Kreis nach einem Alarm:** nach einem echten Alarm (einem, den das Protokoll aufzeichnet) erscheint im Kopf neben dem Stift ein roter Kreis mit Alarmzeichen, rundherum derselbe Komet mit demselben Aufblitzen wie beim Zauberstab (rot, ohne Stab). Mit dem Knopf des Assistenten sind beide zu sehen, und die Kometen starten und blitzen im selben Augenblick. Der Kreis gehört zur ganzen Anlage (auf dem Server gemerkt) und bleibt, bis ihn jemand antippt (Protokoll › Alarme öffnet sich mit diesem Alarm aufgeklappt) oder den Alarm im Protokoll von Hand öffnet. Er erscheint sofort, wenn ein Alarm beginnt. Alarme aus früheren Versionen gelten als gesehen.
+- **Alarm als gelesen oder ungelesen markieren:** im aufgeklappten Alarm des Protokolls wechselt ein Knopf neben "Alarm löschen" zwischen "Als ungelesen markieren" und "Als gelesen markieren" (Beschriftung und Symbol wechseln mit). Ein Alarm, der auf ungelesen steht, bringt den roten Kreis als Erinnerung zurück; ungelesene Alarme tragen vor dem Titel einen fetten, langsam pulsierenden roten Punkt.
+- **Aufräumen beim Löschen einer Anlage:** jede Anlage nimmt jetzt auch die gemerkten letzten Änderungen ihrer Sensoren mit (nur die, die keine andere Anlage nutzt). Mit der letzten Anlage gehen auch die gemeinsamen Verläufe: das Protokoll der HealthCheck-Dienste, der Wartungsstand, die Sensorstatistik und der Empfangsverlauf. Backups, Einstellungen und eigene Töne bleiben, damit nach einer Neuinstallation nichts verloren ist. **Reste andernorts gelöschter Anlagen:** 5 Minuten nach jedem Start von Home Assistant und danach täglich räumt die Integration auch auf, was eine gelöschte Anlage hinterlassen hat (ihre Ablagen und gemerkte Sensoränderungen), auch wenn die Anlage in Home Assistant selbst und nicht im Panel entfernt wurde. Jede noch vorhandene Anlage zählt, auch eine deaktivierte; Backups, Einstellungen und eigene Töne bleiben unberührt.
 - **Filter "Phase" bei den Aktionen:** in der Fusszeile der Seite Konfiguration › Aktionen zeigt neben "Aktionen übernehmen von …" eine zweite Auswahl nur eine Phase des Ablaufs (Scharfschalten beginnt, Anlage scharf geschaltet, Stiller Alarm, Eingangsverzögerung läuft, Alarm beginnt, Alarm endet, Anlage deaktiviert), in der Reihenfolge des Ablaufs; Standard sind alle Phasen. Nur die Ansicht: Entwurf, Speichern und Kopieren betreffen immer den ganzen Ablauf. Phasen, die es in einem Reiter nicht gibt (zum Beispiel Scharfschalten bei "Immer aktiv"), werden dort nicht angeboten.
 - **"HealthCheck melden": Meldung wiederholen und Lebenszeichen pausieren (nur im Ablauf des Alarms):** unter "Bis der Alarm endet" hat die Aktion zwei Schalter, bei einer neuen Aktion beide **an**. **"Meldung wiederholen"** sendet die Meldung bis zum Ende des Alarms erneut, **im selben Abstand wie die Lebenszeichen des gewählten Dienstes**: der Abstand steht im Text und lässt sich hier nicht ändern, beim Anbieter muss also nichts angepasst werden. **"Lebenszeichen pausieren"** hält die normalen Lebenszeichen dieses Dienstes bis zum Ende des Alarms zurück, damit sie die Meldung nicht überschreiben (die Fehlermeldung des Selbsttests geht weiter hinaus). Beides endet mit Deaktivieren oder Quittieren; die Lebenszeichen laufen dann gleich wieder an. Es gilt nie in einem Test und nie in den Listen neben dem Alarm und hält nie einen Schritt oder den Alarm auf. Nach einem Neustart mitten im Alarm geht es weiter (eine Meldung geht gleich hinaus). Aktionen, die vor dieser Version gespeichert wurden, tragen die Schalter nicht und verhalten sich wie bisher (Schalter aus); das Protokoll des Dienstes zeigt die Wiederholungen als "Wiederholte Meldung".
 
@@ -21,13 +24,21 @@ Enthält die Änderungen aus 1.80.0 und 1.79.1.
 - **"HealthCheck melden" ganz unten in der Liste:** in der Auswahl einer neuen Aktion steht der Schritt jetzt zuunterst, nach der Gruppe, in jeder Liste.
 - **"Aufruf" in der Aktion "HealthCheck melden" ist eine reine Anzeige:** er sieht nicht mehr wie ein Textfeld aus (keine Eingabefläche), die Adresse steht als lesbarer Text da, und ein Kopierknopf daneben legt die ganze Adresse in die Zwischenablage.
 
+### Entfernt
+
+- **Knopf "Integration in HA öffnen"** in der Kopfzeile des Panels.
+
+## [1.81.0] - 2026-11-22
+
+Nicht veröffentlicht; enthalten in 1.82.0.
+
 ## [1.80.0] - 2026-11-22
 
-Nicht veröffentlicht; enthalten in 1.81.0.
+Nicht veröffentlicht; enthalten in 1.82.0.
 
 ## [1.79.1] - 2026-11-22
 
-Nicht veröffentlicht; enthalten in 1.81.0.
+Nicht veröffentlicht; enthalten in 1.82.0.
 
 ## [1.79.0] - 2026-11-22
 
@@ -2249,7 +2260,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.81.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.81.0
+[1.82.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.82.0
 [1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0
 [1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0
 [1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0

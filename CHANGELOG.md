@@ -7,12 +7,15 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.81.0] - 2026-11-22
+## [1.82.0] - 2026-11-22
 
-Includes the changes from 1.80.0 and 1.79.1.
+Includes the changes from 1.81.0, 1.80.0 and 1.79.1.
 
 ### Added
 
+- **Red circle after an alarm:** after a real alarm (one that the log records) a red circle with an alarm sign appears in the header, next to the pencil, around it the same comet with the same flash as the wizard wand (red, without wand). With the wizard button both are visible and the comets start and flash at exactly the same moment. The circle belongs to the whole alarm system (saved on the server) and stays until someone taps it (log › Alarms opens with that alarm unfolded) or opens the alarm in the log by hand. It appears at once when an alarm starts. Alarms from earlier versions count as seen.
+- **Mark an alarm as read or unread:** in the opened alarm of the log a button next to "Delete alarm" switches between "Mark as unread" and "Mark as read" (label and icon change). An alarm marked unread brings the red circle back as a reminder; unread alarms carry a fat, slowly pulsing red dot before their title.
+- **Clean-up when an alarm system is deleted:** every system now also takes the remembered last changes of its sensors with it (only those no other system uses). With the last system the shared histories go too: the log of the HealthCheck services, the maintenance state, the sensor statistics and the reception history. Backups, settings and your own sounds stay, so nothing is lost after a reinstall. **Leftovers of systems deleted elsewhere:** 5 minutes after every start of Home Assistant and then daily, the integration also cleans up what a deleted system left behind (its stores and remembered sensor changes), also if the system was removed in Home Assistant itself and not in the panel. Every system that still exists counts, even a disabled one; backups, settings and your own sounds are never touched.
 - **Filter "Phase" in the actions:** in the footer of the page Configuration › Actions, next to "Copy actions from …", a second selection shows only one phase of the flow (Arming begins, Alarm system armed, Silent alarm, Entry delay running, Alarm starts, Alarm ends, Alarm system disarmed), in the order of the flow; by default it shows all phases. Only the view: the draft, saving and copying always concern the whole flow. Phases that do not exist in a tab (for example arming in "Always active") are not offered.
 - **"Report to HealthCheck": repeat and pause life signs (in the alarm flow only):** under "Until the alarm ends" the action has two switches, both **on** for a new action. **"Repeat the report"** sends the report again until the alarm ends, **in the same interval as the life signs of the chosen service**: the interval is shown in the text and cannot be changed here, so nothing has to be adjusted at the provider. **"Pause life signs"** holds back the normal life signs of this service until the alarm ends, so they do not overwrite the report (the failure message of the self-test still goes out). Both end with disarming or acknowledging; the life signs then continue at once. They never run in a test, never in the lists beside the alarm, and never hold up a step or the alarm. After a restart in the middle of an alarm they carry on (one report goes out at once). Actions saved before this version have no switches and behave as before (switches off); the log of the service shows the repeats as "Repeated report".
 
@@ -21,13 +24,21 @@ Includes the changes from 1.80.0 and 1.79.1.
 - **"Report to HealthCheck" at the bottom of the list:** in the selection of a new action the step now stands last, after the group, in every list.
 - **"Call" in the action "Report to HealthCheck" is plain display:** it no longer looks like a text field (no input surface), the address stands as readable text, and a copy button next to it puts the whole address on the clipboard.
 
+### Removed
+
+- **Button "Open integration in HA"** in the header of the panel.
+
+## [1.81.0] - 2026-11-22
+
+Not released; included in 1.82.0.
+
 ## [1.80.0] - 2026-11-22
 
-Not released; included in 1.81.0.
+Not released; included in 1.82.0.
 
 ## [1.79.1] - 2026-11-22
 
-Not released; included in 1.81.0.
+Not released; included in 1.82.0.
 
 ## [1.79.0] - 2026-11-22
 
@@ -2249,7 +2260,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.81.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.81.0
+[1.82.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.82.0
 [1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0
 [1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0
 [1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0

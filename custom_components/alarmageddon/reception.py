@@ -300,6 +300,16 @@ class ReceptionLog:
         self._unsub_tick = async_track_time_interval(self.hass, self._async_tick, SAMPLE_INTERVAL)
         self._unsub_stop = self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self._async_stop)
 
+    @callback
+    def async_discard(self) -> None:
+        """Beim Löschen der letzten Anlage (1.82.0): Zeitgeber und Zuhörer beenden, ohne noch einmal zu schreiben (die Ablage wird gelöscht)."""
+        if self._unsub_tick is not None:
+            self._unsub_tick()
+            self._unsub_tick = None
+        if self._unsub_stop is not None:
+            self._unsub_stop()
+            self._unsub_stop = None
+
     async def _async_stop(self, _event: Event) -> None:
         if self._unsub_tick is not None:
             self._unsub_tick()

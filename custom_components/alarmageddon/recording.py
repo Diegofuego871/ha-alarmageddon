@@ -61,6 +61,10 @@ class AlarmRecorder:
         data = await self._store.async_load()
         if isinstance(data, list):
             self.recordings = [r for r in data if isinstance(r, dict) and isinstance(r.get("entries"), list)]
+            # "Gesehen" (1.82.0): Alarme aus früheren Versionen tragen die Angabe nicht und gelten als gesehen (nach dem Update zeigt nichts einen alten Alarm an);
+            # jeder neue Alarm beginnt mit seen = False (_begin)
+            for record in self.recordings:
+                record.setdefault("seen", True)
             self._prune()
 
     def _prune(self) -> None:
@@ -84,6 +88,34 @@ class AlarmRecorder:
             self._save()
             return "ok"
         return "not_found"
+
+    @property
+    def unseen(self) -> dict[str, Any] | None:
+        """Der neueste Alarm, den noch niemand gesehen hat (für die ganze Anlage; Panel: roter Kreis im Kopf), sonst None."""
+        return next((r for r in self.recordings if r.get("seen") is False), None)
+
+    @callback
+    def async_mark_seen(self, record_id: str, seen: bool = True) -> str:
+        """
+        Einen Alarm als gesehen markieren (1.82.0): er und alle älteren (die Kennung ist der Beginn des Alarms, die Liste neueste zuerst). Ein neuerer, noch
+        ungesehener Alarm bleibt ungesehen. Als ungelesen markieren (`seen=False`, Wunsch des Nutzers: der Kreis erinnert wieder) gilt nur für diesen einen Alarm.
+        Ergebnis: "ok" oder "not_found".
+        """
+        if not any(r.get("id") == record_id for r in self.recordings):
+            return "not_found"
+        changed = False
+        for record in self.recordings:
+            own = record.get("id") == record_id
+            if seen and str(record.get("id") or "") <= record_id and record.get("seen") is not True:
+                record["seen"] = True
+                changed = True
+            elif not seen and own and record.get("seen") is not False:
+                record["seen"] = False
+                changed = True
+        if changed:
+            self.rev += 1
+            self._save()
+        return "ok"
 
     @callback
     def async_start(self) -> None:
@@ -128,7 +160,7 @@ class AlarmRecorder:
     @callback
     def _begin(self) -> None:
         now = dt_util.utcnow().isoformat()
-        record = {"id": now, "start": now, "end": None, "ended_by": None, "mode": self._ctl.mode, "sensor": self._ctl.triggered_by, "entries": []}
+        record = {"id": now, "start": now, "end": None, "ended_by": None, "mode": self._ctl.mode, "sensor": self._ctl.triggered_by, "entries": [], "seen": False}
         self.recordings.insert(0, record)
         self._prune()
         self.rev += 1

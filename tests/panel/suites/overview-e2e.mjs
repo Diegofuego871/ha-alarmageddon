@@ -122,10 +122,10 @@ check("leer: Hinweis", (await s.ev("return r.querySelector('.ag-empty')?.innerTe
 check("leer: Knopf zum Einrichten bleibt (einziger Weg, wenn es noch keine Anlage gibt)", await s.ev("return !!r.querySelector('.ag-empty [data-act=\"add\"]')"));
 await s.ctx.close();
 // 1.31.0 (ersetzt die Prüfung aus 1.30.0): Der Knopf zum Hinzufügen steht wieder in der Kopfzeile, öffnet aber einen eigenen Dialog im Panel
-// (Suite addsystem-e2e); "Integration in HA öffnen" bleibt daneben
+// (Suite addsystem-e2e); "Integration in HA öffnen" gibt es seit 1.82.0 nicht mehr
 for (const mobile of [false, true]) {
   const m = await open(browser, { mobile });
-  check(`${mobile ? "Handy" : "Desktop"}: Knopf zum Hinzufügen und "Integration in HA öffnen" nebeneinander in der Kopfzeile`, await m.ev("return !!r.querySelector('.ag-head [data-act=\"add\"]') && !!r.querySelector('.ag-head [data-act=\"open-ha\"]')"));
+  check(`${mobile ? "Handy" : "Desktop"}: Knopf zum Hinzufügen in der Kopfzeile, kein Knopf "Integration in HA öffnen"`, await m.ev("return !!r.querySelector('.ag-head [data-act=\"add\"]') && !r.querySelector('[data-act=\"open-ha\"]')"));
   await m.ctx.close();
 }
 await browser.close();

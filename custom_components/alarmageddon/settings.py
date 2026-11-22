@@ -366,6 +366,7 @@ class Settings:
         # Reste der früheren Update-Funktion (bis 0.27.0) beim Laden verwerfen
         self.data.pop("update", None)
         self.data.pop("update_notified", None)
+        self.data.pop("cleanup", None)  # kurzzeitiger Vermerk eines Zwischenstands von 1.82.0
         stored_changes = self.data.get("last_changes")
         self.data["last_changes"] = {k: v for k, v in stored_changes.items() if isinstance(k, str) and isinstance(v, str)} if isinstance(stored_changes, dict) else {}
         if migrate:
@@ -406,6 +407,18 @@ class Settings:
     def forget_wizard(self, entry_id: str) -> None:
         """Eine entfernte Anlage nimmt ihren Assistenten mit."""
         if self.data["wizard"].pop(entry_id, None) is not None:
+            self._save_soon()
+
+    def forget_changes(self, entity_ids: set[str] | None = None) -> None:
+        """
+        Gemerkte letzte Änderungen von Sensoren verwerfen (Aufräumen beim Löschen einer Anlage, 1.82.0): die Sensoren der entfernten Anlage, die keine andere
+        mehr nutzt, bei der letzten Anlage alle (`None`).
+        """
+        changes = self.data["last_changes"]
+        gone = [k for k in changes if entity_ids is None or k in entity_ids]
+        for key in gone:
+            del changes[key]
+        if gone:
             self._save_soon()
 
     @property

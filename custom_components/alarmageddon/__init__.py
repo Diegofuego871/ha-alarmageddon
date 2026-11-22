@@ -4,22 +4,44 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import re
 from collections.abc import Awaitable
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
-from homeassistant.core import CoreState, HomeAssistant
+from homeassistant.core import CoreState, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.storage import Store
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
+from homeassistant.helpers.storage import STORAGE_DIR, Store
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
 from . import websocket_api
-from .const import CONF_PER_MODE_SENSORS, CONF_SENSOR_MODES, CONF_SENSOR_OPTIONS, CONF_SENSORS, CONF_ZONE_PREFIX, DATA_SELFTEST, DOMAIN, HEALTHCHECK_STORE_KEY, MODES, OPT_BYPASS, SELFTEST_STORE_KEY, STATE_STORE_KEY
+from .const import (
+    CONF_ENTRY_SENSORS,
+    CONF_MONITOR_SENSORS,
+    CONF_PER_MODE_SENSORS,
+    CONF_SENSOR_MODES,
+    CONF_SENSOR_OPTIONS,
+    CONF_SENSORS,
+    CONF_ZONE_PREFIX,
+    DATA_RECEPTION,
+    DATA_SELFTEST,
+    DOMAIN,
+    HEALTHCHECK_STORE_KEY,
+    HEALTHLOG_STORE_KEY,
+    MAINTENANCE_STORE_KEY,
+    MODES,
+    OPT_BYPASS,
+    SELFTEST_STORE_KEY,
+    STATE_STORE_KEY,
+)
 from .controller import AlarmController
 from .events import EventLog, async_remove_events
 from .recording import AlarmRecorder, async_remove_recordings
@@ -29,10 +51,11 @@ from .notify import Notifier
 from .panel import async_register_panel, async_remove_panel
 from .monitor import MonitorEngine, async_remove_monitor_store
 from .routines import RoutineEngine, migrate_options
+from .reception import STORE_KEY as RECEPTION_STORE_KEY
 from .reception import async_get_reception
 from .selftest import ISSUE_GLOBAL, async_get_selftest, async_note, async_resolve, async_stop_selftest
 from .healthcheck import async_get_healthcheck, async_stop_healthcheck
-from .sensor_history import async_get_stats
+from .sensor_history import DATA_STATS, STATS_STORE_KEY, async_get_stats
 from .settings import async_get_settings
 from .workflow import WorkflowRunner, async_remove_workflow_store
 
@@ -129,6 +152,66 @@ async def _isolated(entry: ConfigEntry, awaitable: Awaitable[Any], what: str, pa
     return result
 
 
+# Aufräumen der Reste gelöschter Anlagen (1.82.0, Wunsch des Nutzers 2026-11-22): Ablagen je Anlage, deren Anlage es nicht mehr gibt (auch wenn sie nicht über das Panel, sondern in Home Assistant
+# entfernt oder die Ablage von Hand liegen gelassen wurde), und gemerkte letzte Änderungen von Sensoren, die keine Anlage mehr nennt. Es läuft CLEANUP_DELAY nach dem Start und danach täglich.
+# Vorsichtig: als "es gibt sie" gilt jede Anlage in jedem Zustand (auch deaktiviert oder mit Ladefehler); Backups, Einstellungen und eigene Töne bleiben; ein Fehler steht im Log und
+# hält nie eine Anlage auf.
+CLEANUP_DELAY = 300  # Sekunden nach dem Start (alle Anlagen sind dann längst geladen)
+CLEANUP_EVERY = timedelta(hours=24)
+DATA_CLEANUP = f"{DOMAIN}_cleanup"
+_PER_ENTRY_STORE = re.compile(r"^" + re.escape(DOMAIN) + r"\.(events|recordings|workflow|monitor|state)\.([A-Za-z0-9]+)$")
+
+
+def _storage_names(path: str) -> list[str]:
+    try:
+        return sorted(os.listdir(path))
+    except OSError:
+        return []
+
+
+async def _async_cleanup_leftovers(hass: HomeAssistant) -> None:
+    try:
+        entries = hass.config_entries.async_entries(DOMAIN)
+        if not entries:
+            return  # ohne Anlage gibt es nichts zu vergleichen (und die Integration läuft dann nicht)
+        removed: list[str] = []
+        for name in await hass.async_add_executor_job(_storage_names, hass.config.path(STORAGE_DIR)):
+            match = _PER_ENTRY_STORE.match(name)
+            # Die Anlage kann inzwischen entstanden sein (Wiederherstellen aus einem Backup): vor dem Löschen noch einmal fragen
+            if match and match.group(2) not in {e.entry_id for e in hass.config_entries.async_entries(DOMAIN)}:
+                await Store(hass, 1, name).async_remove()
+                removed.append(match.group(1))
+        settings = await async_get_settings(hass)
+        stale = set(settings.last_changes) - set().union(*(_entry_sensors(e) for e in hass.config_entries.async_entries(DOMAIN)))
+        settings.forget_changes(stale)
+        if removed or stale:
+            _LOGGER.info("Cleaned up leftovers of deleted alarm systems: %d stores (%s), %d remembered sensor changes", len(removed), ", ".join(sorted(set(removed))) or "-", len(stale))
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # noqa: BLE001 - das Aufräumen ist Zusatz und hält nie eine Anlage auf
+        _LOGGER.exception("Cleaning up leftovers of deleted alarm systems failed")
+
+
+@callback
+def _async_schedule_cleanup(hass: HomeAssistant) -> None:
+    """Beim ersten geladenen Anlage: einmal nach CLEANUP_DELAY, dann täglich. Es endet mit der letzten Anlage (async_unload_entry)."""
+    if DATA_CLEANUP in hass.data:
+        return
+
+    @callback
+    def run(_now: Any = None) -> None:
+        hass.async_create_background_task(_async_cleanup_leftovers(hass), "alarmageddon cleanup of leftovers")
+
+    cancel_first = async_call_later(hass, CLEANUP_DELAY, run)
+    cancel_daily = async_track_time_interval(hass, run, CLEANUP_EVERY)
+
+    def cancel() -> None:
+        cancel_first()
+        cancel_daily()
+
+    hass.data[DATA_CLEANUP] = cancel
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry) -> bool:
     # Vor dem Controller und vor dem Update-Listener: die Änderung der Optionen löst so kein zusätzliches Neuladen aus
     _migrate_open_sensors(hass, entry)
@@ -201,6 +284,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
             _LOGGER.exception("%s: starting the health check failed; the alarm system runs without it", entry.title)
     # Reste der früheren Update-Prüfung (bis 0.27.0): die Meldung unter "Reparaturen" verschwindet mit der Funktion
     ir.async_delete_issue(hass, DOMAIN, "update_available")
+    # Erst nach gelungenem Start: scheitert das Laden, gibt es kein Entladen, das den Zeitgeber wieder abräumt
+    _async_schedule_cleanup(hass)
     return True
 
 
@@ -238,11 +323,31 @@ async def async_unload_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     # Das Panel bleibt auch beim Neuladen einer Anlage stehen (Sensoren speichern lädt sie neu): würde es kurz entfernt, vergässe die
     # Oberfläche die Anlage und hinge. Es verschwindet erst, wenn die letzte Anlage entfernt wird (async_remove_entry).
     if not others:
+        if (cancel_cleanup := hass.data.pop(DATA_CLEANUP, None)) is not None:
+            cancel_cleanup()
         await _isolated(entry, async_stop_maintenance(hass), "stopping the maintenance check")
         await _isolated(entry, async_stop_healthcheck(hass), "stopping the health check")
         await _isolated(entry, async_stop_selftest(hass), "stopping the self-test")
         async_stop_auto_backup(hass)
     return True
+
+
+def _entry_sensors(entry: ConfigEntry) -> set[str]:
+    """Alle Sensoren, die eine Anlage in ihren Optionen nennt (Zonen, Eingang, Stiller Alarm, Messwerte der Überwachung, Einstellungen je Sensor)."""
+    options = entry.options
+    sensors: set[str] = set()
+    for key in (CONF_ENTRY_SENSORS, CONF_SENSORS, CONF_MONITOR_SENSORS, *(f"{CONF_ZONE_PREFIX}{m}" for m in MODES)):
+        value = options.get(key)
+        if isinstance(value, list):
+            sensors.update(v for v in value if isinstance(v, str))
+    for key in (CONF_SENSOR_OPTIONS, CONF_SENSOR_MODES):
+        value = options.get(key)
+        if isinstance(value, dict):
+            sensors.update(k for k in value if isinstance(k, str) and "." in k)
+            for inner in value.values():
+                if isinstance(inner, dict):
+                    sensors.update(k for k in inner if isinstance(k, str) and "." in k)
+    return sensors
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry) -> None:
@@ -255,10 +360,20 @@ async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     (await async_get_settings(hass)).forget_wizard(entry.entry_id)
     # Selbsttest: die Meldung der Anlage unter "Reparaturen" verschwindet mit ihr; die übrigen Anlagen prüft er kurz danach neu
     ir.async_delete_issue(hass, DOMAIN, f"selftest_{entry.entry_id}")
-    if not any(e.entry_id != entry.entry_id for e in hass.config_entries.async_entries(DOMAIN)):
+    others = [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id]
+    # Gemerkte letzte Änderungen der Sensoren dieser Anlage (1.82.0): nur die, die keine andere Anlage mehr nutzt; bei der letzten Anlage alle
+    (await async_get_settings(hass)).forget_changes(None if not others else _entry_sensors(entry) - set().union(*(_entry_sensors(e) for e in others)))
+    if not others:
         ir.async_delete_issue(hass, DOMAIN, ISSUE_GLOBAL)
         await Store(hass, 1, SELFTEST_STORE_KEY).async_remove()
         await Store(hass, 1, HEALTHCHECK_STORE_KEY).async_remove()
+        # Gemeinsame Verläufe und Wartungsstand (1.82.0, Wunsch des Nutzers): ohne Anlage braucht sie niemand. Die Instanzen im Speicher gehen zuerst, damit sie nichts mehr
+        # schreiben (Empfang beim Beenden von Home Assistant). Backups, Einstellungen und eigene Töne bleiben, damit eine neue Anlage nichts verliert.
+        if (log := hass.data.pop(DATA_RECEPTION, None)) is not None:
+            log.async_discard()
+        hass.data.pop(DATA_STATS, None)
+        for key in (HEALTHLOG_STORE_KEY, MAINTENANCE_STORE_KEY, STATS_STORE_KEY, RECEPTION_STORE_KEY):
+            await Store(hass, 1, key).async_remove()
         async_remove_panel(hass)
     elif (selftest := hass.data.get(DATA_SELFTEST)) is not None and hass.state is CoreState.running:
         selftest.async_schedule()

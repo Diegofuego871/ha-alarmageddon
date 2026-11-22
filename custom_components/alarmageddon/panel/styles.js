@@ -1102,6 +1102,9 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
    (nicht fertig; blau, weil orange nur "ungespeichert" heisst). Die Bewegung gilt auch bei "Bewegung reduzieren" (Entscheid des Nutzers 2026-11-20) */
 .ag-wzbtn { position: relative; width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; padding: 0; cursor: pointer;
   border: 1px solid color-mix(in srgb, var(--ag-primary) 45%, transparent); background: var(--ag-primary-soft); color: var(--ag-primary); }
+/* Roter Kreis nach einem Alarm (1.82.0): dieselben Stile und Zeitleisten wie der Zauberstab-Knopf, nur rot (die Farbe des Kometen, des Punktes und des Aufblitzens kommt aus --ag-primary,
+   hier lokal die Fehlerfarbe) und ohne Stab und Sterne */
+.ag-albtn { --ag-primary: var(--ag-error); --ag-primary-soft: color-mix(in srgb, var(--ag-error) 14%, transparent); }
 .ag-wzbtn:hover { background: color-mix(in srgb, var(--ag-primary) 22%, transparent); }
 .ag-wzbtn svg { display: block; overflow: visible; }
 .ag-wzbtn g { transform-box: view-box; }
@@ -1435,7 +1438,14 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .ag-log-hint { margin: 2px 2px 12px; }
 .ag-log-more { display: flex; margin: 12px auto 4px; }
 /* Löschen eines Alarms: unten in der geöffneten Karte, rechts, in der Farbe einer Aktion, die nicht zurückzunehmen ist */
-.ag-inc-foot { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ag-divider); }
+.ag-inc { position: relative; }
+.ag-unread-dot { display: inline-block; width: 14px; height: 14px; margin-right: 9px; vertical-align: -1px; border-radius: 50%; background: var(--ag-error); animation: ag-unread-pulse 2.4s ease-in-out infinite; }
+@keyframes ag-unread-pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--ag-error) 55%, transparent) } 50% { transform: scale(1.18); box-shadow: 0 0 0 7px transparent } }
+@media (prefers-reduced-motion: reduce) { .ag-unread-dot { animation: none; } }
+/* "Als gelesen/ungelesen markieren" und "Alarm löschen" stehen immer auf gleicher Höhe nebeneinander (Wunsch des Nutzers); auf dem Handy teilen sie sich die Breite, der Text darf umbrechen */
+:host([narrow]) .ag-inc-foot { flex-wrap: nowrap; }
+:host([narrow]) .ag-inc-foot > .ag-btn { flex: 1 1 0; min-width: 0; height: auto; min-height: 44px; padding: 6px 10px; white-space: normal; text-align: center; line-height: 1.2; }
+.ag-inc-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ag-divider); }
 .ag-inc-del { color: var(--ag-error); border-color: color-mix(in srgb, var(--ag-error) 45%, var(--ag-divider)); }
 .ag-inc-del:hover { background: var(--ag-error-soft); }
 /* Hauptreiter am Computer: das Symbol links vom Text, etwas kleiner als auf dem Handy (dort steht es über dem Text) */

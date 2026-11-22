@@ -112,12 +112,9 @@ for (const lang of ["de", "en"]) {
     await s.ev(`const sel=r.querySelector('[data-act="system"]'); sel.value="e_garage"; sel.dispatchEvent(new Event("change", { bubbles: true }));`);
     check(`${tag}: Garage ohne Nacht`, await s.waitFor(`return r.querySelectorAll('.ag-table th').length === 6`));
     // Name der Anlage oben: grosses Dropdown (mehrere Anlagen), Stift, Sprung nach HA, Umbenennen
-    check(`${tag}: Anlagenname gross als Dropdown mit Stift ganz oben, HA-Knopf`, await s.ev(`const b=r.querySelector('.ag-head .ag-headsys'); const sel=b.querySelector('select[data-act="system"]'); return !!sel && parseFloat(getComputedStyle(sel).fontSize) >= 20 && sel.offsetHeight >= 44 && !!b.querySelector('[data-act="rename"]') && !!b.querySelector('[data-act="open-ha"]')`));
-    await s.ev(`window.__navs=[]; r.host._navigate = (p) => window.__navs.push(p);`);
-    await s.tap('[data-act="open-ha"]');
-    check(`${tag}: Knopf öffnet die Integration dieser Anlage in HA`, await s.ev(`return window.__navs.length === 1 && window.__navs[0] === "/config/integrations/integration/alarmageddon#config_entry=e_garage"`));
+    check(`${tag}: Anlagenname gross als Dropdown mit Stift ganz oben, ohne HA-Knopf`, await s.ev(`const b=r.querySelector('.ag-head .ag-headsys'); const sel=b.querySelector('select[data-act="system"]'); return !!sel && parseFloat(getComputedStyle(sel).fontSize) >= 20 && sel.offsetHeight >= 44 && !!b.querySelector('[data-act="rename"]') && !b.querySelector('[data-act="open-ha"]')`));
     await s.tap('[data-sub="notify"]');
-    check(`${tag}: Anlagenname und HA-Knopf bleiben auch bei Benachrichtigungen oben`, await s.waitFor(`return !!r.querySelector('.ag-headsys select[data-act="system"]') && !!r.querySelector('.ag-headsys [data-act="rename"]') && !!r.querySelector('.ag-headsys [data-act="open-ha"]')`));
+    check(`${tag}: Anlagenname bleibt auch bei Benachrichtigungen oben`, await s.waitFor(`return !!r.querySelector('.ag-headsys select[data-act="system"]') && !!r.querySelector('.ag-headsys [data-act="rename"]')`));
     await s.tap('[data-sub="sensors"]');
     await s.waitFor(`return !!r.querySelector('.ag-headsys select, .ag-headsys h2')`);
     await s.tap('[data-act="rename"]');
@@ -131,7 +128,7 @@ for (const lang of ["de", "en"]) {
     // Kopfzeile in jedem Reiter gleich (Name, Stift, HA-Knopf), auch in Übersicht und Protokoll
     for (const tab of ["overview", "log", "config"]) {
       await s.tap(`[data-tab="${tab}"]`);
-      check(`${tag}: Kopfzeile mit Anlagenname, Stift und HA-Knopf im Reiter ${tab}`, await s.waitFor(`const h=r.querySelector('.ag-head .ag-headsys'); return !!h && !!h.querySelector('[data-act="system"]') && !!h.querySelector('[data-act="rename"]') && !!h.querySelector('[data-act="open-ha"]')`));
+      check(`${tag}: Kopfzeile mit Anlagenname und Stift im Reiter ${tab}`, await s.waitFor(`const h=r.querySelector('.ag-head .ag-headsys'); return !!h && !!h.querySelector('[data-act="system"]') && !!h.querySelector('[data-act="rename"]')`));
     }
     // Breites Fenster: Blatt der Sensor-Optionen und Knöpfe oben rechts enden auf derselben Linie
     await s.page.setViewportSize({ width: 2200, height: 950 });
@@ -139,7 +136,7 @@ for (const lang of ["de", "en"]) {
     await s.tap('.ag-table tr[data-row] .ag-nm');
     await s.waitFor("return r.querySelector('.ag-sen-layout').classList.contains('open')");
     await s.page.waitForTimeout(300);
-    check(`${tag}: Blatt und Knöpfe oben rechts auf einer Flucht (breites Fenster)`, await s.ev("const right=(e) => Math.round(e.getBoundingClientRect().right); const sheet=right(r.querySelector('.ag-sheet')); return Math.abs(sheet - right(r.querySelector('[data-act=\"open-ha\"]'))) <= 1 && Math.abs(sheet - right(r.querySelector('[data-sen=\"presets\"]'))) <= 1"));
+    check(`${tag}: Blatt und Knöpfe oben rechts auf einer Flucht (breites Fenster)`, await s.ev("const right=(e) => Math.round(e.getBoundingClientRect().right); const sheet=right(r.querySelector('.ag-sheet')); return Math.abs(sheet - right(r.querySelector('[data-act=\"add\"]'))) <= 1 && Math.abs(sheet - right(r.querySelector('[data-sen=\"presets\"]'))) <= 1"));
     await s.tap('[data-sen="close-detail"]').catch(() => {});
     await s.page.setViewportSize({ width: 1400, height: 950 });
     await s.page.screenshot({ path: `${outDir}groups-${lang}-desktop.png` });

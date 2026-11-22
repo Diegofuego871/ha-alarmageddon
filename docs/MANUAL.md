@@ -134,6 +134,8 @@ An alarm cannot be overlooked: a red band with the sensor that triggered and the
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/alarm-en.png" alt="Alarm on the phone: red band with Acknowledge and Disarm, below it the tile of the alarm system" width="270"></p>
 
+**Red circle after an alarm (since 1.82.0):** after a real alarm (one the log records) a red circle with an alarm sign appears in the header next to the pencil, with the same comet and flash as the wizard wand around it (without the wand). With the wizard button both are visible and the comets run at exactly the same time. It belongs to the whole alarm system and stays until someone taps it (log › Alarms opens with that alarm unfolded) or opens the alarm in the log by hand. In the opened alarm the button "Mark as unread" / "Mark as read" switches the state; unread alarms bring the circle back as a reminder and carry a slowly pulsing red dot before their title.
+
 ### Log and alarm timeline
 
 Every alarm is recorded from the first trigger until someone acknowledges it: which sensor responded when, which steps ran, which notifications went out. All other events (armed, disarmed, routines, sensor failures) are on the second tab, with a filter by period and a CSV export. Both are kept for a year; you can delete a single alarm.
@@ -159,6 +161,7 @@ If the card does not appear in the card picker: restart Home Assistant after the
 - **Modes:** "Home", "Away" and "Night", each switchable on and off, each with its own zone, delays and actions.
 - **Two-sensor confirmation:** a motion sensor can require a second sensor before it triggers, against false alarms.
 - **Backup:** all settings as a file or stored in the integration, never with codes. An automatic backup (daily, weekly or monthly; on and weekly by default) keeps the last 5 (you choose 1 to 50), in addition to your own 10.
+- **Deleting an alarm system (since 1.82.0):** every system takes its own data and the remembered last changes of its sensors with it. With the last system the shared histories go too (log of the HealthCheck services, maintenance state, sensor statistics, reception history); backups, settings and your own sounds stay, so nothing is lost after a reinstall. Leftovers of systems deleted elsewhere (for example in Home Assistant itself): 5 minutes after every start and then daily, the integration cleans up their stores and remembered sensor changes too. Every existing system counts, even a disabled one; backups, settings and your own sounds are never touched.
 - **Several alarm systems:** house and garage, each as its own device. "Add alarm system" at the top of the panel shows the device and the alarm entity before anything is created; the button next to the entity ID copies it (for automations and dashboards). The new alarm system then opens the setup assistant.
 - **Back to the overview:** the panel remembers where you were for 30 minutes; after that it starts on the overview again.
 

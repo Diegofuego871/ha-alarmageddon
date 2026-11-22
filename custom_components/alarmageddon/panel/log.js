@@ -272,13 +272,41 @@ export class LogUi {
     const tag = open
       ? `<span class="ag-tag err">${esc(this._t("logRunning"))}</span>`
       : `<span class="ag-tag ok">${esc(record.ended_by ? this._t("logAcknowledgedBy", { name: record.ended_by }) : this._t("logAcknowledged"))}</span>`;
+    // Ungelesen (Wunsch des Nutzers): fetter roter Punkt vor dem Titel, er pulsiert langsam
+    const dot = record.seen === false ? `<i class="ag-unread-dot" role="img" aria-label="${esc(this._t("logUnread"))}" title="${esc(this._t("logUnread"))}"></i>` : "";
     return `<div class="ag-card ag-inc ${expanded ? "open" : ""}">
       <button class="ag-inc-head" data-log="toggle" data-id="${esc(record.id)}" aria-expanded="${expanded}">
         <span class="ag-wf-icon k-notify">${ic("alert", 20)}</span>
-        <span class="ag-inc-text"><b>${esc(record.system)} · ${esc(this._day(record.start))}</b>
+        <span class="ag-inc-text"><b>${dot}${esc(record.system)} · ${esc(this._day(record.start))}</b>
           <span class="ag-t2 ag-small">${esc(this._t("logFirst", { sensor: first }))} · ${esc(this._dur(end - new Date(record.start).getTime()))}</span></span>
         ${tag}<span class="ag-cbtn ag-inc-arrow">${ic("chevRight", 16)}</span></button>
-      ${expanded ? `<div class="ag-inc-body">${this._chart(record)}${this._sequence(record)}${open ? "" : `<div class="ag-inc-foot"><button class="ag-btn ag-inc-del" data-log="delete" data-id="${esc(record.id)}" data-entry="${esc(record.entry_id || "")}">${ic("trash", 18)}${esc(this._t("logDelete"))}</button></div>`}</div>` : ""}</div>`;
+      ${expanded ? `<div class="ag-inc-body">${this._chart(record)}${this._sequence(record)}<div class="ag-inc-foot">${this._seenBtn(record)}${open ? "" : `<button class="ag-btn ag-inc-del" data-log="delete" data-id="${esc(record.id)}" data-entry="${esc(record.entry_id || "")}">${ic("trash", 18)}${esc(this._t("logDelete"))}</button>`}</div></div>` : ""}</div>`;
+  }
+
+  // Wechsel zwischen "gelesen" und "ungelesen" (Wunsch des Nutzers 2026-11-22): Beschriftung und Symbol wechseln mit; "ungelesen" lässt den roten Kreis im Kopf als Erinnerung wieder erscheinen
+  _seenBtn(record) {
+    const unread = record.seen === false;
+    const label = this._t(unread ? "logMarkRead" : "logMarkUnread");
+    return `<button class="ag-btn ag-inc-seen" data-log="seen" data-id="${esc(record.id)}" data-entry="${esc(record.entry_id || "")}" data-unread="${unread}">${ic(unread ? "eye" : "eyeOff", 18)}${esc(label)}</button>`;
+  }
+
+  // Der Stand im Speicher (die Karten werden aus Kopien gebaut): gelesen gilt für den Alarm und die älteren, ungelesen nur für ihn
+  _setSeen(entryId, id, seen) {
+    for (const sys of this.systems || []) {
+      if (sys.entry_id !== entryId) continue;
+      for (const r of sys.recordings || []) if (seen ? String(r.id) <= String(id) : r.id === id) r.seen = seen;
+    }
+  }
+
+  async toggleSeen(entryId, id) {
+    const record = this.incidents().find((r) => r.id === id);
+    if (!record || !entryId) return;
+    const seen = record.seen === false; // ungelesen → gelesen und umgekehrt
+    if (!(await this.host._markAlarmSeen(entryId, id, seen))) return;
+    this._setSeen(entryId, id, seen);
+    this.rev = null; // den Stand beim nächsten Abruf neu holen
+    this.render();
+    this.load();
   }
 
   // Einen aufgezeichneten Alarm löschen (1.13.0): erst nach Rückfrage. Der laufende Alarm hat keinen Knopf (der Server lehnte es auch ab).
@@ -492,6 +520,7 @@ export class LogUi {
       return true;
     }
     if (el?.dataset?.log === "delete") return this.deleteAlarm(el.dataset.entry, el.dataset.id), true;
+    if (el?.dataset?.log === "seen") return this.toggleSeen(el.dataset.entry, el.dataset.id), true;
     if (!el || el.dataset.log !== "toggle") return false;
     if (!this.touched) {
       this.touched = true;
@@ -499,7 +528,19 @@ export class LogUi {
     }
     const id = el.dataset.id;
     if (this.open.has(id)) this.open.delete(id);
-    else this.open.add(id);
+    else {
+      this.open.add(id);
+      // Einen Alarm von Hand öffnen gilt als gesehen (roter Kreis im Kopf, 1.82.0)
+      const record = this.incidents().find((r) => r.id === id);
+      if (record?.entry_id && record.seen === false) {
+        this.host._markAlarmSeen(record.entry_id, id).then((ok) => {
+          if (!ok) return;
+          // Er und die älteren dieser Anlage sind jetzt gelesen (wie auf dem Server)
+          this._setSeen(record.entry_id, id, true);
+          this.render();
+        });
+      }
+    }
     this.render();
     return true;
   }

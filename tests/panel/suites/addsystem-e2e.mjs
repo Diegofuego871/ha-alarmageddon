@@ -16,10 +16,10 @@ for (const lang of ["de", "en"]) {
     await s.page.waitForTimeout(300);
 
     // ----- Knopf in der Kopfzeile -----
-    check(`${tag}: Knopf zum Hinzufügen neben "Integration in HA öffnen"`, await s.ev("const a=r.querySelector('.ag-headsys [data-act=\"add\"]'); const h=r.querySelector('.ag-headsys [data-act=\"open-ha\"]'); return !!a && !!h && a.getBoundingClientRect().right <= h.getBoundingClientRect().left + 1"));
+    check(`${tag}: Knopf zum Hinzufügen ganz rechts in der Kopfzeile, den Knopf "Integration in HA öffnen" gibt es nicht mehr (seit 1.82.0)`, await s.ev("const a=r.querySelector('.ag-headsys [data-act=\"add\"]'); return !!a && !r.querySelector('[data-act=\"open-ha\"]')"));
     if (mobile) {
-      check(`${tag}: Handy: nur ein rundes Plus, gleich gross und gleich geformt wie der Knopf zu Home Assistant, ohne Text`, await s.ev("const a=r.querySelector('.ag-headsys [data-act=\"add\"]').getBoundingClientRect(); const h=r.querySelector('.ag-headsys [data-act=\"open-ha\"]').getBoundingClientRect(); return Math.abs(a.width - h.width) < 1 && Math.abs(a.height - h.height) < 1 && Math.abs(a.width - a.height) <= 3 && r.querySelector('.ag-headsys [data-act=\"add\"]').innerText.trim() === ''"));
-      check(`${tag}: Handy: beide Knöpfe liegen im Bild`, await s.ev("const w=r.host.getBoundingClientRect().width; return [...r.querySelectorAll('.ag-headsys [data-act=\"add\"], .ag-headsys [data-act=\"open-ha\"]')].every((b) => { const q=b.getBoundingClientRect(); return q.left >= 0 && q.right <= w + 1; })"));
+      check(`${tag}: Handy: nur ein rundes Plus ohne Text`, await s.ev("const a=r.querySelector('.ag-headsys [data-act=\"add\"]').getBoundingClientRect(); return Math.abs(a.width - a.height) <= 3 && r.querySelector('.ag-headsys [data-act=\"add\"]').innerText.trim() === ''"));
+      check(`${tag}: Handy: der Knopf liegt im Bild`, await s.ev("const w=r.host.getBoundingClientRect().width; return [...r.querySelectorAll('.ag-headsys [data-act=\"add\"]')].every((b) => { const q=b.getBoundingClientRect(); return q.left >= 0 && q.right <= w + 1; })"));
     } else {
       check(`${tag}: Desktop: Knopf mit Plus und Text "${t.btn}"`, await s.ev(`const a=r.querySelector('.ag-headsys [data-act="add"]'); return a.innerText.includes(${JSON.stringify(t.btn)}) && !!a.querySelector('svg')`));
     }

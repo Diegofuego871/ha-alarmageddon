@@ -76,6 +76,7 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "save_display": {"names_with_device": False},
     "save_auto_backup": {"enabled": False, "every": "daily"},
     "delete_recording": {"entry_id": "ENTRY", "recording": "2026-01-01T00:00:00+00:00"},
+    "alarm_seen": {"entry_id": "ENTRY", "recording": "2026-01-01T00:00:00+00:00"},
     "log": {},
     "export": {},
     "import": {"data": {}},

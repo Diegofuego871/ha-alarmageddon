@@ -157,6 +157,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_stop_workflow)
     websocket_api.async_register_command(hass, ws_acknowledge)
     websocket_api.async_register_command(hass, ws_delete_recording)
+    websocket_api.async_register_command(hass, ws_alarm_seen)
     websocket_api.async_register_command(hass, ws_routine_entities)
     websocket_api.async_register_command(hass, ws_monitor_entities)
     websocket_api.async_register_command(hass, ws_sensor_candidates)
@@ -415,6 +416,8 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "workflow_running": _alarm_run(entry).get("trigger"),
                 "workflow_test": bool((entry.runtime_data.workflow.running or {}).get("test")) if entry.runtime_data.workflow else False,
                 "has_code": ctl.has_code,
+                # Der neueste Alarm, den noch niemand gesehen hat (roter Kreis im Kopf des Panels, 1.82.0): nur Kennung und ob er noch läuft
+                "alarm_unseen": ({"id": unseen["id"], "running": unseen.get("end") is None} if (unseen := entry.runtime_data.recorder.unseen if entry.runtime_data.recorder else None) else None),
                 # Codes nie zum Panel: nur Name und verknüpfter Benutzer
                 "codes": [{"id": c.get("id", ""), "name": c.get("name", ""), "user_id": c.get("user_id")} for c in ctl.codes],
                 "main_code": bool(entry.options.get(CONF_CODE_HASH)),
@@ -1296,6 +1299,22 @@ async def ws_delete_recording(hass: HomeAssistant, connection, msg: dict[str, An
         connection.send_error(msg["id"], "not_found", "No such alarm")
     else:
         connection.send_result(msg["id"], {"ok": True})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/alarm_seen", vol.Required("entry_id"): str, vol.Required("recording"): vol.All(str, vol.Length(min=1, max=64)), vol.Optional("seen", default=True): bool}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_alarm_seen(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """Einen Alarm als gesehen oder ungelesen markieren (roter Kreis im Kopf des Panels, 1.82.0): gilt für die ganze Anlage, nicht für ein Gerät."""
+    if (entry := _entry(hass, connection, msg)) is None:
+        return
+    recorder = entry.runtime_data.recorder
+    if (recorder.async_mark_seen(msg["recording"], msg["seen"]) if recorder else "not_found") != "ok":
+        connection.send_error(msg["id"], "not_found", "No such alarm")
+        return
+    connection.send_result(msg["id"], {"ok": True})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/stop_workflow", vol.Required("entry_id"): str})

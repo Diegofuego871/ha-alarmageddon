@@ -125,6 +125,8 @@
   // Einrichtungsassistent (1.69.0): wie der Server je Anlage ein Zustand. Bestehende Anlagen sind eingerichtet; ?wizard=open öffnet ihn für "Haus"
   // (?wzstep=zones: bei diesem Schritt), neue Anlagen (create_system) bekommen ihn. "Heute" lässt sich mit window.__wzToday ("JJJJ-MM-TT") setzen.
   for (const sys of window.__systems) sys.wizard = { state: "done", until: null, step: "welcome" };
+  // Roter Kreis im Kopf nach einem Alarm (1.82.0): ?alarmunseen=1 (beendeter Alarm) oder =running; Kennung wie die des neuesten Alarms im Protokoll
+  if (params.get("alarmunseen") && window.__systems[0]) window.__systems[0].alarm_unseen = { id: iso((params.get("alarmunseen") === "running" ? 2 : 95) * 60e3), running: params.get("alarmunseen") === "running" };
   if (params.get("wizard") && window.__systems[0]) window.__systems[0].wizard = { state: params.get("wizard"), until: params.get("wzuntil") || null, step: params.get("wzstep") || "welcome" };
   window.__wzCalls = [];
   const wzToday = () => window.__wzToday || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -510,6 +512,21 @@
         dechimes: [["off_fall", 2], ["off_confirm", 1.5], ["off_bell", 2], ["off_soft", 1.5], ["off_double", 1]].map(([id, seconds]) => ({ id, seconds, url: `/alarmageddon_sounds/${id}.wav` })),
       }));
     }
+    if (msg.type === "alarmageddon/alarm_seen") {
+      const sys = window.__systems.find((s) => s.entry_id === msg.entry_id);
+      const seen = msg.seen !== false;
+      (window.__alarmSeen = window.__alarmSeen || []).push(seen ? msg.recording : `unread:${msg.recording}`);
+      window.__seenMap = window.__seenMap || {};
+      if (seen) {
+        for (const id of Object.keys(window.__seenMap)) if (id <= msg.recording) window.__seenMap[id] = true;
+        window.__seenMap[msg.recording] = true;
+        if (sys?.alarm_unseen && String(sys.alarm_unseen.id) <= String(msg.recording)) sys.alarm_unseen = null;
+      } else {
+        window.__seenMap[msg.recording] = false;
+        if (sys && (!sys.alarm_unseen || String(sys.alarm_unseen.id) < String(msg.recording))) sys.alarm_unseen = { id: msg.recording, running: false };
+      }
+      return { ok: true };
+    }
     if (msg.type === "alarmageddon/log") {
       // Wie der Server (0.40.0): mit dem Stand der letzten Antwort kommt nur "unverändert", solange kein Ereignis dazukam
       const rev = window.__systems.map((s) => `${s.entry_id}:${s.events.length}`).join("|") + `|${(window.__deleted || []).length}:${(window.__moreRecordings || []).length}`;
@@ -537,6 +554,9 @@
       // Tests können weitere Alarme vorgeben (window.__moreRecordings) und Alarme löschen (delete_recording, window.__deleted)
       const gone = window.__deleted || [];
       const list = [...(open ? [running, closed] : [closed]), ...(window.__moreRecordings || [])].filter((r) => !gone.includes(r.id));
+      // "Gelesen" (1.82.0): vom Test gesetzt (alarm_seen); mit ?alarmunseen ist der neueste Alarm zunächst ungelesen
+      const seenMap = window.__seenMap || {};
+      list.forEach((r, i) => { r.seen = r.id in seenMap ? seenMap[r.id] : !(params.get("alarmunseen") && i === 0 && !(window.__alarmSeen || []).length); });
       return { rev, systems: window.__systems.map((s) => ({ entry_id: s.entry_id, title: s.title, events: s.events, recordings: s.entry_id === "e_haus" ? list : [], recording: s.entry_id === "e_haus" && open })) };
     }
     if (msg.type === "frontend/get_translations") {

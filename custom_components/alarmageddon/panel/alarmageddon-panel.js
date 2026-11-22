@@ -16,6 +16,7 @@ const [
 const AWAY_MS = 30 * 60 * 1000;
 // Knopf des Einrichtungsassistenten im Kopf (1.71.0): der Zauberstab schwingt einmal, so lange nach dem Erscheinen (Wunsch des Nutzers: "nach 5 Sekunden")
 const WAVE_MS = 5000; // erste Welle: so lange nach dem Erscheinen des Knopfes
+const AL_WAVE_MS = 400; // erste Welle, wenn der rote Kreis nach einem Alarm erscheint (nicht erst nach 5 s)
 const WAVE_PAUSE_MS = 30000; // Pause zwischen den Wellen (Wunsch des Nutzers 2026-11-20)
 const WAVE_LEN_MS = 4200; // eine Welle: Schwung, Einsaugen der Sterne, Komet, Explosion, Sterne wieder da (3,9 s, WAVE in styles.js) mit etwas Luft
 // Symbol "wand" (common.js) in Teilen: Stab und drei Sterne, damit sie sich einzeln bewegen
@@ -1122,6 +1123,48 @@ class AlarmageddonPanel extends HTMLElement {
     this._waveLater();
   }
 
+  // Roter Kreis im Kopf nach einem Alarm (1.82.0, Wunsch des Nutzers 2026-11-22): Alarmzeichen im Kreis, rundherum derselbe Komet mit demselben Aufblitzen wie beim
+  // Zauberstab (ohne Stab). Er steht für die ganze Anlage, bis jemand ihn antippt oder den Alarm im Protokoll öffnet (`alarm_unseen` vom Server, `alarm_seen`). Nur
+  // echte Alarme, wie das Protokoll sie aufzeichnet. Er ist ein Knopf des Zauberstab-Aufbaus (Klasse ag-wzbtn): die Welle läuft gemeinsam und gleichzeitig.
+  _alarmBtn(cur) {
+    const unseen = cur.alarm_unseen;
+    if (!unseen) return "";
+    const tip = this._t(unseen.running ? "alBtnRunning" : "alBtnNew");
+    return `<button class="ag-wzbtn ag-albtn" data-act="alarm-open" title="${esc(tip)}" aria-label="${esc(tip)}"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">${ic("alert", 22).replace(/^<svg[^>]*>|<\/svg>$/g, "")}</svg><span class="ag-wzbtn-dot"></span></button>`;
+  }
+
+  // Tippen auf den Kreis: Protokoll › Alarme mit dem neuesten Alarm aufgeklappt; er gilt damit als gesehen
+  _openAlarm() {
+    const unseen = this._system()?.alarm_unseen;
+    // Aufgeklappt wird der Alarm, den der Kreis meint (der neueste ungelesene)
+    this.log.touched = Boolean(unseen);
+    this.log.open = new Set(unseen ? [unseen.id] : []);
+    this.log.expandFirst = !unseen;
+    this.log.pane = "alarms";
+    this._tab = "log";
+    this._savePref("tab", "log");
+    this._render();
+    if (unseen) this._markAlarmSeen(this._sel, unseen.id);
+  }
+
+  // Einen Alarm als gesehen melden (Tippen auf den Kreis oder Öffnen des Alarms im Protokoll): der Server merkt es für die ganze Anlage
+  async _markAlarmSeen(entryId, recordId, seen = true) {
+    const sys = (this._data?.systems || []).find((s) => s.entry_id === entryId);
+    try {
+      await this._hass.callWS({ type: "alarmageddon/alarm_seen", entry_id: entryId, recording: recordId, seen });
+      if (seen) {
+        if (sys?.alarm_unseen && String(sys.alarm_unseen.id) <= String(recordId)) sys.alarm_unseen = null; // ein neuerer ungelesener Alarm lässt den Kreis stehen
+      } else if (sys && (!sys.alarm_unseen || String(sys.alarm_unseen.id) < String(recordId))) {
+        // Als ungelesen markiert (Wunsch des Nutzers): der Kreis erinnert wieder, er zeigt den neuesten ungelesenen Alarm
+        sys.alarm_unseen = { id: recordId, running: false };
+      }
+      this._fillHeadSys();
+      return true;
+    } catch {
+      return false; // der Kreis bleibt, wie er war, bis es klappt
+    }
+  }
+
   // Knopf des Einrichtungsassistenten im Kopf (1.71.0; Wunsch des Nutzers 2026-11-20, 11:38, Mockup assistent-knopf-v1; Entscheide 11:48: Variante A
   // "Schwung", nur solange der Assistent nicht fertig ist, Bewegung immer). Er erinnert daran, dass der Assistent noch da ist ("Später", "Nicht mehr
   // anzeigen", offen) und führt beim gemerkten Schritt weiter, wie "Fortsetzen" unter Konfiguration › Anlage (offene Änderungen fragen vorher).
@@ -1140,22 +1183,37 @@ class AlarmageddonPanel extends HTMLElement {
   // "Später" im Assistenten), dann nach jeweils WAVE_PAUSE_MS Pause wieder (seit 1.73.0, Wunsch des Nutzers 2026-11-20, 21:29): erst der Stab mit den
   // Sternen, dann die Sternschnuppe wie im Device Panel. Nie bei jedem Wechsel des Reiters ein Neustart: ein Zeitgeber läuft, bis der Knopf verschwindet
   // (Assistent fertig). "Bewegung reduzieren" gilt hier bewusst nicht (Entscheid des Nutzers 2026-11-20, 11:48: "immer animieren")
+  // Seit 1.82.0 gehören auch der rote Kreis nach einem Alarm (.ag-albtn) dazu: alle Knöpfe des Kopfes tragen die Klasse ag-wzbtn und bekommen "wave" im selben Augenblick,
+  // so fahren die Kometen gleichzeitig los und blitzen gleichzeitig auf. Erscheint der Kreis, während der Zauberstab in der Pause ist, beginnt die nächste Welle bald.
   _waveLater() {
-    if (this._wzWaveTimer || !this._content?.querySelector(".ag-headsys .ag-wzbtn")) return;
+    const buttons = this._content?.querySelectorAll(".ag-headsys .ag-wzbtn");
+    const alarm = Boolean(this._content?.querySelector(".ag-headsys .ag-albtn"));
+    if (!buttons?.length) return;
+    if (alarm && !this._alShown && !this._waving) {
+      this._alShown = true;
+      clearTimeout(this._wzWaveTimer);
+      this._wzWaveTimer = null;
+      this._waveSchedule(AL_WAVE_MS);
+      return;
+    }
+    if (!alarm) this._alShown = false;
+    if (this._wzWaveTimer) return;
     this._waveSchedule(WAVE_MS);
   }
 
   _waveSchedule(delay) {
     this._wzWaveTimer = setTimeout(() => {
-      const btn = this._content?.querySelector(".ag-headsys .ag-wzbtn");
-      if (!btn) {
+      const buttons = this._content?.querySelectorAll(".ag-headsys .ag-wzbtn");
+      if (!buttons?.length) {
         this._wzWaveTimer = null; // kein Knopf mehr: `_waveLater` startet neu, wenn er wieder erscheint
         return;
       }
       this._wzWaved = true;
-      btn.classList.add("wave");
+      this._waving = true;
+      for (const btn of buttons) btn.classList.add("wave");
       this._wzWaveTimer = setTimeout(() => {
-        this._content?.querySelector(".ag-headsys .ag-wzbtn")?.classList.remove("wave");
+        this._waving = false;
+        for (const btn of this._content?.querySelectorAll(".ag-headsys .ag-wzbtn") || []) btn.classList.remove("wave");
         this._waveSchedule(WAVE_PAUSE_MS);
       }, WAVE_LEN_MS);
     }, delay);
@@ -1165,13 +1223,12 @@ class AlarmageddonPanel extends HTMLElement {
     const title = systems.length > 1
       ? `<select class="ag-select" data-act="system" aria-label="${esc(this._t("groupsSystem"))}">${systems.map((x) => `<option value="${esc(x.entry_id)}" ${x.entry_id === this._sel ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select>`
       : `<h2 class="ag-systitle">${esc(cur.title)}</h2>`;
-    const label = this._t("openInHa");
-    const text = this.hasAttribute("narrow") ? "" : esc(label);
-    // Anlage hinzufügen (1.31.0): öffnet einen eigenen Dialog, nicht Home Assistant; am Computer mit Text, auf dem Handy nur das Plus
+    // Anlage hinzufügen (1.31.0): öffnet einen eigenen Dialog, nicht Home Assistant; am Computer mit Text, auf dem Handy nur das Plus.
+    // Den Knopf "Integration in HA öffnen" gibt es seit 1.82.0 nicht mehr (Wunsch des Nutzers 2026-11-22)
     const add = this._t("addSystem");
-    return `${title}<button class="ag-iconbtn" data-act="rename" title="${esc(this._t("renameTip"))}" aria-label="${esc(this._t("renameTip"))}">${ic("pencil", 22)}</button>${this._wizardBtn(cur)}<span class="ag-grow"></span>
-      <button class="ag-btn ${text ? "" : "ag-btn-ic"}" data-act="add" aria-label="${esc(add)}" title="${esc(add)}">${ic("plus", 18)}${text ? esc(add) : ""}</button>
-      <button class="ag-btn ${text ? "" : "ag-btn-ic"}" data-act="open-ha" aria-label="${esc(label)}" title="${esc(label)}">${ic("external", 18)}${text}</button>`;
+    const text = this.hasAttribute("narrow") ? "" : esc(add);
+    return `${title}<button class="ag-iconbtn" data-act="rename" title="${esc(this._t("renameTip"))}" aria-label="${esc(this._t("renameTip"))}">${ic("pencil", 22)}</button>${this._alarmBtn(cur)}${this._wizardBtn(cur)}<span class="ag-grow"></span>
+      <button class="ag-btn ${text ? "" : "ag-btn-ic"}" data-act="add" aria-label="${esc(add)}" title="${esc(add)}">${ic("plus", 18)}${text}</button>`;
   }
 
   // Easter Egg: das Logo zoomt aus seiner Lage in die Mitte; das Schild dreht sich, ein Lichtkegel kreist wie bei einer
@@ -1827,6 +1884,8 @@ class AlarmageddonPanel extends HTMLElement {
       const on = !el.classList.contains("on");
       el.classList.toggle("on", on);
       el.setAttribute("aria-checked", String(on));
+    } else if (act === "alarm-open") {
+      this._openAlarm();
     } else if (act === "rename") {
       this._openRename();
     } else if (act === "rename-ids") {
@@ -1835,8 +1894,7 @@ class AlarmageddonPanel extends HTMLElement {
       el.setAttribute("aria-checked", String(on));
     } else if (act === "close-rename") {
       this._closeDialog("ag-rename");
-    } else if (act === "open-ha") {
-      this._navigate(`/config/integrations/integration/alarmageddon#config_entry=${encodeURIComponent(this._sel || "")}`);
+
     } else if (act === "close-code") {
       this._closeDialog("ag-code");
     } else if (act === "keep") {
