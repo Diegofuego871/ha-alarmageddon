@@ -3,7 +3,7 @@
 // Dieselben Schlüssel wie der Optionsdialog von HA (WebSocket alarmageddon/save_system). Der Code bleibt im Optionsdialog.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, iconTitle, matchQuery, searchField, accentGrid, accentColor, accentPreview, accentChips, ACC_PV } = await import(`./common.js${V}`);
+const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, iconTitle, matchQuery, searchField, accentGrid, accentColor, accentPreview, ACC_PV } = await import(`./common.js${V}`);
 const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo, soundBadge } = await import(`./customsounds.js${V}`);
 const { RoutinesUi, normRoutines, canon } = await import(`./routines.js${V}`);
 
@@ -570,7 +570,7 @@ export class SystemUi {
     const t = (k, v) => this._t(k, v);
     const hex = accentColor(d.accent);
     return chapter(t("accTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum"><span class="ag-oav ag-tint ag-tint-accent on">${ic("palette", 20)}</span>
-      <div class="ag-settx"><b class="ag-accname"><span class="ag-accdot ag-accdot-s ag-accdot-ring" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span>${esc(t(`acc_${d.accent}`))}</b>${accentChips(d.accent)}${d.accent !== this.base().accent ? `<small class="ag-t2 ag-unsaved">${esc(t("unsavedOne"))}</small>` : ""}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="acc-open">${ic("palette", 18)}${esc(t("accChange"))}</button></div></div></div>`, t("accHint"));
+      <div class="ag-settx"><b class="ag-accname"><span class="ag-accdot ag-accdot-s ag-accdot-ring" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span>${esc(t(`acc_${d.accent}`))}</b>${d.accent !== this.base().accent ? `<small class="ag-t2 ag-unsaved">${esc(t("unsavedOne"))}</small>` : ""}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="acc-open">${ic("palette", 18)}${esc(t("accChange"))}</button></div></div></div>`, t("accHint"));
   }
 
   accentDlg() {
@@ -1354,6 +1354,12 @@ export class SystemUi {
   }
 
   onInput(el) {
+    if (el.dataset.sys === "accpv-val") {
+      // Schieber der Vorschau: nur Anzeige, ohne Neuzeichnen (der Griff bleibt unter dem Finger)
+      (this.accPv = this.accPv || ACC_PV()).val = Number(el.value);
+      el.style.setProperty("--v", `${el.value}%`);
+      return;
+    }
     if (el.dataset.sys === "st-value" || el.dataset.sys === "st-unit") {
       // Entwurf der Seite wie das automatische Backup; ungültig (nicht 5 Minuten bis 24 Stunden) sperrt "Speichern"
       const d = this.ensureDraft();

@@ -112,7 +112,7 @@ export const accentGrid = (current, attr, t) => `<div class="ag-acc" role="radio
 // Vorschau der gewählten Farbe (Fenster der Akzentfarbe, Wunsch des Nutzers 2026-11-22): die Bausteine, in denen das Panel sie braucht, mit der Farbe nur in
 // diesem Kasten (--ag-primary lokal). Sie sind eine kleine Simulation (Wunsch des Nutzers 2026-11-22): Reiter, Schalter, Haken, Pfeil und Knopf lassen sich
 // antippen und ändern nur diese Anzeige (Zustand `pv`: tab, tog, chk, up, tag), nie etwas an der Anlage
-export const ACC_PV = () => ({ tab: 0, tog: true, chk: true, up: true, tag: true, flash: false });
+export const ACC_PV = () => ({ tab: 0, tog: true, chk: true, up: true, tag: true, val: 62, flash: false });
 export const accentPreview = (key, t, pv = ACC_PV()) => {
   const hex = accentColor(key);
   const b = (act, label, inner, cls = "") => `<button type="button" class="${cls}" data-sys="${act}" aria-label="${esc(label)}">${inner}</button>`;
@@ -123,13 +123,9 @@ export const accentPreview = (key, t, pv = ACC_PV()) => {
         <button type="button" class="ag-toggle ${pv.tog ? "on" : ""}" role="switch" aria-checked="${pv.tog}" data-sys="accpv-tog" aria-label="${esc(t("accPvTog"))}"></button>
         ${b("accpv-round", t("accPvRound"), ic(pv.up ? "arrowUp" : "arrowDown", 16), "ag-accprev-round")}
         ${b("accpv-chk", t("accPvChk"), pv.chk ? ic("check", 14) : "", `ag-accprev-chk ${pv.chk ? "on" : ""}`)}</div>
-      <div class="ag-accprev-row">${b("accpv-tag", t("accPvTag"), esc(t("accPvTag")), `ag-accprev-tag ${pv.tag ? "on" : ""}`)}<span class="ag-accprev-link">${esc(t("accPvLink"))}</span><span class="ag-accprev-bar"><i></i></span></div></div></div>`;
+      <div class="ag-accprev-row">${b("accpv-tag", t("accPvTag"), esc(t("accPvTag")), `ag-accprev-tag ${pv.tag ? "on" : ""}`)}<span class="ag-accprev-link">${esc(t("accPvLink"))}</span><input type="range" class="ag-accprev-range" data-sys="accpv-val" min="0" max="100" value="${pv.val}" style="--v:${pv.val}%" aria-label="${esc(t("accPvSlider"))}"></div></div></div>`;
 };
 // Kleine Vorschau in der Zeile der Seite: Punkt wie am Logo (mit Ring und Schimmer), Schalter, Pille und Balken in der Farbe
-export const accentChips = (key) => {
-  const hex = accentColor(key);
-  return `<span class="ag-accchips" style="${hex ? `--ag-primary:${hex}` : ""}" aria-hidden="true"><span class="ag-toggle on ag-accchip-tg"></span><span class="ag-accchip-pill"></span><span class="ag-accprev-bar ag-accchip-bar"><i></i></span></span>`;
-};
 
 export const fmtDur = (seconds) => {
   const n = Math.max(0, Math.round(Number(seconds) || 0));

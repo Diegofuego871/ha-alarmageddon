@@ -1710,11 +1710,6 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-accname .ag-accdot { width: 18px; height: 18px; }
 /* Punkt wie am Logo des Assistenten: heller Rand und ein Schimmer in der Farbe */
 .ag-accdot-ring { box-shadow: 0 0 0 2px var(--ag-card), 0 0 0 3px var(--ag-divider); }
-.ag-accchips { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-.ag-accchip-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--ag-primary); box-shadow: 0 0 6px 1px color-mix(in srgb, var(--ag-primary) 55%, transparent); }
-.ag-accchip-tg { flex: none; transform: scale(.8); transform-origin: left center; margin-right: -6px; }
-.ag-accchip-pill { width: 34px; height: 14px; border-radius: 999px; background: var(--ag-primary); }
-.ag-accchip-bar { flex: 0 0 56px; min-width: 0; height: 6px; }
 .ag-acc-pop .ag-acc { margin: 6px 0 4px; }
 /* Vorschau im Fenster der Akzentfarbe: --ag-primary wird am Kasten gesetzt, die Bausteine nutzen es wie im Panel */
 .ag-accprev { margin-top: 14px; border: 1px dashed var(--ag-divider); border-radius: 16px; padding: 12px 14px 14px; background: color-mix(in srgb, var(--ag-bg) 60%, transparent); }
@@ -1730,8 +1725,11 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-accprev-tag { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 0; color: var(--ag-text2); background: transparent; box-shadow: inset 0 0 0 1px var(--ag-divider); }
 .ag-accprev-tag.on { color: var(--ag-primary); background: var(--ag-primary-soft); box-shadow: none; }
 .ag-accprev-link { color: var(--ag-primary); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
-.ag-accprev-bar { flex: 1 1 80px; min-width: 80px; height: 8px; border-radius: 999px; background: var(--ag-primary-soft); overflow: hidden; }
-.ag-accprev-bar i { display: block; width: 62%; height: 100%; border-radius: inherit; background: var(--ag-primary); }
+.ag-accprev-range { flex: 1 1 80px; min-width: 80px; height: 28px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; touch-action: pan-y; }
+.ag-accprev-range::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: linear-gradient(to right, var(--ag-primary) var(--v, 50%), var(--ag-primary-soft) var(--v, 50%)); }
+.ag-accprev-range::-moz-range-track { height: 8px; border-radius: 999px; background: linear-gradient(to right, var(--ag-primary) var(--v, 50%), var(--ag-primary-soft) var(--v, 50%)); }
+.ag-accprev-range::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.ag-accprev-range::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
 .ag-acc { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .ag-accbtn { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; border: 1px solid var(--ag-divider); border-radius: 14px; background: var(--ag-card); color: var(--ag-text); font: inherit; text-align: left; cursor: pointer; }
 .ag-accbtn:hover { background: var(--ag-hover); }

@@ -13,8 +13,8 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !!r.querySelector('.ag-health')");
     const prim = () => s.ev("return r.host.style.getPropertyValue('--ag-primary')");
     check(`${tag}: ohne eigene Farbe gilt die Farbe des Themes (kein Wert am Panel)`, (await prim()) === "");
-    const chap = await s.ev(`const cs=[...r.querySelectorAll('.ag-chap')]; const i=cs.findIndex((c) => c.querySelector('.ag-chap-t')?.textContent === ${JSON.stringify(TITLE[lang])}); const wz=cs.findIndex((c) => c.querySelector('.ag-wzrow')); return { i, wz, btn: !!cs[i]?.querySelector('[data-sys="acc-open"]'), tint: !!cs[i]?.querySelector('.ag-tint-accent'), grid: cs[i]?.querySelectorAll('.ag-accbtn').length, name: cs[i]?.querySelector('.ag-accname')?.textContent.trim(), dot: cs[i]?.querySelector('.ag-accdot')?.getBoundingClientRect().width, chips: !!cs[i]?.querySelector('.ag-accchips .ag-accchip-tg') && !!cs[i]?.querySelector('.ag-accchips .ag-accchip-pill') }`);
-    check(`${tag}: Kapitel "${TITLE[lang]}" direkt über dem Einrichtungsassistenten: Zeile mit eigenem Symbol und Knopf, die Farben stehen nicht auf der Seite`, chap.i >= 0 && chap.wz === chap.i + 1 && chap.btn && chap.tint && !chap.grid && chap.name === NAMES[lang][0] && chap.dot >= 14 && chap.chips, JSON.stringify(chap));
+    const chap = await s.ev(`const cs=[...r.querySelectorAll('.ag-chap')]; const i=cs.findIndex((c) => c.querySelector('.ag-chap-t')?.textContent === ${JSON.stringify(TITLE[lang])}); const wz=cs.findIndex((c) => c.querySelector('.ag-wzrow')); return { i, wz, btn: !!cs[i]?.querySelector('[data-sys="acc-open"]'), tint: !!cs[i]?.querySelector('.ag-tint-accent'), grid: cs[i]?.querySelectorAll('.ag-accbtn').length, name: cs[i]?.querySelector('.ag-accname')?.textContent.trim(), dot: cs[i]?.querySelector('.ag-accdot')?.getBoundingClientRect().width, chips: !!cs[i]?.querySelector('.ag-accchips') }`);
+    check(`${tag}: Kapitel "${TITLE[lang]}" direkt über dem Einrichtungsassistenten: Zeile mit eigenem Symbol und Knopf, die Farben stehen nicht auf der Seite`, chap.i >= 0 && chap.wz === chap.i + 1 && chap.btn && chap.tint && !chap.grid && chap.name === NAMES[lang][0] && chap.dot >= 14, JSON.stringify(chap));
     await s.tap('[data-sys="acc-open"]');
     await s.waitFor("return r.getElementById('ag-accent').open");
     const dlg = await s.ev(`const d=r.getElementById('ag-accent'); return { names: [...d.querySelectorAll('.ag-accbtn')].map((b) => b.innerText.trim()), on: d.querySelector('.ag-accbtn.on')?.dataset.key, prev: !!d.querySelector('.ag-accprev'), btns: [...d.querySelectorAll('.ag-dlg-btns .ag-btn')].map((b) => b.innerText.trim()) }`);
@@ -28,6 +28,18 @@ for (const lang of ["de", "en"]) {
     for (const a of ["accpv-tab\"][data-i=\"1", "accpv-tog", "accpv-chk", "accpv-tag", "accpv-round", "accpv-btn"]) await s.tap(`#ag-accent [data-sys="${a.replace(/\\"/g, '"')}"]`);
     const after = await sim();
     check(`${tag}: Vorschau ist eine Simulation: Reiter, Schalter, Haken, Pille, Pfeil und Knopf reagieren, die Farbwahl bleibt`, before.tab === 0 && after.tab === 1 && before.tog && !after.tog && before.chk && !after.chk && before.tag && !after.tag && before.up && !after.up && after.btn !== before.btn && after.pick === "green", JSON.stringify([before, after]));
+    {
+      // Schieber der Vorschau: echtes Ziehen mit der Maus (Desktop) bzw. Antippen (Handy) ändert den Wert und füllt den Balken
+      const h = await s.el('#ag-accent [data-sys="accpv-val"]');
+      await h.scrollIntoViewIfNeeded();
+      const box = await h.boundingBox();
+      const v0 = Number(await s.ev("return r.querySelector('[data-sys=\"accpv-val\"]').value"));
+      const x = box.x + box.width * 0.2, y = box.y + box.height / 2;
+      if (mobile) await s.page.touchscreen.tap(x, y);
+      else { await s.page.mouse.move(box.x + box.width * 0.6, y); await s.page.mouse.down(); await s.page.mouse.move(x, y, { steps: 6 }); await s.page.mouse.up(); }
+      const v1 = await s.ev("const i=r.querySelector('[data-sys=\"accpv-val\"]'); return { v: Number(i.value), fill: i.style.getPropertyValue('--v') }");
+      check(`${tag}: Schieber der Vorschau lässt sich bewegen und füllt den Balken (${v0} -> ${v1.v})`, v1.v !== v0 && v1.v < 40 && v1.fill === v1.v + '%');
+    }
     await s.waitFor("return r.getElementById('ag-accent').querySelector('[data-sys=\"accpv-btn\"]').innerText.trim() !== '" + after.btn + "'", 3000).catch(() => {});
     await s.tap('#ag-accent [data-sys="acc-cancel"]');
     await s.waitFor("return !r.getElementById('ag-accent').open");

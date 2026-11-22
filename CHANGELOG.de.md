@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.75.3] - 2026-11-22
+
+### Geändert
+
+- **Akzentfarbe: nur der Punkt in der Zeile, ein verschiebbarer Schieber im Fenster:** die Zeile unter Konfiguration › Anlage zeigt nur noch die gewählte Farbe als Punkt mit ihrem Namen (die kleine Vorschau aus Schalter, Knopf und Balken entfällt, sie sah aus wie echte Bedienelemente). Im Fenster ist der Balken der Vorschau jetzt ein Schieber, den du ziehen oder antippen kannst; er füllt sich in der gewählten Farbe. Wie der Rest der Vorschau ändert er nichts und speichert nichts.
+
 ## [1.75.2] - 2026-11-22
 
 ### Geändert
@@ -2171,6 +2177,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.75.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.3
 [1.75.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.2
 [1.75.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.1
 [1.75.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.0
