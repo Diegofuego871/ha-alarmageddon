@@ -29,6 +29,11 @@ for (const lang of ["de", "en"]) {
     const after = await sim();
     check(`${tag}: Vorschau ist eine Simulation: Reiter, Schalter, Haken, Pille, Pfeil und Knopf reagieren, die Farbwahl bleibt`, before.tab === 0 && after.tab === 1 && before.tog && !after.tog && before.chk && !after.chk && before.tag && !after.tag && before.up && !after.up && after.btn !== before.btn && after.pick === "green", JSON.stringify([before, after]));
     {
+      // Knopf der Zeile wie "Assistent starten": linksbündig, nie über die ganze Breite
+      const g = await s.ev(`const b=r.querySelector('[data-sys="acc-open"]'); const c=b.closest('.ag-card'); const x=b.getBoundingClientRect(), y=c.getBoundingClientRect(); return { w: x.width, cw: y.width, left: x.left - y.left }`);
+      check(`${tag}: "Akzentfarbe ändern" nicht über die ganze Breite und linksbündig (${Math.round(g.w)} von ${Math.round(g.cw)} px)`, g.w < g.cw * 0.7 && (!mobile || g.left < 90));
+    }
+    {
       // Schieber der Vorschau: echtes Ziehen mit der Maus (Desktop) bzw. Antippen (Handy) ändert den Wert und füllt den Balken
       const h = await s.el('#ag-accent [data-sys="accpv-val"]');
       await h.scrollIntoViewIfNeeded();

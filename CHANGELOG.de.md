@@ -11,7 +11,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Geändert
 
-- **Akzentfarbe: nur der Punkt in der Zeile, ein verschiebbarer Schieber im Fenster:** die Zeile unter Konfiguration › Anlage zeigt nur noch die gewählte Farbe als Punkt mit ihrem Namen (die kleine Vorschau aus Schalter, Knopf und Balken entfällt, sie sah aus wie echte Bedienelemente). Im Fenster ist der Balken der Vorschau jetzt ein Schieber, den du ziehen oder antippen kannst; er füllt sich in der gewählten Farbe. Wie der Rest der Vorschau ändert er nichts und speichert nichts.
+- **Akzentfarbe: nur der Punkt in der Zeile, ein verschiebbarer Schieber im Fenster:** die Zeile unter Konfiguration › Anlage zeigt nur noch die gewählte Farbe als Punkt mit ihrem Namen (die kleine Vorschau aus Schalter, Knopf und Balken entfällt, sie sah aus wie echte Bedienelemente). Im Fenster ist der Balken der Vorschau jetzt ein Schieber, den du ziehen oder antippen kannst; er füllt sich in der gewählten Farbe. Wie der Rest der Vorschau ändert er nichts und speichert nichts. Auf dem Handy ist der Knopf "Akzentfarbe ändern" nicht mehr über die ganze Breite gestreckt: er steht links und ist so gross wie "Assistent starten".
 
 ## [1.75.2] - 2026-11-22
 

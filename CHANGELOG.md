@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **Accent colour: only the dot in the row, a slider you can move in the window:** the row under Configuration › Alarm system shows only the chosen colour as a dot with its name (the small preview of switch, button and bar is gone, since it looked like real controls). In the window the bar of the preview is now a slider you can drag or tap; it fills in the chosen colour. Like the rest of the preview it changes nothing and saves nothing.
+- **Accent colour: only the dot in the row, a slider you can move in the window:** the row under Configuration › Alarm system shows only the chosen colour as a dot with its name (the small preview of switch, button and bar is gone, since it looked like real controls). In the window the bar of the preview is now a slider you can drag or tap; it fills in the chosen colour. Like the rest of the preview it changes nothing and saves nothing. On the phone the button "Change accent colour" is no longer stretched over the whole width: it sits on the left, as large as "Start assistant".
 
 ## [1.75.2] - 2026-11-22
 

@@ -569,7 +569,7 @@ export class SystemUi {
   _accentHtml(d) {
     const t = (k, v) => this._t(k, v);
     const hex = accentColor(d.accent);
-    return chapter(t("accTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum"><span class="ag-oav ag-tint ag-tint-accent on">${ic("palette", 20)}</span>
+    return chapter(t("accTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum ag-accrow"><span class="ag-oav ag-tint ag-tint-accent on">${ic("palette", 20)}</span>
       <div class="ag-settx"><b class="ag-accname"><span class="ag-accdot ag-accdot-s ag-accdot-ring" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span>${esc(t(`acc_${d.accent}`))}</b>${d.accent !== this.base().accent ? `<small class="ag-t2 ag-unsaved">${esc(t("unsavedOne"))}</small>` : ""}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="acc-open">${ic("palette", 18)}${esc(t("accChange"))}</button></div></div></div>`, t("accHint"));
   }
 

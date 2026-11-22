@@ -3,7 +3,7 @@
 Einstieg für jede neue Claude-Code-Session. Zuerst diese Datei lesen, dann
 `CLAUDE.md`, `docs/CONCEPT.md`, `docs/LEARNINGS.md`, `docs/DESIGN.md`.
 
-- 1.75.3 (2026-11-22, noch ohne Tag): Akzentfarbe: in der Zeile nur Punkt und Name (keine Mini-Vorschau, `accentChips` entfernt), Balken der Vorschau im Fenster ist ein Schieber (`accpv-val`, `ACC_PV.val`, `system.js onInput`); PANEL_VERSION 262.
+- 1.75.3 (2026-11-22, noch ohne Tag): Akzentfarbe: in der Zeile nur Punkt und Name (keine Mini-Vorschau, `accentChips` entfernt), Balken der Vorschau im Fenster ist ein Schieber (`accpv-val`, `ACC_PV.val`, `system.js onInput`); Zeile mit `ag-wzrow` (Knopf auf dem Handy linksbündig, nicht gestreckt); PANEL_VERSION 263.
 - 1.75.2 (2026-11-22, veröffentlicht): Akzentfarbe: Punkt und Mini-Vorschau in der Zeile (`common.js accentChips`), bedienbare Simulation im Fenster (`ACC_PV`, `accentPreview`, Handler `accpv-*` in `system.js`); PANEL_VERSION 261.
 - 1.75.1 (2026-11-22, veröffentlicht): Akzentfarbe in eigenem Fenster `#ag-accent` (`system.js _accentHtml/openAccent/_renderAccent`, `common.js accentPreview`, Symbol `palette`), Marke "Noch nicht gespeichert"; PANEL_VERSION 260; Suite `accent-e2e.mjs` angepasst.
 - 1.75.0 (2026-11-21, Tag `v1.75.0`; 1.74.7 übersprungen und enthalten): Akzentfarbe je Anlage (`CONF_ACCENT`, `ACCENTS`, WS `save_system`/`create_system` mit `accent`, in `data` je Anlage, im Backup über `SYSTEM_OPTIONS_SCHEMA`; Panel `common.js ACCENTS/accentGrid`, `system._accentHtml` über dem Assistenten, Wahl im Fenster "Anlage hinzufügen", `_applyAccent` setzt `--ag-primary`; Farbwerte frei gewählt, nicht mit dem Device Panel abgeglichen; PANEL_VERSION 259; Tests `test_accent.py`, Suite `accent-e2e.mjs`).
