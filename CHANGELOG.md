@@ -7,13 +7,22 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.76.2] - 2026-11-22
+## [1.77.0] - 2026-11-22
+
+### Added
+
+- **Action "Report to HealthCheck":** reporting an alarm to a HealthCheck service is now an action, so it fits the concept of the alarm actions and can be used wherever it makes sense (alarm, after acknowledging, when arming, during the delays, when disarming, silent alarm, also in a group; not in monitoring). It is only offered once a service is set up. You choose a service from a drop-down of the services you set up, and the only part you edit is the **suffix**; for a known service the suggestion is filled in, and "Use suggestion" stands next to it as soon as you change it. A read-only field below shows the whole call (the address of the service with your suffix). A link "Open HealthCheck services" leads to the services without leaving the action. The play button of the card sends the report once (as a test, shown as such in the log of the service, and the self-test reads only). Every action has its own suffix, so you can report something different per alarm type. The call is its own task: it never waits and never holds up the alarm. If the service is deleted later, the card says "Service missing" and the self-test reports it.
 
 ### Changed
 
+- **Services no longer have an alarm suffix:** the chapter "On alarm" disappears from the form of a service, and so do the automatic alarm call (a service was called as soon as an alarm system triggered) and the button "Send alarm" in the list and in the head of the log; only "Send failure" and "Send life sign" remain. **An alarm suffix you have set up (1.73.0 to 1.76.x) is dropped: set up an action "Report to HealthCheck" instead.** The text "What are HealthCheck services?" mentions that services can be used in the alarm actions.
 - **Preview of a routine (editor and eye):** the states in which the routine does not run now carry a red cross where the executed state has its tick. Button and text stay grey.
-- **"Use suggestion":** the button next to a suggestion (failure suffix, alarm suffix, dashboard link) is now called "Use suggestion", so it is not mistaken for saving.
+- **"Use suggestion":** the button next to a suggestion (failure suffix, dashboard link, action) is now called "Use suggestion", so it is not mistaken for saving.
 - **Names without "(optional)":** the name field of an action group and of a backup no longer says "(optional)" or "(freiwillig)"; it is still not required.
+
+## [1.76.2] - 2026-11-22
+
+Not released; included in 1.77.0.
 
 ## [1.76.1] - 2026-11-22
 
@@ -2206,7 +2215,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.76.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.2
+[1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0
 [1.76.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.1
 [1.76.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.0
 [1.75.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.3

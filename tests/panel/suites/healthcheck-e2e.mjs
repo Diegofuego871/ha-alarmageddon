@@ -13,13 +13,13 @@ const T = {
     preview: "Aufruf bei Fehler:", errUrl: "vollständige http- oder https-URL", errSuffix: "muss mit /, ? oder & beginnen", errInterval: "1 Minute bis 24 Stunden",
     saved: "Dienst gespeichert", okSent: "Lebenszeichen gesendet", failSent: "Fehler gesendet", failed: "Gescheitert", noAnswer: "keine Antwort", test: "Test",
     failedRow: "1 Dienst: letztes Lebenszeichen gescheitert", noMatch: "Kein Dienst passt zur Suche.", editTitle: "Dienst bearbeiten", removeTitle: "Dienst entfernen?",
-    errName: "Einen Namen eingeben.", chaps: ["Dienst", "Bei Selbsttest-Fehler", "Bei Alarm", "Dashboard", "Intervall"], alarmEmpty: "Ohne Zusatz wird diesem Dienst kein Alarm gemeldet." },
+    errName: "Einen Namen eingeben.", chaps: ["Dienst", "Bei Selbsttest-Fehler", "Dashboard", "Intervall"] },
   en: { chapter: "HealthCheck", none: "No external service", one: "1 of 5 services", three: "3 of 5 services", five: "5 of 5 services", add: "Add service", show: "Show services",
     title: "HealthCheck services", empty: "No service yet.", known: "Recognized: Healthchecks.io", suggest: "Suggestion for Healthchecks.io: /fail", take: "Use suggestion",
     preview: "Call on failure:", errUrl: "complete http or https URL", errSuffix: "must start with /, ? or &", errInterval: "1 minute to 24 hours",
     saved: "Service saved", okSent: "Life sign sent", failSent: "Failure sent", failed: "Failed", noAnswer: "no answer", test: "test",
     failedRow: "1 service: last life sign failed", noMatch: "No service matches the search.", editTitle: "Edit service", removeTitle: "Remove service?",
-    errName: "Enter a name.", chaps: ["Service", "On self-test failure", "On alarm", "Dashboard", "Interval"], alarmEmpty: "Without a suffix no alarm is reported to this service." },
+    errName: "Enter a name.", chaps: ["Service", "On self-test failure", "Dashboard", "Interval"] },
 };
 // Erfundene Adressen (nie eine echte Ping-URL)
 const HC = "https://hc-ping.com/0a1b2c3d-1111-4222-8333-444455556666";
@@ -56,33 +56,22 @@ for (const lang of ["de", "en"]) {
     let f = await form();
     check(`${tag}: Healthchecks.io erkannt, Zusatz "/fail" vorgeschlagen und eingetragen (Feld unberührt), Vorschau der Fehler-URL`,
       f.known.includes(t.known) && f.suffix === "/fail" && f.prev.includes(t.preview) && f.prev.includes(`${HC}/fail`) && !f.offer, JSON.stringify(f));
-    check(`${tag}: Healthchecks.io erkannt: auch der Alarm-Zusatz "/2" ist eingesetzt`, await s.ev("return r.querySelector('#ag-hcform [data-hc=\"f-alarm\"]').value === '/2'"));
     check(`${tag}: Fokus bleibt beim Tippen in der URL`, await s.ev("return r.activeElement?.dataset.hc === 'f-url'"));
     // Andere URL: der Vorschlag folgt, solange niemand den Zusatz berührt hat
     await (await s.el('[data-hc="f-url"]')).fill(CRON);
     f = await form();
     check(`${tag}: Cronitor: Zusatz mit englischer Meldung folgt (unberührt)`, f.suffix === "?state=fail&message=Self-test+failed" && f.prev.includes(`${CRON}?state=fail&message=Self-test+failed`), JSON.stringify(f));
-    // Alarm-Zusatz: eigenes Kapitel ohne Zusatz "freiwillig" im Titel; seit 1.74.1 (Wunsch des Nutzers 2026-11-21) setzt ein erkannter Dienst beide Zusätze von selbst ein,
-    // solange sie niemand berührt hat; beide bleiben freiwillig (leer speichern geht, dann entfällt der Testknopf)
+    // Seit 1.77.0 gibt es im Dienst keinen Alarm-Zusatz mehr (den Alarm meldet die Aktion "HealthCheck melden"): vier Kapitel
     const chapters = await s.ev("const d=r.getElementById('ag-hcform'); return [...d.querySelectorAll('section.ag-chap > h3.ag-chap-t')].map((h) => h.textContent)");
-    check(`${tag}: Formular in fünf Kapiteln mit Titel (Strich davor): ${t.chaps.join(", ")}`, JSON.stringify(chapters) === JSON.stringify(t.chaps), JSON.stringify(chapters));
-    const alarm = await s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { value: q('[data-hc=\"f-alarm\"]').value, offer: q('[data-hcp=\"offerAlarm\"]').innerText, prev: q('[data-hcp=\"prevAlarm\"]').innerText }");
-    check(`${tag}: Cronitor erkannt: der Alarm-Zusatz ist von selbst eingesetzt ("?state=fail&message=Alarm+triggered"), Vorschau mit der Adresse, kein Vorschlag daneben`,
-      alarm.value === "?state=fail&message=Alarm+triggered" && !alarm.offer && alarm.prev.includes(`${CRON}?state=fail&message=Alarm+triggered`), JSON.stringify(alarm));
-    // Der Nutzer ändert den Zusatz: der Vorschlag steht wieder daneben ("Übernehmen")
-    await (await s.el('[data-hc="f-alarm"]')).fill("/meinalarm");
-    // "Übernehmen" ist ein kräftiger Knopf (fett, getönter Hintergrund, Rand, mindestens 34 px hoch), beim Fehler- wie beim Alarm-Zusatz
-    const loud = await s.ev("const d=r.getElementById('ag-hcform'); return [...d.querySelectorAll('.ag-hcoffer > button.ag-link')].map((b) => { const c=getComputedStyle(b); return { w: parseInt(c.fontWeight), h: Math.round(b.getBoundingClientRect().height), bg: c.backgroundColor, bw: c.borderTopWidth }; })");
-    check(`${tag}: "${t.take}" ist ein kräftiger Knopf (fett, Hintergrund, Rand, mind. 34 px)`, loud.length >= 1 && loud.every((l) => l.w >= 700 && l.h >= 34 && l.bg !== "rgba(0, 0, 0, 0)" && l.bw === "1px"), JSON.stringify(loud));
-    await s.tap('#ag-hcform [data-hc="f-take-alarm"]');
-    const taken = await s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { value: q('[data-hc=\"f-alarm\"]').value, offer: q('[data-hcp=\"offerAlarm\"]').innerText, prev: q('[data-hcp=\"prevAlarm\"]').innerText }");
-    check(`${tag}: "${t.take}" setzt den Alarm-Zusatz wieder, Vorschau mit der Adresse, kein Vorschlag mehr`, taken.value === "?state=fail&message=Alarm+triggered" && !taken.offer && taken.prev.includes(`${CRON}?state=fail&message=Alarm+triggered`), JSON.stringify(taken));
-    await (await s.el('[data-hc="f-alarm"]')).fill("");
+    check(`${tag}: Formular in vier Kapiteln mit Titel (Strich davor): ${t.chaps.join(", ")}`, JSON.stringify(chapters) === JSON.stringify(t.chaps), JSON.stringify(chapters));
     // Eigener Zusatz: das letzte Wort hat der Nutzer
     await (await s.el('[data-hc="f-suffix"]')).fill("/meins");
     await (await s.el('[data-hc="f-url"]')).fill(HC);
     f = await form();
     check(`${tag}: eigener Zusatz bleibt bei neuer URL; der Vorschlag steht daneben ("${t.suggest}", "${t.take}")`, f.suffix === "/meins" && f.offer.includes(t.suggest) && f.offer.includes(t.take), JSON.stringify(f));
+    // "Übernehmen" ist ein kräftiger Knopf (fett, getönter Hintergrund, Rand, mindestens 34 px hoch), beim Fehler-Zusatz und beim Dashboard-Link
+    const loud = await s.ev("const d=r.getElementById('ag-hcform'); return [...d.querySelectorAll('.ag-hcoffer > button.ag-link')].map((b) => { const c=getComputedStyle(b); return { w: parseInt(c.fontWeight), h: Math.round(b.getBoundingClientRect().height), bg: c.backgroundColor, bw: c.borderTopWidth }; })");
+    check(`${tag}: "${t.take}" ist ein kräftiger Knopf (fett, Hintergrund, Rand, mind. 34 px)`, loud.length >= 1 && loud.every((l) => l.w >= 700 && l.h >= 34 && l.bg !== "rgba(0, 0, 0, 0)" && l.bw === "1px"), JSON.stringify(loud));
     await s.tap('[data-hc="f-take"]');
     f = await form();
     check(`${tag}: "${t.take}" setzt den Vorschlag, danach kein Vorschlag mehr`, f.suffix === "/fail" && !f.offer, JSON.stringify(f));
@@ -147,7 +136,7 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return r.getElementById('ag-hclist').open && r.querySelectorAll('#ag-hclist [data-hc-row]').length === 2");
     const garage = await s.sim("return window.__healthchecks.find((x) => x.url.includes('garage')).id");
     const hc = await s.sim("return window.__healthchecks.find((x) => x.url.includes('hc-ping')).id");
-    check(`${tag}: "Fehler senden" gibt es nur mit Fehler-Zusatz (ohne Zusatz fehlt der Knopf, wie "Alarm senden")`, await s.ev(`const q=(id) => r.querySelector('#ag-hclist [data-hc="test-fail"][data-id="' + id + '"]'); return !q("${garage}") && !!q("${hc}") && !q("${hc}").disabled`));
+    check(`${tag}: "Fehler senden" gibt es nur mit Fehler-Zusatz (ohne Zusatz fehlt der Knopf)`, await s.ev(`const q=(id) => r.querySelector('#ag-hclist [data-hc="test-fail"][data-id="' + id + '"]'); return !q("${garage}") && !!q("${hc}") && !q("${hc}").disabled`));
     const search = await s.el('#ag-hclist input[type="search"]');
     await search.type("garage");
     check(`${tag}: Suche "garage": eine Zeile, Fokus bleibt im Feld, X sichtbar`, await s.waitFor(`return r.querySelectorAll('#ag-hclist [data-hc-row]').length === 1 && r.activeElement?.dataset.hc === 'search' && !r.querySelector('#ag-hclist [data-hc="search-clear"]').hidden`));
@@ -157,12 +146,12 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: X leert die Suche, beide Zeilen wieder da`, await s.waitFor("return r.querySelectorAll('#ag-hclist [data-hc-row]').length === 2 && r.querySelector('#ag-hclist input[type=search]').value === ''"));
     // "Was sind HealthCheck-Dienste?" (1.67.0, Wunsch des Nutzers 2026-11-19): zum Aufklappen unter der Liste, wie "Was prüft der Selbsttest?",
     // mit vier Beispielen als Links in einem neuen Fenster; bleibt offen, wenn das Fenster neu gezeichnet wird
-    const about = () => s.ev("const d=r.querySelector('#ag-hclist details.ag-hc-about'); if (!d) return null; const b=d.getBoundingClientRect(), t=r.querySelector('#ag-hclist .ag-hcbody').getBoundingClientRect(); return { open: d.open, summary: d.querySelector('summary').textContent.trim(), below: b.top >= t.bottom - 1, info: !!d.querySelector('summary svg'), lines: d.querySelectorAll('.ag-st-ul:not(.ag-hc-ex) li').length, links: [...d.querySelectorAll('.ag-hc-ex a')].map((a) => [a.textContent, a.getAttribute('href'), a.target, a.rel]) }");
+    const about = () => s.ev("const d=r.querySelector('#ag-hclist details.ag-hc-about'); if (!d) return null; const b=d.getBoundingClientRect(), t=r.querySelector('#ag-hclist .ag-hcbody').getBoundingClientRect(); return { text: d.textContent, open: d.open, summary: d.querySelector('summary').textContent.trim(), below: b.top >= t.bottom - 1, info: !!d.querySelector('summary svg'), lines: d.querySelectorAll('.ag-st-ul:not(.ag-hc-ex) li').length, links: [...d.querySelectorAll('.ag-hc-ex a')].map((a) => [a.textContent, a.getAttribute('href'), a.target, a.rel]) }");
     const a0 = await about();
     check(`${tag}: "${lang === "de" ? "Was sind HealthCheck-Dienste?" : "What are HealthCheck services?"}" unter der Liste, zugeklappt, mit Info-Symbol`, !!a0 && !a0.open && a0.below && a0.info && a0.summary === (lang === "de" ? "Was sind HealthCheck-Dienste?" : "What are HealthCheck services?"), JSON.stringify(a0));
     await s.tap("#ag-hclist .ag-hc-about summary");
     const a1 = await about();
-    check(`${tag}: aufgeklappt: vier Absätze und vier Beispiele (Healthchecks.io, Cronitor, Better Stack, Uptime Kuma) als https-Links in neuem Fenster`, a1.open && a1.lines === 4
+    check(`${tag}: aufgeklappt: fünf Absätze (der vierte nennt die Alarmaktion) und vier Beispiele (Healthchecks.io, Cronitor, Better Stack, Uptime Kuma) als https-Links in neuem Fenster`, a1.open && a1.lines === 5 && /HealthCheck melden|Report to HealthCheck/.test(a1.text || "")
       && JSON.stringify(a1.links.map((l) => l[0])) === JSON.stringify(["Healthchecks.io", "Cronitor", "Better Stack", "Uptime Kuma"]) && a1.links.every((l) => l[1].startsWith("https://") && l[2] === "_blank" && l[3].includes("noopener")), JSON.stringify(a1));
     await s.ev("r.host.healthcheck.renderList(true); return 1");
     check(`${tag}: neu gezeichnet: bleibt aufgeklappt`, (await about())?.open === true);

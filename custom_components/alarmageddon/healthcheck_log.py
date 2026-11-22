@@ -55,7 +55,7 @@ _LOGGER = logging.getLogger(__name__)
 
 KINDS = ("ok", "report", "fail", "test")
 RESULTS = ("ok", "http", "timeout", "error")
-BY = ("tick", "selftest", "test", "start", "save", "alarm")
+BY = ("tick", "selftest", "test", "start", "save", "alarm", "action")  # "alarm": ältere Einträge (bis 1.76.x), seit 1.77.0 meldet eine Aktion
 EVENT_KINDS = ("fail", "report", "test", "back", "start")
 LIST_MAX = 300  # Zeilen je Liste in einer Antwort (neueste zuerst), wie die Sensoransicht; die Zahl gilt immer für den ganzen Zeitraum
 HOUR = 3600

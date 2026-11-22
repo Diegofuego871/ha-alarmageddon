@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
+from pytest_homeassistant_custom_component.common import async_fire_time_changed, async_mock_service
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker, AiohttpClientMockResponse
 
 from custom_components.alarmageddon import backup
@@ -31,10 +31,11 @@ from custom_components.alarmageddon.const import (
     HEALTHCHECK_TIMEOUT,
     MAX_HEALTHCHECKS,
 )
-from custom_components.alarmageddon.healthcheck import alarm_url, fail_url, host_of
+from custom_components.alarmageddon.healthcheck import fail_url, host_of
 from custom_components.alarmageddon.settings import valid_fail_suffix, valid_healthchecks
 
 from .conftest import ALARM, WINDOW, setup_alarm
+from .test_action_hang import settle
 from .test_alarm import call, open_sensor
 
 # Erfundene Kennungen (nie eine echte URL eines Nutzers in Tests)
@@ -82,14 +83,14 @@ def test_values_are_checked_one_by_one() -> None:
     ])
     # Ohne Namen (Einträge aus 1.65.0) heisst ein Eintrag wie sein Rechner
     assert out == [
-        {"id": "ok", "name": "uptime.betterstack.com", "url": BS, "fail_suffix": "/fail", "alarm_suffix": "", "interval": 60},
-        {"id": "lang", "name": "192.168.1.5", "url": "http://192.168.1.5:8000/ping/x", "fail_suffix": "", "alarm_suffix": "", "interval": 86400},
+        {"id": "ok", "name": "uptime.betterstack.com", "url": BS, "fail_suffix": "/fail", "interval": 60},
+        {"id": "lang", "name": "192.168.1.5", "url": "http://192.168.1.5:8000/ping/x", "fail_suffix": "", "interval": 86400},
     ]
     # Unbekannte Felder (etwa ein zweites Intervall) fallen weg
     named = valid_healthchecks([{"id": "a", "name": "  Haus \n  Büro ", "url": HC, "interval": 3600, "interval_armed": 30},
                                 {"id": "b", "name": "x" * 61, "url": HC, "interval": 3600}])
-    assert named == [{"id": "a", "name": "Haus Büro", "url": HC, "fail_suffix": "", "alarm_suffix": "", "interval": 3600},
-                     {"id": "b", "name": "hc-ping.com", "url": HC, "fail_suffix": "", "alarm_suffix": "", "interval": 3600}]
+    assert named == [{"id": "a", "name": "Haus Büro", "url": HC, "fail_suffix": "", "interval": 3600},
+                     {"id": "b", "name": "hc-ping.com", "url": HC, "fail_suffix": "", "interval": 3600}]
 
 
 @pytest.mark.parametrize(("url", "suffix", "expected"), [
@@ -320,7 +321,7 @@ async def test_save_edit_delete_and_limits(hass: HomeAssistant, freezer, hass_ws
     assert too_many["success"] is False and too_many["error"]["code"] == "too_many"
     edited = await add(client, check_id=ids[0], url=BS, fail_suffix="/fail", interval=86400)
     first = {k: v for k, v in edited["result"]["healthchecks"][0].items() if k not in ("status", "log")}
-    assert edited["success"] and first == {"id": ids[0], "name": "Haus", "url": BS, "fail_suffix": "/fail", "alarm_suffix": "", "interval": 86400}
+    assert edited["success"] and first == {"id": ids[0], "name": "Haus", "url": BS, "fail_suffix": "/fail", "interval": 86400}
     # Name ist Pflicht (Wunsch des Nutzers 2026-11-19)
     for bad_name in ("", "   ", "x" * 61):
         assert (await add(client, check_id=ids[0], name=bad_name))["error"]["code"] in ("invalid_name", "invalid_format")
@@ -419,103 +420,108 @@ async def test_the_test_buttons_send_exactly_ok_or_failure(hass: HomeAssistant, 
     assert refused["success"] is False and refused["error"]["code"] == "not_found"
 
 
-# ----- Alarm (1.73.0, Wunsch des Nutzers 2026-11-20): eigener Zusatz für den Alarm -----
+# ----- Aktion "HealthCheck melden" (1.77.0, Wunsch des Nutzers 2026-11-22): ersetzt den Alarm-Zusatz im Dienst -----
+
+STEP = {"type": "healthcheck", "check_id": "abc", "suffix": "/2"}
 
 
-def test_the_alarm_suffix_is_checked_like_the_failure_suffix() -> None:
-    """Gleiche Regeln wie beim Fehler-Zusatz; ohne gültigen Zusatz bleibt er leer (der Dienst weiss dann nichts vom Alarm)."""
-    items = valid_healthchecks([
-        {"id": "a", "name": "A", "url": CR, "fail_suffix": "?state=fail", "alarm_suffix": "?state=fail&message=Alarm+triggered", "interval": 300},
-        {"id": "b", "name": "B", "url": CR, "alarm_suffix": "ohne-anfang", "interval": 300},
-        {"id": "c", "name": "C", "url": CR, "alarm_suffix": "/mit leerzeichen", "interval": 300},
-        {"id": "d", "name": "D", "url": CR, "interval": 300},
-    ])
-    assert [i["alarm_suffix"] for i in items] == ["?state=fail&message=Alarm+triggered", "", "", ""]
-    assert alarm_url(items[0]) == f"{CR}?state=fail&message=Alarm+triggered"
-    assert alarm_url(items[1]) is None and alarm_url(items[3]) is None
-    assert alarm_url({"url": CR, "alarm_suffix": "x"}) is None
+def stored_service(hass_storage, suffix: str = "/fail") -> None:
+    hass_storage["alarmageddon.settings"] = {"version": 1, "key": "alarmageddon.settings", "data": {"healthchecks": [
+        {"id": "abc", "name": "Haus", "url": HC, "fail_suffix": suffix, "interval": 3600}]}}
 
 
-async def test_an_alarm_sends_the_alarm_call_at_once_and_the_end_sends_the_life_sign(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
-    """
-    Löst eine Anlage aus, geht an jeden Dienst mit Alarm-Zusatz sofort der Alarm-Aufruf (nicht erst im Abstand); ohne Alarm-Zusatz bleibt alles wie
-    bisher. Der Alarm hat Vorrang vor dem Fehler des Selbsttests. Nach dem Alarm geht das Lebenszeichen hinaus.
-    """
+def test_the_service_has_no_alarm_suffix_any_more() -> None:
+    """Ein "alarm_suffix" aus 1.73.0 bis 1.76.x (auch aus einem Backup) fällt beim Einlesen weg: den Alarm meldet die Aktion."""
+    items = valid_healthchecks([{"id": "a", "name": "A", "url": CR, "fail_suffix": "?state=fail", "alarm_suffix": "?state=fail&message=Alarm", "interval": 300}])
+    assert items == [{"id": "a", "name": "A", "url": CR, "fail_suffix": "?state=fail", "interval": 300}]
+
+
+async def test_the_alarm_suffix_and_the_alarm_test_button_are_gone(hass: HomeAssistant, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(HC, status=200)
-    aioclient_mock.get(f"{HC}/fail", status=200)
-    aioclient_mock.get(f"{HC}/2", status=200)
-    plain = "https://x.example/plain"
-    aioclient_mock.get(plain, status=200)
     await setup_alarm(hass)
     client = await hass_ws_client(hass)
-    with_alarm = (await add(client, interval=3600, alarm_suffix="/2"))["result"]["id"]
-    await add(client, url=plain, name="Ohne", interval=3600, fail_suffix="")
-    await advance(hass, freezer, 2)
-    await advance(hass, freezer, HEALTHCHECK_MIN_GAP + 5)
-    assert sorted(calls(aioclient_mock)) == sorted([HC, plain])
+    refused = await add(client, alarm_suffix="/2")
+    assert refused["success"] is False and refused["error"]["code"] == "invalid_format"
+    hid = (await add(client))["result"]["id"]
+    refused = await ws(client, type=f"{DOMAIN}/healthcheck_ping", check_id=hid, kind="alarm")
+    assert refused["success"] is False and refused["error"]["code"] == "invalid_format"
+
+
+async def test_an_alarm_no_longer_calls_a_service_by_itself(hass: HomeAssistant, freezer, hass_storage, aioclient_mock: AiohttpClientMocker) -> None:
+    """Der Takt kennt keinen Alarm mehr: nur das Lebenszeichen im Abstand; was beim Alarm hinausgeht, bestimmt die Aktion."""
+    aioclient_mock.get(HC, status=200)
+    aioclient_mock.get(f"{HC}/2", status=200)
+    stored_service(hass_storage)
+    await setup_alarm(hass)
+    await advance(hass, freezer, HEALTHCHECK_START_DELAY + 2)
     aioclient_mock.mock_calls.clear()
     await call(hass, "alarm_arm_home")
     await open_sensor(hass, WINDOW)
     assert hass.states.get(ALARM).state == "triggered"
-    await advance(hass, freezer, 12)  # erkannt im Takt (HEALTHCHECK_TICK)
-    assert calls(aioclient_mock) == [f"{HC}/2"], "nur der Dienst mit Alarm-Zusatz, sofort"
-    status = hass.data[DATA_HEALTHCHECK].status[with_alarm]
+    await advance(hass, freezer, 30)
+    assert calls(aioclient_mock) == []
+
+
+async def test_the_step_calls_the_service_with_its_suffix_and_logs_it_as_an_action(hass: HomeAssistant, freezer, hass_storage, aioclient_mock: AiohttpClientMocker) -> None:
+    """Der Schritt ruft die URL mit seinem Zusatz auf (nicht mit dem Fehler-Zusatz des Dienstes); im Protokoll Art "report", Auslöser "action"."""
+    aioclient_mock.get(HC, status=200)
+    aioclient_mock.get(f"{HC}/2", status=200)
+    stored_service(hass_storage)
+    await setup_alarm(hass, workflows={"home": [STEP]})
+    await advance(hass, freezer, HEALTHCHECK_START_DELAY + 2)
+    aioclient_mock.mock_calls.clear()
+    await call(hass, "alarm_arm_home")
+    await open_sensor(hass, WINDOW)
+    await settle(hass)  # der laufende Alarm hält eine Hintergrundaufgabe bis zum Deaktivieren: nicht auf alle warten
+    assert calls(aioclient_mock) == [f"{HC}/2"]
+    status = hass.data[DATA_HEALTHCHECK].status["abc"]
     assert status["sent"] == "alarm" and status["result"] == "ok" and status["test"] is False
-    # Alarm vor Fehler des Selbsttests: ein Problem ändert den Aufruf im Alarm nicht
-    st.async_note(hass, None, "backup_failed", "auto")
-    await advance(hass, freezer, HEALTHCHECK_MIN_GAP + 5)
-    assert f"{HC}/fail" not in calls(aioclient_mock)
-    st.async_resolve(hass, None, "backup_failed", "auto")
-    aioclient_mock.mock_calls.clear()
-    await call(hass, "alarm_disarm")
-    await advance(hass, freezer, 12)
-    assert hass.states.get(ALARM).state == "disarmed"
-    await advance(hass, freezer, HEALTHCHECK_MIN_GAP + 5)
-    assert [c for c in calls(aioclient_mock) if c.startswith(HC)] == [HC], "das Ende des Alarms: das Lebenszeichen (der Dienst mit Alarm-Zusatz)"
-    assert hass.data[DATA_HEALTHCHECK].status[with_alarm]["sent"] == "ok"
-    kinds = [(e["kind"], e.get("sent"), e["by"]) for e in hass.data[DATA_HEALTHCHECK].log.history(with_alarm, 24, 3600)["events"]]
-    assert ("report", "alarm", "alarm") in kinds
+    kinds = [(e["kind"], e.get("sent"), e["by"]) for e in hass.data[DATA_HEALTHCHECK].log.history("abc", 24, 3600)["events"]]
+    assert ("report", "alarm", "action") in kinds
 
 
-async def test_an_alarm_call_ignores_the_minimum_gap(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
-    """Der Alarm-Aufruf wartet nie auf den Mindestabstand (HEALTHCHECK_MIN_GAP): ein Lebenszeichen kurz davor schiebt ihn nicht auf."""
+async def test_the_step_never_changes_the_rhythm_of_the_life_signs(hass: HomeAssistant, freezer, hass_storage, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(HC, status=200)
     aioclient_mock.get(f"{HC}/2", status=200)
+    stored_service(hass_storage)
     await setup_alarm(hass)
-    client = await hass_ws_client(hass)
-    await add(client, alarm_suffix="/2", interval=3600)
-    await advance(hass, freezer, 2)
-    await advance(hass, freezer, HEALTHCHECK_START_DELAY + 1)  # das Lebenszeichen vom Start ist erst Sekunden her (weniger als HEALTHCHECK_MIN_GAP)
-    assert calls(aioclient_mock) == [HC]
-    aioclient_mock.mock_calls.clear()
-    await call(hass, "alarm_arm_home")
-    await open_sensor(hass, WINDOW)
-    assert hass.states.get(ALARM).state == "triggered"
-    await advance(hass, freezer, 12)  # erkannt im Takt
-    assert calls(aioclient_mock) == [f"{HC}/2"]
+    await advance(hass, freezer, HEALTHCHECK_START_DELAY + 2)
+    healthcheck = hass.data[DATA_HEALTHCHECK]
+    before = dict(healthcheck._last_auto)
+    freezer.tick(timedelta(seconds=100))  # unter der eingefrorenen Zeit gäbe ein verschobener Takt denselben Zeitstempel: erst Zeit vergehen lassen
+    assert healthcheck.async_report("abc", "/2") is not None
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert healthcheck._last_auto == before
 
 
-async def test_the_alarm_test_button_needs_an_alarm_suffix_and_sends_exactly_that(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
+async def test_the_step_in_a_test_run_is_logged_as_a_test(hass: HomeAssistant, freezer, hass_storage, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(HC, status=200)
     aioclient_mock.get(f"{HC}/2", status=200)
+    stored_service(hass_storage)
     await setup_alarm(hass)
-    client = await hass_ws_client(hass)
-    hid = (await add(client, alarm_suffix="/2"))["result"]["id"]
-    await advance(hass, freezer, 2)
+    await advance(hass, freezer, HEALTHCHECK_START_DELAY + 2)
+    healthcheck = hass.data[DATA_HEALTHCHECK]
+    assert healthcheck.async_report("abc", "/2", test=True) is not None
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert healthcheck.status["abc"]["test"] is True
+    assert ("test", "alarm", "test") in [(e["kind"], e.get("sent"), e["by"]) for e in healthcheck.log.history("abc", 24, 3600)["events"]]
+
+
+@pytest.mark.parametrize("check_id,suffix", [("gibtsnicht", "/2"), ("abc", "?"), ("abc", "ohne-anfang"), ("abc", "")], ids=["Dienst fehlt", "Zusatz ohne Parameter", "Zusatz ohne Anfang", "Zusatz leer"])
+async def test_a_step_without_service_or_with_an_unfit_suffix_sends_nothing(hass: HomeAssistant, freezer, hass_storage, aioclient_mock: AiohttpClientMocker, check_id: str, suffix: str) -> None:
+    aioclient_mock.get(HC, status=200)
+    stored_service(hass_storage)
+    await setup_alarm(hass)
+    await advance(hass, freezer, HEALTHCHECK_START_DELAY + 2)
     aioclient_mock.mock_calls.clear()
-    sent = await ws(client, type=f"{DOMAIN}/healthcheck_ping", check_id=hid, kind="alarm")
-    assert sent["result"]["status"]["sent"] == "alarm" and sent["result"]["status"]["test"] is True
-    assert calls(aioclient_mock) == [f"{HC}/2"]
-    plain = (await add(client, url="https://x.example/ok"))["result"]["id"]
-    refused = await ws(client, type=f"{DOMAIN}/healthcheck_ping", check_id=plain, kind="alarm")
-    assert refused["success"] is False and refused["error"]["code"] == "not_found"
-    bad = await add(client, alarm_suffix="ohne-anfang")
-    assert bad["success"] is False and bad["error"]["code"] == "invalid_suffix"
+    assert hass.data[DATA_HEALTHCHECK].async_report(check_id, suffix) is None
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert calls(aioclient_mock) == []
 
 
-async def test_a_hanging_service_never_holds_up_the_alarm(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker, monkeypatch) -> None:
+async def test_a_hanging_service_never_holds_up_the_alarm(hass: HomeAssistant, freezer, hass_storage, aioclient_mock: AiohttpClientMocker, monkeypatch) -> None:
     """
-    Sicherheitsregel: der Alarm-Aufruf ist eine eigene Hintergrundaufgabe mit Zeitgrenze; ein Dienst, der nicht antwortet, hält den Alarm nicht auf.
+    Sicherheitsregel: der Aufruf der Aktion ist eine eigene Hintergrundaufgabe mit Zeitgrenze; ein Dienst, der nicht antwortet, hält den Alarm nicht auf.
     Der Dienst "hängt" in einem Thread mit echter Zeit (unter der eingefrorenen Zeit endet `asyncio.sleep` und `wait_for` nie): ist der Aufruf keine
     Hintergrundaufgabe, wartet `async_block_till_done` auf ihn, und der Aufruf ist danach schon fertig (die Mutationsprobe sieht das).
     """
@@ -529,22 +535,71 @@ async def test_a_hanging_service_never_holds_up_the_alarm(hass: HomeAssistant, f
         return AiohttpClientMockResponse("GET", f"{HC}/2", status=200)
 
     aioclient_mock.get(f"{HC}/2", side_effect=hang)
-    await setup_alarm(hass)
-    client = await hass_ws_client(hass)
-    await add(client, alarm_suffix="/2", interval=3600)
-    await advance(hass, freezer, 2)
-    await advance(hass, freezer, HEALTHCHECK_START_DELAY + 1)
+    switch = async_mock_service(hass, "switch", "turn_on")
+    stored_service(hass_storage)
+    await setup_alarm(hass, workflows={"home": [STEP, {"type": "action", "action": "switch.turn_on", "target": ["switch.sirene"]}]})
+    await advance(hass, freezer, HEALTHCHECK_START_DELAY + 2)
     await call(hass, "alarm_arm_home")
     await open_sensor(hass, WINDOW)
-    assert hass.states.get(ALARM).state == "triggered"
-    freezer.tick(timedelta(seconds=12))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()  # darf nicht auf den hängenden Aufruf warten
-    assert f"{HC}/2" in calls(aioclient_mock), "der Alarm-Aufruf ist hinausgegangen"
+    await settle(hass)  # nicht async_block_till_done: der laufende Alarm hält eine Aufgabe bis zum Deaktivieren
+    assert f"{HC}/2" in calls(aioclient_mock), "der Aufruf der Aktion ist hinausgegangen"
     assert finished == [], "der Aufruf läuft noch: nichts hat auf ihn gewartet"
+    assert len(switch) == 1, "die Sirene danach schaltet sofort, ohne auf den Dienst zu warten"
     assert hass.states.get(ALARM).state == "triggered"
-    await hass.async_block_till_done(wait_background_tasks=True)
+    for _ in range(100):  # der hängende Aufruf endet nach einer Sekunde echter Zeit (unter der eingefrorenen Zeit endet asyncio.sleep nie)
+        if finished:
+            break
+        await hass.loop.run_in_executor(None, time.sleep, 0.05)
     assert finished == [True]
+
+
+@pytest.mark.parametrize("name", ["valid_step", "valid_after_step", "valid_armed_step", "valid_report_step", "valid_disarmed_step", "valid_arming_step", "valid_entry_step"])
+def test_the_step_is_possible_in_every_list_of_the_actions_and_in_groups(name: str) -> None:
+    """Überall, wo Aktionen laufen (Alarm, danach, scharf, Verzögerungen, deaktiviert, stiller Alarm), auch in einer Gruppe; nie in der Überwachung."""
+    from custom_components.alarmageddon import schemas
+
+    check = getattr(schemas, name)
+    assert check(STEP) == STEP
+    group = check({"type": "group", "mode": "count", "count": 2, "steps": [STEP]})
+    assert group["steps"] == [STEP]
+    with pytest.raises(Exception):
+        schemas.MONITOR_STEP(STEP)
+
+
+@pytest.mark.parametrize("bad", [{"suffix": ""}, {"suffix": "ohne-anfang"}, {"suffix": "/mit leerzeichen"}, {"suffix": "/" + "x" * 200}, {"check_id": "ABC"}, {"check_id": "x" * 17}, {"check_id": ""}, {"suffix": None}])
+def test_the_step_checks_its_values(bad: dict[str, Any]) -> None:
+    from custom_components.alarmageddon.schemas import valid_step
+
+    with pytest.raises(Exception):
+        valid_step({**STEP, **bad})
+    assert valid_step({**STEP, "suffix": "?state=fail&message=Alarm+triggered"})["suffix"] == "?state=fail&message=Alarm+triggered"
+
+
+async def test_the_step_is_part_of_the_backup_and_comes_back(hass: HomeAssistant, hass_storage, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get(HC, status=200)
+    stored_service(hass_storage)
+    entry = await setup_alarm(hass, workflows={"home": [STEP]}, workflows_after={"home": [STEP]})
+    exported = await backup.async_export(hass, "1.77.0")
+    system = exported["systems"][0]["options"]
+    assert system["workflows"]["home"] == [STEP] and system["workflows_after"]["home"] == [STEP]
+    restored = backup.validate(exported, hass)
+    assert restored["systems"][0]["options"]["workflows"]["home"] == [STEP]
+    broken = {**exported, "systems": [{**exported["systems"][0], "options": {**system, "workflows": {"home": [{**STEP, "suffix": "ohne-anfang"}]}}}]}
+    with pytest.raises(Exception):
+        backup.validate(broken, hass)
+    assert entry.options["workflows"]["home"] == [STEP]
+
+
+async def test_the_selftest_finds_a_step_without_service_or_with_an_unfit_suffix(hass: HomeAssistant, hass_storage) -> None:
+    """Der Dienst wurde gelöscht (oder ein Backup kam ohne ihn), oder der Zusatz ergibt keine gültige Adresse: der Alarm meldet dann nichts."""
+    stored_service(hass_storage)
+    await setup_alarm(hass, workflows={"home": [STEP, {**STEP, "check_id": "gibtsnicht"}, {**STEP, "suffix": "?"}]})
+    selftest = hass.data[DATA_SELFTEST]
+    selftest.async_run()
+    found = {(p["subject"], p["reason"]) for p in selftest.problems() if p["code"] == "healthcheck_missing"}
+    assert found == {("gibtsnicht", "missing"), ("abc", "suffix")}
+    assert all(p["places"][0]["list"] == "alarm" for p in selftest.problems() if p["code"] == "healthcheck_missing")
+    assert not [p for p in selftest.problems() if p["code"] == "healthcheck_missing" and p["subject"] == "abc" and p["reason"] == "missing"]
 
 
 # ----- Link zur Seite des Dienstes (1.76.0, Wunsch des Nutzers 2026-11-22): freiwillig, nur http oder https -----

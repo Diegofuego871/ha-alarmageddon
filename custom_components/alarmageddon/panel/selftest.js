@@ -146,7 +146,7 @@ export class SelfTestUi {
     if (p.code === "entity_missing" && p.role === "sensor") return true;
     if (p.code === "start_failed") return true;
     // Was den Alarm selbst betrifft (nicht im Test)
-    return ["entity_missing", "entity_unavailable", "step_failed"].includes(p.code) && (p.places || []).some((x) => x.list === "alarm" && !x.test);
+    return ["entity_missing", "entity_unavailable", "step_failed", "healthcheck_missing"].includes(p.code) && (p.places || []).some((x) => x.list === "alarm" && !x.test);
   }
 
   _name(p) {
@@ -174,7 +174,7 @@ export class SelfTestUi {
     const open = this.opened.has(p.key);
     const tone = this._red(p) ? "err" : "warn";
     const icon = { entity_missing: "close", entity_unavailable: "offline", service_missing: "script", recipient_missing: "bell", no_recipients: "bellOff", sound_missing: "tone",
-      no_url: "speaker", rule_damaged: "alert", system_not_loaded: "shieldOff", step_failed: "alert", step_hung: "timer", notify_failed: "bellOff", start_failed: "powerOff", backup_failed: "archive", ping_failed: "heartPulse" }[p.code] || "alert";
+      no_url: "speaker", rule_damaged: "alert", system_not_loaded: "shieldOff", step_failed: "alert", healthcheck_missing: "heartPulse", step_hung: "timer", notify_failed: "bellOff", start_failed: "powerOff", backup_failed: "archive", ping_failed: "heartPulse" }[p.code] || "alert";
     const head = `<button type="button" class="ag-st-head" data-st="toggle" data-key="${esc(p.key)}" aria-expanded="${open}"><span class="ag-mini ${tone}">${ic(icon, 16)}</span>
       <span class="ag-grow"><b>${esc(this._t(`stT_${code}`, vars))}</b><small class="ag-t2 ag-block">${esc(this._t(`stKind_${p.kind}`))}${p.kind === "runtime" ? ` · ${esc(this._t("stLastSeen", { time: this._when(p.last) }))}` : ""}</small></span>
       <span class="ag-st-chev ${open ? "open" : ""}">${ic("chevRight", 16)}</span></button>`;

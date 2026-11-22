@@ -219,13 +219,13 @@
   {
     const st = (ago, sent, result, code, test = false) => ({ at: iso(ago), sent, result, code, test });
     const sample = [
-      { id: "a1b2c3d4e5f6", name: "Healthchecks Haus", url: "https://hc-ping.com/5b2f3c1e-8d4a-4f6b-9c7e-2a1d0e9f8b3c", fail_suffix: "/fail", alarm_suffix: "", interval: 300, status: st(2 * 60e3, "ok", "ok", 200) },
-      { id: "b2c3d4e5f6a1", name: "Cronitor", url: "https://cronitor.link/p/3f9a6c2e8b1d4e7f/haus-alarm", page_url: "https://cronitor.io/app", fail_suffix: "?state=fail&message=Self-test+failed", alarm_suffix: "?state=fail&message=Alarm+triggered", interval: 3600, status: st(34 * 60e3, "ok", "ok", 200) },
-      { id: "c3d4e5f6a1b2", name: "Better Stack Büro", url: "https://uptime.betterstack.com/api/v1/heartbeat/Qx7pW2mZk9RtV4sN", fail_suffix: "/fail", alarm_suffix: "", interval: 900, status: st(6 * 60e3, "ok", "timeout", null) },
+      { id: "a1b2c3d4e5f6", name: "Healthchecks Haus", url: "https://hc-ping.com/5b2f3c1e-8d4a-4f6b-9c7e-2a1d0e9f8b3c", fail_suffix: "/fail", interval: 300, status: st(2 * 60e3, "ok", "ok", 200) },
+      { id: "b2c3d4e5f6a1", name: "Cronitor", url: "https://cronitor.link/p/3f9a6c2e8b1d4e7f/haus-alarm", page_url: "https://cronitor.io/app", fail_suffix: "?state=fail&message=Self-test+failed", interval: 3600, status: st(34 * 60e3, "ok", "ok", 200) },
+      { id: "c3d4e5f6a1b2", name: "Better Stack Büro", url: "https://uptime.betterstack.com/api/v1/heartbeat/Qx7pW2mZk9RtV4sN", fail_suffix: "/fail", interval: 900, status: st(6 * 60e3, "ok", "timeout", null) },
     ];
     const extra = [
-      { id: "d4e5f6a1b2c3", name: "Uptime Kuma", url: "https://status.example.org/api/push/Kp4Rz8Lm2N?status=up&msg=OK", fail_suffix: "?status=down", alarm_suffix: "", interval: 60, status: null },
-      { id: "e5f6a1b2c3d4", name: "Garage", url: "https://ping.example.net/check/garage", fail_suffix: "", alarm_suffix: "", interval: 86400, status: st(5 * 3600e3, "ok", "ok", 204) },
+      { id: "d4e5f6a1b2c3", name: "Uptime Kuma", url: "https://status.example.org/api/push/Kp4Rz8Lm2N?status=up&msg=OK", fail_suffix: "?status=down", interval: 60, status: null },
+      { id: "e5f6a1b2c3d4", name: "Garage", url: "https://ping.example.net/check/garage", fail_suffix: "", interval: 86400, status: st(5 * 3600e3, "ok", "ok", 204) },
     ];
     window.__healthchecks = params.get("hc") === "sample" ? sample : params.get("hc") === "one" ? [sample[0]] : params.get("hc") === "full" ? [...sample, ...extra] : [];
     window.__hcCalls = [];
@@ -737,13 +737,11 @@
         if (!u || !["http:", "https:"].includes(u.protocol) || /\s/.test(msg.url) || msg.url.length > 500) throw { code: "invalid_url", message: "The address must start with http:// or https://" };
         const suffix = String(msg.fail_suffix || "");
         if (suffix && (!/^[/?&]/.test(suffix) || /\s/.test(suffix) || suffix.length > 200)) throw { code: "invalid_suffix", message: "The failure suffix must start with /, ? or &" };
-        const alarmSuffix = String(msg.alarm_suffix || "");
-        if (alarmSuffix && (!/^[/?&]/.test(alarmSuffix) || /\s/.test(alarmSuffix) || alarmSuffix.length > 200)) throw { code: "invalid_suffix", message: "The alarm suffix must start with /, ? or &" };
         const ok = (n) => Number.isInteger(n) && n >= 60 && n <= 86400;
         // Wie der Server: nur ein Intervall (Entscheid des Nutzers 2026-11-19); unbekannte Felder lehnt das Schema ab
         if (!ok(msg.interval)) throw { code: "invalid_format", message: "interval" };
-        if ("interval_armed" in msg) throw { code: "invalid_format", message: "extra keys not allowed" };
-        const entry = { name, url: msg.url, fail_suffix: suffix, alarm_suffix: alarmSuffix, interval: msg.interval };
+        if ("interval_armed" in msg || "alarm_suffix" in msg) throw { code: "invalid_format", message: "extra keys not allowed" };
+        const entry = { name, url: msg.url, fail_suffix: suffix, interval: msg.interval };
         // Link zum Dashboard (1.76.0): freiwillig, wie der Server nur http(s); fehlt im Eintrag, wenn leer
         const pageUrl = String(msg.page_url || "").trim();
         if (pageUrl) {
@@ -772,7 +770,7 @@
         return { healthchecks: out() };
       }
       const item = list.find((x) => x.id === msg.check_id);
-      if (!item || (msg.kind === "fail" && !item.fail_suffix) || (msg.kind === "alarm" && !item.alarm_suffix)) throw { code: "not_found", message: "No such health check" };
+      if (!item || (msg.kind === "fail" && !item.fail_suffix)) throw { code: "not_found", message: "No such health check" };
       await new Promise((r) => setTimeout(r, window.__hcDelay ?? 250));
       const result = window.__hcResult || "ok";
       const status = { at: new Date().toISOString(), sent: msg.kind, result, code: result === "ok" ? 200 : result === "http" ? 404 : null, test: true };

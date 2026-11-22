@@ -7,13 +7,22 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
-## [1.76.2] - 2026-11-22
+## [1.77.0] - 2026-11-22
+
+### Hinzugefügt
+
+- **Aktion "HealthCheck melden":** einen Alarm an einen HealthCheck-Dienst zu melden ist jetzt eine Aktion; so passt es zum Konzept der Alarmaktionen und lässt sich einsetzen, wo es Sinn macht (Alarm, nach dem Quittieren, beim Scharfschalten, in den Verzögerungen, beim Deaktivieren, bei einem stillen Alarm, auch in einer Gruppe; nicht in der Überwachung). Sie wird erst angeboten, wenn ein Dienst eingerichtet ist. Du wählst den Dienst in einer Auswahl der eingerichteten, und das Einzige, das du bearbeitest, ist der **Zusatz**; bei einem erkannten Dienst wird der Vorschlag eingesetzt, und "Vorschlag übernehmen" steht daneben, sobald du ihn änderst. Ein Feld darunter zeigt nur zur Ansicht den ganzen Aufruf (die Adresse des Dienstes mit deinem Zusatz). Ein Link "HealthCheck-Dienste öffnen" führt zu den Diensten, ohne die Aktion zu verlassen. Der Play-Knopf der Karte sendet die Meldung einmal (als Test, im Protokoll des Dienstes als solcher zu sehen, der Selbsttest liest nur). Jede Aktion hat ihren eigenen Zusatz, so lässt sich je Alarmart etwas anderes melden. Der Aufruf ist eine eigene Aufgabe: er wartet nie und hält den Alarm nie auf. Wird der Dienst später gelöscht, sagt die Karte "Dienst fehlt" und der Selbsttest meldet es.
 
 ### Geändert
 
+- **Dienste haben keinen Alarm-Zusatz mehr:** das Kapitel "Bei Alarm" entfällt im Formular eines Dienstes, ebenso der automatische Alarm-Aufruf (ein Dienst wurde aufgerufen, sobald eine Anlage auslöste) und der Knopf "Alarm senden" in der Liste und im Kopf des Protokolls; es bleiben "Fehler senden" und "Lebenszeichen senden". **Ein eingerichteter Alarm-Zusatz (1.73.0 bis 1.76.x) entfällt: richte stattdessen eine Aktion "HealthCheck melden" ein.** Der Text "Was sind HealthCheck-Dienste?" nennt, dass sich Dienste in den Alarmaktionen verwenden lassen.
 - **Vorschau einer Routine (Editor und Auge):** die Zustände, in denen die Routine nicht läuft, tragen jetzt ein rotes Kreuz an der Stelle, wo der ausgeführte Zustand den Haken hat. Knopf und Schrift bleiben grau.
-- **"Vorschlag übernehmen":** der Knopf neben einem Vorschlag (Fehler-Zusatz, Alarm-Zusatz, Dashboard-Link) heisst jetzt "Vorschlag übernehmen", damit man ihn nicht mit Speichern verwechselt.
+- **"Vorschlag übernehmen":** der Knopf neben einem Vorschlag (Fehler-Zusatz, Dashboard-Link, Aktion) heisst jetzt "Vorschlag übernehmen", damit man ihn nicht mit Speichern verwechselt.
 - **Namen ohne "(freiwillig)":** das Namensfeld einer Aktions-Gruppe und eines Backups trägt keinen Zusatz "(freiwillig)" oder "(optional)" mehr; es bleibt kein Pflichtfeld.
+
+## [1.76.2] - 2026-11-22
+
+Nicht veröffentlicht; enthalten in 1.77.0.
 
 ## [1.76.1] - 2026-11-22
 
@@ -2206,7 +2215,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.76.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.2
+[1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0
 [1.76.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.1
 [1.76.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.0
 [1.75.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.3

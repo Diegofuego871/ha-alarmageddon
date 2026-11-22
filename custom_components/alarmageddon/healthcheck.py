@@ -51,8 +51,8 @@ from .const import (
     SIGNAL_SELFTEST,
 )
 from .healthcheck_log import HealthLog
-from .selftest import any_alarm, async_note, async_resolve
-from .settings import apply_fail_suffix
+from .selftest import async_note, async_resolve
+from .settings import apply_fail_suffix, valid_fail_suffix
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,14 +71,6 @@ def fail_url(item: dict[str, Any]) -> str | None:
     """Adresse für "Fehler": URL mit dem Fehler-Zusatz des Eintrags (settings.apply_fail_suffix); ohne Zusatz None."""
     try:
         return apply_fail_suffix(str(item.get("url") or ""), str(item.get("fail_suffix") or ""))
-    except ValueError:
-        return None
-
-
-def alarm_url(item: dict[str, Any]) -> str | None:
-    """Adresse für "Alarm" (1.73.0): URL mit dem Alarm-Zusatz des Eintrags; ohne Zusatz None (der Dienst weiss dann nichts vom Alarm)."""
-    try:
-        return apply_fail_suffix(str(item.get("url") or ""), str(item.get("alarm_suffix") or ""))
     except ValueError:
         return None
 
@@ -107,7 +99,6 @@ class HealthCheck:
         self._last_try: dict[str, float] = {}
         self._last_auto: dict[str, float] = {}  # letztes Lebenszeichen ohne Testknopf
         self._failing: bool | None = None
-        self._alarm: bool | None = None  # war zuletzt eine Anlage im Alarm (der Wechsel geht sofort hinaus, erkannt im Takt)
         self._unsubs: list[CALLBACK_TYPE] = []
         self._fresh: set[str] = set()  # Einträge ohne Lebenszeichen seit dem Start (Auslöser "start" im Protokoll)
         # Meldungen "antwortet nicht" und "antwortet wieder" (1.68.0): gescheiterte Aufrufe hintereinander (ohne Testknopf), seit wann, und für
@@ -139,7 +130,6 @@ class HealthCheck:
             return
         self.started = True
         self._failing = self.failing()
-        self._alarm = any_alarm(self.hass)
         self._fresh = {i["id"] for i in self.items()}
         self._hold_until = dt_util.utcnow().timestamp() + HEALTHCHECK_START_DELAY
         self._unsubs.append(async_dispatcher_connect(self.hass, SIGNAL_SELFTEST, self._on_selftest))
@@ -248,15 +238,6 @@ class HealthCheck:
         now = dt_util.utcnow().timestamp()
         if not self.started or now < self._hold_until:
             return
-        # Alarm (1.73.0, Wunsch des Nutzers 2026-11-20): wechselt eine Anlage in den Alarm oder aus ihm heraus, geht an jeden Dienst mit Alarm-Zusatz
-        # sofort der Alarm-Aufruf (Ende: das Lebenszeichen). Erkannt im Takt (höchstens HEALTHCHECK_TICK Sekunden): kein Zuhörer am Automaten, der
-        # Alarm selbst bleibt unberührt. Ein Alarm hält nie etwas auf: der Aufruf läuft als eigene Aufgabe.
-        alarm = any_alarm(self.hass)
-        if alarm != self._alarm:
-            self._alarm = alarm
-            for item in self.items():
-                if alarm_url(item) is not None:
-                    self.async_ping(item["id"], respect_gap=not alarm, by="alarm")
         for item in self.items():
             if now - self._last_auto.get(item["id"], 0.0) >= int(item["interval"]):
                 self.async_ping(item["id"], by="start" if item["id"] in self._fresh else "tick")
@@ -275,11 +256,12 @@ class HealthCheck:
     def async_ping(self, hid: str, respect_gap: bool = False, test: str | None = None, by: str = "tick") -> asyncio.Task | None:
         """
         Ein Lebenszeichen als eigene Aufgabe (nie abwarten). `respect_gap`: höchstens alle HEALTHCHECK_MIN_GAP Sekunden, sonst danach. `test`: Knopf
-        im Panel, "ok", "fail" oder "alarm" sendet genau das (ohne den Selbsttest oder die Anlagen zu fragen); "fail" ohne Fehler-Zusatz und "alarm"
-        ohne Alarm-Zusatz gibt es nicht (None). `by`: der Auslöser für das Protokoll ("tick", "selftest", "start", "save", "alarm"; mit `test` immer "test").
+        im Panel, "ok" oder "fail" sendet genau das (ohne den Selbsttest zu fragen); "fail" ohne Fehler-Zusatz gibt es nicht (None). Den Alarm meldet seit
+        1.77.0 die Aktion (`async_report`), der Alarm-Testknopf entfiel. `by`: der Auslöser für das Protokoll ("tick", "selftest", "start", "save"; mit
+        `test` immer "test").
         """
         item = self.item(hid)
-        if item is None or (test == "fail" and fail_url(item) is None) or (test == "alarm" and alarm_url(item) is None):
+        if item is None or (test == "fail" and fail_url(item) is None):
             return None
         if test:
             self._last_try[hid] = dt_util.utcnow().timestamp()
@@ -301,18 +283,32 @@ class HealthCheck:
         return self.hass.async_create_background_task(self._send(item, None, by), f"alarmageddon health check {hid}")
 
     @callback
+    def async_report(self, hid: str, suffix: str, test: bool = False) -> asyncio.Task | None:
+        """
+        Die Aktion "HealthCheck melden" (1.77.0, Wunsch des Nutzers 2026-11-22): ruft die URL des Dienstes `hid` mit dem Zusatz `suffix` auf, als eigene
+        Aufgabe, nie abwarten (eine Aktion hält nie den Ablauf einer Alarmaktion auf; der Aufruf wartet höchstens HEALTHCHECK_TIMEOUT). Es gibt keinen Dienst
+        oder der Zusatz ergibt keine gültige Adresse: None (der Selbsttest findet beides in den Aktionen). Der Takt der Lebenszeichen bleibt unberührt.
+        """
+        item = self.item(hid)
+        if item is None or not valid_fail_suffix(str(item.get("url") or ""), suffix):
+            return None
+        return self.hass.async_create_background_task(self._send(item, "report" if test else None, "action", report=suffix), f"alarmageddon health check report {hid}")
+
+    @callback
     def _ping_later(self, hid: str, _now: Any = None) -> None:
         self._later.pop(hid, None)
         self.async_ping(hid, by="selftest")
 
-    async def _send(self, item: dict[str, Any], test: str | None = None, by: str = "tick") -> dict[str, Any]:
+    async def _send(self, item: dict[str, Any], test: str | None = None, by: str = "tick", report: str | None = None) -> dict[str, Any]:
         hid = item["id"]
-        # Alarm hat Vorrang vor dem Fehler des Selbsttests; ohne Alarm-Zusatz des Eintrags gilt wie bisher der Selbsttest
-        alarm = test == "alarm" if test else any_alarm(self.hass)
-        alarm_bad = alarm_url(item) if alarm else None
-        failing = False if alarm_bad else test == "fail" if test else self.failing()
-        bad = alarm_bad or (fail_url(item) if failing else None)
-        sent = "alarm" if alarm_bad else "fail" if bad else "ok"
+        if report is not None:
+            # Meldung einer Aktion (1.77.0): die URL mit dem Zusatz der Aktion; im Protokoll "Alarm gemeldet" (Art "report"), Auslöser "action"
+            bad = apply_fail_suffix(str(item.get("url") or ""), report)
+            sent = "alarm"
+        else:
+            failing = test == "fail" if test else self.failing()
+            bad = fail_url(item) if failing else None
+            sent = "fail" if bad else "ok"
         url = bad or item["url"]
         code: int | None = None
         ms: int | None = None

@@ -181,6 +181,7 @@ export class LogUi {
       const targets = (e.targets || []).map((id) => this.host._name(id)).join(", ");
       const test = e.test ? ` (${this._t("logTest")})` : "";
       if (e.step === "notify") return this._t("logStepNotify") + test;
+      if (e.step === "healthcheck") return this._t("logStepHealthcheck") + test;
       if (e.step === "acknowledge") return this._t("logStepAck") + test;
       if (e.step === "wait") return this._t("logStepWait", { seconds: fmtDur(e.seconds) }) + test;
       if (e.step === "group") return this._t(e.mode === "until_disarmed" ? "logStepGroupUntil" : e.mode === "duration" ? "logStepGroupDuration" : "logStepGroupCount", { steps: e.steps ?? 0, n: e.count ?? 1, seconds: fmtDur(e.seconds ?? 0) }) + test;

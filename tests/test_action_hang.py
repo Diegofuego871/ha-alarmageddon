@@ -118,6 +118,30 @@ async def test_failing_action_is_recorded_and_the_rest_runs(hass: HomeAssistant)
     assert any(e["kind"] == "step_failed" and e["reason"] == "error" for e in _entries(entry))
 
 
+@pytest.mark.parametrize("failure", ["Dienst fehlt", "Aufruf wirft"])
+async def test_a_failing_health_check_step_never_stops_the_alarm_actions(hass: HomeAssistant, monkeypatch, hass_storage, failure: str) -> None:
+    """
+    Aktion "HealthCheck melden" (1.77.0): fehlt der Dienst oder wirft der Aufruf, läuft die Sirene trotzdem sofort; der Selbsttest hält fest, dass die
+    Meldung nicht hinausging (nur ohne Dienst), nie ein Fehler im Ablauf.
+    """
+    switch = async_mock_service(hass, "switch", "turn_on")
+    hass_storage["alarmageddon.settings"] = {"version": 1, "key": "alarmageddon.settings", "data": {"healthchecks": [
+        {"id": "abc", "name": "Haus", "url": "https://hc-ping.com/00000000-1111-2222-3333-444444444444", "fail_suffix": "", "interval": 3600}]}}
+    step = {"type": "healthcheck", "check_id": "gibtsnicht" if failure == "Dienst fehlt" else "abc", "suffix": "/2"}
+    if failure == "Aufruf wirft":
+        def boom(*_args, **_kwargs):
+            raise RuntimeError("kaputt")
+
+        monkeypatch.setattr("custom_components.alarmageddon.healthcheck.HealthCheck.async_report", boom)
+    entry = await _alarm(hass, [step, STEP_SIREN])
+    await settle(hass)
+    assert len(switch) == 1, "die Sirene schaltet trotzdem"
+    assert hass.states.get(ALARM).state == AlarmControlPanelState.TRIGGERED
+    notes = [p for p in hass.data["alarmageddon_selftest"].problems() if p["code"] == "step_failed"] if "alarmageddon_selftest" in hass.data else []
+    assert (len(notes) == 1) == (failure == "Dienst fehlt")
+    assert entry.runtime_data.workflow.running is not None
+
+
 async def test_hanging_sonos_snapshot_does_not_delay_the_alarm(hass: HomeAssistant, monkeypatch) -> None:
     """Der Schnappschuss vor dem ersten Schritt darf den Alarm höchstens SNAPSHOT_TIMEOUT verzögern."""
     monkeypatch.setattr("custom_components.alarmageddon.workflow.SNAPSHOT_TIMEOUT", 0.2)
@@ -343,6 +367,7 @@ HANGING_STEPS = {
     "Voralarm": {"type": "prealarm", "players": ["media_player.wohnzimmer"], "sound": "pre_beep", "duration": 1},
     "Deaktivierungston": {"type": "dechime", "players": ["media_player.wohnzimmer"], "sound": "off_fall", "duration": 1, "wait": True},
     "Gruppe": {"type": "group", "mode": "count", "count": 2, "steps": [{"type": "wait", "seconds": 0}], "wait": True},  # abgewartet wie die anderen Fälle
+    "HealthCheck melden": {"type": "healthcheck", "check_id": "abc", "suffix": "/2"},
 }
 
 
@@ -400,12 +425,14 @@ def test_every_step_type_has_a_budget() -> None:
         "prealarm": {"type": "prealarm", "players": ["media_player.wohnzimmer"], "sound": "pre_beep", "duration": 20},
         "dechime": {"type": "dechime", "players": ["media_player.wohnzimmer"], "sound": "off_fall", "duration": 5},
         "group": {"type": "group", "mode": "count", "count": 3, "steps": [{"type": "wait", "seconds": 30}], "wait": True},
+        "healthcheck": {"type": "healthcheck", "check_id": "abc", "suffix": "/2"},
     }
     assert set(examples) == set(STEP_SCHEMAS)
     assert {HANGING_STEPS[name]["type"] for name in HANGING_STEPS} == set(STEP_SCHEMAS)
     for step in examples.values():
         assert 0 < wf.step_budget(step) < 2 * 3600
     assert 0 < wf.step_budget({"type": "notify"}) <= wf.WATCHDOG_GRACE
+    assert 0 < wf.step_budget(examples["healthcheck"]) <= wf.WATCHDOG_GRACE  # eigene Aufgabe, nie abgewartet
     assert 30 <= wf.step_budget(examples["wait"]) <= 30 + wf.WATCHDOG_GRACE
     assert wf.SERVICE_TIMEOUT <= wf.step_budget(examples["action"]) <= wf.SERVICE_TIMEOUT + wf.WATCHDOG_GRACE
     assert 60 <= wf.step_budget(examples["sound"]) <= 60 + 8 * wf.SERVICE_TIMEOUT + wf.SNAPSHOT_TIMEOUT + wf.WATCHDOG_GRACE

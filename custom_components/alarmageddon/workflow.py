@@ -34,6 +34,7 @@ from .const import (
     ALL_SOUNDS,
     CUSTOM_SOUND_ID_RE,
     DATA_CUSTOM_SOUNDS,
+    DATA_HEALTHCHECK,
     GROUP_EXCLUDED,
     GROUP_MAX_ROUNDS,
     GROUP_MIN_ROUND,
@@ -90,8 +91,8 @@ def step_budget(step: dict[str, Any]) -> float:
         if step.get("mode") == "duration":
             return max(1, int(step.get("seconds", 0) or 0)) + inner + WATCHDOG_GRACE
         return group_rounds(step) * inner + WATCHDOG_GRACE
-    if kind == "notify":
-        return WATCHDOG_GRACE  # Meldungen gehen ohne Abwarten hinaus
+    if kind in ("notify", "healthcheck"):
+        return WATCHDOG_GRACE  # Meldungen gehen ohne Abwarten hinaus (auch die an einen HealthCheck-Dienst: eigene Aufgabe)
     if kind == "acknowledge":
         return WATCHDOG_GRACE  # sofort, ohne Gerätezugriff
     if kind == "wait":
@@ -1022,6 +1023,22 @@ class WorkflowRunner:
         except Exception:  # noqa: BLE001 - Sicherheitsregel: ein fehlerhafter Schritt stoppt die anderen nicht
             _LOGGER.exception("%s: step %s of the alarm actions (not awaited) failed", self.entry.title, index + 1)
 
+    def _healthcheck(self, step: dict[str, Any], test: bool) -> None:
+        """
+        Aktion "HealthCheck melden" (1.77.0): der Aufruf läuft als eigene Aufgabe des HealthCheck (nie abwarten, höchstens HEALTHCHECK_TIMEOUT), ein Fehler
+        hier hält keinen anderen Schritt auf. Es gibt den Dienst nicht mehr oder der Zusatz passt nicht zur Adresse: nichts geht hinaus, der Selbsttest
+        findet es in den Aktionen (`healthcheck_missing`) und dieser Schritt vermerkt es als Befund der Laufzeit.
+        """
+        try:
+            healthcheck = self.hass.data.get(DATA_HEALTHCHECK)
+            if healthcheck is None or healthcheck.async_report(str(step.get("check_id") or ""), str(step.get("suffix") or ""), test=test) is None:
+                _LOGGER.warning("%s: a health check step of the alarm actions found no service or its suffix does not fit", self.entry.title)
+                self._selftest(False, "healthcheck.report", [], "no_service")
+            else:
+                self._selftest(True, "healthcheck.report", [])  # derselbe Aufruf klappt wieder: der Befund ist behoben
+        except Exception:  # noqa: BLE001 - Sicherheitsregel: ein fehlerhafter Schritt stoppt die anderen nicht
+            _LOGGER.exception("%s: a health check step of the alarm actions failed", self.entry.title)
+
     def _record(self, step: dict[str, Any], test: bool) -> None:
         """Zeitachse des Alarms: welcher Schritt wann gestartet ist (ohne Daten, nur Art, Aktion und Ziele)."""
         entry: dict[str, Any] = {"step": step.get("type"), "test": test}
@@ -1080,6 +1097,8 @@ class WorkflowRunner:
             await self._sleep(self._remaining(seconds) if resumable else seconds)
         elif kind == "notify":
             self._notifier.send_alarm(test=test, step=step)
+        elif kind == "healthcheck":
+            self._healthcheck(step, test)
         elif kind == "action":
             domain, _, service = str(step.get("action", "")).partition(".")
             data = dict(step.get("data") or {})

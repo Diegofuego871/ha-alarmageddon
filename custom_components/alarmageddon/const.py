@@ -67,7 +67,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 269  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 270  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -275,6 +275,8 @@ SELFTEST_GRACE: Final = 5 * 60
 SELFTEST_REPORT_DELAY: Final = 60  # neue Laufzeitbefunde sammeln, bevor die Meldung hinausgeht
 SELFTEST_MAX_INCIDENTS: Final = 50  # Laufzeitbefunde insgesamt; der älteste fällt weg
 SELFTEST_MAX_PLACES: Final = 10  # Fundstellen je Befund
+# Aktion "HealthCheck melden" (1.77.0, Wunsch des Nutzers 2026-11-22): Schritt `healthcheck` {check_id, suffix} in jeder Liste der Aktionen (nicht in der
+# Überwachung): ruft die URL eines eingerichteten Dienstes mit dem Zusatz auf (der Alarm-Zusatz im Dienst entfiel). Er läuft ohne Abwarten (wie die Meldung).
 # HealthCheck (1.65.0, Wunsch des Nutzers 2026-11-18, healthcheck.py): bis zu MAX_HEALTHCHECKS Lebenszeichen an externe Dienste, für alle Anlagen.
 # Generisch (Entscheid des Nutzers 21:54): je Eintrag die URL, ein Fehler-Zusatz und der Abstand (1 Minute bis 24 Stunden), keine Auswahl des Anbieters
 # (das Panel schlägt den Zusatz für bekannte Dienste nur vor). Jeder Eintrag sendet in seinem Abstand "in Ordnung" oder, solange der Selbsttest Probleme
@@ -331,12 +333,12 @@ CONF_WORKFLOW_END: Final = "workflow_end"
 # Aktionen nach dem Quittieren (1.10.0): Schritte, die laufen, sobald der Alarm endet (quittiert oder deaktiviert), je Auslöser wie
 # CONF_WORKFLOWS. Nur Schritte, die danach noch Sinn haben: Gerät, Ton, Warten (keine Alarmmeldung, kein Quittieren).
 CONF_WORKFLOWS_AFTER: Final = "workflows_after"
-AFTER_STEP_TYPES: Final = ("action", "sound", "chime", "wait")
+AFTER_STEP_TYPES: Final = ("action", "sound", "chime", "healthcheck", "wait")
 # Aktionen beim Scharfschalten (1.14.0): Schritte, die laufen, sobald die Anlage scharf ist, je Modus. Der Aktivierungston ("chime")
 # ist eine eigene Schrittart neben dem Alarmton ("sound"): ein kurzer Ton mit Dauer, der nie "bis zum Deaktivieren" läuft und nichts
 # zurückstellt. So ist er von der Sirene zu unterscheiden (im Ablauf, im Protokoll und beim Stoppen).
 CONF_WORKFLOWS_ARMED: Final = "workflows_armed"
-ARMED_STEP_TYPES: Final = ("action", "chime", "wait")
+ARMED_STEP_TYPES: Final = ("action", "chime", "healthcheck", "wait")
 CHIME_MAX_SECONDS: Final = 300
 # Aktionen während der Verzögerungen (1.18.0), je Modus wie CONF_WORKFLOWS_ARMED:
 # - CONF_WORKFLOWS_ARMING: Schritte, die laufen, solange die Ausgangsverzögerung läuft (ab dem Befehl zum Scharfschalten bis die
@@ -345,14 +347,14 @@ CHIME_MAX_SECONDS: Final = 300
 # Ein Ton mit "delay": true dauert so lange wie die Verzögerung, die gerade läuft (Wert des Modus oder des Sensors); die Dauer
 # steht damit nie fest im Schritt, sie folgt der Einstellung der Anlage. Der Alarm hat immer Vorrang und wartet nie auf sie.
 CONF_WORKFLOWS_ARMING: Final = "workflows_arming"
-ARMING_STEP_TYPES: Final = ("action", "chime", "wait")
+ARMING_STEP_TYPES: Final = ("action", "chime", "healthcheck", "wait")
 CONF_WORKFLOWS_ENTRY: Final = "workflows_entry"
-ENTRY_STEP_TYPES: Final = ("action", "chime", "prealarm", "wait")
+ENTRY_STEP_TYPES: Final = ("action", "chime", "prealarm", "healthcheck", "wait")
 # Aktionen beim Deaktivieren (1.27.0): Schritte, die immer laufen, wenn die Anlage deaktiviert wird (auch mitten in der
 # Verzögerung oder im Alarm), je Modus, der gerade scharf war. Der Deaktivierungston ("dechime") ist das Gegenstück zum
 # Aktivierungston: kurz, mit Dauer, nie endlos, mit eigenen Klängen (DECHIMES).
 CONF_WORKFLOWS_DISARMED: Final = "workflows_disarmed"
-DISARMED_STEP_TYPES: Final = ("action", "dechime", "wait")
+DISARMED_STEP_TYPES: Final = ("action", "dechime", "healthcheck", "wait")
 # Aktions-Gruppe (1.59.0, Wunsch des Nutzers 2026-11-17): eine Gruppe von Schritten, die sich in ihrer Reihenfolge wiederholt: eine Anzahl
 # Durchläufe ("count"), für eine Dauer ("duration") oder bis zum Deaktivieren ("until_disarmed", nur im Ablauf des Alarms: nur dort
 # deaktiviert oder quittiert jemand). In allen Listen der Aktionen, mit den Schritten, die dort erlaubt sind; keine Gruppe in einer

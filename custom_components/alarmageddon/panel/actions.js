@@ -6,6 +6,7 @@
 const V = new URL(import.meta.url).search;
 const { ic, esc, fmtDur, MODE_ICON, MODE_KEY, errText, onceBtn, paintOnce, runOnce } = await import(`./common.js${V}`);
 const { MonitorUi } = await import(`./monitor.js${V}`);
+const { suggest, applySuffix } = await import(`./healthcheck.js${V}`);
 const { isCustom, customList, customName, uploadHtml, uploadError, uploadSound } = await import(`./customsounds.js${V}`);
 
 // ----- Geräte und ihre Aktionen (wie die Routinen in Device Panel): Domäne -> Aktion -> Dienst -----
@@ -55,13 +56,13 @@ const SCENE_DOMAINS = ["scene", "script"];
 const endless = (step) => step?.type === "sound" && step.duration === 0;
 const waits = (step) => (step?.type === "group" ? Boolean(step.wait) && step.mode !== "until_disarmed" : false) || ["action", "sound", "chime", "dechime", "prealarm"].includes(step?.type) && !endless(step) && !step.delay && ("wait" in step ? Boolean(step.wait) : step.type === "prealarm" || (step.type !== "chime" && step.type !== "dechime" && !step.detach));
 // Schritte, die nach dem Quittieren möglich sind (keine Alarmmeldung, kein Quittieren)
-const AFTER_KINDS = ["device", "sound", "chime", "wait", "scene", "custom"];
+const AFTER_KINDS = ["device", "sound", "chime", "healthcheck", "wait", "scene", "custom"];
 // Schritte beim Scharfschalten (1.14.0): der Aktivierungston statt der Sirene, dazu Gerät, Warten, Szene und eigene Aktion
-const ARMED_KINDS = ["chime", "device", "wait", "scene", "custom"];
+const ARMED_KINDS = ["chime", "device", "healthcheck", "wait", "scene", "custom"];
 // Aktionen beim Deaktivieren (1.27.0): Gerät, Deaktivierungston, Warten, Szene und eigene Aktion; je Modus, der scharf war
-const DISARMED_KINDS = ["dechime", "device", "wait", "scene", "custom"];
+const DISARMED_KINDS = ["dechime", "device", "healthcheck", "wait", "scene", "custom"];
 // Aktionen bei einem stillen Alarm (1.62.0): dieselben wie beim Scharfschalten (nie eine Sirene); je Auslöser, auch "Immer aktiv"
-const REPORT_KINDS = ["chime", "device", "wait", "scene", "custom"];
+const REPORT_KINDS = ["chime", "device", "healthcheck", "wait", "scene", "custom"];
 // Alarmton und Aktivierungston teilen sich die Felder (Lautsprecher, Ton, Lautstärke, Dauer)
 // So viele Schritte hat eine Liste höchstens (wie der Server: MAX_STEPS)
 const MAX_STEPS = 40;
@@ -97,14 +98,16 @@ const effectiveVolume = (f) => {
 const isShortTone = (kind) => kind === "chime" || kind === "dechime" || kind === "prealarm";
 // Aktionen während der Verzögerungen (1.19.0): "arming" (Scharfschalten beginnt, die Ausgangsverzögerung läuft) und "entry"
 // (Eingangsverzögerung läuft, Zeit zum Deaktivieren). Je Modus, nicht für "Immer aktiv" (dort gibt es keine Verzögerung).
-const ARMING_KINDS = ["chime", "device", "wait", "scene", "custom"];
-const ENTRY_KINDS = ["chime", "prealarm", "device", "wait", "scene", "custom"];
+const ARMING_KINDS = ["chime", "device", "healthcheck", "wait", "scene", "custom"];
+const ENTRY_KINDS = ["chime", "prealarm", "device", "healthcheck", "wait", "scene", "custom"];
 const DELAY_ZONES = ["arming", "entry"];
 const ZONE_KEY = { main: "wf", after: "after", armed: "armed", arming: "arming", entry: "entry", disarmed: "disarmed", report: "report" };
 const ZONE_CLASS = { main: ".ag-wf-main", after: ".ag-wf-after", armed: ".ag-wf-armed", arming: ".ag-wf-arming", entry: ".ag-wf-entry", disarmed: ".ag-wf-disarmed", report: ".ag-wf-report" };
 
 export const KINDS = [
   { kind: "notify", icon: "bell", label: "stepNotify", hint: "stepNotifyHint" },
+  // HealthCheck melden (1.77.0): nur anzubieten, wenn ein Dienst eingerichtet ist (openPicker); ein vorhandener Schritt bleibt immer gültig
+  { kind: "healthcheck", icon: "heartPulse", label: "stepHealthcheck", hint: "stepHealthcheckHint" },
   { kind: "device", icon: "power", label: "stepDevice", hint: "stepDeviceHint" },
   { kind: "sound", icon: "speaker", label: "stepSound", hint: "stepSoundHint" },
   { kind: "prealarm", icon: "tone", label: "stepPrealarm", hint: "stepPrealarmHint" },
@@ -164,7 +167,7 @@ const canonNotices = (map, trigger) => JSON.stringify(stable(normNotices(map, tr
 
 // ----- Schritt des Servers <-> Formular -----
 
-const blank = () => ({ delay: false, kind: "custom", targets: [], ntTargets: null, restore: false, seconds: 30, wait: false, ntTitle: "", ntMessage: "", ntCritical: null, ntVolume: null, ntButtons: {}, ntClick: null, ntClickPath: "", until: false, playSeconds: 30, sound: "siren", setVolume: true, volume: 0.7, repeat: 3, action: "on", opts: {}, optsOn: {}, domain: "", service: "", data: {}, extra: {}, gName: "", gMode: "count", gCount: 3, gSeconds: 60, gSteps: [] });
+const blank = () => ({ delay: false, kind: "custom", hcId: "", hcSuffix: "", hcTouched: false, targets: [], ntTargets: null, restore: false, seconds: 30, wait: false, ntTitle: "", ntMessage: "", ntCritical: null, ntVolume: null, ntButtons: {}, ntClick: null, ntClickPath: "", until: false, playSeconds: 30, sound: "siren", setVolume: true, volume: 0.7, repeat: 3, action: "on", opts: {}, optsOn: {}, domain: "", service: "", data: {}, extra: {}, gName: "", gMode: "count", gCount: 3, gSeconds: 60, gSteps: [] });
 
 export function fromStep(step) {
   return { ...fromStepBase(step), wait: waits(step) };
@@ -173,6 +176,7 @@ export function fromStep(step) {
 function fromStepBase(step) {
   const f = blank();
   if (step.type === "notify") return { ...f, kind: "notify", ntTitle: step.title || "", ntMessage: step.message || "", ntCritical: step.critical ?? null, ntVolume: step.volume ?? null, ntButtons: { ...(step.buttons || {}) }, ntClick: step.click ?? null, ntClickPath: step.click_path || "", ntTargets: step.targets?.length ? [...step.targets] : null };
+  if (step.type === "healthcheck") return { ...f, kind: "healthcheck", hcId: String(step.check_id || ""), hcSuffix: String(step.suffix || ""), hcTouched: true };
   if (step.type === "wait") return { ...f, kind: "wait", seconds: step.seconds };
   if (step.type === "acknowledge") return { ...f, kind: "acknowledge" };
   if (step.type === "group") return { ...f, kind: "group", gName: step.name || "", gMode: ["count", "duration", "until_disarmed"].includes(step.mode) ? step.mode : "count", gCount: step.count ?? 2, gSeconds: step.seconds ?? 60, gSteps: Array.isArray(step.steps) ? step.steps : [] };
@@ -274,6 +278,7 @@ function toStepBase(f) {
     }
     return out;
   }
+  if (f.kind === "healthcheck") return { type: "healthcheck", check_id: String(f.hcId || ""), suffix: String(f.hcSuffix || "").trim() };
   if (f.kind === "acknowledge") return { type: "acknowledge" };
   if (f.kind === "group") {
     const name = String(f.gName || "").trim().slice(0, 40);
@@ -851,6 +856,7 @@ export class ActionsUi {
     const names = f.targets.map((id) => this.host._name(id)).join(", ") || this._t("stepNoTargets");
     if (f.kind === "notify") return f.ntTitle || f.ntMessage ? [f.ntTitle, f.ntMessage].filter(Boolean).join(" – ") : this._t("stepNotifyHint");
     if (f.kind === "acknowledge") return this._t("stepAckHint");
+    if (f.kind === "healthcheck") return `${this._hcItem(f.hcId)?.name || this._t("fldHcGone")} · ${f.hcSuffix}`;
     if (f.kind === "wait") return this._t("stepWaitSummary", { seconds: fmtDur(f.seconds) });
     if (isTone(f.kind)) return `${isCustom(f.sound) ? customName(this.host, f.sound) || this._t("customMissing") : this._t(SOUND_KEY[f.sound] || "sndSiren")} · ${names}${f.setVolume ? ` · ${this._volumeText(f)}` : ""}${f.delay ? "" : ` · ${f.until ? this._t("fldPlayUntilShort") : fmtDur(f.playSeconds)}`}`;
     if (f.kind === "scene") return names;
@@ -1114,7 +1120,7 @@ export class ActionsUi {
   openPicker(at, zone = "main") {
     this.edit = { insert: at, index: null, form: null, q: "", error: "", open: false, zone };
     // Je Liste nur, was dort Sinn hat: beim Alarm die Sirene (kein Aktivierungston), beim Scharfschalten der Aktivierungston (keine Sirene)
-    const kinds = this._zoneKinds(zone).map((kind) => KINDS.find((k) => k.kind === kind));
+    const kinds = this._zoneKinds(zone).filter((kind) => kind !== "healthcheck" || this._hcItems().length).map((kind) => KINDS.find((k) => k.kind === kind));
     const dlg = this._dlg();
     this.host._setHtml(dlg, `<div class="ag-dlg-body"><h3>${esc(this._t("stepPick"))}</h3><div class="ag-kinds">${kinds.map((k) => `<button class="ag-kind" data-wf="kind" data-kind="${k.kind}"><span class="ag-wf-icon k-${k.kind}">${ic(k.icon, 22)}</span><b>${esc(this._t(k.label))}</b><small>${esc(this._t(k.hint))}</small></button>`).join("")}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-wf="close">${esc(this._t("cancel"))}</button></div></div>`);
@@ -1399,6 +1405,75 @@ export class ActionsUi {
       ${this._sec("fldGrpFlow", this._waitRow(f))}`;
   }
 
+  // ----- Aktion "HealthCheck melden" (1.77.0, Wunsch des Nutzers 2026-11-22) -----
+  // Dienst aus den eingerichteten (Auswahl), Zusatz frei bearbeitbar (bei einem erkannten Dienst mit Vorschlag), die ganze Adresse nur zur Ansicht.
+  // Den Alarm-Zusatz im Dienst selbst gibt es nicht mehr: je Aktion ein eigener, also je Alarmart ein anderer.
+
+  _hcItems() {
+    return this.host._data?.healthchecks || [];
+  }
+
+  _hcItem(id) {
+    return this._hcItems().find((i) => i.id === id) || null;
+  }
+
+  _hcSuggestion(id) {
+    const item = this._hcItem(id);
+    return item ? suggest(item.url)?.alarm || "" : "";
+  }
+
+  // Neuer Schritt: der erste Dienst, bei einem erkannten gleich mit dem Vorschlag
+  _hcInitial() {
+    const item = this._hcItems()[0];
+    return { hcId: item?.id || "", hcSuffix: item ? this._hcSuggestion(item.id) : "", hcTouched: false };
+  }
+
+  _hcAddress(f) {
+    const item = this._hcItem(f.hcId);
+    const suffix = String(f.hcSuffix || "").trim();
+    return item && suffix && /^[/?&]\S*$/.test(suffix) ? applySuffix(item.url, suffix) : null;
+  }
+
+  // Fehlt etwas oder passt der Zusatz nicht? (Schlüssel eines Textes oder null)
+  _hcProblem(f) {
+    if (!this._hcItem(f.hcId)) return "fldHcNoService";
+    const suffix = String(f.hcSuffix || "").trim();
+    return !suffix || !/^[/?&]\S*$/.test(suffix) || suffix.length > 200 || !this._hcAddress(f) ? "fldHcBadSuffix" : null;
+  }
+
+  _hcOfferHtml(f) {
+    const sug = this._hcSuggestion(f.hcId);
+    if (!sug || sug === String(f.hcSuffix || "").trim()) return "";
+    return `<div class="ag-hcoffer"><span class="ag-t2">${esc(this._t("hcSuggest", { name: suggest(this._hcItem(f.hcId)?.url)?.name || "", suffix: sug }))}</span><button type="button" class="ag-link" data-wf="hc-take">${esc(this._t("hcTake"))}</button></div>`;
+  }
+
+  // Beim Tippen nur Vorschlag und Vorschau nachführen, nie das Feld selbst (Fokus und Schreibmarke bleiben)
+  _hcRefresh() {
+    const f = this.edit?.form;
+    const dlg = this._dlg();
+    if (!f || f.kind !== "healthcheck") return;
+    const offer = dlg.querySelector('[data-hcp="offer"]');
+    if (offer) offer.innerHTML = this._hcOfferHtml(f);
+    const prev = dlg.querySelector('[data-hcp="preview"]');
+    if (prev) prev.value = this._hcAddress(f) || this._t("fldHcPreviewNone");
+  }
+
+  _healthcheckFields(f) {
+    const items = this._hcItems();
+    const gone = Boolean(f.hcId) && !this._hcItem(f.hcId);
+    const options = `${gone ? `<option value="${esc(f.hcId)}" selected>${esc(this._t("fldHcGone"))}</option>` : ""}${items.map((i) => `<option value="${esc(i.id)}" ${i.id === f.hcId ? "selected" : ""}>${esc(i.name || i.url)}</option>`).join("")}`;
+    const service = `<div class="ag-ef"><select class="ag-input" data-wf="hc-id" aria-label="${esc(this._t("fldHcService"))}">${options}</select></div>
+      ${gone ? `<div class="ag-ef"><small class="ag-err ag-block">${esc(this._t("fldHcGoneHint"))}</small></div>` : ""}
+      <div class="ag-ef"><button type="button" class="ag-link" data-wf="hc-open">${esc(this._t("fldHcOpen"))}</button></div>`;
+    const suffix = `<div class="ag-ef"><input class="ag-input ag-mono" type="text" data-wf="hc-suffix" value="${esc(f.hcSuffix || "")}" placeholder="?state=fail&message=Alarm+triggered" maxlength="200" autocomplete="off" spellcheck="false" aria-label="${esc(this._t("fldHcSuffix"))}">
+      <div class="ag-ef-h">${esc(this._t("fldHcSuffixHint"))}</div><div data-hcp="offer">${this._hcOfferHtml(f)}</div></div>`;
+    const preview = `<div class="ag-ef"><textarea class="ag-input ag-mono ag-hcpreview" rows="3" readonly data-hcp="preview" aria-label="${esc(this._t("fldHcPreview"))}">${esc(this._hcAddress(f) || this._t("fldHcPreviewNone"))}</textarea><div class="ag-ef-h">${esc(this._t("fldHcPreviewHint"))}</div></div>`;
+    return `<div class="ag-t2 ag-grp-intro">${esc(this._t("fldHcIntro"))}</div>
+      ${this._sec("fldHcService", service)}
+      ${this._sec("fldHcSuffix", suffix)}
+      ${this._sec("fldHcPreview", preview)}`;
+  }
+
   _waitFields(f) {
     const quick = [10, 30, 60, 300].map((s) => `<button class="ag-chip ${Number(f.seconds) === s ? "on" : ""}" data-wf="secs" data-value="${s}">${esc(fmtDur(s))}</button>`).join("");
     return this._field("fldDuration", `<span class="ag-num"><input type="number" min="0" max="3600" data-wf="f" data-key="seconds" value="${esc(f.seconds)}" aria-label="${esc(this._t("fldSeconds"))}"><span class="ag-t2">s</span></span><div class="ag-zline" style="margin-top:10px">${quick}</div>`);
@@ -1500,6 +1575,7 @@ export class ActionsUi {
     else if (f.kind === "device") fields = this._deviceFields(f);
     else if (isTone(f.kind)) fields = this._soundFields(f);
     else if (f.kind === "wait") fields = this._waitFields(f);
+    else if (f.kind === "healthcheck") fields = this._healthcheckFields(f);
     else if (f.kind === "acknowledge") fields = `<div class="ag-t2">${esc(this._t("fldAckHint"))}</div>`;
     else if (f.kind === "group") fields = this._groupFields(f);
     else if (f.kind === "scene") fields = this._sceneFields(f);
@@ -1515,6 +1591,10 @@ export class ActionsUi {
     if (f.kind === "end") return this._endApply();
     if (f.kind === "notice") return this._noticeApply();
     if (["device", "sound", "chime", "dechime", "prealarm", "scene"].includes(f.kind) && !f.targets.length) return this._editError("stepNoTargets");
+    if (f.kind === "healthcheck") {
+      const bad = this._hcProblem(f);
+      if (bad) return this._editError(bad);
+    }
     if (f.kind === "notify" && f.ntClick === "custom" && !/^\/[^\s]*$/.test(String(f.ntClickPath || "").trim())) return this._editError("fldNtPathBad");
     if (f.kind === "custom") {
       if (!f.domain || !f.service) return this._editError("stepNoService");
@@ -2008,7 +2088,7 @@ export class ActionsUi {
     if (act === "add") this.openPicker(Number(el.dataset.at), zone);
     else if (act === "kind") {
       const k = KINDS.find((x) => x.kind === el.dataset.kind);
-      this.openEditor({ ...blank(), kind: k.kind, restore: ["sound", "chime", "dechime", "prealarm"].includes(k.kind), ...(k.kind === "chime" ? { sound: "tone_pip", playSeconds: 3, until: false, volume: 0.5 } : {}), ...(k.kind === "dechime" ? { sound: "off_fall", playSeconds: 3, until: false, volume: 0.5 } : {}), ...(k.kind === "prealarm" ? { sound: "pre_beep", playSeconds: 20, until: false, setVolume: true, volume: 0.3, wait: true } : {}),
+      this.openEditor({ ...blank(), kind: k.kind, ...(k.kind === "healthcheck" ? this._hcInitial() : {}), restore: ["sound", "chime", "dechime", "prealarm"].includes(k.kind), ...(k.kind === "chime" ? { sound: "tone_pip", playSeconds: 3, until: false, volume: 0.5 } : {}), ...(k.kind === "dechime" ? { sound: "off_fall", playSeconds: 3, until: false, volume: 0.5 } : {}), ...(k.kind === "prealarm" ? { sound: "pre_beep", playSeconds: 20, until: false, setVolume: true, volume: 0.3, wait: true } : {}),
         // Töne in den Listen der Verzögerungen folgen standardmässig der Verzögerung (1.19.0)
         ...(DELAY_ZONES.includes(this.edit?.zone) && (k.kind === "chime" || k.kind === "prealarm") ? { delay: true, wait: false } : {}) }); // Alarmton beim Alarm: standardmässig zurückstellen; Aktivierungston: Piepsen, 3 Sekunden
     } else if (act === "edit") {
@@ -2150,6 +2230,15 @@ export class ActionsUi {
       form.perVolume = !form.perVolume;
       if (form.perVolume) form.volumes = Object.fromEntries(form.targets.map((id) => [id, form.volumes?.[id] ?? form.volume]));
       this.renderEditor();
+    } else if (act === "hc-take") {
+      form.hcSuffix = this._hcSuggestion(form.hcId);
+      form.hcTouched = true;
+      this.renderEditor();
+    } else if (act === "hc-open") {
+      // Die Dienste öffnen sich über dem Fenster des Schritts; beim Schliessen die Auswahl neu zeichnen (ein Dienst kann dazugekommen sein)
+      const list = this.host.healthcheck.listDlg;
+      list?.addEventListener("close", () => { if (this.edit?.form?.kind === "healthcheck") this.renderEditor(); }, { once: true });
+      this.host.healthcheck.openList();
     } else if (act === "waitend") {
       if (!(form.kind === "sound" && form.until) && !(form.kind === "group" && form.gMode === "until_disarmed")) form.wait = !form.wait;
       this.renderEditor();
@@ -2295,6 +2384,18 @@ export class ActionsUi {
         const prev = this._dlg().querySelector("#ag-ntprev");
         if (prev) prev.innerHTML = this._ntPreview(f);
       } else f[key] = el.value;
+      return true;
+    }
+    if (act === "hc-id") {
+      f.hcId = el.value;
+      if (!f.hcTouched) f.hcSuffix = this._hcSuggestion(f.hcId); // ein erkannter Dienst bringt seinen Vorschlag mit, solange niemand den Zusatz berührt hat
+      this.renderEditor();
+      return true;
+    }
+    if (act === "hc-suffix") {
+      f.hcSuffix = el.value;
+      f.hcTouched = true; // der Nutzer hat das letzte Wort
+      this._hcRefresh();
       return true;
     }
     if (act === "cs-name") {

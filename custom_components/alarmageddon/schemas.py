@@ -64,6 +64,7 @@ from .const import (
     GROUP_MAX_STEPS,
     GROUP_MODES,
     GROUP_NAME_MAX,
+    HEALTHCHECK_SUFFIX_MAX,
     CONF_WORKFLOW_END,
     CONF_EVENT_NOTIFY,
     CONF_WORKFLOWS_REPORT,
@@ -112,6 +113,13 @@ STEP_SCHEMAS = {
         vol.Optional("click_path"): vol.All(str, vol.Length(max=200), vol.Match(r"^/[^\s]*$")),
         # Eigene Empfänger nur für diesen Schritt (1.1.0); fehlt die Angabe oder ist sie leer, gelten die Alarm-Empfänger der Konfiguration
         vol.Optional("targets"): NOTIFY_TARGETS,
+    }),
+    # HealthCheck melden (1.77.0): ruft die URL eines eingerichteten Dienstes mit dem Zusatz auf (settings.apply_fail_suffix). Ob es den Dienst gibt, zeigt
+    # sich erst beim Ausführen (der Selbsttest findet einen fehlenden); die URL selbst steht nie im Schritt, nur die Kennung des Dienstes
+    "healthcheck": vol.Schema({
+        vol.Required("type"): "healthcheck",
+        vol.Required("check_id"): vol.All(str, vol.Match(r"^[a-z0-9]{1,16}$")),
+        vol.Required("suffix"): vol.All(str, vol.Length(min=1, max=HEALTHCHECK_SUFFIX_MAX), vol.Match(r"^[/?&]\S*$")),
     }),
     # Alarm quittieren (1.1.0): beendet den Alarm, die Anlage bleibt scharf
     "acknowledge": vol.Schema({vol.Required("type"): "acknowledge"}),

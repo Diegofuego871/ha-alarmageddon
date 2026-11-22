@@ -63,6 +63,7 @@ from .const import (
     CONF_WORKFLOWS_REPORT,
     CUSTOM_SOUND_ID_RE,
     DATA_CUSTOM_SOUNDS,
+    DATA_HEALTHCHECK,
     DATA_SELFTEST,
     DATA_SELFTEST_LOCK,
     DOMAIN,
@@ -82,13 +83,14 @@ from .const import (
     WORKFLOW_ALWAYS,
 )
 from .devices import display_name
+from .settings import valid_fail_suffix
 
 _LOGGER = logging.getLogger(__name__)
 
 # Befunde der Konfiguration (bei jeder Prüfung neu) und der Laufzeit (festgehalten, bis behoben oder erledigt)
 CONFIG_CODES = (
     "entity_missing", "entity_unavailable", "service_missing", "recipient_missing", "no_recipients", "sound_missing", "no_url",
-    "rule_damaged", "system_not_loaded",
+    "rule_damaged", "system_not_loaded", "healthcheck_missing",
 )
 RUNTIME_CODES = ("step_failed", "step_hung", "notify_failed", "start_failed", "backup_failed", "ping_failed")
 # Listen der Aktionen einer Anlage: Name im Befund und Schlüssel in den Optionen
@@ -140,6 +142,7 @@ class _Collector:
         self.items: dict[str, dict[str, Any]] = {}
         self.sound_places: list[dict[str, Any]] = []
         self.checked = checked if checked is not None else {}
+        self.health: dict[str, dict[str, Any]] | None = None  # eingerichtete HealthCheck-Dienste je Kennung (None: noch nicht gestartet, dann nichts prüfen)
 
     def seen(self, kind: str, ident: str, role: str = "") -> None:
         """Geprüft (unabhängig vom Ergebnis): für die Liste "Geprüft" im Fenster des Selbsttests."""
@@ -265,6 +268,11 @@ def _check_step(c: _Collector, step: dict[str, Any], place: dict[str, Any], defa
             c.add("sound_missing", str(sound), place, sound=str(sound))
     elif kind == "notify":
         c.recipients(step.get("targets"), place, default_targets)
+    elif kind == "healthcheck" and c.health is not None:
+        # Aktion "HealthCheck melden" (1.77.0): den Dienst gibt es nicht mehr (gelöscht, Backup ohne ihn) oder der Zusatz passt nicht zu seiner Adresse
+        item = c.health.get(str(step.get("check_id") or ""))
+        if item is None or not valid_fail_suffix(str(item.get("url") or ""), str(step.get("suffix") or "")):
+            c.add("healthcheck_missing", str(step.get("check_id") or ""), place, reason="missing" if item is None else "suffix")
 
 
 def _leaves(tree: Any) -> list[dict[str, Any]]:
@@ -284,6 +292,8 @@ def check_entry(hass: HomeAssistant, entry: ConfigEntry, cfg: dict[str, Any], no
     options = entry.options
     c = _Collector(hass, entry.entry_id, now, checked)
     alarm_sensors = ctl.all_sensors()
+    healthcheck = hass.data.get(DATA_HEALTHCHECK)
+    c.health = {i["id"]: i for i in healthcheck.items()} if healthcheck is not None and healthcheck.started else None
     # Was die Wartung schon als "nicht erreichbar" meldet: dort nur "fehlt"
     maintained = alarm_sensors | ctl.monitor_sensors()
     for sensor in sorted(alarm_sensors):
@@ -775,21 +785,6 @@ def async_resolve(hass: HomeAssistant, entry_id: str | None, code: str, subject:
             selftest.resolve(entry_id, code, subject)
     except Exception:  # noqa: BLE001
         _LOGGER.exception("The self-test could not clear a problem")
-
-
-def any_alarm(hass: HomeAssistant) -> bool:
-    """
-    Ist eine Anlage im Alarm (ausgelöst)? Für den Alarm-Aufruf der HealthCheck-Dienste (1.73.0, Wunsch des Nutzers 2026-11-20): nur lesen, nie ein
-    Fehler (im Zweifel "nein", der Dienst bekommt dann wie bisher das Lebenszeichen).
-    """
-    try:
-        for entry in hass.config_entries.async_entries(DOMAIN):
-            controller = getattr(getattr(entry, "runtime_data", None), "controller", None) if entry.state is ConfigEntryState.LOADED else None
-            if controller is not None and controller.state == AlarmControlPanelState.TRIGGERED:
-                return True
-    except Exception:  # noqa: BLE001
-        _LOGGER.exception("The health check could not read the state of the alarm systems")
-    return False
 
 
 def any_armed(hass: HomeAssistant) -> bool:

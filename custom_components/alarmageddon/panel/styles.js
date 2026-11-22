@@ -531,6 +531,9 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-icon.k-acknowledge { background: var(--ag-success-soft); color: var(--ag-success); }
 /* Voralarm: Warnfarbe (leiser Vorbote), Aktivierungston: die Farbe des Panels (freundlich); der Alarmton bleibt rot */
 .ag-wf-icon.k-prealarm { background: var(--ag-warning-soft); color: var(--ag-warning-text); }
+.ag-wf-icon.k-healthcheck { background: color-mix(in srgb, #d6336c 14%, transparent); color: #d6336c; } /* wie das Herz der HealthCheck-Dienste */
+:host([dark]) .ag-wf-icon.k-healthcheck { color: #f06595; }
+.ag-hcpreview { resize: none; width: 100%; box-sizing: border-box; overflow-wrap: anywhere; word-break: break-all; cursor: text; }
 .ag-wf-icon.k-wait { background: var(--ag-subtle); color: var(--ag-text2); }
 .ag-wf-icon.k-end { background: var(--ag-success-soft); color: var(--ag-success); }
 .ag-wf-text { flex: 1; min-width: 0; }
