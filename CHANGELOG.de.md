@@ -7,6 +7,13 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.79.1] - 2026-11-22
+
+### Geändert
+
+- **"HealthCheck melden" ganz unten in der Liste:** in der Auswahl einer neuen Aktion steht der Schritt jetzt zuunterst, nach der Gruppe, in jeder Liste.
+- **"Aufruf" in der Aktion "HealthCheck melden" ist eine reine Anzeige:** er sieht nicht mehr wie ein Textfeld aus (keine Eingabefläche), die Adresse steht als lesbarer Text da, und ein Kopierknopf daneben legt die ganze Adresse in die Zwischenablage.
+
 ## [1.79.0] - 2026-11-22
 
 ### Entfernt
@@ -2227,6 +2234,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.79.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.1
 [1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0
 [1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0
 [1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0

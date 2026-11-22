@@ -533,7 +533,11 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-wf-icon.k-prealarm { background: var(--ag-warning-soft); color: var(--ag-warning-text); }
 .ag-wf-icon.k-healthcheck { background: color-mix(in srgb, #d6336c 14%, transparent); color: #d6336c; } /* wie das Herz der HealthCheck-Dienste */
 :host([dark]) .ag-wf-icon.k-healthcheck { color: #f06595; }
-.ag-hcpreview { resize: none; width: 100%; box-sizing: border-box; overflow-wrap: anywhere; word-break: break-all; cursor: text; }
+/* Aufruf der Aktion "HealthCheck melden": nur Anzeige (kein Feld), schlichter Text ohne Rand und Eingabefläche, mit Kopierknopf rechts */
+.ag-hccall { display: flex; align-items: flex-start; gap: 8px; padding: 2px 0; }
+.ag-hcpreview { flex: 1; min-width: 0; display: block; background: none; border: 0; padding: 4px 0; color: var(--ag-text); line-height: 1.5; overflow-wrap: anywhere; word-break: break-all; user-select: text; cursor: default; }
+.ag-hcpreview.none { color: var(--ag-text2); font-family: inherit; }
+.ag-hccall .ag-copy[hidden] { display: none; }
 .ag-wf-icon.k-wait { background: var(--ag-subtle); color: var(--ag-text2); }
 .ag-wf-icon.k-end { background: var(--ag-success-soft); color: var(--ag-success); }
 .ag-wf-text { flex: 1; min-width: 0; }

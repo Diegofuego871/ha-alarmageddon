@@ -47,7 +47,7 @@ for (const lang of ["de", "en"]) {
 
     // ----- Ein Gerät aus dem Alarmablauf in "Beim Deaktivieren" ziehen; die Sirene und der Aktivierungston gehen nicht -----
     const kindsOk = await s.ev("const a=r.host.actions; return { device: a._zoneKinds('disarmed').join(), main: a._zoneKinds('main').join() }");
-    check(`${tag}: Liste nimmt nur Deaktivierungston, Gerät, HealthCheck melden (seit 1.77.0), Warten, Szene, eigene Aktion; der Alarmablauf keinen Deaktivierungston`, kindsOk.device === "dechime,device,healthcheck,wait,scene,custom,group" && !kindsOk.main.includes("dechime"), JSON.stringify(kindsOk));
+    check(`${tag}: Liste nimmt nur Deaktivierungston, Gerät, HealthCheck melden (seit 1.77.0), Warten, Szene, eigene Aktion; der Alarmablauf keinen Deaktivierungston`, kindsOk.device === "dechime,device,wait,scene,custom,group,healthcheck" && !kindsOk.main.includes("dechime"), JSON.stringify(kindsOk));
 
     // ----- Speichern: Liste je Modus -----
     await s.tap('.ag-foot [data-wf="save"]');

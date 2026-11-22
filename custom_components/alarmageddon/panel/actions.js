@@ -4,7 +4,7 @@
 // (workflow.py); Entwurf mit "Speichern". Schritte lassen sich am Griff ziehen und einzeln testen.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur, MODE_ICON, MODE_KEY, errText, onceBtn, paintOnce, runOnce } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, MODE_ICON, MODE_KEY, errText, onceBtn, paintOnce, runOnce, copyBtn, copyValue } = await import(`./common.js${V}`);
 const { MonitorUi } = await import(`./monitor.js${V}`);
 const { suggest, applySuffix } = await import(`./healthcheck.js${V}`);
 const { isCustom, customList, customName, uploadHtml, uploadError, uploadSound } = await import(`./customsounds.js${V}`);
@@ -1114,7 +1114,9 @@ export class ActionsUi {
     const allowed = zone === "after" ? AFTER_KINDS : zone === "armed" ? ARMED_KINDS : zone === "arming" ? ARMING_KINDS : zone === "entry" ? ENTRY_KINDS : zone === "disarmed" ? DISARMED_KINDS : zone === "report" ? REPORT_KINDS : null;
     const kinds = allowed || KINDS.filter((k) => k.kind !== "chime" && k.kind !== "dechime" && k.kind !== "group").map((k) => k.kind);
     // Die Gruppe gibt es in jeder Liste; in einer Gruppe gilt, was in ihrer Liste gilt, ohne Gruppe und ohne "Quittieren"
-    return inGroup(path) ? kinds.filter((k) => !GROUP_NO.includes(k)) : [...kinds, "group"];
+    const list = inGroup(path) ? kinds.filter((k) => !GROUP_NO.includes(k)) : [...kinds, "group"];
+    // "HealthCheck melden" steht in der Auswahl immer ganz unten (Wunsch des Nutzers, 1.79.1)
+    return [...list.filter((k) => k !== "healthcheck"), ...list.filter((k) => k === "healthcheck")];
   }
 
   openPicker(at, zone = "main") {
@@ -1455,7 +1457,16 @@ export class ActionsUi {
     const offer = dlg.querySelector('[data-hcp="offer"]');
     if (offer) offer.innerHTML = this._hcOfferHtml(f);
     const prev = dlg.querySelector('[data-hcp="preview"]');
-    if (prev) prev.value = this._hcAddress(f) || this._t("fldHcPreviewNone");
+    const address = this._hcAddress(f);
+    if (prev) {
+      prev.textContent = address || this._t("fldHcPreviewNone");
+      prev.classList.toggle("none", !address);
+    }
+    const copy = dlg.querySelector('[data-hcp="copy"]');
+    if (copy) {
+      copy.dataset.value = address;
+      copy.hidden = !address;
+    }
   }
 
   _healthcheckFields(f) {
@@ -1467,7 +1478,9 @@ export class ActionsUi {
       <div class="ag-ef"><button type="button" class="ag-link" data-wf="hc-open">${esc(this._t("fldHcOpen"))}</button></div>`;
     const suffix = `<div class="ag-ef"><input class="ag-input ag-mono" type="text" data-wf="hc-suffix" value="${esc(f.hcSuffix || "")}" placeholder="?state=fail&message=Alarm+triggered" maxlength="200" autocomplete="off" spellcheck="false" aria-label="${esc(this._t("fldHcSuffix"))}">
       <div class="ag-ef-h">${esc(this._t("fldHcSuffixHint"))}</div><div data-hcp="offer">${this._hcOfferHtml(f)}</div></div>`;
-    const preview = `<div class="ag-ef"><textarea class="ag-input ag-mono ag-hcpreview" rows="3" readonly data-hcp="preview" aria-label="${esc(this._t("fldHcPreview"))}">${esc(this._hcAddress(f) || this._t("fldHcPreviewNone"))}</textarea><div class="ag-ef-h">${esc(this._t("fldHcPreviewHint"))}</div></div>`;
+    // Reine Anzeige, kein Feld (Wunsch des Nutzers, 1.79.1): Text ohne Rahmen eines Eingabefelds, zum Markieren, mit Knopf zum Kopieren
+    const address = this._hcAddress(f);
+    const preview = `<div class="ag-ef"><div class="ag-hccall"><code class="ag-mono ag-hcpreview ${address ? "" : "none"}" data-hcp="preview">${esc(address || this._t("fldHcPreviewNone"))}</code>${copyBtn(address, this._t("fldHcCopy"), `data-wf="hc-copy" data-hcp="copy" ${address ? "" : "hidden"}`)}</div><div class="ag-ef-h">${esc(this._t("fldHcPreviewHint"))}</div></div>`;
     return `<div class="ag-t2 ag-grp-intro">${esc(this._t("fldHcIntro"))}</div>
       ${this._sec("fldHcService", service)}
       ${this._sec("fldHcSuffix", suffix)}
@@ -2230,6 +2243,8 @@ export class ActionsUi {
       form.perVolume = !form.perVolume;
       if (form.perVolume) form.volumes = Object.fromEntries(form.targets.map((id) => [id, form.volumes?.[id] ?? form.volume]));
       this.renderEditor();
+    } else if (act === "hc-copy") {
+      copyValue(el, this.host._root.ownerDocument);
     } else if (act === "hc-take") {
       form.hcSuffix = this._hcSuggestion(form.hcId);
       form.hcTouched = true;
