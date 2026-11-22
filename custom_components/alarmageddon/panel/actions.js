@@ -376,6 +376,7 @@ export class ActionsUi {
   constructor(host) {
     this.host = host;
     this.trigger = host._loadPref("trigger", "away");
+    this.phase = ""; // Filter "Phase" der Ansicht (1.81.0): leer = alle
     this.draft = null;
     this.saveState = null;
     this.saving = false;
@@ -592,17 +593,49 @@ export class ActionsUi {
     const arm = this._armedHtml(running);
     const entry = this._delayHtml("entry", running);
     // Zwei Kapitel (1.19.0): "Beim Scharfschalten" und "Bei einem Alarm"; im Reiter "Immer aktiv" (nie scharf geschaltet) ohne Titel
-    const chapHtml = (title, hint) => `<div class="ag-wf-chap"><h3 class="ag-chap-t">${esc(this._t(title))}</h3><p class="ag-chap-h">${esc(this._t(hint))}</p></div>`;
-    const chap = (title, hint) => (this.trigger === "always" ? "" : chapHtml(title, hint));
+    const chapHtml = (title, hint, phases = "") => `<div class="ag-wf-chap" data-phase="${phases}"><h3 class="ag-chap-t">${esc(this._t(title))}</h3><p class="ag-chap-h">${esc(this._t(hint))}</p></div>`;
+    const chap = (title, hint, phases = "") => (this.trigger === "always" ? "" : chapHtml(title, hint, phases));
     // Seit 1.62.0 steht vor dem Alarm das Kapitel "Bei einem stillen Alarm", auch im Reiter "Immer aktiv": dort trägt darum auch der
     // Alarm seinen Kapiteltitel (sonst hinge "Alarm beginnt" scheinbar am stillen Alarm)
-    const alarmChap = chapHtml("wfChapAlarm", this.trigger === "always" ? "wfChapAlarmAlwaysHint" : "wfChapAlarmHint");
-    h._setHtml(body, `${chap("wfChapArm", "wfChapArmHint")}${arm}${chapHtml("wfChapReport", "wfChapReportHint")}${this._reportHtml(running)}${alarmChap}${entry}<div class="ag-wf-line ag-wf-main">
+    const alarmChap = chapHtml("wfChapAlarm", this.trigger === "always" ? "wfChapAlarmAlwaysHint" : "wfChapAlarmHint", "entry alarm end");
+    h._setHtml(body, `${chap("wfChapArm", "wfChapArmHint", "arming armed")}${arm}${chapHtml("wfChapReport", "wfChapReportHint", "report")}${this._reportHtml(running)}${alarmChap}${entry}<div class="ag-wf-line ag-wf-main">
         <div class="ag-wf-start"><span class="ag-mini err alarm">${ic("alert", 20)}</span>${esc(this._fixedTitle("wfStart"))}</div>${steps.length ? plus(0) : plus(0).replace('class="ag-wf-plus"', 'class="ag-wf-plus last"')}
         ${cards}
       </div>${this._endHtml()}${this._afterHtml(running)}${this._disarmedHtml(running, chap)}`);
+    this._applyPhase(body);
     h._placePills();
     this.renderFoot();
+  }
+
+  // Filter "Phase" (Wunsch des Nutzers, 1.81.0): zeigt nur eine Phase des Ablaufs. Die Reihenfolge ist die des Ablaufs; Standard und Rückfall: alle Phasen. Nur die
+  // Ansicht: der Entwurf, das Speichern und "Aktionen übernehmen von" betreffen immer den ganzen Ablauf.
+  _phases() {
+    const always = this.trigger === "always";
+    const delays = (zone) => !always && this._delaySeconds(zone) > 0;
+    return [
+      ...(delays("arming") ? [["arming", "wfArming"]] : []),
+      ...(always ? [] : [["armed", "wfArmed"]]),
+      ["report", "wfReport"],
+      ...(delays("entry") ? [["entry", "wfEntry"]] : []),
+      ["alarm", "wfStart"],
+      ["end", "wfEnd"],
+      ...(always ? [] : [["disarmed", "wfDisarmed"]]),
+    ];
+  }
+
+  _phaseNow() {
+    return this._phases().some(([key]) => key === this.phase) ? this.phase : "";
+  }
+
+  _applyPhase(body) {
+    const MAP = { ".ag-wf-arming": "arming", ".ag-wf-armed": "armed", ".ag-wf-report": "report", ".ag-wf-entry": "entry", ".ag-wf-main": "alarm", ".ag-wf-end": "end", ".ag-wf-after": "end", ".ag-wf-disarmed": "disarmed" };
+    const now = this._phaseNow();
+    for (const el of body.children) {
+      const own = Object.entries(MAP).find(([sel]) => el.matches(sel))?.[1];
+      if (own) el.dataset.phase = own;
+      const phases = (el.dataset.phase || "").split(" ").filter(Boolean);
+      el.classList.toggle("ag-phase-off", Boolean(now) && phases.length > 0 && !phases.includes(now));
+    }
   }
 
   // Titel der drei festen Punkte; mit getrennten Aktionen je Modus steht der Modus in Klammern dahinter, damit man
@@ -707,7 +740,7 @@ export class ActionsUi {
     if (this.trigger === "always") return "";
     const steps = this.steps("disarmed");
     const plus = (i) => `<div class="ag-wf-plus ${i === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="add" data-at="${i}" aria-label="${esc(this._t("wfDisarmedAdd"))}" title="${esc(this._t("wfDisarmedAdd"))}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span>${i === steps.length ? `<small class="ag-wf-plushint ag-t2 ag-small">${esc(this._t(steps.length ? "wfDisarmedMore" : "wfDisarmedHint"))}</small>` : ""}</div>`;
-    return `${chap("wfChapDisarm", "wfChapDisarmHint")}<div class="ag-wf-line ag-wf-disarmed" data-zone="disarmed"><div class="ag-wf-start"><span class="ag-mini ok">${ic("shieldOff", 20)}</span>${esc(this._fixedTitle("wfDisarmed"))}</div>${this._noticeHtml("disarmed")}${plus(0)}${steps.map((step, i) => this._card(step, i, running, "disarmed") + plus(i + 1)).join("")}</div>`;
+    return `${chap("wfChapDisarm", "wfChapDisarmHint", "disarmed")}<div class="ag-wf-line ag-wf-disarmed" data-zone="disarmed"><div class="ag-wf-start"><span class="ag-mini ok">${ic("shieldOff", 20)}</span>${esc(this._fixedTitle("wfDisarmed"))}</div>${this._noticeHtml("disarmed")}${plus(0)}${steps.map((step, i) => this._card(step, i, running, "disarmed") + plus(i + 1)).join("")}</div>`;
   }
 
   // Aktionen nach dem Quittieren: eigene Liste hinter "Alarm endet", mit denselben Karten und demselben Plus wie oben. Möglich sind
@@ -996,7 +1029,9 @@ export class ActionsUi {
     const copy = others.length
       ? `<select class="ag-input ag-copyfrom" data-wf="copy-from" aria-label="${esc(this._t("wfCopyFrom"))}"><option value="">${esc(this._t("wfCopyFrom"))}</option>${others.map((t) => `<option value="${t}">${esc(name(t))}</option>`).join("")}</select>`
       : "";
-    h._setHtml(foot, `${status}<span class="ag-grow"></span>${copy}${this._testBtnHtml(n > 0)}<button class="ag-btn" data-wf="cancel" ${n ? "" : "disabled"}>${esc(this._t("cancel"))}</button>
+    const now = this._phaseNow();
+    const phase = `<select class="ag-input ag-phasefilter" data-wf="phase" aria-label="${esc(this._t("wfPhaseLabel"))}"><option value="">${esc(this._t("wfPhaseAll"))}</option>${this._phases().map(([key, label]) => `<option value="${key}" ${key === now ? "selected" : ""}>${esc(this._t(label))}</option>`).join("")}</select>`;
+    h._setHtml(foot, `${status}<span class="ag-grow"></span><span class="ag-footsels">${copy}${phase}</span>${this._testBtnHtml(n > 0)}<button class="ag-btn" data-wf="cancel" ${n ? "" : "disabled"}>${esc(this._t("cancel"))}</button>
       <button class="ag-btn primary" data-wf="save" ${n && !this.saving ? "" : "disabled"}>${ic("check", 18)}${esc(this._t("save"))}</button>`);
   }
 
@@ -2361,6 +2396,11 @@ export class ActionsUi {
   onInput(el) {
     const act = el.dataset.wf;
     if (act?.startsWith("mon-")) return this.mon.onInput(el);
+    if (act === "phase") {
+      this.phase = el.value;
+      this.render();
+      return true;
+    }
     if (act === "copy-from") {
       const value = el.value;
       el.value = "";

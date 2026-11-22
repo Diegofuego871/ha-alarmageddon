@@ -190,9 +190,13 @@ button { font: inherit; color: inherit; }
 .ag-alarm { border-radius: 18px; padding: 16px 18px; background: linear-gradient(to top, color-mix(in srgb, var(--ag-error) 84%, #000), var(--ag-error)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ag-error) 70%, transparent), var(--ag-shadow-s); color: #fff; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: var(--ag-gap, 18px); }
 :host([dark]) .ag-alarm { background: linear-gradient(to top, color-mix(in srgb, var(--ag-error) 70%, var(--ag-card)), color-mix(in srgb, var(--ag-error) 40%, var(--ag-card))); }
 .ag-alarm b { font-size: 18px; font-weight: 500; }
-.ag-copyfrom { height: 40px; min-width: 190px; max-width: 260px; flex: 0 1 auto; border-radius: 999px; }
-:host([narrow]) .ag-foot:has(.ag-copyfrom) { flex-wrap: wrap; }
-:host([narrow]) .ag-copyfrom { min-width: 0; flex: 1 1 100%; max-width: none; order: -1; }
+.ag-footsels { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.ag-copyfrom, .ag-phasefilter { height: 40px; min-width: 150px; max-width: 260px; flex: 0 1 auto; border-radius: 999px; }
+/* Phase anzeigen (1.81.0): ausgeblendete Teile des Ablaufs; Kapitel und Linien bleiben im Entwurf */
+.ag-phase-off { display: none !important; }
+:host([narrow]) .ag-foot:has(.ag-footsels) { flex-wrap: wrap; }
+:host([narrow]) .ag-footsels { flex: 1 1 100%; order: -1; }
+:host([narrow]) .ag-footsels .ag-copyfrom, :host([narrow]) .ag-footsels .ag-phasefilter { min-width: 0; flex: 1 1 0; max-width: none; }
 .ag-alarm-btns { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
 .ag-alarm .ag-btn { background: #fff; color: var(--ag-error); border-color: #fff; min-height: 44px; font-size: 15px; }
 .ag-alarm [data-act="ack"] { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .8); }
