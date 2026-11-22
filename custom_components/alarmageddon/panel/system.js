@@ -3,7 +3,7 @@
 // Dieselben Schlüssel wie der Optionsdialog von HA (WebSocket alarmageddon/save_system). Der Code bleibt im Optionsdialog.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, iconTitle, matchQuery, searchField, accentGrid } = await import(`./common.js${V}`);
+const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, iconTitle, matchQuery, searchField, accentGrid, accentColor, accentPreview } = await import(`./common.js${V}`);
 const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo, soundBadge } = await import(`./customsounds.js${V}`);
 const { RoutinesUi, normRoutines, canon } = await import(`./routines.js${V}`);
 
@@ -563,9 +563,43 @@ export class SystemUi {
   // Anlage löschen (1.32.0): ganz unten, roter Textknopf; die Warnung kommt im Dialog. Nur bei deaktivierter Anlage (der Server prüft es auch).
   // Einrichtungsassistent (1.69.0, Wunsch des Nutzers 2026-11-19): kleines Kapitel vor "Anlage löschen". Zustand und Knopf zum Starten; ist er
   // nicht fertig, geht es mit "Fortsetzen" beim gemerkten Schritt weiter, "Von vorn" beginnt beim Willkommen (alles wie konfiguriert vorgewählt)
-  // Akzentfarbe der Anlage (1.75.0): Entwurf wie alles auf der Seite, gespeichert mit "Speichern"; die gewählte Farbe wirkt sofort als Vorschau
+  // Akzentfarbe der Anlage (1.75.0; seit 1.76.0 wie Töne, Codes und Backups: eine Zeile mit Symbol und Knopf, die Auswahl im eigenen Fenster, Wunsch des
+  // Nutzers 2026-11-22). Das Fenster ändert nur den Entwurf der Seite ("Übernehmen"), gespeichert wird mit "Speichern" der Seite; die Farbe zeigt sich
+  // schon im Fenster als Vorschau
   _accentHtml(d) {
-    return chapter(this._t("accTitle"), `<div class="ag-card ag-accwrap">${accentGrid(d.accent, 'data-sys="accent"', (k) => this._t(k))}</div>`, this._t("accHint"));
+    const t = (k, v) => this._t(k, v);
+    const hex = accentColor(d.accent);
+    const dot = `<span class="ag-accdot ag-accdot-s" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span>`;
+    return chapter(t("accTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum"><span class="ag-oav ag-tint ag-tint-accent on">${ic("palette", 20)}</span>
+      <div class="ag-settx"><b class="ag-accname">${dot}${esc(t(`acc_${d.accent}`))}</b>${d.accent !== this.base().accent ? `<small class="ag-t2 ag-unsaved">${esc(t("unsavedOne"))}</small>` : ""}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="acc-open">${ic("palette", 18)}${esc(t("accChange"))}</button></div></div></div>`, t("accHint"));
+  }
+
+  accentDlg() {
+    return this.host._root.getElementById("ag-accent");
+  }
+
+  openAccent() {
+    const dlg = this.accentDlg();
+    const d = this.ensureDraft();
+    if (!dlg) return;
+    this.accPick = d.accent;
+    // Wie auch immer das Fenster schliesst: die Vorschau fällt auf den Entwurf der Seite zurück
+    dlg.onclose = () => {
+      this.accPick = null;
+      this.host._applyAccent?.(this.draft?.accent);
+    };
+    this._renderAccent();
+    if (!dlg.open) dlg.showModal();
+  }
+
+  _renderAccent() {
+    const dlg = this.accentDlg();
+    const t = (k) => this._t(k);
+    this.host._setHtml(dlg, `<div class="ag-dlg-body ag-acc-pop">${iconTitle("palette", "ag-tint ag-tint-accent on", t("accTitle"))}
+      <p class="ag-t2">${esc(t("accHint"))}</p>
+      ${accentGrid(this.accPick, 'data-sys="acc-pick"', t)}
+      ${accentPreview(this.accPick, t)}
+      <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-sys="acc-cancel">${esc(t("cancel"))}</button><button type="button" class="ag-btn primary" data-sys="acc-apply">${ic("check", 18)}${esc(t("accApply"))}</button></div></div>`);
   }
 
   _wizardHtml() {
@@ -1221,9 +1255,17 @@ export class SystemUi {
       d.always = !d.always;
       this.saveState = null;
       this.render();
-    } else if (act === "accent") {
-      d.accent = el.dataset.key;
-      this.host._applyAccent?.(d.accent); // Vorschau
+    } else if (act === "acc-open") {
+      this.openAccent();
+    } else if (act === "acc-pick") {
+      this.accPick = el.dataset.key;
+      this.host._applyAccent?.(this.accPick); // Vorschau im ganzen Panel
+      this._renderAccent();
+    } else if (act === "acc-cancel") {
+      this.accentDlg()?.close();
+    } else if (act === "acc-apply") {
+      d.accent = this.accPick || d.accent;
+      this.accentDlg()?.close();
       this.saveState = null;
       this.render();
     } else if (act === "monitor") {

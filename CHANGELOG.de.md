@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.75.1] - 2026-11-22
+
+### Geändert
+
+- **Akzentfarbe in eigenem Fenster:** Unter Konfiguration › Anlage ist die Akzentfarbe jetzt eine Zeile wie Eigene Töne, Codes pro Person und Backups: mit eigenem Symbol (eine Farbpalette, in Orange) und dem Knopf "Akzentfarbe ändern". Das Fenster zeigt die zehn Farben und darunter eine kleine Vorschau, wie das Panel mit der gewählten Farbe aussieht (Reiter, Knopf, Schalter, runder Pfeil, Haken, Markierung, Link und Balken); die Farbe zeigt sich auch sofort im ganzen Panel hinter dem Fenster. "Übernehmen" nimmt die Farbe in die Seite, "Abbrechen" (oder das Kreuz) stellt die alte Farbe zurück. Gespeichert wird erst mit "Speichern" der Seite: bis dahin trägt die Zeile "Noch nicht gespeichert" mit dem orangen Punkt.
+
 ## [1.75.0] - 2026-11-21
 
 ### Hinzugefügt
@@ -2159,6 +2165,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.75.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.1
 [1.75.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.0
 [1.74.6]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.6
 [1.74.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.5

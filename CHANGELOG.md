@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.75.1] - 2026-11-22
+
+### Changed
+
+- **Accent colour in its own window:** under Configuration › Alarm system the accent colour is now a row like Your own sounds, Codes per person and Backups: an own symbol (a palette, in orange) and the button "Change accent colour". The window shows the ten colours and, below them, a small preview of how the panel will look with the chosen colour (tab, button, switch, round arrow, tick, mark, link and bar); the colour also shows at once in the whole panel behind the window. "Apply" takes the colour into the page, "Cancel" (or the cross) puts the old colour back. Nothing is saved until you save the page: the row carries "Not saved yet" with the orange dot until then.
+
 ## [1.75.0] - 2026-11-21
 
 ### Added
@@ -2159,6 +2165,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.75.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.1
 [1.75.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.0
 [1.74.6]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.6
 [1.74.5]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.5

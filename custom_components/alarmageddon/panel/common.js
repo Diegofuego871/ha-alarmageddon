@@ -67,6 +67,7 @@ export const P = {
   play: "M8,5.14V19.14L19,12.14L8,5.14Z",
   stop: "M18,18H6V6H18V18Z",
   upload: "M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z",
+  palette: "M17.5,12A1.5,1.5 0 0,1 16,10.5A1.5,1.5 0 0,1 17.5,9A1.5,1.5 0 0,1 19,10.5A1.5,1.5 0 0,1 17.5,12M14.5,8A1.5,1.5 0 0,1 13,6.5A1.5,1.5 0 0,1 14.5,5A1.5,1.5 0 0,1 16,6.5A1.5,1.5 0 0,1 14.5,8M9.5,8A1.5,1.5 0 0,1 8,6.5A1.5,1.5 0 0,1 9.5,5A1.5,1.5 0 0,1 11,6.5A1.5,1.5 0 0,1 9.5,8M6.5,12A1.5,1.5 0 0,1 5,10.5A1.5,1.5 0 0,1 6.5,9A1.5,1.5 0 0,1 8,10.5A1.5,1.5 0 0,1 6.5,12M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21A1.5,1.5 0 0,0 13.5,19.5C13.5,19.11 13.35,18.76 13.11,18.5C12.88,18.23 12.73,17.88 12.73,17.5A1.5,1.5 0 0,1 14.23,16H16A5,5 0 0,0 21,11C21,6.58 16.97,3 12,3Z",
   chartBox: "M9,17H7V10H9V17M13,17H11V7H13V17M17,17H15V13H17V17M19,19H5V5H19V19.1M19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.9 20.1,3 19,3Z",
   arrowUp: "M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z",
   arrowDown: "M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z",
@@ -107,6 +108,17 @@ export const accentColor = (key) => ACCENTS.find(([k]) => k === key)?.[1] || nul
 // Raster der Farben als Knöpfe (Punkt in der Farbe, Name); `attr` ist das Attribut mit dem Ziel des Klicks, `data-key` der Schlüssel der Farbe
 export const accentGrid = (current, attr, t) => `<div class="ag-acc" role="radiogroup" aria-label="${esc(t("accTitle"))}">${ACCENTS.map(([k, hex]) =>
   `<button type="button" role="radio" class="ag-accbtn ${current === k ? "on" : ""}" ${attr} data-key="${k}" aria-checked="${current === k}"><span class="ag-accdot" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span><span>${esc(t(`acc_${k}`))}</span></button>`).join("")}</div>`;
+
+// Vorschau der gewählten Farbe (Fenster der Akzentfarbe, Wunsch des Nutzers 2026-11-22): die Bausteine, in denen das Panel sie braucht, mit der Farbe nur in
+// diesem Kasten (--ag-primary lokal): Reiterleiste mit gewähltem Reiter, Hauptknopf, Schalter an, runder Pfeil, Markierung, Link, Auswahlhaken und Fortschritt
+export const accentPreview = (key, t) => {
+  const hex = accentColor(key);
+  return `<div class="ag-accprev" aria-hidden="true" style="${hex ? `--ag-primary:${hex}` : ""}"><div class="ag-accprev-t ag-t2">${esc(t("accPreview"))}</div>
+    <div class="ag-accprev-body"><div class="ag-seg ag-accprev-seg"><button type="button" class="on" tabindex="-1">${ic("shield", 16)}<span>${esc(t("accPvTab"))}</span></button><button type="button" tabindex="-1"><span>${esc(t("accPvTab2"))}</span></button></div>
+      <div class="ag-accprev-row"><button type="button" class="ag-btn primary" tabindex="-1">${ic("check", 16)}${esc(t("accPvBtn"))}</button>
+        <span class="ag-toggle on" role="presentation"></span><span class="ag-accprev-round">${ic("arrowUp", 16)}</span><span class="ag-accprev-chk">${ic("check", 14)}</span></div>
+      <div class="ag-accprev-row"><span class="ag-accprev-tag">${esc(t("accPvTag"))}</span><span class="ag-accprev-link">${esc(t("accPvLink"))}</span><span class="ag-accprev-bar"><i></i></span></div></div></div>`;
+};
 
 export const fmtDur = (seconds) => {
   const n = Math.max(0, Math.round(Number(seconds) || 0));

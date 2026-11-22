@@ -419,11 +419,13 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-tint-sounds { --ag-tint: #3f51b5; }
 .ag-tint-health { --ag-tint: #d81b60; }
 .ag-tint-backup { --ag-tint: #8d6e63; }
+.ag-tint-accent { --ag-tint: #ef6c00; }
 :host([dark]) .ag-tint-routines { --ag-tint: #b39ddb; }
 :host([dark]) .ag-tint-codes { --ag-tint: #4db6ac; }
 :host([dark]) .ag-tint-sounds { --ag-tint: #9fa8da; }
 :host([dark]) .ag-tint-health { --ag-tint: #f48fb1; }
 :host([dark]) .ag-tint-backup { --ag-tint: #bcaaa4; }
+:host([dark]) .ag-tint-accent { --ag-tint: #ffb74d; }
 .ag-otx { flex: 1; min-width: 0; }
 .ag-otx b { font-weight: 500; display: block; }
 .ag-otx small { display: block; color: var(--ag-text2); font-size: 12.5px; margin-top: 2px; line-height: 1.35; }
@@ -1704,7 +1706,22 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-sthfs { margin-left: 0; display: grid; grid-template-columns: max-content minmax(0, auto); justify-content: start; align-items: center; gap: 10px 16px; }
 .ag-sthf { display: contents; }
 /* Liste der Lebenszeichen: Tabelle wie die Backups; die URL steht ganz da und bricht an jeder Stelle um (sie hat keine Leerzeichen) */
-.ag-accwrap { padding: 14px; }
+.ag-accname { display: inline-flex; align-items: center; gap: 10px; }
+.ag-accdot-s { width: 16px; height: 16px; }
+.ag-acc-pop .ag-acc { margin: 6px 0 4px; }
+/* Vorschau im Fenster der Akzentfarbe: --ag-primary wird am Kasten gesetzt, die Bausteine nutzen es wie im Panel */
+.ag-accprev { margin-top: 14px; border: 1px dashed var(--ag-divider); border-radius: 16px; padding: 12px 14px 14px; background: color-mix(in srgb, var(--ag-bg) 60%, transparent); }
+.ag-accprev-t { font-size: 12.5px; margin-bottom: 10px; }
+.ag-accprev-body { display: flex; flex-direction: column; gap: 12px; }
+.ag-accprev-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.ag-accprev-seg { align-self: flex-start; pointer-events: none; }
+.ag-accprev .ag-btn, .ag-accprev .ag-toggle { pointer-events: none; }
+.ag-accprev-round { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--ag-divider); display: grid; place-items: center; color: var(--ag-primary); }
+.ag-accprev-chk { width: 22px; height: 22px; border-radius: 6px; background: var(--ag-primary); color: #fff; display: grid; place-items: center; }
+.ag-accprev-tag { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; color: var(--ag-primary); background: var(--ag-primary-soft); }
+.ag-accprev-link { color: var(--ag-primary); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.ag-accprev-bar { flex: 1 1 80px; min-width: 80px; height: 8px; border-radius: 999px; background: var(--ag-primary-soft); overflow: hidden; }
+.ag-accprev-bar i { display: block; width: 62%; height: 100%; border-radius: inherit; background: var(--ag-primary); }
 .ag-acc { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .ag-accbtn { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; border: 1px solid var(--ag-divider); border-radius: 14px; background: var(--ag-card); color: var(--ag-text); font: inherit; text-align: left; cursor: pointer; }
 .ag-accbtn:hover { background: var(--ag-hover); }
