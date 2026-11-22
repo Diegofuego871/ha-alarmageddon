@@ -1109,11 +1109,11 @@ MUTATIONS = [
      "                self.log.remove(hid)\n", "", "tests/test_healthcheck_log.py -k removing_a_service"),
     # HealthCheck melden: Wiederholen und Pausieren im Alarm (1.80.0, Wunsch des Nutzers 2026-11-22)
     ("HealthCheck Halten: ein Alarm pausiert die normalen Lebenszeichen nicht", "healthcheck.py",
-     "        if hid in self._paused and not self.failing():\n            return None", "        if False:\n            return None", "tests/test_healthcheck_hold.py -k repeat_and_pause"),
+     "        if hid in self._paused and not self.failing():\n            return None", "        if False:\n            return None", "tests/test_healthcheck_hold.py -k every_regular"),
     ("HealthCheck Halten: die Pause hält auch den Fehler des Selbsttests zurück", "healthcheck.py",
      "        if hid in self._paused and not self.failing():", "        if hid in self._paused:", "tests/test_healthcheck_hold.py -k failure_of_the_selftest"),
     ("HealthCheck Halten: die Wiederholung hat einen eigenen Abstand statt dem des Dienstes", "healthcheck.py",
-     'max(int(item["interval"]), 1)', "60", "tests/test_healthcheck_hold.py -k repeat_and_pause"),
+     'max(int(item["interval"]), 1)', "60", "tests/test_healthcheck_hold.py -k waits_for_the_interval"),
     ("HealthCheck Halten: das Ende des Alarms gibt die Pause nicht frei", "workflow.py",
      "            self._hc_release(True)  # der Alarm ist vorbei", "            pass  # der Alarm ist vorbei", "tests/test_healthcheck_hold.py -k alarm_ending"),
     ("HealthCheck Halten: nach dem Ende des Alarms folgt kein Lebenszeichen gleich", "healthcheck.py",
