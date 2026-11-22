@@ -261,6 +261,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: jede Zeile hat das Auge vor dem Stift (mindestens 44 px, mit Namen für Vorleser)`, await s.ev("const b=[...r.querySelectorAll('#ag-rtlist .ag-rtrow .ag-wf-btns .ag-iconbtn')]; return b[0].dataset.sys === 'rt-view' && b[1].dataset.sys === 'rt-edit' && !!b[0].getAttribute('aria-label') && Math.round(b[0].getBoundingClientRect().width) >= 44"));
     await s.tap('#ag-rtlist .ag-rtrow [data-sys="rt-view"]');
     await s.waitFor("return !!r.querySelector('#ag-rtlist .ag-rt-view')");
+    check(`${tag}: Vorschau (Auge): nicht ausgeführte Zustände mit rotem Kreuz`, await s.ev("const o=r.querySelector('#ag-rtlist .ag-fl-band > div:not(.on)'); const c=getComputedStyle(o, '::before'); return !!o && c.content.includes('✕') && c.color !== getComputedStyle(o).color"));
     const view = await s.ev(`const d=r.getElementById('ag-rtlist'); const v=d.querySelector('.ag-rt-view'); const btn=[...d.querySelectorAll('.ag-dlg-btns .ag-btn')]; const box=d.getBoundingClientRect();
       return { open: d.open, title: v.querySelector('h3').textContent.trim(), inputs: v.querySelectorAll('input, select, textarea, .ag-toggle, [data-sys="rt-search"]').length, rows: v.querySelectorAll('.ag-rtrow').length,
         chapter: v.textContent.includes(${JSON.stringify(t.preview)}), flow: v.querySelectorAll('.ag-flow, .ag-rtflow, svg').length, buttons: btn.map((b) => [b.dataset.sys, b.textContent.trim(), b.classList.contains('primary')]),

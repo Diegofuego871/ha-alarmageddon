@@ -4,7 +4,7 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const DIALOGS = [
-  { name: "Backup erstellen", open: "r.host.systemUi.openCreateBackup(); return 1", id: "ag-codes", title: { de: "Name (optional)", en: "Name (optional)" } },
+  { name: "Backup erstellen", open: "r.host.systemUi.openCreateBackup(); return 1", id: "ag-codes", title: { de: "Name", en: "Name" } },
   { name: "Anlage hinzufügen", open: "r.host._openAdd(); return 1", id: "ag-add", title: { de: "Name", en: "Name" } },
   { name: "Anlage umbenennen", open: "r.host._openRename(); return 1", id: "ag-rename", title: { de: "Name", en: "Name" } },
   { name: "Anlage löschen", open: "r.host._openDelete(); return 1", id: "ag-delete", title: { de: "Bestätigung", en: "Confirmation" } },

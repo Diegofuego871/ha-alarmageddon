@@ -7,6 +7,14 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.76.2] - 2026-11-22
+
+### Geändert
+
+- **Vorschau einer Routine (Editor und Auge):** die Zustände, in denen die Routine nicht läuft, tragen jetzt ein rotes Kreuz an der Stelle, wo der ausgeführte Zustand den Haken hat. Knopf und Schrift bleiben grau.
+- **"Vorschlag übernehmen":** der Knopf neben einem Vorschlag (Fehler-Zusatz, Alarm-Zusatz, Dashboard-Link) heisst jetzt "Vorschlag übernehmen", damit man ihn nicht mit Speichern verwechselt.
+- **Namen ohne "(freiwillig)":** das Namensfeld einer Aktions-Gruppe und eines Backups trägt keinen Zusatz "(freiwillig)" oder "(optional)" mehr; es bleibt kein Pflichtfeld.
+
 ## [1.76.1] - 2026-11-22
 
 ### Geändert
@@ -2198,6 +2206,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.76.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.2
 [1.76.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.1
 [1.76.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.0
 [1.75.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.3

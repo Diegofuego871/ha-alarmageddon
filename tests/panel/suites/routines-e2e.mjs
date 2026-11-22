@@ -135,6 +135,9 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="rt-unsafe"]');
     await s.tap('[data-sys="rt-st"][data-value="armed"]');
     check(`${tag}: Vorschau des Ablaufs: Auslöser, Prüfung mit den zwei gewählten Zuständen und Aktion, Hinweis auf Übersprungen`, await s.ev("const f=r.querySelector('.ag-fl'); return !!f && f.querySelectorAll('.ag-fl-node').length === 3 && f.querySelectorAll('.ag-fl-band .on').length === 2 && f.querySelector('.ag-fl-node.arm') && f.querySelectorAll('.ag-fl-leaf').length >= 3"));
+    // Nicht ausgeführte Zustände tragen ein rotes Kreuz statt des Hakens; Knopf und Schrift bleiben grau (Wunsch des Nutzers 2026-11-22)
+    const cross = await s.ev(`const x = (sel) => { const e = r.querySelector(sel); return e ? [getComputedStyle(e, '::before').content, getComputedStyle(e, '::before').color, getComputedStyle(e).color] : null; }; const off = x('.ag-fl-band > div:not(.on)'); const on = x('.ag-fl-band > div.on'); const grey = getComputedStyle(r.querySelector('.ag-fl-band > div:not(.on)')); return { off, on, bg: grey.backgroundColor, subtle: getComputedStyle(r.querySelector('.ag-fl')).getPropertyValue('--ag-subtle') }`)
+    check(`${tag}: Vorschau: nicht ausgeführte Zustände mit rotem Kreuz, ausgeführte mit Haken`, cross.off[0].includes('✕') && cross.on[0].includes('✓') && cross.off[1] !== cross.off[2], JSON.stringify(cross));
     await s.tap('[data-sys="rt-st"][data-value="disarmed"]');
     check(`${tag}: Vorschau folgt dem Entwurf (ein Zustand weniger)`, await s.ev("return r.querySelectorAll('.ag-fl-band .on').length === 1"));
     await s.tap('[data-sys="rt-st"][data-value="disarmed"]');

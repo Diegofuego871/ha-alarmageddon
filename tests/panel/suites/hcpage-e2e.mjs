@@ -4,8 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { chap: "Dashboard", row: "Dashboard", err: "Der Link muss mit http:// oder https:// beginnen", take: "Übernehmen", allOk: "Alles in Ordnung" },
-  en: { chap: "Dashboard", row: "Dashboard", err: "The link must start with http:// or https://", take: "Use", allOk: "All in order" },
+  de: { chap: "Dashboard", row: "Dashboard", err: "Der Link muss mit http:// oder https:// beginnen", take: "Vorschlag übernehmen", allOk: "Alles in Ordnung" },
+  en: { chap: "Dashboard", row: "Dashboard", err: "The link must start with http:// or https://", take: "Use suggestion", allOk: "All in order" },
 };
 const CRON = "b2c3d4e5f6a1"; // erfundener Dienst mit Link (?hc=sample)
 const HC = "a1b2c3d4e5f6"; // ohne Link

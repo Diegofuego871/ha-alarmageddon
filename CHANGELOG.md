@@ -7,6 +7,14 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.76.2] - 2026-11-22
+
+### Changed
+
+- **Preview of a routine (editor and eye):** the states in which the routine does not run now carry a red cross where the executed state has its tick. Button and text stay grey.
+- **"Use suggestion":** the button next to a suggestion (failure suffix, alarm suffix, dashboard link) is now called "Use suggestion", so it is not mistaken for saving.
+- **Names without "(optional)":** the name field of an action group and of a backup no longer says "(optional)" or "(freiwillig)"; it is still not required.
+
 ## [1.76.1] - 2026-11-22
 
 ### Changed
@@ -2198,6 +2206,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.76.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.2
 [1.76.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.1
 [1.76.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.0
 [1.75.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.3

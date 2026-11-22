@@ -9,13 +9,13 @@ import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
   de: { chapter: "HealthCheck", none: "Kein externer Dienst", one: "1 von 5 Diensten", three: "3 von 5 Diensten", five: "5 von 5 Diensten", add: "Dienst hinzufügen", show: "Dienste anzeigen",
-    title: "HealthCheck-Dienste", empty: "Noch kein Dienst.", known: "Erkannt: Healthchecks.io", suggest: "Vorschlag für Healthchecks.io: /fail", take: "Übernehmen",
+    title: "HealthCheck-Dienste", empty: "Noch kein Dienst.", known: "Erkannt: Healthchecks.io", suggest: "Vorschlag für Healthchecks.io: /fail", take: "Vorschlag übernehmen",
     preview: "Aufruf bei Fehler:", errUrl: "vollständige http- oder https-URL", errSuffix: "muss mit /, ? oder & beginnen", errInterval: "1 Minute bis 24 Stunden",
     saved: "Dienst gespeichert", okSent: "Lebenszeichen gesendet", failSent: "Fehler gesendet", failed: "Gescheitert", noAnswer: "keine Antwort", test: "Test",
     failedRow: "1 Dienst: letztes Lebenszeichen gescheitert", noMatch: "Kein Dienst passt zur Suche.", editTitle: "Dienst bearbeiten", removeTitle: "Dienst entfernen?",
     errName: "Einen Namen eingeben.", chaps: ["Dienst", "Bei Selbsttest-Fehler", "Bei Alarm", "Dashboard", "Intervall"], alarmEmpty: "Ohne Zusatz wird diesem Dienst kein Alarm gemeldet." },
   en: { chapter: "HealthCheck", none: "No external service", one: "1 of 5 services", three: "3 of 5 services", five: "5 of 5 services", add: "Add service", show: "Show services",
-    title: "HealthCheck services", empty: "No service yet.", known: "Recognized: Healthchecks.io", suggest: "Suggestion for Healthchecks.io: /fail", take: "Use",
+    title: "HealthCheck services", empty: "No service yet.", known: "Recognized: Healthchecks.io", suggest: "Suggestion for Healthchecks.io: /fail", take: "Use suggestion",
     preview: "Call on failure:", errUrl: "complete http or https URL", errSuffix: "must start with /, ? or &", errInterval: "1 minute to 24 hours",
     saved: "Service saved", okSent: "Life sign sent", failSent: "Failure sent", failed: "Failed", noAnswer: "no answer", test: "test",
     failedRow: "1 service: last life sign failed", noMatch: "No service matches the search.", editTitle: "Edit service", removeTitle: "Remove service?",
