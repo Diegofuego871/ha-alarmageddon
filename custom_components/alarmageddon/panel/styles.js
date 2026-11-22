@@ -1402,6 +1402,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
    schmalen Handys (bis 360 px) in zwei Zeilen */
 :host([narrow]) .ag-hl .ag-sv-range button { padding: 0 3px; font-size: 12px; letter-spacing: -.1px; }
 @media (max-width: 360px) { :host([narrow]) .ag-hl .ag-seg.ag-sv-range, :host([narrow]) .ag-hl .ag-seg.ag-sv-range:has(> button:nth-child(5)) { grid-auto-flow: row; grid-template-columns: repeat(4, 1fr); } }
+.ag-hl-mono b a { white-space: normal; overflow-wrap: anywhere; word-break: break-all; } /* langer Dashboard-Link: bricht um, statt unter den Kopierknopf zu laufen */
 .ag-hl-mono b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; font-weight: 400; }
 .ag-sv-note.ag-hl-lead { margin: 0 24px 10px; }
 .ag-hl-keep { margin: 4px 0 0; }

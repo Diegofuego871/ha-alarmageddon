@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.76.1] - 2026-11-22
+
+### Behoben
+
+- **Langer Dashboard-Link in den Angaben eines Dienstes:** ein langer Link lief auf dem Handy aus der Zeile und unter den Kopierknopf. Er bricht jetzt wie die anderen langen Werte innerhalb der Zeile um.
+
 ## [1.76.0] - 2026-11-22
 
 ### Hinzugefügt
@@ -2188,6 +2194,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.76.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.1
 [1.76.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.0
 [1.75.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.3
 [1.75.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.2

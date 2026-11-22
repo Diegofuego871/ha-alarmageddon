@@ -9,7 +9,7 @@ const T = {
 };
 const CRON = "b2c3d4e5f6a1"; // erfundener Dienst mit Link (?hc=sample)
 const HC = "a1b2c3d4e5f6"; // ohne Link
-const CUSTOM = "https://meine-ueberwachung.example.org/dashboard";
+const CUSTOM = "https://meine-ueberwachung.example.org/app/monitors/wichtiger-herzschlag/uebersicht?zeitraum=7tage"; // lang: muss umbrechen
 
 const browser = await launch();
 for (const lang of ["de", "en"]) {
@@ -59,6 +59,8 @@ for (const lang of ["de", "en"]) {
     const row = () => s.ev(`const d=r.getElementById('ag-hclog'); const a=d.querySelector('a[data-hl="page"]'); const rw=a?.closest('.ag-sv-drow'); return { found: !!a, href: a?.getAttribute('href'), target: a?.target, rel: a?.rel, label: rw?.querySelector('.ag-t2')?.textContent, copy: rw?.querySelector('.ag-copy')?.dataset.value, first: [...d.querySelectorAll('.ag-sv-dcard')[0].querySelectorAll('.ag-sv-drow .ag-t2')].map((x) => x.textContent) }`);
     let r1 = await row();
     check(`${tag}: Angaben: Zeile "${t.row}" als Link in neuem Fenster (noopener) mit Kopierknopf für den ganzen Link`, r1.found && r1.href === CUSTOM && r1.target === "_blank" && r1.rel.includes("noopener") && r1.label === t.row && r1.copy === CUSTOM, JSON.stringify(r1));
+    const geo = await s.ev("const d=r.getElementById('ag-hclog'); const a=d.querySelector('a[data-hl=\"page\"]'); const rw=a.closest('.ag-sv-drow').getBoundingClientRect(); const ar=a.getBoundingClientRect(); const cr=a.closest('.ag-sv-drow').querySelector('.ag-copy').getBoundingClientRect(); const lab=a.closest('.ag-sv-drow').querySelector('.ag-t2').getBoundingClientRect(); return { aRight: Math.round(ar.right), copyLeft: Math.round(cr.left), rowRight: Math.round(rw.right), aLeft: Math.round(ar.left), labRight: Math.round(lab.right), lines: Math.round(ar.height / parseFloat(getComputedStyle(a).lineHeight || 16)) }");
+    check(`${tag}: langer Link bricht um: bleibt in der Zeile, nicht unter Beschriftung und Kopierknopf`, geo.aRight <= geo.copyLeft && geo.aRight <= geo.rowRight && geo.aLeft >= geo.labRight, JSON.stringify(geo));
     // ein Dienst ohne Link: keine Zeile
     await s.tap('#ag-hclog .ag-dlg-x');
     await s.waitFor("return !r.getElementById('ag-hclog').open");
