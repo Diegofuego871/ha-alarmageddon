@@ -88,6 +88,7 @@ def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
             if (converted := migrate_options(dict(options), hass.config.language)) is not None:
                 options = converted
             options.pop("routines_disarm", None)
+            options.pop("disarm_ends_alarm", None)  # 1.78.0: die Einstellung gibt es nicht mehr
             if CONF_ROUTINES in options:
                 check_routines(hass, options[CONF_ROUTINES], options[CONF_ROUTINES])
             if CONF_MONITORS in options:

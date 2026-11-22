@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.79.0] - 2026-11-22
+
+### Entfernt
+
+- **Einstellung "Deaktivieren im Alarm" (aus 1.78.0):** der senkrechte Schieber und seine Warnung entfallen wieder. "Deaktivieren" beendet den Alarm immer und schaltet die Anlage ab, wie in Home Assistant und HomeKit. Ein von 1.78.0 gespeicherter Wert wird beim Laden der Anlage verworfen; Backups aus 1.78.0 lassen sich weiter einspielen (der Wert wird ignoriert). Sonst ist alles wie in 1.77.0.
+
 ## [1.78.0] - 2026-11-22
 
 ### Hinzugefügt
@@ -2221,6 +2227,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0
 [1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0
 [1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0
 [1.76.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.1

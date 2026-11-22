@@ -983,7 +983,6 @@
       if (typeof msg.always_enabled === "boolean") sys.always_enabled = msg.always_enabled;
       if (typeof msg.monitor_enabled === "boolean") sys.monitor_enabled = msg.monitor_enabled;
       if (msg.accent) sys.accent = msg.accent;
-      if (typeof msg.disarm_ends_alarm === "boolean") { sys.disarm_ends_alarm = msg.disarm_ends_alarm; window.__disarmEnds = msg.disarm_ends_alarm; }
       if (typeof msg.code_ack_required === "boolean") {
         if (msg.code_ack_required && !sys.has_code) throw err("code_missing");
         sys.code_ack_required = msg.code_ack_required;

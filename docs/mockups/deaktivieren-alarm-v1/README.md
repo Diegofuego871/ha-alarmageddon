@@ -1,4 +1,4 @@
-# Deaktivieren im Alarm (v1, 2026-11-22): Mockup, nicht umgesetzt
+# Deaktivieren im Alarm (v1, 2026-11-22): Mockup, in 1.78.0 gebaut und in 1.79.0 wieder entfernt
 
 Wunsch des Nutzers (2026-11-22): eine Einstellung unter Konfiguration › Anlage › Zeiten und Verhalten, was beim Deaktivieren **während eines Alarms**
 geschieht, als vertikaler Schieber (gleicher Stil wie die Reiterleisten mit Kapsel, nur senkrecht), daneben die Einstellung samt Beschreibung des Verhaltens.

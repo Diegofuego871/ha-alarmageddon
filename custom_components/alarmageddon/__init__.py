@@ -101,6 +101,8 @@ def _migrate_schedules(hass: HomeAssistant, entry: ConfigEntry) -> None:
     options = dict(entry.options)
     # Der Schalter "Deaktivieren per Routine erlauben" aus 1.44.0 entfiel in 1.45.0 (die Bestätigung in der Routine genügt)
     dropped = options.pop("routines_disarm", None) is not None
+    # "Deaktivieren im Alarm" aus 1.78.0 entfiel in 1.79.0: Deaktivieren beendet den Alarm immer (wie Home Assistant)
+    dropped = (options.pop("disarm_ends_alarm", None) is not None) or dropped
     migrated = migrate_options(options, hass.config.language)
     if migrated is not None or dropped:
         hass.config_entries.async_update_entry(entry, options=migrated if migrated is not None else options)

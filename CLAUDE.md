@@ -311,11 +311,6 @@ Umsetzung:
   Wunsch des Nutzers 2026-11-20): `HealthCheck.summary` gibt nur Zahlen (`healthcheck`, `_ok`, `_report`, `_fail` als Attribute), **nie URL, Name
   oder Rechner** (Attribute stehen in jedem Dashboard und in der Aufzeichnung; Test `test_healthcheck.py -k status_entity`); `SIGNAL_HEALTHCHECK` nach
   jedem Lebenszeichen und jeder Änderung der Liste (`_changed`, im `try`).
-- Deaktivieren im Alarm (seit 1.78.0, Wunsch des Nutzers 2026-11-22; Option `disarm_ends_alarm`, je Anlage, nie je Modus, Standard `True` = wie Home Assistant und HomeKit): `False` ("quittiert nur") lässt
-  `controller.async_disarm` im Alarm einer **scharfen** Anlage nur `acknowledge` aufrufen (die Anlage bleibt scharf, "Nach dem Quittieren" läuft, "Beim Deaktivieren" erst beim zweiten Deaktivieren); der Code wird davor wie immer
-  geprüft, ein falscher Code quittiert nie; ein Alarm von Hand ohne Modus, die Eingangsverzögerung und jeder andere Zustand schalten wie immer ab. Fehlt der Wert (ältere Anlagen und Backups), gilt der Standard.
-  HomeKit kennt im Alarm nur "Deaktiviert": bei "quittiert nur" zeigt es danach weiter "Scharf"; solange vom Standard abgewichen wird, steht dazu eine Warnung (`.ag-vwarn`, `sysDisarmWarn`) unter dem Schieber, auch im Handbuch (Wunsch des Nutzers 2026-11-22; gilt als Muster: wer bei einer Einstellung vom Standard abweicht und dadurch Überraschungen riskiert, bekommt eine Warnung). Panel: senkrechte Reiterleiste `.ag-vseg` (`system.js`, Kapsel wie `.ag-seg`).
-  Tests `tests/test_disarm_alarm.py`, Suite `disarm-e2e.mjs`, Zeilen "Deaktivieren im Alarm" in `scripts/mutation_check.py`.
 - Aktion "HealthCheck melden" (seit 1.77.0, Schritt `healthcheck`, Wunsch und Entscheide des Nutzers vom 2026-11-22; ersetzt den Alarm-Zusatz der Dienste aus 1.73.0, den es nicht mehr gibt:
   kein `alarm_suffix`, kein automatischer Alarm-Aufruf im Takt, kein Alarm-Testknopf in Liste und Protokollkopf, nur noch "Fehler senden" und "Lebenszeichen senden"; ein alter
   `alarm_suffix` fällt beim Einlesen weg, `settings.valid_healthchecks`): ein Schritt `{type: "healthcheck", check_id, suffix}` in jeder Liste der Aktionen (Alarm, danach, scharf,

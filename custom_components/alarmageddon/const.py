@@ -38,8 +38,6 @@ CONF_OPEN_SENSORS: Final = "open_sensors"  # Verhalten bei offenem Sensor beim S
 CONF_CODE_ARM_REQUIRED: Final = "code_arm_required"
 # Quittieren verlangt den Code (1.34.0): nur wirksam mit einem Code; Standard aus (Quittieren schaltet nichts ab)
 CONF_CODE_ACK_REQUIRED: Final = "code_ack_required"
-# Deaktivieren im Alarm (seit 1.78.0): True (Standard) beendet den Alarm und schaltet ab wie in HA, False quittiert nur (Anlage bleibt scharf)
-CONF_DISARM_ENDS_ALARM: Final = "disarm_ends_alarm"
 CONF_CODE_HASH: Final = "code_hash"
 CONF_CODE_SALT: Final = "code_salt"
 # Weitere Codes, je einer Person zugeordnet (0.5.0): [{"id", "name", "user_id", "hash", "salt"}].
@@ -69,7 +67,7 @@ CODE_LOCKOUT_SECONDS: Final = 60
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 272  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 273  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"

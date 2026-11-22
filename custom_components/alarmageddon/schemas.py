@@ -12,7 +12,6 @@ from homeassistant.helpers import config_validation as cv
 from .const import (
     CONF_AWAY_ENABLED,
     CONF_CODE_ACK_REQUIRED,
-    CONF_DISARM_ENDS_ALARM,
     CONF_CODE_ARM_REQUIRED,
     CONF_CONFIRM_WINDOW,
     CONF_ALWAYS_ENABLED,
@@ -560,11 +559,11 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_MONITOR_ENABLED): bool,
         vol.Optional(CONF_ACCENT): vol.In(ACCENTS),
         vol.Optional(CONF_MONITOR_SENSORS): _measure_sensors,
+        vol.Optional("disarm_ends_alarm"): bool,  # nur aus Backups von 1.78.0 (die Einstellung entfiel in 1.79.0): wird beim Einlesen verworfen
         vol.Optional("routines_disarm"): bool,  # nur aus Sicherungen von 1.44.0 (der Schalter entfiel in 1.45.0): wird beim Einlesen verworfen
         vol.Optional(CONF_OPEN_SENSORS): vol.In(OPEN_SENSOR_MODES),
         vol.Optional(CONF_CODE_ARM_REQUIRED): bool,
         vol.Optional(CONF_CODE_ACK_REQUIRED): bool,
-        vol.Optional(CONF_DISARM_ENDS_ALARM): bool,
         vol.Optional(CONF_CONFIRM_WINDOW): vol.All(vol.Coerce(int), vol.Range(min=5, max=MAX_CONFIRM_WINDOW)),
         vol.Optional(CONF_SENSOR_OPTIONS): strict_map(cv.entity_id, SENSOR_VALUES),
         vol.Optional(CONF_PER_MODE_SENSORS): bool,

@@ -130,8 +130,6 @@ Die Messwert-Sensoren der Überwachung (Temperatur, Luftfeuchtigkeit, CO2) stehe
 
 ### Bei einem Alarm
 
-**Deaktivieren im Alarm (seit 1.78.0):** standardmässig beendet "Deaktivieren" den Alarm und schaltet die Anlage ab, wie in Home Assistant und HomeKit. Unter Konfiguration › Anlage › Zeiten und Verhalten wählst du mit dem senkrechten Schieber "Deaktivieren im Alarm" je Anlage auch "Deaktivieren quittiert nur": der Alarm endet, die Anlage bleibt im selben Modus scharf, die Aktionen "Nach dem Quittieren" laufen, "Beim Deaktivieren" erst beim zweiten Deaktivieren. Ein Code wird weiter verlangt. HomeKit zeigt dann weiter "Scharf", weil es zwischen Alarm und deaktiviert keinen Schritt kennt. Ein von Hand ausgelöster Alarm bei deaktivierter Anlage endet immer deaktiviert. Solange du vom Standard abweichst, steht ein Warnhinweis unter dem Schieber.
-
 Ein Alarm ist nicht zu übersehen: ein rotes Band mit dem Sensor, der ausgelöst hat, und den Knöpfen "Quittieren" (der Alarm endet, die Anlage bleibt scharf) und "Deaktivieren". Die Kachel der Anlage nennt, seit wann der Alarm läuft, was ihn ausgelöst hat und wer wann scharf geschaltet hat. Dieselben Knöpfe stehen in der Push-Meldung auf dem Sperrbildschirm.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/alarm-de.png" alt="Alarm auf dem Handy: rotes Band mit Quittieren und Deaktivieren, darunter die Kachel der Anlage" width="270"></p>
@@ -234,7 +232,6 @@ Details für alle, die es genau wissen wollen.
 | Ausgangsverzögerung | Standard 60 s für "Abwesend", keine für "Anwesend" und "Nacht"; bis 3600 s je Modus |
 | Eingangsverzögerung | Standard 30 s, auf Wunsch je Modus und je Sensor |
 | Bestätigungsfenster für den zweiten Sensor | Standard 60 s |
-| Deaktivieren im Alarm | Standard: beendet den Alarm und schaltet ab; je Anlage, nicht je Modus (Konfiguration › Anlage › Zeiten und Verhalten) |
 | Falsche Codes | Fünf, dann 60 s gesperrt |
 | Ablage der Codes | PBKDF2-SHA256 mit 120 000 Runden und einem Salz je Code |
 | Gerät antwortet nicht | Nächster Schritt nach 10 s |

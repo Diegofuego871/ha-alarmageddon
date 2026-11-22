@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.79.0] - 2026-11-22
+
+### Removed
+
+- **Setting "Disarming during an alarm" (from 1.78.0):** the vertical slider and its warning are gone again. "Disarm" always ends the alarm and switches the system off, as in Home Assistant and HomeKit. A value saved by 1.78.0 is dropped when the alarm system loads; backups made with 1.78.0 still import (the value is ignored). Nothing else changed compared with 1.77.0.
+
 ## [1.78.0] - 2026-11-22
 
 ### Added
@@ -2221,6 +2227,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0
 [1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0
 [1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0
 [1.76.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.1

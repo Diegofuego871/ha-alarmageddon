@@ -121,7 +121,6 @@ export class SystemUi {
       monitor: s.monitor_enabled === true, // "Überwachung" als Ganzes (Standard aus)
       accent: s.accent || "ha", // Akzentfarbe der Anlage (1.75.0)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
-      disarmEnds: s.disarm_ends_alarm !== false, // Deaktivieren im Alarm beendet den Alarm und schaltet ab (Standard, 1.78.0); sonst nur quittieren
       auto: this.autoOf(this.host._data?.auto_backup),
       // Abstand des Selbsttests (1.65.0, Kapitel HealthCheck; gilt für alle Anlagen, gespeichert in den Benachrichtigungen): nicht scharf und solange
       // eine Anlage scharf ist (Wunsch des Nutzers 2026-11-19: zwei Zeiten); je Zahl und Einheit, gespeichert in Minuten (seit 1.67.0)
@@ -164,7 +163,6 @@ export class SystemUi {
     if (a.monitor !== d.monitor) n += 1;
     if (a.accent !== d.accent) n += 1;
     if (a.ackCode !== d.ackCode) n += 1;
-    if (a.disarmEnds !== d.disarmEnds) n += 1;
     if (JSON.stringify(a.auto) !== JSON.stringify(d.auto)) n += 1;
     // Zählt der Abstand, nicht die Einheit (6 Stunden und 360 Minuten sind dasselbe)
     for (const k of ["stOff", "stOn"]) if (!Object.is(stMinutes(a[k]), stMinutes(d[k]))) n += 1;
@@ -223,17 +221,10 @@ export class SystemUi {
     const row = (title, hint, control) => `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t(title))}</b>${hint ? `<small>${esc(this._t(hint))}</small>` : ""}</div>${control}</div>`;
     const timesRows = row("sysExitDelay", "sysExitDelayHint", num("exit_delay", v.exit_delay)) + row("sysEntryDelay", "sysEntryDelayHint", num("entry_delay", v.entry_delay));
     const behaviourRows = row("sysConfirm", "sysConfirmHint", num("confirm_window", v.confirm_window, WINDOW[0], WINDOW[1]));
-    // Deaktivieren im Alarm (1.78.0): senkrechte Reiterleiste mit Kapsel (.ag-seg), je Stellung Titel und Beschreibung; gilt je Anlage, nie je Modus
-    const disarmOpt = (val, icon, on, def) => `<button type="button" role="tab" class="${on ? "on" : ""}" aria-selected="${on}" data-sys="disarm" data-val="${val}" aria-label="${esc(this._t(`sysDisarm_${val}`))}">${ic(icon, 20)}</button>
-      <div class="ag-vopt ${on ? "on" : ""}" data-sys="disarm" data-val="${val}"><b>${esc(this._t(`sysDisarm_${val}`))}${def ? ` <em>${esc(this._t("sysDefault"))}</em>` : ""}</b><small>${esc(this._t(`sysDisarm_${val}Hint`))}</small></div>`;
-    const disarmRow = `<div class="ag-setrow ag-vrow"><div class="ag-settx"><b>${esc(this._t("sysDisarm"))}</b><small>${esc(this._t("sysDisarmHint"))}</small>
-      <div class="ag-seg ag-vseg" role="tablist" data-seg="sys-disarm">${disarmOpt("end", "shieldOff", d.disarmEnds, true)}${disarmOpt("ack", "shieldAway", !d.disarmEnds, false)}</div>
-      ${d.disarmEnds ? "" : `<div class="ag-modenote ag-vwarn" role="note"><small class="ag-warntext">${ic("alert", 14)} ${esc(this._t("sysDisarmWarn"))}</small></div>`}</div></div>`;
     const scopeLine = d.perMode ? `<div class="ag-pmscope">${ic(MODE_ICON[scope], 18)}${esc(this._t("pmScope", { mode: this._t(MODE_KEY[scope]) }))}</div>` : "";
     const perMode = chapter(this._t("chapPerMode"), `<div class="ag-pmgroup ${d.perMode ? "on" : ""}">${switchRow}${scopeLine}
         <div class="ag-subh">${esc(this._t("chapTimes"))}</div>${card(timesRows)}
-        <div class="ag-subh">${esc(this._t("chapBehaviour"))}</div>${card(behaviourRows)}</div>
-        <div class="ag-vcard">${card(disarmRow)}</div>`);
+        <div class="ag-subh">${esc(this._t("chapBehaviour"))}</div>${card(behaviourRows)}</div>`);
     const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + perMode
       + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._healthHtml(d, bad) + this._backupHtml() + this._accentHtml(d) + this._wizardHtml() + this._deleteHtml();
     // Beim Tippen nie neu aufbauen (Cursor bliebe nicht stehen), nur bei Schaltern und Auswahl
@@ -1097,9 +1088,8 @@ export class SystemUi {
       const mode_settings = Object.fromEntries(ALL_MODES.map((m) => [m, { ...d.per[m] }]));
       const saved = await h._hass.callWS({ type: "alarmageddon/save_system", entry_id: s.entry_id, mode_settings, per_mode_settings: d.perMode,
         home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, routines: d.routines,
-        disarm_ends_alarm: d.disarmEnds,
         ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}) });
-      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, disarm_ends_alarm: d.disarmEnds, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code) });
+      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code) });
       // Abstand des Selbsttests (1.65.0): nur dieser Wert der Benachrichtigungen, alles andere bleibt, wie es ist
       const stBase = this.base(s);
       const [off, on] = [stMinutes(d.stOff), stMinutes(d.stOn)];
@@ -1259,14 +1249,6 @@ export class SystemUi {
       }
       this.saveState = null;
       this.render();
-    } else if (act === "disarm") {
-      // Vertikaler Schieber "Deaktivieren im Alarm" (1.78.0): gilt je Anlage, nicht je Modus
-      const next = el.dataset.val !== "ack";
-      if (next !== d.disarmEnds) {
-        d.disarmEnds = next;
-        this.saveState = null;
-        this.render();
-      }
     } else if (act === "ackcode") {
       d.ackCode = !d.ackCode;
       this.saveState = null;

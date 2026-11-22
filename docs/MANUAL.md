@@ -130,8 +130,6 @@ The measured sensors of the monitoring (temperature, humidity, CO2) also appear 
 
 ### When there is an alarm
 
-**Disarming during an alarm (since 1.78.0):** by default "Disarm" ends the alarm and switches the system off, as in Home Assistant and HomeKit. In Configuration › Alarm system › Times and behaviour a vertical slider "Disarming during an alarm" lets you choose "Disarming only acknowledges" per alarm system: the alarm ends, the system stays armed in the same mode, the actions "After acknowledging" run and "When disarming" only on the second disarm. A code is still asked for. HomeKit keeps showing "Armed" in that case, because it has no step between alarm and disarmed. An alarm triggered by hand while disarmed always ends disarmed. A warning under the slider appears as long as you deviate from the default.
-
 An alarm cannot be overlooked: a red band with the sensor that triggered and the buttons "Acknowledge" (the alarm ends, the system stays armed) and "Disarm". The tile of the alarm system says since when the alarm has been running, what triggered it and who armed the system when. The same buttons are in the push notification on the lock screen.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/alarm-en.png" alt="Alarm on the phone: red band with Acknowledge and Disarm, below it the tile of the alarm system" width="270"></p>
@@ -234,7 +232,6 @@ Details for those who want to know exactly.
 | Exit delay | Default 60 s for "Away", none for "Home" and "Night"; up to 3600 s per mode |
 | Entry delay | Default 30 s, per mode and per sensor if you like |
 | Confirmation window for the second sensor | Default 60 s |
-| Disarming during an alarm | Default: ends the alarm and switches off; per alarm system, not per mode (Configuration › Alarm system › Times and behaviour) |
 | Wrong codes | Five, then locked for 60 s |
 | Code storage | PBKDF2-SHA256 with 120,000 rounds and a salt per code |
 | Device does not answer | Next step after 10 s |
