@@ -1390,6 +1390,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 .hl-i.ok { background: var(--ag-success); } .hl-i.fail { background: var(--ag-error); } .hl-i.report { background: var(--ag-warning); } .hl-i.test { background: var(--ag-primary); }
 .hl-i.gap { background: var(--ag-text3); opacity: .45; }
 .ag-sv-legend i.hl-i-failmark { width: 0; height: 12px; border-radius: 0; border-left: 2px dashed var(--ag-error); margin: 0 7px 0 4px; vertical-align: -2px; }
+.ag-hclamp { display: flex !important; align-items: center; gap: 8px; margin-top: 2px; } /* Ampel in der Zeile der Dienste (1.76.1): nur der kleine Punkt, grün alles in Ordnung, rot ein Lebenszeichen gescheitert; der Text bleibt schlicht wie bei den anderen Zeilen */
 .ag-sv-dot.ok, .ag-sv-dot.back { background: var(--ag-success); } .ag-sv-dot.fail { background: var(--ag-error); } .ag-sv-dot.report { background: var(--ag-warning); }
 .ag-sv-dot.test { background: var(--ag-primary); } .ag-sv-dot.start, .ag-sv-dot.none { background: var(--ag-text3); }
 .ag-sv-table .c5 { width: 110px; } .ag-sv-table .c6 { width: 130px; }

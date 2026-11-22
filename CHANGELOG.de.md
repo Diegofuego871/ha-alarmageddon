@@ -9,6 +9,10 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [1.76.1] - 2026-11-22
 
+### Geändert
+
+- **Ampel in der Zeile der HealthCheck-Dienste:** unter Konfiguration › Anlage sagt die Zeile der Dienste es jetzt positiv: ein kleiner grüner Punkt und "Alles in Ordnung", wenn kein Lebenszeichen gescheitert ist, ein kleiner roter Punkt und "1 Dienst: letztes Lebenszeichen gescheitert", wenn eines gescheitert ist. Der Text bleibt schlicht wie bei den anderen Zeilen.
+
 ### Behoben
 
 - **Langer Dashboard-Link in den Angaben eines Dienstes:** ein langer Link lief auf dem Handy aus der Zeile und unter den Kopierknopf. Er bricht jetzt wie die anderen langen Werte innerhalb der Zeile um.

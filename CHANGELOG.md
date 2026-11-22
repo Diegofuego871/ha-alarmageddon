@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.76.1] - 2026-11-22
 
+### Changed
+
+- **Traffic light in the HealthCheck row:** under Configuration › Alarm system the row of the services now says it positively: a small green dot and "All in order" when no life sign failed, a small red dot and "1 service: last life sign failed" when one did. The text stays plain like the other rows.
+
 ### Fixed
 
 - **Long dashboard link in the details of a service:** a long link ran out of the row and under the copy button on the phone. It now wraps inside the row like the other long values.

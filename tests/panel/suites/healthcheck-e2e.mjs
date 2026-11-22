@@ -195,6 +195,9 @@ for (const lang of ["de", "en"]) {
     await s.sim('window.__hcResult = "ok"; return 1');
     await s.tap('#ag-hclist [data-hc="close"]');
     check(`${tag}: Kapitel zeigt "${t.failedRow}"`, await s.waitFor(`return r.querySelector('.ag-hcsum').innerText.includes(${JSON.stringify(t.failedRow)})`));
+    // Ampel (1.76.2, Wunsch des Nutzers 2026-11-22): ein gescheitertes Lebenszeichen = roter Punkt und roter Text
+    const lamp = await s.ev("const sm=r.querySelector('.ag-hcsum .ag-hclamp'); const dot=sm.querySelector('.ag-sv-dot'); const sib=r.querySelector('.ag-hcsum .ag-settx b'); return { dot: dot.className, size: Math.round(dot.getBoundingClientRect().width), text: getComputedStyle(sm.querySelector('span:not(.ag-sv-dot)')).color, plain: getComputedStyle(sm).color }");
+    check(`${tag}: Ampel rot: kleiner roter Punkt, der Text schlicht (nicht eingefärbt)`, lamp.dot.includes("fail") && lamp.size <= 10 && lamp.text === lamp.plain, JSON.stringify(lamp));
 
     // ----- Bearbeiten: Werte da, der eigene Zusatz bleibt -----
     await s.tap('.ag-hcsum [data-hc="open"]');

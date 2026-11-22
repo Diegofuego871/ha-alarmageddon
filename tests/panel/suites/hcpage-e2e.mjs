@@ -4,8 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { chap: "Dashboard", row: "Dashboard", err: "Der Link muss mit http:// oder https:// beginnen", take: "Übernehmen" },
-  en: { chap: "Dashboard", row: "Dashboard", err: "The link must start with http:// or https://", take: "Use" },
+  de: { chap: "Dashboard", row: "Dashboard", err: "Der Link muss mit http:// oder https:// beginnen", take: "Übernehmen", allOk: "Alles in Ordnung" },
+  en: { chap: "Dashboard", row: "Dashboard", err: "The link must start with http:// or https://", take: "Use", allOk: "All in order" },
 };
 const CRON = "b2c3d4e5f6a1"; // erfundener Dienst mit Link (?hc=sample)
 const HC = "a1b2c3d4e5f6"; // ohne Link
@@ -81,6 +81,13 @@ for (const lang of ["de", "en"]) {
     await one.waitFor("return r.getElementById('ag-hclog').open && !r.getElementById('ag-hclog').querySelector('.ag-sv[data-busy]')", 8000);
     const head1 = await one.ev("const d=r.getElementById('ag-hclog'); const p=d.querySelector('.ag-hl-pick'); return { tag: p?.tagName, svg: !!p?.querySelector('svg'), menu: !!d.querySelector('.ag-hl-menu'), btn: !!d.querySelector('[data-sv=\"menu\"]'), name: p?.textContent.trim() }");
     check(`${tag}: ein einziger Dienst: Name ohne Pfeil und ohne Auswahlmenü`, head1.tag === 'SPAN' && !head1.svg && !head1.menu && !head1.btn && head1.name === 'Healthchecks Haus', JSON.stringify(head1));
+    // Ampel (1.76.2): alles in Ordnung = grüner Punkt, grüner Text "Alles in Ordnung"; ohne Dienste kein Punkt
+    await one.tap('#ag-hclog .ag-dlg-x');
+    await one.waitFor("return !r.getElementById('ag-hclog').open");
+    await one.tap('#ag-hclist .ag-dlg-x');
+    await one.waitFor("return !r.getElementById('ag-hclist').open");
+    const lampOk = await one.ev("const sm=r.querySelector('.ag-hcsum .ag-hclamp'); const dot=sm.querySelector('.ag-sv-dot'); const bs=[...r.querySelectorAll('.ag-hcsum .ag-btnrow .ag-btn')].map((b) => b.getBoundingClientRect()); return { dot: dot?.className, text: sm.innerText.trim(), color: getComputedStyle(sm.querySelector('span:not(.ag-sv-dot)')).color, plain: getComputedStyle(sm).color, sideBySide: bs.length === 2 && Math.abs(bs[0].top - bs[1].top) < 4 }");
+    check(`${tag}: Ampel grün: kleiner grüner Punkt und schlichter Text "${t.allOk}"`, lampOk.dot?.includes("ok") && lampOk.text === t.allOk && lampOk.color === lampOk.plain, JSON.stringify(lampOk));
     await one.ctx.close();
     const many = await open(browser, { mobile, lang, tab: "config", prefs: { sub: "system" }, query: "&hc=sample" });
     await many.waitFor("return !!r.querySelector('.ag-hcsum [data-hc=\"open\"]')");
