@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.78.0] - 2026-11-22
+
+### Added
+
+- **Disarming during an alarm (setting per alarm system):** under Configuration › Alarm system › Times and behaviour a vertical slider (the tab bar with its sliding capsule, upright) chooses what "Disarm" does while an alarm is running. **"Disarming ends the alarm"** (default, as before and as in Home Assistant and HomeKit): the alarm stops and the system switches off. **"Disarming only acknowledges":** the alarm ends, the system stays armed in the same mode, the actions "After acknowledging" run, "When disarming" only on the second disarm; a code is still asked for. The setting applies to the whole alarm system, not per mode, is saved with "Save", and is part of the backup. Existing systems keep the default. An alarm triggered by hand while disarmed always ends disarmed.
+
 ## [1.77.0] - 2026-11-22
 
 ### Added
@@ -2215,6 +2221,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0
 [1.77.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.77.0
 [1.76.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.1
 [1.76.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.0

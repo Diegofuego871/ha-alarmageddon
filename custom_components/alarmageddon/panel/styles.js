@@ -438,6 +438,18 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 /* Der Abstand unter der Leiste gehört zur festen Leiste (Innenabstand): er bleibt beim Scrollen gleich */
 .ag-pmstick { margin: var(--ag-gap, 18px) 0 0; padding-bottom: var(--ag-gap, 18px); }
 .ag-pmstick > .ag-pmbar { margin: 0; }
+/* Deaktivieren im Alarm (1.78.0): senkrechte Reiterleiste mit Kapsel (gleicher Stil wie .ag-seg), neben jeder Stellung Titel und Beschreibung; gilt je Anlage */
+.ag-vcard { margin-top: 14px; }
+.ag-vrow { display: block; }
+.ag-vseg { display: grid; grid-template-columns: 46px minmax(0, 1fr); grid-auto-flow: row; grid-auto-columns: auto; column-gap: 16px; row-gap: 2px; margin-top: 14px; padding: 3px 0 3px 3px; background: none; width: 100%; }
+.ag-vseg::before { content: ""; position: absolute; z-index: 0; left: 0; top: 0; bottom: 0; width: 52px; border-radius: 14px; background: color-mix(in srgb, var(--ag-text) 7%, var(--ag-card)); }
+.ag-vseg > button { grid-column: 1; min-height: 64px; height: auto; padding: 0; }
+.ag-vopt { grid-column: 2; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 10px 0; opacity: .62; position: relative; z-index: 1; cursor: pointer; transition: opacity .22s ease; }
+.ag-vopt.on { opacity: 1; }
+.ag-vopt b { font-weight: 500; font-size: 14.5px; }
+.ag-vopt.on b { color: var(--ag-primary); }
+.ag-vopt b em { font-style: normal; font-size: 11.5px; font-weight: 500; margin-left: 6px; padding: 1px 7px; border-radius: 9px; background: color-mix(in srgb, var(--ag-primary) 14%, transparent); color: var(--ag-primary); }
+.ag-vopt small { color: var(--ag-text2); font-size: 12.5px; line-height: 1.4; }
 .ag-pmgroup { margin-top: 6px; padding: 16px 18px 18px; border: 1.5px solid var(--ag-divider); border-radius: 20px; background: color-mix(in srgb, var(--ag-text) 2%, var(--ag-card)); }
 .ag-pmgroup.on { border: 2px solid color-mix(in srgb, var(--ag-primary) 45%, transparent); background: color-mix(in srgb, var(--ag-primary) 4%, var(--ag-card)); }
 .ag-pmgroup > .ag-pmbar { margin: 0 0 14px; padding: 0; border: 0; background: none; }

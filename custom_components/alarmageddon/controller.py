@@ -59,6 +59,7 @@ from .const import (
     CODE_LOCKOUT_SECONDS,
     CODE_MAX_ATTEMPTS,
     CONF_CODE_ACK_REQUIRED,
+    CONF_DISARM_ENDS_ALARM,
     CONF_CODE_ARM_REQUIRED,
     CONF_CODE_HASH,
     CONF_CODES,
@@ -310,6 +311,11 @@ class AlarmController:
     def code_ack_required(self) -> bool:
         """Quittieren verlangt den Code (1.34.0): nur mit einem Code, vom Administrator eingeschaltet."""
         return self.has_code and bool(self.options.get(CONF_CODE_ACK_REQUIRED, False))
+
+    @property
+    def disarm_ends_alarm(self) -> bool:
+        """Deaktivieren im Alarm beendet den Alarm und schaltet ab (Standard, wie Home Assistant); sonst quittiert es nur (1.78.0)."""
+        return self.options.get(CONF_DISARM_ENDS_ALARM, True) is not False
 
     # ----- Optionen pro Sensor -----
 
@@ -815,6 +821,11 @@ class AlarmController:
         # skip_code nur für die Push-Aktion "Deaktivieren", die der Nutzer ausdrücklich eingeschaltet hat
         if self.has_code and not skip_code:
             changed_by = await self._async_check_code(code) or changed_by
+        # Option "Deaktivieren quittiert nur" (1.78.0): im Alarm einer scharfen Anlage endet nur der Alarm, die Anlage bleibt scharf; erst das
+        # nächste Deaktivieren schaltet ab. Ein Alarm von Hand ohne Modus und jeder andere Zustand schalten wie immer ab.
+        if self.state == AlarmControlPanelState.TRIGGERED and self.mode is not None and not self.disarm_ends_alarm:
+            self.acknowledge(changed_by)
+            return
         self._cancel_timer()
         self.mode = None
         self.armed_at = None

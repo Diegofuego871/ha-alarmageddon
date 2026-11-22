@@ -12,6 +12,7 @@ from homeassistant.helpers import config_validation as cv
 from .const import (
     CONF_AWAY_ENABLED,
     CONF_CODE_ACK_REQUIRED,
+    CONF_DISARM_ENDS_ALARM,
     CONF_CODE_ARM_REQUIRED,
     CONF_CONFIRM_WINDOW,
     CONF_ALWAYS_ENABLED,
@@ -563,6 +564,7 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_OPEN_SENSORS): vol.In(OPEN_SENSOR_MODES),
         vol.Optional(CONF_CODE_ARM_REQUIRED): bool,
         vol.Optional(CONF_CODE_ACK_REQUIRED): bool,
+        vol.Optional(CONF_DISARM_ENDS_ALARM): bool,
         vol.Optional(CONF_CONFIRM_WINDOW): vol.All(vol.Coerce(int), vol.Range(min=5, max=MAX_CONFIRM_WINDOW)),
         vol.Optional(CONF_SENSOR_OPTIONS): strict_map(cv.entity_id, SENSOR_VALUES),
         vol.Optional(CONF_PER_MODE_SENSORS): bool,
