@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.75.2] - 2026-11-22
+
+### Changed
+
+- **Accent colour: preview in the row and a working preview in the window:** the row under Configuration › Alarm system now shows the chosen colour as a dot (like the logo) with its name and a small preview (switch, button, bar). In the window the preview is a small simulation: tab, switch, tick, mark and button can be tapped and react in the chosen colour; nothing is changed or saved by it.
+
 ## [1.75.1] - 2026-11-22
 
 ### Changed
@@ -2165,6 +2171,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.75.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.2
 [1.75.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.1
 [1.75.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.0
 [1.74.6]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.74.6

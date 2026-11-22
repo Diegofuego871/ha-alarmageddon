@@ -1706,19 +1706,29 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-sthfs { margin-left: 0; display: grid; grid-template-columns: max-content minmax(0, auto); justify-content: start; align-items: center; gap: 10px 16px; }
 .ag-sthf { display: contents; }
 /* Liste der Lebenszeichen: Tabelle wie die Backups; die URL steht ganz da und bricht an jeder Stelle um (sie hat keine Leerzeichen) */
-.ag-accname { display: inline-flex; align-items: center; gap: 10px; }
-.ag-accdot-s { width: 16px; height: 16px; }
+.ag-settx > .ag-accname { display: flex; align-items: center; gap: 14px; padding-left: 4px; }
+.ag-accname .ag-accdot { width: 18px; height: 18px; }
+/* Punkt wie am Logo des Assistenten: heller Rand und ein Schimmer in der Farbe */
+.ag-accdot-ring { box-shadow: 0 0 0 2px var(--ag-card), 0 0 0 3px var(--ag-divider); }
+.ag-accchips { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.ag-accchip-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--ag-primary); box-shadow: 0 0 6px 1px color-mix(in srgb, var(--ag-primary) 55%, transparent); }
+.ag-accchip-tg { flex: none; transform: scale(.8); transform-origin: left center; margin-right: -6px; }
+.ag-accchip-pill { width: 34px; height: 14px; border-radius: 999px; background: var(--ag-primary); }
+.ag-accchip-bar { flex: 0 0 56px; min-width: 0; height: 6px; }
 .ag-acc-pop .ag-acc { margin: 6px 0 4px; }
 /* Vorschau im Fenster der Akzentfarbe: --ag-primary wird am Kasten gesetzt, die Bausteine nutzen es wie im Panel */
 .ag-accprev { margin-top: 14px; border: 1px dashed var(--ag-divider); border-radius: 16px; padding: 12px 14px 14px; background: color-mix(in srgb, var(--ag-bg) 60%, transparent); }
 .ag-accprev-t { font-size: 12.5px; margin-bottom: 10px; }
 .ag-accprev-body { display: flex; flex-direction: column; gap: 12px; }
 .ag-accprev-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-.ag-accprev-seg { align-self: flex-start; pointer-events: none; }
-.ag-accprev .ag-btn, .ag-accprev .ag-toggle { pointer-events: none; }
-.ag-accprev-round { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--ag-divider); display: grid; place-items: center; color: var(--ag-primary); }
-.ag-accprev-chk { width: 22px; height: 22px; border-radius: 6px; background: var(--ag-primary); color: #fff; display: grid; place-items: center; }
-.ag-accprev-tag { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; color: var(--ag-primary); background: var(--ag-primary-soft); }
+.ag-accprev-seg { align-self: flex-start; }
+.ag-accprev-round, .ag-accprev-chk, .ag-accprev-tag { cursor: pointer; font: inherit; padding: 0; }
+.ag-accprev .ag-btn:active { transform: scale(.97); }
+.ag-accprev-round { background: transparent; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--ag-divider); display: grid; place-items: center; color: var(--ag-primary); }
+.ag-accprev-chk { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--ag-divider); background: transparent; color: #fff; display: grid; place-items: center; box-sizing: border-box; }
+.ag-accprev-chk.on { border-color: var(--ag-primary); background: var(--ag-primary); }
+.ag-accprev-tag { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 0; color: var(--ag-text2); background: transparent; box-shadow: inset 0 0 0 1px var(--ag-divider); }
+.ag-accprev-tag.on { color: var(--ag-primary); background: var(--ag-primary-soft); box-shadow: none; }
 .ag-accprev-link { color: var(--ag-primary); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
 .ag-accprev-bar { flex: 1 1 80px; min-width: 80px; height: 8px; border-radius: 999px; background: var(--ag-primary-soft); overflow: hidden; }
 .ag-accprev-bar i { display: block; width: 62%; height: 100%; border-radius: inherit; background: var(--ag-primary); }
@@ -1726,7 +1736,7 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-accbtn { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; border: 1px solid var(--ag-divider); border-radius: 14px; background: var(--ag-card); color: var(--ag-text); font: inherit; text-align: left; cursor: pointer; }
 .ag-accbtn:hover { background: var(--ag-hover); }
 .ag-accbtn.on { border: 2px solid var(--ag-primary); font-weight: 600; padding: 7px 11px; }
-.ag-accdot { flex: none; width: 22px; height: 22px; border-radius: 50%; }
+.ag-accdot { flex: none; display: inline-block; width: 22px; height: 22px; border-radius: 50%; }
 :host([narrow]) .ag-acc { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ag-hcrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 4px 6px; }
 .ag-hccount { flex: none; white-space: nowrap; }

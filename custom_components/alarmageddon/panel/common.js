@@ -110,14 +110,25 @@ export const accentGrid = (current, attr, t) => `<div class="ag-acc" role="radio
   `<button type="button" role="radio" class="ag-accbtn ${current === k ? "on" : ""}" ${attr} data-key="${k}" aria-checked="${current === k}"><span class="ag-accdot" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span><span>${esc(t(`acc_${k}`))}</span></button>`).join("")}</div>`;
 
 // Vorschau der gewählten Farbe (Fenster der Akzentfarbe, Wunsch des Nutzers 2026-11-22): die Bausteine, in denen das Panel sie braucht, mit der Farbe nur in
-// diesem Kasten (--ag-primary lokal): Reiterleiste mit gewähltem Reiter, Hauptknopf, Schalter an, runder Pfeil, Markierung, Link, Auswahlhaken und Fortschritt
-export const accentPreview = (key, t) => {
+// diesem Kasten (--ag-primary lokal). Sie sind eine kleine Simulation (Wunsch des Nutzers 2026-11-22): Reiter, Schalter, Haken, Pfeil und Knopf lassen sich
+// antippen und ändern nur diese Anzeige (Zustand `pv`: tab, tog, chk, up, tag), nie etwas an der Anlage
+export const ACC_PV = () => ({ tab: 0, tog: true, chk: true, up: true, tag: true, flash: false });
+export const accentPreview = (key, t, pv = ACC_PV()) => {
   const hex = accentColor(key);
-  return `<div class="ag-accprev" aria-hidden="true" style="${hex ? `--ag-primary:${hex}` : ""}"><div class="ag-accprev-t ag-t2">${esc(t("accPreview"))}</div>
-    <div class="ag-accprev-body"><div class="ag-seg ag-accprev-seg"><button type="button" class="on" tabindex="-1">${ic("shield", 16)}<span>${esc(t("accPvTab"))}</span></button><button type="button" tabindex="-1"><span>${esc(t("accPvTab2"))}</span></button></div>
-      <div class="ag-accprev-row"><button type="button" class="ag-btn primary" tabindex="-1">${ic("check", 16)}${esc(t("accPvBtn"))}</button>
-        <span class="ag-toggle on" role="presentation"></span><span class="ag-accprev-round">${ic("arrowUp", 16)}</span><span class="ag-accprev-chk">${ic("check", 14)}</span></div>
-      <div class="ag-accprev-row"><span class="ag-accprev-tag">${esc(t("accPvTag"))}</span><span class="ag-accprev-link">${esc(t("accPvLink"))}</span><span class="ag-accprev-bar"><i></i></span></div></div></div>`;
+  const b = (act, label, inner, cls = "") => `<button type="button" class="${cls}" data-sys="${act}" aria-label="${esc(label)}">${inner}</button>`;
+  return `<div class="ag-accprev" style="${hex ? `--ag-primary:${hex}` : ""}"><div class="ag-accprev-t ag-t2">${esc(t("accPreview"))} · ${esc(t("accPvTry"))}</div>
+    <div class="ag-accprev-body"><div class="ag-seg ag-accprev-seg" role="tablist">${[["accPvTab", "shield"], ["accPvTab2", null]].map(([k, icon], i) =>
+      `<button type="button" role="tab" class="${pv.tab === i ? "on" : ""}" data-sys="accpv-tab" data-i="${i}" aria-selected="${pv.tab === i}">${icon ? ic(icon, 16) : ""}<span>${esc(t(k))}</span></button>`).join("")}</div>
+      <div class="ag-accprev-row">${b("accpv-btn", t("accPvBtn"), `${ic("check", 16)}${esc(pv.flash ? t("accPvDone") : t("accPvBtn"))}`, "ag-btn primary")}
+        <button type="button" class="ag-toggle ${pv.tog ? "on" : ""}" role="switch" aria-checked="${pv.tog}" data-sys="accpv-tog" aria-label="${esc(t("accPvTog"))}"></button>
+        ${b("accpv-round", t("accPvRound"), ic(pv.up ? "arrowUp" : "arrowDown", 16), "ag-accprev-round")}
+        ${b("accpv-chk", t("accPvChk"), pv.chk ? ic("check", 14) : "", `ag-accprev-chk ${pv.chk ? "on" : ""}`)}</div>
+      <div class="ag-accprev-row">${b("accpv-tag", t("accPvTag"), esc(t("accPvTag")), `ag-accprev-tag ${pv.tag ? "on" : ""}`)}<span class="ag-accprev-link">${esc(t("accPvLink"))}</span><span class="ag-accprev-bar"><i></i></span></div></div></div>`;
+};
+// Kleine Vorschau in der Zeile der Seite: Punkt wie am Logo (mit Ring und Schimmer), Schalter, Pille und Balken in der Farbe
+export const accentChips = (key) => {
+  const hex = accentColor(key);
+  return `<span class="ag-accchips" style="${hex ? `--ag-primary:${hex}` : ""}" aria-hidden="true"><span class="ag-toggle on ag-accchip-tg"></span><span class="ag-accchip-pill"></span><span class="ag-accprev-bar ag-accchip-bar"><i></i></span></span>`;
 };
 
 export const fmtDur = (seconds) => {

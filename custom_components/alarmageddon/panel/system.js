@@ -3,7 +3,7 @@
 // Dieselben Schlüssel wie der Optionsdialog von HA (WebSocket alarmageddon/save_system). Der Code bleibt im Optionsdialog.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, iconTitle, matchQuery, searchField, accentGrid, accentColor, accentPreview } = await import(`./common.js${V}`);
+const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, iconTitle, matchQuery, searchField, accentGrid, accentColor, accentPreview, accentChips, ACC_PV } = await import(`./common.js${V}`);
 const { customList, uploadHtml, uploadError, uploadSound, usage, soundInfo, soundBadge } = await import(`./customsounds.js${V}`);
 const { RoutinesUi, normRoutines, canon } = await import(`./routines.js${V}`);
 
@@ -569,9 +569,8 @@ export class SystemUi {
   _accentHtml(d) {
     const t = (k, v) => this._t(k, v);
     const hex = accentColor(d.accent);
-    const dot = `<span class="ag-accdot ag-accdot-s" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span>`;
     return chapter(t("accTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum"><span class="ag-oav ag-tint ag-tint-accent on">${ic("palette", 20)}</span>
-      <div class="ag-settx"><b class="ag-accname">${dot}${esc(t(`acc_${d.accent}`))}</b>${d.accent !== this.base().accent ? `<small class="ag-t2 ag-unsaved">${esc(t("unsavedOne"))}</small>` : ""}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="acc-open">${ic("palette", 18)}${esc(t("accChange"))}</button></div></div></div>`, t("accHint"));
+      <div class="ag-settx"><b class="ag-accname"><span class="ag-accdot ag-accdot-s ag-accdot-ring" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span>${esc(t(`acc_${d.accent}`))}</b>${accentChips(d.accent)}${d.accent !== this.base().accent ? `<small class="ag-t2 ag-unsaved">${esc(t("unsavedOne"))}</small>` : ""}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="acc-open">${ic("palette", 18)}${esc(t("accChange"))}</button></div></div></div>`, t("accHint"));
   }
 
   accentDlg() {
@@ -583,6 +582,7 @@ export class SystemUi {
     const d = this.ensureDraft();
     if (!dlg) return;
     this.accPick = d.accent;
+    this.accPv = ACC_PV();
     // Wie auch immer das Fenster schliesst: die Vorschau fällt auf den Entwurf der Seite zurück
     dlg.onclose = () => {
       this.accPick = null;
@@ -598,7 +598,7 @@ export class SystemUi {
     this.host._setHtml(dlg, `<div class="ag-dlg-body ag-acc-pop">${iconTitle("palette", "ag-tint ag-tint-accent on", t("accTitle"))}
       <p class="ag-t2">${esc(t("accHint"))}</p>
       ${accentGrid(this.accPick, 'data-sys="acc-pick"', t)}
-      ${accentPreview(this.accPick, t)}
+      ${accentPreview(this.accPick, t, this.accPv)}
       <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-sys="acc-cancel">${esc(t("cancel"))}</button><button type="button" class="ag-btn primary" data-sys="acc-apply">${ic("check", 18)}${esc(t("accApply"))}</button></div></div>`);
   }
 
@@ -1260,6 +1260,23 @@ export class SystemUi {
     } else if (act === "acc-pick") {
       this.accPick = el.dataset.key;
       this.host._applyAccent?.(this.accPick); // Vorschau im ganzen Panel
+      this._renderAccent();
+    } else if (act.startsWith("accpv-")) {
+      // Simulation im Fenster: ändert nur diese Anzeige
+      const pv = (this.accPv = this.accPv || ACC_PV());
+      if (act === "accpv-tab") pv.tab = Number(el.dataset.i);
+      else if (act === "accpv-tog") pv.tog = !pv.tog;
+      else if (act === "accpv-chk") pv.chk = !pv.chk;
+      else if (act === "accpv-round") pv.up = !pv.up;
+      else if (act === "accpv-tag") pv.tag = !pv.tag;
+      else if (act === "accpv-btn") {
+        pv.flash = true;
+        window.clearTimeout(this._accFlash);
+        this._accFlash = window.setTimeout(() => {
+          pv.flash = false;
+          if (this.accentDlg()?.open) this._renderAccent();
+        }, 1200);
+      }
       this._renderAccent();
     } else if (act === "acc-cancel") {
       this.accentDlg()?.close();
