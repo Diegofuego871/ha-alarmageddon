@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **HealthCheck log: 7 days as a large grid, no dropdown for a single service:** the 7-day chart is now the grid of days and hours of the 30-day chart, only larger (one row per day with its label, square cells, the worst result of each hour); the time line per day is gone. With only one service the name in the head of the details stands without an arrow and without a menu, as there is nothing to switch to.
 - **Self-test and HealthCheck are two chapters:** under Configuration › Alarm system the chapter "HealthCheck" is split. "Self-test" (last check, "Check now", "Show problems", the two intervals) and "HealthCheck" (the life signs to external services, "Add service", "Show services") each have their own chapter marker and their own card with their own symbol, built like the others.
 
 ## [1.75.3] - 2026-11-22

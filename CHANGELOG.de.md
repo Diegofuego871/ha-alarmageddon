@@ -15,6 +15,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Geändert
 
+- **Protokoll der HealthCheck-Dienste: 7 Tage als grosses Raster, keine Auswahl bei einem einzigen Dienst:** die Grafik der 7 Tage ist jetzt das Raster aus Tagen und Stunden der 30 Tage, nur grösser (eine Zeile je Tag mit Beschriftung, quadratische Zellen, das schlechteste Ergebnis jeder Stunde); die Zeitleiste je Tag entfällt. Bei nur einem Dienst steht der Name im Kopf der Angaben ohne Pfeil und ohne Menü, denn es gibt nichts umzuschalten.
 - **Selbsttest und HealthCheck sind zwei Kapitel:** unter Konfiguration › Anlage ist das Kapitel "HealthCheck" aufgeteilt. "Selbsttest" (letzte Prüfung, "Jetzt prüfen", "Probleme anzeigen", die beiden Abstände) und "HealthCheck" (die Lebenszeichen an externe Dienste, "Dienst hinzufügen", "Dienste anzeigen") haben je einen eigenen Kapitelmarker und eine eigene Kachel mit eigenem Symbol, gleich aufgebaut wie die anderen.
 
 ## [1.75.3] - 2026-11-22

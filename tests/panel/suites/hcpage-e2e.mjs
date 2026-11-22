@@ -69,6 +69,25 @@ for (const lang of ["de", "en"]) {
     r1 = await row();
     check(`${tag}: Dienst ohne Link: keine Zeile "${t.row}"`, !r1.found && !r1.first.includes(t.row), JSON.stringify(r1));
     await s.ctx.close();
+
+    // ----- Nur ein Dienst: im Kopf der Angaben kein Auswahlmenü (nichts umzuschalten), kein Pfeil; mit mehreren wie bisher -----
+    const one = await open(browser, { mobile, lang, tab: "config", prefs: { sub: "system" }, query: "&hc=one" });
+    await one.waitFor("return !!r.querySelector('.ag-hcsum [data-hc=\"open\"]')");
+    await one.tap('.ag-hcsum [data-hc="open"]');
+    await one.waitFor("return r.getElementById('ag-hclist').open && r.querySelectorAll('#ag-hclist [data-hc-row]').length === 1");
+    await one.tap(`#ag-hclist [data-hc-row="${HC}"] [data-hc="log"]`);
+    await one.waitFor("return r.getElementById('ag-hclog').open && !r.getElementById('ag-hclog').querySelector('.ag-sv[data-busy]')", 8000);
+    const head1 = await one.ev("const d=r.getElementById('ag-hclog'); const p=d.querySelector('.ag-hl-pick'); return { tag: p?.tagName, svg: !!p?.querySelector('svg'), menu: !!d.querySelector('.ag-hl-menu'), btn: !!d.querySelector('[data-sv=\"menu\"]'), name: p?.textContent.trim() }");
+    check(`${tag}: ein einziger Dienst: Name ohne Pfeil und ohne Auswahlmenü`, head1.tag === 'SPAN' && !head1.svg && !head1.menu && !head1.btn && head1.name === 'Healthchecks Haus', JSON.stringify(head1));
+    await one.ctx.close();
+    const many = await open(browser, { mobile, lang, tab: "config", prefs: { sub: "system" }, query: "&hc=sample" });
+    await many.waitFor("return !!r.querySelector('.ag-hcsum [data-hc=\"open\"]')");
+    await many.tap('.ag-hcsum [data-hc="open"]');
+    await many.waitFor("return r.getElementById('ag-hclist').open && r.querySelectorAll('#ag-hclist [data-hc-row]').length === 3");
+    await many.tap(`#ag-hclist [data-hc-row="${HC}"] [data-hc="log"]`);
+    await many.waitFor("return r.getElementById('ag-hclog').open && !r.getElementById('ag-hclog').querySelector('.ag-sv[data-busy]')", 8000);
+    check(`${tag}: mehrere Dienste: Name mit Pfeil und Auswahlmenü wie bisher`, await many.ev("const d=r.getElementById('ag-hclog'); return !!d.querySelector('button.ag-hl-pick svg') && !!d.querySelector('.ag-hl-menu')"));
+    await many.ctx.close();
   }
 }
 await browser.close();

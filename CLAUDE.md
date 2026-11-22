@@ -340,7 +340,7 @@ Umsetzung:
   mit Hinweis; ab 90 Tagen ganze Tage (Beginn Mitternacht des ersten Tages).
   Ansicht mit den Bausteinen der Sensoransicht (`HealthLogView extends SensorView`, Fenster `#ag-hclog`, Weiche in `_onClick`/`_onInput` vor der
   Sensoransicht; im Kopf seit 1.69.0 die runden Knöpfe der Liste "Fehler senden", "Lebenszeichen senden", Stift, `healthlog.js _actsHtml`, Wunsch
-  des Nutzers 21:50); Grafik bis 1 Tag Herzschlag mit Band, 7 Tage Zeitleiste, 30 Tage Raster (Entscheid "Vorschlag 1"), 90 Tage und 1 Jahr Raster
+  des Nutzers 21:50); Grafik bis 1 Tag Herzschlag mit Band, 7 Tage grosses Stundenraster (seit 1.76.0, Wunsch des Nutzers 2026-11-22, "Vorschlag A"; bei nur einem Dienst keine Auswahl im Kopf), 30 Tage Raster (Entscheid "Vorschlag 1"), 90 Tage und 1 Jahr Raster
   Monat × Tag (Mockup v3 "B", Lücke ab `HEALTHLOG_GAP_DAY_MINUTES`); Antwortzeit mit Zonen 300 ms und 1 s. Statuskachel: sind Dienste eingerichtet,
   ist die Zeile des Selbsttests geteilt (`selftest.js tileHalf`, `healthcheck.js tileHalf`, gleich hoch), ohne Dienste wie bisher und ohne Einladung.
 - Meldungen der HealthCheck-Dienste (seit 1.68.0, Wunsch des Nutzers vom 2026-11-19, 18:42/18:43; seit 1.69.0, Wunsch 22:16/22:17, eine

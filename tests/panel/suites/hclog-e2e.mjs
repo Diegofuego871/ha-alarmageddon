@@ -92,10 +92,10 @@ for (const lang of ["de", "en"]) {
       const exp = await expected(HC.id, hours);
       const chart = await dlg("const c=d.querySelector('.ag-sv-chart svg'); return { lane: c.querySelectorAll('.hl-lane').length, band: c.querySelectorAll('rect.hl-band.ok').length, days: [...c.querySelectorAll('text.sv-tx')].filter((x) => x.getAttribute('text-anchor') === 'end' && /\\d/.test(x.textContent) && !/:/.test(x.textContent)).length, rects: c.querySelectorAll('rect').length, cells: c.querySelectorAll('rect.hl-cell').length, dayCells: c.querySelectorAll('rect[data-day]').length, kinds: [...new Set([...c.querySelectorAll('rect[data-day]')].map((x) => x.dataset.kind))].sort().join(), sum: d.querySelector('.ag-hl-sum')?.textContent || '' }");
       const shape = hours <= 24 ? chart.lane > 0 && chart.band === 0
-        : hours === 168 ? chart.band >= 7 && chart.days === 7 && chart.lane === 0
+        : hours === 168 ? chart.rects >= 168 && chart.cells > 100 && chart.days === 7 && chart.lane === 0 && chart.band === 0
           : hours === 720 ? chart.rects === 720 && chart.cells > 600 && chart.lane === 0
             : chart.dayCells === hours / 24 && chart.kinds.includes("fail") && chart.kinds.includes("ok") && chart.kinds.includes("gap") && chart.sum.length > 10 && (hours === 4320 || chart.kinds.includes("none"));
-      const what = hours <= 24 ? "Herzschlag mit Band" : hours === 168 ? "Zeitleiste mit einer Zeile je Tag" : hours === 720 ? "Raster mit 30 Tagen zu 24 Stunden" : `Raster Monat × Tag mit ${hours / 24} Tagen und der Zahl der Tage darunter`;
+      const what = hours <= 24 ? "Herzschlag mit Band" : hours === 168 ? "grosses Stundenraster mit 7 Tagen zu 24 Stunden und einer Beschriftung je Tag" : hours === 720 ? "Raster mit 30 Tagen zu 24 Stunden" : `Raster Monat × Tag mit ${hours / 24} Tagen und der Zahl der Tage darunter`;
       check(`${tag}: ${hours} Std.: ${what}`, loaded && shape, JSON.stringify(chart));
       const ev = await dlg("return { n: d.querySelector('[data-sv=\"pane\"][data-pane=\"events\"] .ag-sv-n').textContent, rows: d.querySelectorAll('.ag-sv-rows tbody tr:not(.day)').length, total: d.querySelectorAll('.ag-sv-kpi b')[1].textContent.replace(/\\D/g, '') }");
       check(`${tag}: ${hours} Std.: "${t.events}" zählt ${exp.ev} wie der Server, die Liste zeigt sie (Zahl = Liste); "Lebenszeichen" ${exp.total}`,

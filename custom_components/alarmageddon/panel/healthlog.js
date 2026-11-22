@@ -4,7 +4,7 @@
 // Sortierung), hier als Unterklasse. Im Kopf der Name als Auswahl zum Wechseln des Dienstes und "Bearbeiten" (öffnet das Formular) an der Stelle von
 // "In HA öffnen".
 // Grafik je Zeitraum (Entscheid 17:31): bis 1 Tag "Herzschlag" (je Aufruf oder Abschnitt ein Balken: Höhe die Antwortzeit, Farbe das Ergebnis; darunter
-// ein Band), 7 Tage eine Zeitleiste je Tag (grün, solange Lebenszeichen ankommen, Marken für Fehler und Tests), 30 Tage ein Raster wie bei Bewegung
+// ein Band), 7 Tage ein grosses Stundenraster (seit 1.76.0, "Vorschlag A"), 30 Tage ein Raster wie bei Bewegung
 // (Zeile je Tag, Zelle je Stunde; Entscheid 17:48 "Vorschlag 1"). Kachel "Antwortzeit" genau wie im Mockup v1: Linie mit Fläche, Zonen schnell,
 // langsam, sehr langsam, gestrichelte rote Marke bei jedem gescheiterten Aufruf.
 // Liste: "Ereignisse" (Standard) und "Alle Aufrufe", beide genau nach dem oben gewählten Zeitraum gefiltert, die Zahl am Reiter ist die Zahl der
@@ -249,7 +249,9 @@ export class HealthLogView extends SensorView {
     };
     const tiles = TABS.map((tab) => `<button type="button" class="ag-sv-tile ${tab === this.tab ? "on" : ""}" data-sv="tab" data-tab="${tab}" role="tab" aria-selected="${tab === this.tab}">
         <span class="ag-sv-ti">${ic(TAB_ICON[tab], 22)}</span><span class="ag-sv-tx"><small>${esc(t(`hlTab_${tab}`))}</small><b>${esc(tileValue[tab])}</b></span></button>`).join("");
-    const menu = this.items.map((i) => {
+    // Bei nur einem Dienst gibt es nichts umzuschalten (Meldung des Nutzers 2026-11-22): Name ohne Pfeil, kein Menü
+    const several = this.items.length > 1;
+    const menu = !several ? "" : this.items.map((i) => {
       const s = this._state(i);
       const on = i.id === this.id;
       return `<button type="button" class="ag-hl-mi ${on ? "on" : ""}" role="option" aria-selected="${on}" data-sv="pick" data-id="${esc(i.id)}"><span class="ag-sv-dot ${s.state || "none"}"></span>
@@ -259,10 +261,10 @@ export class HealthLogView extends SensorView {
     this.host._setHtml(dlg, `<div class="ag-sv ag-hl" data-tab="${this.tab}" ${body.busy ? "data-busy" : ""}>
       <div class="ag-sv-fix">
         <div class="ag-sv-head"><span class="ag-oav ag-tint ag-tint-health on">${ic("heartPulse", 24)}</span>
-          <div class="ag-sv-ttl"><button type="button" class="ag-hl-pick" data-sv="menu" aria-haspopup="listbox" aria-expanded="${this.menu}" title="${esc(t("hlSwitch"))}"><b>${esc(item.name || host)}</b>${ic("arrowDown", 18)}</button><small>${esc(sub)}</small></div>
+          <div class="ag-sv-ttl">${several ? `<button type="button" class="ag-hl-pick" data-sv="menu" aria-haspopup="listbox" aria-expanded="${this.menu}" title="${esc(t("hlSwitch"))}"><b>${esc(item.name || host)}</b>${ic("arrowDown", 18)}</button>` : `<span class="ag-hl-pick one"><b>${esc(item.name || host)}</b></span>`}<small>${esc(sub)}</small></div>
           <span class="ag-sv-pill ${pill}">${esc(this._stateText({ state: state.state }))}</span>
           ${this._actsHtml(item)}
-          <div class="ag-hl-menu" role="listbox" aria-label="${esc(t("hlSwitch"))}" ${this.menu ? "" : "hidden"}>${menu}</div></div>
+          ${several ? `<div class="ag-hl-menu" role="listbox" aria-label="${esc(t("hlSwitch"))}" ${this.menu ? "" : "hidden"}>${menu}</div>` : ""}</div>
         <div class="ag-seg ag-sv-tiles n3" data-seg="sv-tabs" role="tablist">${tiles}</div>
         ${body.fix}
       </div>
@@ -309,7 +311,7 @@ export class HealthLogView extends SensorView {
       const daily = d.hours > 720;
       kpis = [[s.rate === null || s.rate === undefined ? "–" : `${s.rate.toLocaleString(this._locale(), { maximumFractionDigits: daily ? 2 : 1 })} %`, t("hlKRate")], [this._num(s.total), t("hlKCalls")],
         [this._num(s.fail), t("hlKFail")], wide && [this._num(s.report), t("hlKReport")], wide && [this._ms(s.ms_mean), t("hlKMean")]];
-      chart = d.hours <= 24 ? this._heartbeat(d, W) : d.hours <= 168 ? this._timeline(d, W) : daily ? this._monthRaster(d, W) : this._raster(d, W);
+      chart = d.hours <= 24 ? this._heartbeat(d, W) : d.hours <= 168 ? this._raster(d, W, true) : daily ? this._monthRaster(d, W) : this._raster(d, W);
       legend = daily
         ? this._legend([["hl-i ok", t(wide ? "hlLegDayOk" : "hlLegOkShort")], ["hl-i report", t("hlLegReport")], ["hl-i fail", t("hlLegFail")],
           ["hl-i gap", wide ? t("hlLegGapDay", { n: d.gap_day ?? 30 }) : t("hlLegGapShort")], ["hl-i test dot", t("hlLegTest")]])
@@ -428,55 +430,19 @@ export class HealthLogView extends SensorView {
     return (time) => index.get(new Date(time).toDateString());
   }
 
-  // 7 Tage: Zeitleiste je Tag wie Türen und Fenster. Grün, solange Lebenszeichen ankommen, grau eine Lücke ohne Daten, Marken für gescheitert, Fehler
-  // gemeldet und Test (aus den Ereignissen, auf die Minute genau; einzelne Aufrufe gibt es nach 24 Stunden nicht mehr)
-  _timeline(d, W) {
-    const narrow = W < 500;
-    const days = this._days(d);
-    const L = narrow ? 52 : 70;
-    const R = W - 6;
-    const rowH = 16;
-    const gap = 9;
-    const top = 6;
-    const H = top + days.length * (rowH + gap) + 18;
-    const gaps = this._gaps(d);
-    let s = "";
-    days.forEach((day, r) => {
-      const a = day.getTime();
-      const b = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
-      const y = top + r * (rowH + gap);
-      // Die Zeile zeigt 0 bis 24 Uhr; an einem Tag mit 25 Stunden endet ein Balken am rechten Rand
-      const x = (tt) => Math.min(R, L + ((tt - a) / (24 * HOUR)) * (R - L));
-      s += this._txt(L - 8, y + 12, this._shortDay(day), "end", r === days.length - 1 ? "now" : "");
-      s += `<rect class="sv-track" x="${L}" y="${y}" width="${R - L}" height="${rowH}" rx="4"/>`;
-      for (const [sa, sb] of this._okSpans(d, a, b)) s += `<rect class="hl-band ok" x="${x(sa).toFixed(1)}" y="${y}" width="${Math.max(0.5, x(sb) - x(sa)).toFixed(1)}" height="${rowH}" rx="3"/>`;
-      for (const [ga, gb] of gaps) {
-        const ca = Math.max(a, ga);
-        const cb = Math.min(b, gb);
-        if (cb > ca) s += `<rect class="hl-band gap" x="${x(ca).toFixed(1)}" y="${y}" width="${Math.max(2, x(cb) - x(ca)).toFixed(1)}" height="${rowH}" rx="3"/>`;
-      }
-      for (const [ta, tb, kind] of d.marks || []) {
-        const ma = Math.max(a, ms(ta));
-        const mb = Math.min(b, tb ? ms(tb) : ms(ta));
-        if (ms(ta) >= b || (tb ? ms(tb) : ms(ta)) < a) continue;
-        s += `<rect class="hl-b ${kind}" data-kind="${kind}" x="${x(ma).toFixed(1)}" y="${y - 2}" width="${Math.max(3, x(mb) - x(ma)).toFixed(1)}" height="${rowH + 4}" rx="1.5"/>`;
-      }
-    });
-    const xh = (h) => L + (h / 24) * (R - L);
-    for (const h of narrow ? [0, 6, 12, 18, 24] : [0, 3, 6, 9, 12, 15, 18, 21, 24]) s += this._txt(xh(h), H - 4, `${String(h).padStart(2, "0")}:00`, h === 0 ? "start" : h === 24 ? "end" : "middle");
-    return this._svg(W, H, s, this._t("hlChartDays"));
-  }
-
   // 30 Tage: Raster wie bei Bewegung (Entscheid des Nutzers, "Vorschlag 1"). Eine Zeile je Tag, eine Zelle je Stunde in der Farbe des schlechtesten
   // Ergebnisses dieser Stunde; ruhige Stunden blass grün, eine Stunde mit mehr als einer halben Stunde Lücke grau, vor dem Protokoll und die Zukunft leer
-  _raster(d, W) {
+  // `big` (7 Tage, seit 1.76.0, Wunsch des Nutzers 2026-11-22, Mockup "Vorschlag A"): dasselbe Stundenraster, nur grösser: quadratische Zellen, eine
+  // Beschriftung je Tag und kräftigeres Grün; die Zeitleiste je Tag gibt es nicht mehr
+  _raster(d, W, big = false) {
     const days = this._days(d);
     const L = 50;
     const R = W - 4;
     const top = 4;
     const cw = (R - L) / 24;
-    const ch = W > 500 ? 6.2 : 5.6;
-    const gap = 1.3;
+    const inner = big ? (W > 500 ? 4.5 : 2.6) : 1.6;
+    const ch = big ? Math.min(26, cw - inner) : W > 500 ? 6.2 : 5.6;
+    const gap = big ? (W > 500 ? 11 : 6) : 1.3;
     const now = ms(d.now);
     const since = ms(d.since);
     const gaps = this._gaps(d);
@@ -497,8 +463,8 @@ export class HealthLogView extends SensorView {
       for (let h = 0; h < 24; h++) {
         const a = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h).getTime();
         const b = a + HOUR;
-        const x = (L + h * cw + 0.8).toFixed(1);
-        const w = (cw - 1.6).toFixed(1);
+        const x = (L + h * cw + inner / 2).toFixed(1);
+        const w = (cw - inner).toFixed(1);
         const c = cells.get(`${i}|${h}`);
         const worst = c ? ["fail", "report", "test"].find((k) => c[k] > 0) : null;
         let cls = "sv-track";
@@ -506,9 +472,9 @@ export class HealthLogView extends SensorView {
         else if (a >= now || b <= since) cls = "sv-track";
         else if (this._inGap(gaps, a, b, HOUR / 2)) cls = "hl-cell gap";
         else cls = "hl-cell ok";
-        s += `<rect class="${cls}" ${worst ? `data-kind="${worst}"` : ""} x="${x}" y="${y.toFixed(1)}" width="${w}" height="${ch}" rx="1.5"/>`;
+        s += `<rect class="${cls}${big ? " big" : ""}" ${worst ? `data-kind="${worst}"` : ""} x="${x}" y="${y.toFixed(1)}" width="${w}" height="${ch}" rx="${big ? 3.5 : 1.5}"/>`;
       }
-      if (i === 0 || i === days.length - 1 || i % 5 === 4) s += this._txt(L - 8, y + ch / 2 + 4, this._shortDay(day), "end", i === days.length - 1 ? "now" : "");
+      if (big || i === 0 || i === days.length - 1 || i % 5 === 4) s += this._txt(L - 8, y + ch / 2 + 4, this._shortDay(day), "end", i === days.length - 1 ? "now" : "");
     });
     const base = top + days.length * (ch + gap);
     for (const h of W < 500 ? [0, 6, 12, 18, 24] : [0, 3, 6, 9, 12, 15, 18, 21, 24]) s += this._txt(L + h * cw, base + 12, `${String(h).padStart(2, "0")}:00`, h === 24 ? "end" : h === 0 ? "start" : "middle");

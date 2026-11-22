@@ -215,7 +215,7 @@
     return JSON.parse(JSON.stringify({ ...s, armed, minutes, next: s.last ? new Date(new Date(s.last).getTime() + minutes * 60e3).toISOString() : null }));
   };
   // HealthCheck (1.65.0, Namen seit 1.66.0) wie der Server (healthcheck.py listing): ?hc=sample füllt drei Dienste mit erfundenen Adressen (nie echte Ping-URLs),
-  // ?hc=full fünf (Höchstzahl). window.__hcResult: Ergebnis des nächsten Lebenszeichens ("ok", "http", "timeout", "error").
+  // ?hc=one nur den ersten, ?hc=full fünf (Höchstzahl). window.__hcResult: Ergebnis des nächsten Lebenszeichens ("ok", "http", "timeout", "error").
   {
     const st = (ago, sent, result, code, test = false) => ({ at: iso(ago), sent, result, code, test });
     const sample = [
@@ -227,7 +227,7 @@
       { id: "d4e5f6a1b2c3", name: "Uptime Kuma", url: "https://status.example.org/api/push/Kp4Rz8Lm2N?status=up&msg=OK", fail_suffix: "?status=down", alarm_suffix: "", interval: 60, status: null },
       { id: "e5f6a1b2c3d4", name: "Garage", url: "https://ping.example.net/check/garage", fail_suffix: "", alarm_suffix: "", interval: 86400, status: st(5 * 3600e3, "ok", "ok", 204) },
     ];
-    window.__healthchecks = params.get("hc") === "sample" ? sample : params.get("hc") === "full" ? [...sample, ...extra] : [];
+    window.__healthchecks = params.get("hc") === "sample" ? sample : params.get("hc") === "one" ? [sample[0]] : params.get("hc") === "full" ? [...sample, ...extra] : [];
     window.__hcCalls = [];
   }
   // Protokoll der HealthCheck-Dienste (1.68.0) wie der Server (healthcheck_log.py: record, history, gaps): je Dienst mit einem Lebenszeichen ein
