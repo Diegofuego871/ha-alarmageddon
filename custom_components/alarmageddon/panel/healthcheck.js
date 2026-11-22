@@ -23,12 +23,14 @@ const PRESETS = [60, 300, 900, 3600, 21600, 86400];
 // eine Nachricht nur im Körper eines POST an (Alarmageddon sendet nur GET): dort unterscheidet der Exit-Code "/2" den Alarm vom Fehler "/fail".
 // Cronitor nimmt die Nachricht als Parameter "message" (URL-kodiert, bis 2000 Zeichen); Uptime Kuma (Quelltext der Push-Route) "msg" bei "status=down".
 // Die Nachricht steht auf Englisch (Wunsch des Nutzers 2026-11-20): sie geht an den Dienst, nicht an die Oberfläche.
+// `page`: Vorschlag für den freiwilligen Link zum Dashboard (seit 1.76.0, Wunsch des Nutzers 2026-11-22): bei den gehosteten Diensten die Anmeldeseite, bei
+// selbst gehosteten (Healthchecks, Uptime Kuma) die Adresse des eigenen Servers; der Nutzer kann ihn ändern, etwa auf sein eigenes Dashboard.
 const KNOWN = [
-  { name: "Healthchecks.io", suffix: "/fail", alarm: "/2", test: (u) => u.hostname === "hc-ping.com" },
-  { name: "Healthchecks", suffix: "/fail", alarm: "/2", test: (u) => /^\/ping\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(u.pathname) },
-  { name: "Better Stack", suffix: "/fail", alarm: "/2", test: (u) => /(^|\.)(betterstack\.com|betteruptime\.com)$/.test(u.hostname) && u.pathname.includes("/heartbeat/") },
-  { name: "Cronitor", suffix: "?state=fail&message=Self-test+failed", alarm: "?state=fail&message=Alarm+triggered", test: (u) => u.hostname === "cronitor.link" },
-  { name: "Uptime Kuma", suffix: "?status=down&msg=Self-test+failed", alarm: "?status=down&msg=Alarm+triggered", test: (u) => u.pathname.includes("/api/push/") },
+  { name: "Healthchecks.io", suffix: "/fail", alarm: "/2", page: () => "https://healthchecks.io/accounts/login/", test: (u) => u.hostname === "hc-ping.com" },
+  { name: "Healthchecks", suffix: "/fail", alarm: "/2", page: (u) => `${u.origin}/`, test: (u) => /^\/ping\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(u.pathname) },
+  { name: "Better Stack", suffix: "/fail", alarm: "/2", page: () => "https://uptime.betterstack.com/", test: (u) => /(^|\.)(betterstack\.com|betteruptime\.com)$/.test(u.hostname) && u.pathname.includes("/heartbeat/") },
+  { name: "Cronitor", suffix: "?state=fail&message=Self-test+failed", alarm: "?state=fail&message=Alarm+triggered", page: () => "https://cronitor.io/app", test: (u) => u.hostname === "cronitor.link" },
+  { name: "Uptime Kuma", suffix: "?status=down&msg=Self-test+failed", alarm: "?status=down&msg=Alarm+triggered", page: (u) => `${u.origin}/dashboard`, test: (u) => u.pathname.includes("/api/push/") },
 ];
 
 // Beispiele im Fenster (Wunsch des Nutzers 2026-11-19: drei, vier Anbieter zum Aufklappen); dieselben, für die KNOWN den Fehler-Zusatz vorschlägt.
@@ -44,6 +46,17 @@ export function suggest(url) {
     return null;
   }
   return KNOWN.find((k) => k.test(u)) || null;
+}
+
+// Vorschlag für den Link zum Dashboard eines erkannten Dienstes (sonst null)
+export function suggestPage(url) {
+  const known = suggest(url);
+  if (!known?.page) return null;
+  try {
+    return known.page(new URL(String(url || "").trim()));
+  } catch {
+    return null;
+  }
 }
 
 // Wie der Server (settings.apply_fail_suffix): "/…" an den Pfad, "?…" oder "&…" setzt Parameter und ersetzt gleichnamige; sonst null
@@ -228,7 +241,7 @@ export class HealthCheckUi {
     const t = (k, v) => this._t(k, v);
     const items = this.items;
     if (!items.length) return `<div class="ag-card ag-rtempty"><span class="ag-t2">${esc(t("hcEmpty"))}</span><button class="ag-btn primary" data-hc="add">${ic("plus", 18)}${esc(t("hcAdd"))}</button></div>`;
-    const shown = items.filter((i) => matchQuery(this.q, i.name || "", i.url, i.fail_suffix, i.alarm_suffix, suggest(i.url)?.name || "", fmtDur(i.interval), this._statusText(i.status)));
+    const shown = items.filter((i) => matchQuery(this.q, i.name || "", i.url, i.page_url || "", i.fail_suffix, i.alarm_suffix, suggest(i.url)?.name || "", fmtDur(i.interval), this._statusText(i.status)));
     if (!shown.length) return `<div class="ag-card ag-popempty"><span class="ag-t2">${esc(t("hcNoMatch"))}</span></div>`;
     const sort = this.sort;
     const val = { name: (i) => (i.name || i.url).toLowerCase(), last: (i) => i.status?.at || "", interval: (i) => i.interval, status: (i) => this._statusText(i.status) }[sort.key];
@@ -266,7 +279,7 @@ export class HealthCheckUi {
     if (!item && this.items.length >= this.max) return;
     const interval = item?.interval ?? 300;
     const hours = interval % 3600 === 0;
-    this.form = { id: item?.id || null, name: item?.name || "", url: item?.url || "", suffix: item?.fail_suffix ?? "", alarm: item?.alarm_suffix ?? "", touched: Boolean(item), alarmTouched: Boolean(item),
+    this.form = { id: item?.id || null, name: item?.name || "", url: item?.url || "", suffix: item?.fail_suffix ?? "", alarm: item?.alarm_suffix ?? "", page: item?.page_url ?? "", touched: Boolean(item), alarmTouched: Boolean(item), pageTouched: Boolean(item),
       value: hours ? interval / 3600 : Math.round(interval / 60), unit: hours ? "h" : "min", error: "", saving: false };
     this.renderForm(true);
     const dlg = this.formDlg;
@@ -287,6 +300,7 @@ export class HealthCheckUi {
     if (!validUrl(f.url)) out.url = this._t(String(f.url || "").trim() ? "hcErrUrl" : "hcErrUrlEmpty");
     if (String(f.suffix || "").trim() && (!/^[/?&]/.test(f.suffix.trim()) || !applySuffix(f.url, f.suffix) || /\s/.test(f.suffix.trim()))) out.suffix = this._t("hcErrSuffix");
     if (String(f.alarm || "").trim() && (!/^[/?&]/.test(f.alarm.trim()) || !applySuffix(f.url, f.alarm) || /\s/.test(f.alarm.trim()))) out.alarm = this._t("hcErrAlarm");
+    if (String(f.page || "").trim() && !validUrl(f.page)) out.page = this._t("hcErrPage");
     const sec = this._seconds(f);
     if (!Number.isFinite(sec) || sec < MIN || sec > MAX) out.interval = this._t("hcErrInterval");
     return out;
@@ -300,7 +314,7 @@ export class HealthCheckUi {
     const known = suggest(f.url);
     const preview = validUrl(f.url) && !bad.suffix ? applySuffix(f.url, f.suffix) : null;
     const previewAlarm = validUrl(f.url) && !bad.alarm ? applySuffix(f.url, f.alarm) : null;
-    const err = (key) => (bad[key] && (f.shown || String({ url: f.url, suffix: f.suffix, alarm: f.alarm, name: f.name }[key] ?? "x").trim()) ? `<small class="ag-err ag-block">${esc(bad[key])}</small>` : "");
+    const err = (key) => (bad[key] && (f.shown || String({ url: f.url, suffix: f.suffix, alarm: f.alarm, name: f.name, page: f.page }[key] ?? "x").trim()) ? `<small class="ag-err ag-block">${esc(bad[key])}</small>` : "");
     return {
       known: known ? `<span class="ag-tag none ag-hcknown">${esc(t("hcKnown", { name: known.name }))}</span>` : "",
       offer: known && known.suffix !== String(f.suffix || "").trim()
@@ -310,6 +324,9 @@ export class HealthCheckUi {
       offerAlarm: known?.alarm && known.alarm !== String(f.alarm || "").trim()
         ? `<div class="ag-hcoffer"><span class="ag-t2">${esc(t("hcSuggest", { name: known.name, suffix: known.alarm }))}</span><button type="button" class="ag-link" data-hc="f-take-alarm">${esc(t("hcTake"))}</button></div>` : "",
       prevAlarm: previewAlarm ? `${esc(t("hcPreviewAlarm"))} <span class="ag-mono">${esc(previewAlarm)}</span>` : esc(t(String(f.alarm || "").trim() ? "hcPreviewNone" : "hcPreviewAlarmEmpty")),
+      offerPage: suggestPage(f.url) && suggestPage(f.url) !== String(f.page || "").trim()
+        ? `<div class="ag-hcoffer"><span class="ag-t2">${esc(t("hcSuggestPage", { name: known.name, url: suggestPage(f.url) }))}</span><button type="button" class="ag-link" data-hc="f-take-page">${esc(t("hcTake"))}</button></div>` : "",
+      "err-page": err("page"),
       "err-alarm": err("alarm"),
       "err-name": err("name"),
       "err-url": err("url"),
@@ -340,6 +357,8 @@ export class HealthCheckUi {
       ${chapter(t("hcChapAlarm"), field("hcAlarm", `<input class="ag-input" type="text" data-hc="f-alarm" value="${esc(f.alarm)}" placeholder="/2" autocomplete="off" spellcheck="false" maxlength="200">
         <small class="ag-t2 ag-block">${esc(t("hcAlarmHint"))}</small><div data-hcp="offerAlarm">${p.offerAlarm}</div>
         <small class="ag-t2 ag-block ag-hcprev" data-hcp="prevAlarm">${p.prevAlarm}</small><span data-hcp="err-alarm">${p["err-alarm"]}</span>`))}
+      ${chapter(t("hcChapPage"), field("hcPage", `<input class="ag-input" type="url" inputmode="url" data-hc="f-page" value="${esc(f.page || "")}" placeholder="https://…" autocomplete="off" spellcheck="false" maxlength="500">
+        <small class="ag-t2 ag-block">${esc(t("hcPageHint"))}</small><div data-hcp="offerPage">${p.offerPage}</div><span data-hcp="err-page">${p["err-page"]}</span>`))}
       ${chapter(t("hcChapInterval"), `<div class="ag-hcfield"><div class="ag-hcint-row"><span class="ag-num ${bad.interval ? "bad" : ""}"><input type="number" min="1" max="${f.unit === "h" ? 24 : 1440}" step="1" inputmode="numeric" data-hc="f-value" value="${esc(f.value)}" aria-label="${esc(t("hcInterval"))}"></span>
           <select class="ag-input" data-hc="f-unit" aria-label="${esc(t("hcUnit"))}"><option value="min" ${f.unit === "min" ? "selected" : ""}>${esc(t("hcMinutes"))}</option><option value="h" ${f.unit === "h" ? "selected" : ""}>${esc(t("hcHours"))}</option></select></div>
         <div class="ag-zline ag-hcpresets" data-hcp="presets">${p.presets}</div>
@@ -363,6 +382,8 @@ export class HealthCheckUi {
     if (suffix && suffix !== this.host._root.activeElement && suffix.value !== f.suffix) suffix.value = f.suffix;
     const alarm = dlg.querySelector('[data-hc="f-alarm"]');
     if (alarm && alarm !== this.host._root.activeElement && alarm.value !== f.alarm) alarm.value = f.alarm;
+    const page = dlg.querySelector('[data-hc="f-page"]');
+    if (page && page !== this.host._root.activeElement && page.value !== (f.page || "")) page.value = f.page || "";
     const value = dlg.querySelector('[data-hc="f-value"]');
     if (value) {
       value.max = f.unit === "h" ? "24" : "1440";
@@ -385,7 +406,7 @@ export class HealthCheckUi {
     f.error = "";
     this.renderForm();
     try {
-      const res = await h._hass.callWS({ type: "alarmageddon/healthcheck_save", ...(f.id ? { check_id: f.id } : {}), name: String(f.name).trim(), url: f.url.trim(), fail_suffix: String(f.suffix || "").trim(), alarm_suffix: String(f.alarm || "").trim(), interval: this._seconds() });
+      const res = await h._hass.callWS({ type: "alarmageddon/healthcheck_save", ...(f.id ? { check_id: f.id } : {}), name: String(f.name).trim(), url: f.url.trim(), fail_suffix: String(f.suffix || "").trim(), alarm_suffix: String(f.alarm || "").trim(), page_url: String(f.page || "").trim(), interval: this._seconds() });
       if (h._data) h._data.healthchecks = res.healthchecks;
       this.form = null;
       this.formDlg.close();
@@ -395,7 +416,7 @@ export class HealthCheckUi {
       if (h._tab === "config" && h._sub === "system") h.systemUi.render();
     } catch (err) {
       f.saving = false;
-      const known = { invalid_name: "hcErrName", invalid_url: "hcErrUrl", invalid_suffix: "hcErrSuffix", too_many: "hcErrTooMany" }[err?.code];
+      const known = { invalid_name: "hcErrName", invalid_url: "hcErrUrl", invalid_suffix: "hcErrSuffix", invalid_page_url: "hcErrPage", too_many: "hcErrTooMany" }[err?.code];
       f.error = known ? this._t(known) : this._t("saveFailed", { message: errText(err) });
       this.renderForm();
     }
@@ -496,6 +517,13 @@ export class HealthCheckUi {
         this.form.alarmTouched = true;
         this._refreshFormParts();
       }
+    } else if (act === "f-take-page") {
+      const page = suggestPage(this.form?.url);
+      if (this.form && page) {
+        this.form.page = page;
+        this.form.pageTouched = true;
+        this._refreshFormParts();
+      }
     } else if (act === "search" || act.startsWith("f-")) return true; // Felder: Eingaben kommen über onInput
     else return false;
     return true;
@@ -528,12 +556,17 @@ export class HealthCheckUi {
       if (!f.touched) f.suffix = known ? known.suffix : "";
       // Seit 1.74.1 (Wunsch des Nutzers 2026-11-21) setzt ein erkannter Dienst auch den Alarm-Zusatz ein, solange ihn niemand berührt hat; beide Zusätze bleiben freiwillig
       if (!f.alarmTouched) f.alarm = known?.alarm ?? "";
+      // Ebenso der Link zum Dashboard (seit 1.76.0): ein Vorschlag nur, solange ihn niemand berührt hat
+      if (!f.pageTouched) f.page = suggestPage(f.url) ?? "";
     } else if (act === "f-suffix") {
       f.suffix = el.value;
       f.touched = true;
     } else if (act === "f-alarm") {
       f.alarm = el.value;
       f.alarmTouched = true;
+    } else if (act === "f-page") {
+      f.page = el.value;
+      f.pageTouched = true;
     } else if (act === "f-value") {
       f.value = el.value.trim() === "" ? "" : Number(el.value);
     } else if (act === "f-unit") {

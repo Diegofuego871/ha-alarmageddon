@@ -7,6 +7,16 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.76.0] - 2026-11-22
+
+### Added
+
+- **Link to the dashboard of a HealthCheck service (optional):** when you add or edit a service, a new chapter "Dashboard" at the bottom of the form takes a link to the sign-in page or the dashboard of the service. For services Alarmageddon knows, it suggests one (Healthchecks.io, Better Stack and Cronitor: their sign-in page; Uptime Kuma and a self-hosted Healthchecks: the address of your own server), fills it in as long as you have not touched the field, and offers "Use" afterwards; you can replace it with the link straight to your own dashboard or leave it empty. Only when a link is set, the details of the service show a row "Dashboard" with the link (opens in a new window) and a button that copies it. Only http and https links are accepted; the link is part of the backup.
+
+### Changed
+
+- **Self-test and HealthCheck are two chapters:** under Configuration › Alarm system the chapter "HealthCheck" is split. "Self-test" (last check, "Check now", "Show problems", the two intervals) and "HealthCheck" (the life signs to external services, "Add service", "Show services") each have their own chapter marker and their own card with their own symbol, built like the others.
+
 ## [1.75.3] - 2026-11-22
 
 ### Changed
@@ -2177,6 +2187,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.76.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.0
 [1.75.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.3
 [1.75.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.2
 [1.75.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.1

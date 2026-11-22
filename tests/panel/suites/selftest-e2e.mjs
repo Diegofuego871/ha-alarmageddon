@@ -177,8 +177,8 @@ for (const lang of ["de", "en"]) {
     // Kapitel HealthCheck (Konfiguration › Anlage): Selbsttest mit "Jetzt prüfen", Abstand als Entwurf der Seite
     await s.ev("r.host._tab = 'config'; r.host._sub = 'system'; r.host._render(); return 1");
     await s.waitFor("return !!r.querySelector('.ag-health')");
-    const chap = await s.ev("const c=r.querySelector('.ag-health').closest('.ag-chap'); return { title: c.querySelector('.ag-chap-t').textContent, text: c.innerText }");
-    check(`${tag}: Kapitel "${t.chapter}" mit "${t.every}" und "${t.run}"`, chap.title === t.chapter && chap.text.includes(t.every) && chap.text.includes(t.run), JSON.stringify(chap).slice(0, 200));
+    const chap = await s.ev("const c=r.querySelector('.ag-selftestcard').closest('.ag-chap'); return { title: c.querySelector('.ag-chap-t').textContent, text: c.innerText }");
+    check(`${tag}: Kapitel "${t.kind}" (eigenes Kapitel, getrennt vom HealthCheck) mit "${t.every}" und "${t.run}"`, chap.title === t.kind && chap.text.includes(t.every) && chap.text.includes(t.run), JSON.stringify(chap).slice(0, 200));
     // Zwei Abstände (seit 1.67.0, Wunsch des Nutzers 2026-11-19): auf Computer und Handy untereinander unter dem Text, je Zahl und Einheit (Minuten
     // oder Stunden); Standard 6 Stunden und 1 Stunde; 5 Minuten bis 24 Stunden; gespeichert in Minuten
     const OFF = '[data-sys="st-value"][data-st-which="stOff"]', ON = '[data-sys="st-value"][data-st-which="stOn"]';
@@ -214,10 +214,10 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Fenster des Selbsttests: "${lang === "de" ? "alle 5 Minuten" : "every 5 minutes"}"`, await s.waitFor(`return (r.querySelector('.ag-st-meta')?.textContent || '').includes(${JSON.stringify(lang === "de" ? "alle 5 Minuten" : "every 5 minutes")})`));
     await s.ev("r.getElementById('ag-selftest').close(); return 1");
     const runs = await s.sim("return window.__selftestRuns || 0");
-    await s.tap('.ag-health [data-st="run"]');
+    await s.tap('.ag-selftestcard [data-st="run"]');
     const ran = await s.page.waitForFunction((n) => (window.__selftestRuns || 0) === n + 1, runs, { timeout: 5000 }).then(() => true, () => false);
     check(`${tag}: "${t.run}" im Kapitel ${t.chapter} prüft sofort`, ran);
-    await s.tap('.ag-health [data-st="open"]');
+    await s.tap('.ag-selftestcard [data-st="open"]');
     check(`${tag}: "Probleme anzeigen" öffnet das Fenster des Selbsttests`, await s.waitFor("return r.getElementById('ag-selftest').open"));
     const stFoot = await s.ev("const f=r.querySelector('#ag-selftest .ag-dlg-btns'); const c=f.querySelector('[data-st=\"close\"]').getBoundingClientRect(); const run=f.querySelector('[data-st=\"run\"]').getBoundingClientRect(); return { gap: Math.round(run.left - c.right), right: Math.round(f.getBoundingClientRect().right - run.right) }");
     check(`${tag}: Fenster des Selbsttests: "Schliessen" direkt neben "${t.run}", rechts`, stFoot.gap >= 0 && stFoot.gap <= 12 && stFoot.right <= 30, JSON.stringify(stFoot));

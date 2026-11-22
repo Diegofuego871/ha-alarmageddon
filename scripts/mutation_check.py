@@ -923,6 +923,13 @@ MUTATIONS = [
      "tests/test_selftest.py -k reported_once"),
     ("Selbsttest: ein Aufruf, der wieder klappt, hebt den Befund nicht auf", "workflow.py",
      "        self._selftest(True, label, targets)\n", "", "tests/test_selftest.py -k clears_when_it_works"),
+    # HealthCheck: Link zur Seite des Dienstes (1.76.0)
+    ("HealthCheck: der Link zur Seite des Dienstes nimmt jede Zeichenfolge an (javascript: würde im Panel zum Link)", "settings.py",
+     '        if page_url := valid_healthcheck_url(item.get("page_url")):', '        if page_url := str(item.get("page_url") or ""):',
+     "tests/test_healthcheck.py -k page_url"),
+    ("HealthCheck: beim Speichern wird ein ungültiger Link zur Seite des Dienstes angenommen", "websocket_api.py",
+     '        page_url = valid_healthcheck_url(msg["page_url"]) or ""\n        if not page_url:', '        page_url = msg["page_url"].strip()\n        if False:',
+     "tests/test_healthcheck.py -k page_url"),
     # HealthCheck (1.65.0)
     ("HealthCheck: eine Adresse ohne http oder https (ftp:, javascript:) wird angenommen", "settings.py",
      '    if parts.scheme not in ("http", "https") or not parts.hostname:', "    if not parts.hostname and parts.scheme in (\"http\", \"https\"):",

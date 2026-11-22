@@ -13,13 +13,13 @@ const T = {
     preview: "Aufruf bei Fehler:", errUrl: "vollständige http- oder https-URL", errSuffix: "muss mit /, ? oder & beginnen", errInterval: "1 Minute bis 24 Stunden",
     saved: "Dienst gespeichert", okSent: "Lebenszeichen gesendet", failSent: "Fehler gesendet", failed: "Gescheitert", noAnswer: "keine Antwort", test: "Test",
     failedRow: "1 Dienst: letztes Lebenszeichen gescheitert", noMatch: "Kein Dienst passt zur Suche.", editTitle: "Dienst bearbeiten", removeTitle: "Dienst entfernen?",
-    errName: "Einen Namen eingeben.", chaps: ["Dienst", "Bei Selbsttest-Fehler", "Bei Alarm", "Intervall"], alarmEmpty: "Ohne Zusatz wird diesem Dienst kein Alarm gemeldet." },
+    errName: "Einen Namen eingeben.", chaps: ["Dienst", "Bei Selbsttest-Fehler", "Bei Alarm", "Dashboard", "Intervall"], alarmEmpty: "Ohne Zusatz wird diesem Dienst kein Alarm gemeldet." },
   en: { chapter: "HealthCheck", none: "No external service", one: "1 of 5 services", three: "3 of 5 services", five: "5 of 5 services", add: "Add service", show: "Show services",
     title: "HealthCheck services", empty: "No service yet.", known: "Recognized: Healthchecks.io", suggest: "Suggestion for Healthchecks.io: /fail", take: "Use",
     preview: "Call on failure:", errUrl: "complete http or https URL", errSuffix: "must start with /, ? or &", errInterval: "1 minute to 24 hours",
     saved: "Service saved", okSent: "Life sign sent", failSent: "Failure sent", failed: "Failed", noAnswer: "no answer", test: "test",
     failedRow: "1 service: last life sign failed", noMatch: "No service matches the search.", editTitle: "Edit service", removeTitle: "Remove service?",
-    errName: "Enter a name.", chaps: ["Service", "On self-test failure", "On alarm", "Interval"], alarmEmpty: "Without a suffix no alarm is reported to this service." },
+    errName: "Enter a name.", chaps: ["Service", "On self-test failure", "On alarm", "Dashboard", "Interval"], alarmEmpty: "Without a suffix no alarm is reported to this service." },
 };
 // Erfundene Adressen (nie eine echte Ping-URL)
 const HC = "https://hc-ping.com/0a1b2c3d-1111-4222-8333-444455556666";
@@ -65,7 +65,7 @@ for (const lang of ["de", "en"]) {
     // Alarm-Zusatz: eigenes Kapitel ohne Zusatz "freiwillig" im Titel; seit 1.74.1 (Wunsch des Nutzers 2026-11-21) setzt ein erkannter Dienst beide Zusätze von selbst ein,
     // solange sie niemand berührt hat; beide bleiben freiwillig (leer speichern geht, dann entfällt der Testknopf)
     const chapters = await s.ev("const d=r.getElementById('ag-hcform'); return [...d.querySelectorAll('section.ag-chap > h3.ag-chap-t')].map((h) => h.textContent)");
-    check(`${tag}: Formular in vier Kapiteln mit Titel (Strich davor): ${t.chaps.join(", ")}`, JSON.stringify(chapters) === JSON.stringify(t.chaps), JSON.stringify(chapters));
+    check(`${tag}: Formular in fünf Kapiteln mit Titel (Strich davor): ${t.chaps.join(", ")}`, JSON.stringify(chapters) === JSON.stringify(t.chaps), JSON.stringify(chapters));
     const alarm = await s.ev("const d=r.getElementById('ag-hcform'); const q=(sel)=>d.querySelector(sel); return { value: q('[data-hc=\"f-alarm\"]').value, offer: q('[data-hcp=\"offerAlarm\"]').innerText, prev: q('[data-hcp=\"prevAlarm\"]').innerText }");
     check(`${tag}: Cronitor erkannt: der Alarm-Zusatz ist von selbst eingesetzt ("?state=fail&message=Alarm+triggered"), Vorschau mit der Adresse, kein Vorschlag daneben`,
       alarm.value === "?state=fail&message=Alarm+triggered" && !alarm.offer && alarm.prev.includes(`${CRON}?state=fail&message=Alarm+triggered`), JSON.stringify(alarm));
@@ -223,7 +223,7 @@ for (const lang of ["de", "en"]) {
     // Je Kapitel die Farbe (auch wenn das Symbol grau ist, weil das Kapitel leer ist); die eingeschalteten zeigen sie
     const tints = await s.ev(`const out = {}; for (const k of ["routines", "codes", "sounds", "health", "backup"]) { const el = r.querySelector('.ag-tint-' + k + '.on') || r.querySelector('.ag-tint-' + k); if (el) { const cs = getComputedStyle(el); const probe = document.createElement('span'); probe.style.color = cs.getPropertyValue('--ag-tint').trim(); r.appendChild(probe); const tint = getComputedStyle(probe).color; probe.remove(); out[k] = { tint, on: el.classList.contains('on'), color: cs.color, bg: cs.backgroundColor, row: getComputedStyle(el.closest('.ag-setrow')).backgroundColor }; } }
       const probe = document.createElement('span'); probe.style.color = getComputedStyle(r.host).getPropertyValue('--ag-primary'); r.appendChild(probe); const primary = getComputedStyle(probe).color; probe.style.color = getComputedStyle(r.host).getPropertyValue('--ag-success'); const success = getComputedStyle(probe).color; probe.remove();
-      const st = r.querySelector('.ag-stsum .ag-st-av'); const plain = getComputedStyle(r.querySelector('.ag-health .ag-setrow:not(.ag-rtsum)') || r.querySelector('.ag-setrow')).backgroundColor;
+      const st = r.querySelector('.ag-stsum .ag-st-av'); const plain = getComputedStyle(r.querySelector('.ag-selftestcard .ag-setrow:not(.ag-rtsum)') || r.querySelector('.ag-setrow')).backgroundColor;
       return { out, primary, success, st: st && getComputedStyle(st).color, plain }`);
     const vals = Object.values(tints.out);
     const on = vals.filter((v) => v.on);

@@ -545,3 +545,38 @@ async def test_a_hanging_service_never_holds_up_the_alarm(hass: HomeAssistant, f
     assert hass.states.get(ALARM).state == "triggered"
     await hass.async_block_till_done(wait_background_tasks=True)
     assert finished == [True]
+
+
+# ----- Link zur Seite des Dienstes (1.76.0, Wunsch des Nutzers 2026-11-22): freiwillig, nur http oder https -----
+
+
+def test_page_url_is_optional_and_only_http_or_https() -> None:
+    """Der Link wird im Panel zum Link und zur Kopierzeile: nur http(s) mit Rechnername bleibt, alles andere (javascript:, ftp:, Leerzeichen) fällt weg; leer fehlt ganz."""
+    items = valid_healthchecks([
+        {"id": "a", "name": "A", "url": CR, "page_url": "https://cronitor.io/app", "interval": 300},
+        {"id": "b", "name": "B", "url": CR, "page_url": "javascript:alert(1)", "interval": 300},
+        {"id": "c", "name": "C", "url": CR, "page_url": "ftp://x.example/", "interval": 300},
+        {"id": "d", "name": "D", "url": CR, "page_url": "https://x.example/ mit leerzeichen", "interval": 300},
+        {"id": "e", "name": "E", "url": CR, "page_url": "", "interval": 300},
+    ])
+    assert [i.get("page_url") for i in items] == ["https://cronitor.io/app", None, None, None, None]
+    # fehlt der Schlüssel oder ist er keine Zeichenfolge, bleibt der Eintrag ohne Link
+    more = valid_healthchecks([{"id": "f", "name": "F", "url": CR, "interval": 300}, {"id": "g", "name": "G", "url": CR, "page_url": 5, "interval": 300}])
+    assert [i.get("page_url") for i in more] == [None, None]
+
+
+async def test_page_url_is_saved_changed_and_cleared(hass: HomeAssistant, freezer, hass_ws_client, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get(HC, status=200)
+    await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    bad = await add(client, page_url="javascript:alert(1)")
+    assert bad["success"] is False and bad["error"]["code"] == "invalid_page_url"
+    assert (await add(client, page_url="cronitor.io/ohne-schema"))["error"]["code"] == "invalid_page_url"
+    created = await add(client, page_url=" https://healthchecks.io/accounts/login/ ")
+    assert created["success"] and created["result"]["healthchecks"][0]["page_url"] == "https://healthchecks.io/accounts/login/"
+    hid = created["result"]["id"]
+    # ohne Angabe beim Bearbeiten wird der Link entfernt (das Formular sendet immer alles)
+    cleared = await add(client, check_id=hid)
+    assert cleared["success"] and "page_url" not in cleared["result"]["healthchecks"][0]
+    # ein Dienst ohne Link bleibt ohne Link
+    assert "page_url" not in (await add(client))["result"]["healthchecks"][1]

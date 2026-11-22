@@ -305,7 +305,7 @@ Umsetzung:
   Verbindung kommt nie ins Log (sie enthält oft die URL). Ein Lebenszeichen ist eine Hintergrundaufgabe mit `HEALTHCHECK_TIMEOUT`, hält nie etwas
   auf; ein Wechsel des Selbsttests geht höchstens alle `HEALTHCHECK_MIN_GAP` Sekunden hinaus. Tests in `tests/test_healthcheck.py`, Zeilen
   "HealthCheck" in `scripts/mutation_check.py`, Suite `healthcheck-e2e.mjs`. Nie die echte Ping-URL eines Nutzers (Bildschirmfoto) in Code, Tests
-  oder Bildern verwenden; der Nachbau hat erfundene Adressen (`?hc=sample`). Die Liste der Dienste hat auf dem Handy statt der Spaltenköpfe eine klebende Zeile "Sortieren nach" mit Auswahl und Richtung (seit 1.74.7, Wunsch des Nutzers 2026-11-21, wie im Device Panel; Suite `hcsort-e2e.mjs`); der Protokoll-Knopf trägt das Symbol `chartBox`. Das Fenster der Dienste erklärt sie unter der Liste zum Aufklappen
+  oder Bildern verwenden; der Nachbau hat erfundene Adressen (`?hc=sample`). Die Liste der Dienste hat auf dem Handy statt der Spaltenköpfe eine klebende Zeile "Sortieren nach" mit Auswahl und Richtung (seit 1.74.7, Wunsch des Nutzers 2026-11-21, wie im Device Panel; Suite `hcsort-e2e.mjs`); der Protokoll-Knopf trägt das Symbol `chartBox`. Link zum Dashboard (seit 1.76.0, Wunsch des Nutzers 2026-11-22): freiwillig je Dienst (`page_url`, fehlt im Eintrag, wenn leer), **nur http oder https** (`valid_healthcheck_url`, Schema, Panel `validUrl`: er wird im Panel zum Link und nie `javascript:`), im Formular ganz unten (Kapitel "Dashboard"), bei erkannten Diensten vorgeschlagen (`KNOWN.page`, `suggestPage`; der Nutzer hat das letzte Wort, `pageTouched`); nur mit Link eine Zeile "Dashboard" in den Angaben des Dienstes (Link `target=_blank rel=noopener noreferrer`, Kopierknopf), im Backup. Tests `test_healthcheck.py -k page_url`, Suite `hcpage-e2e.mjs`, Zeilen "HealthCheck: Link zur Seite" in `scripts/mutation_check.py`. Selbsttest und HealthCheck sind seit 1.76.0 zwei Kapitel mit je eigener Kachel (`.ag-selftestcard`, `.ag-health`). Das Fenster der Dienste erklärt sie unter der Liste zum Aufklappen
   ("Was sind HealthCheck-Dienste?", seit 1.67.0, Wunsch des Nutzers; Name bleibt "HealthCheck-Dienste", Entscheid des Nutzers 2026-11-19) mit den
   Beispielen `EXAMPLES` in `healthcheck.js` (Links in neuem Fenster, dieselben Anbieter wie `KNOWN`). Statusentität und Statuskarte (seit 1.72.0,
   Wunsch des Nutzers 2026-11-20): `HealthCheck.summary` gibt nur Zahlen (`healthcheck`, `_ok`, `_report`, `_fail` als Attribute), **nie URL, Name
@@ -546,13 +546,10 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   liefert Claude die Release-Angaben für den aktuellen Stand von `main`:
   - Version (wie in `manifest.json`), Tag und Titel `vX.Y.Z`
   - Ziel: `main` mit Commit-Hash
-  - Vorabversion: Version 1.0.0 ist offiziell (Entscheid des Nutzers,
-    2026-11-10, kein "Pre-release"-Haken). Für spätere Versionen vor dem
-    Release nachfragen, ob Vorabversion oder offiziell. Bisherige Regel,
-    standardmässig **ja**, bis der Nutzer ausdrücklich sagt,
-    dass eine Version offiziell wird. Versionsnummern ohne a/b/rc-Suffix;
-    der Unterschied liegt nur am Haken "Pre-release". Grund: HACS zeigt
-    Vorabversionen nur Nutzern, die sie einschalten.
+  - Vorabversion: **nein, jedes Release ist offiziell (Vorgabe des Nutzers, 2026-11-22, gilt bis auf Widerruf)**: kein
+    "Pre-release"-Haken, nicht mehr nachfragen. Grund: Alarmageddon ist noch nicht im HACS-Marketplace und der Nutzer vermutlich der einzige
+    Anwender. Früher galt "Vorabversion: ja" (Version 1.0.0 war die erste offizielle, Entscheid des Nutzers, 2026-11-10). Versionsnummern ohne
+    a/b/rc-Suffix. Widerruft der Nutzer, gilt wieder: vor dem Release nachfragen, standardmässig ja.
   - Release Notes im Chat **nur auf Englisch** (Entscheid des Nutzers,
     2026-11-08; CHANGELOG und README bleiben zweisprachig), als
     Markdown-Codeblock, beginnend mit `## X.Y.Z (JJJJ-MM-TT)`. Grundlage:
@@ -567,8 +564,8 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   Claude auf den Nutzer wartet, gibt Claude die kompletten Release Notes
   (nur Englisch) seit dem letzten vom Nutzer veröffentlichten Tag
   aus, nicht nur die der letzten Version. Vorher auf GitHub prüfen, welches
-  der letzte veröffentlichte Tag ist. Aktuell sind alle Releases
-  Vorabversionen ("Vorabversion: ja").
+  der letzte veröffentlichte Tag ist. Seit 2026-11-22 sind alle Releases
+  offiziell ("Vorabversion: nein"); die Notes fassen alles seit dem letzten Tag zusammen, nicht nur die der letzten Version.
 - Im CHANGELOG (beide Sprachen) bleiben übersprungene Versionen mit eigenem
   Abschnitt stehen, mit dem Vermerk "Not released" / "Nicht veröffentlicht"
   und ohne Link-Fussnote.

@@ -7,6 +7,16 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.76.0] - 2026-11-22
+
+### Hinzugefügt
+
+- **Link zum Dashboard eines HealthCheck-Dienstes (freiwillig):** beim Hinzufügen und Bearbeiten eines Dienstes nimmt ein neues Kapitel "Dashboard" ganz unten im Formular einen Link zur Anmeldeseite oder zum Dashboard des Dienstes auf. Bei Diensten, die Alarmageddon kennt, schlägt es einen vor (Healthchecks.io, Better Stack und Cronitor: ihre Anmeldeseite; Uptime Kuma und ein selbst gehostetes Healthchecks: die Adresse deines eigenen Servers), trägt ihn ein, solange du das Feld nicht berührt hast, und bietet danach "Übernehmen" an; du kannst ihn durch den Link direkt zu deinem eigenen Dashboard ersetzen oder leer lassen. Nur wenn ein Link gesetzt ist, zeigen die Angaben des Dienstes eine Zeile "Dashboard" mit dem Link (öffnet in einem neuen Fenster) und einem Knopf, der ihn kopiert. Angenommen werden nur http- und https-Links; der Link gehört zum Backup.
+
+### Geändert
+
+- **Selbsttest und HealthCheck sind zwei Kapitel:** unter Konfiguration › Anlage ist das Kapitel "HealthCheck" aufgeteilt. "Selbsttest" (letzte Prüfung, "Jetzt prüfen", "Probleme anzeigen", die beiden Abstände) und "HealthCheck" (die Lebenszeichen an externe Dienste, "Dienst hinzufügen", "Dienste anzeigen") haben je einen eigenen Kapitelmarker und eine eigene Kachel mit eigenem Symbol, gleich aufgebaut wie die anderen.
+
 ## [1.75.3] - 2026-11-22
 
 ### Geändert
@@ -2177,6 +2187,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.76.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.76.0
 [1.75.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.3
 [1.75.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.2
 [1.75.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.75.1

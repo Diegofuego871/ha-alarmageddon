@@ -220,7 +220,7 @@
     const st = (ago, sent, result, code, test = false) => ({ at: iso(ago), sent, result, code, test });
     const sample = [
       { id: "a1b2c3d4e5f6", name: "Healthchecks Haus", url: "https://hc-ping.com/5b2f3c1e-8d4a-4f6b-9c7e-2a1d0e9f8b3c", fail_suffix: "/fail", alarm_suffix: "", interval: 300, status: st(2 * 60e3, "ok", "ok", 200) },
-      { id: "b2c3d4e5f6a1", name: "Cronitor", url: "https://cronitor.link/p/3f9a6c2e8b1d4e7f/haus-alarm", fail_suffix: "?state=fail&message=Self-test+failed", alarm_suffix: "?state=fail&message=Alarm+triggered", interval: 3600, status: st(34 * 60e3, "ok", "ok", 200) },
+      { id: "b2c3d4e5f6a1", name: "Cronitor", url: "https://cronitor.link/p/3f9a6c2e8b1d4e7f/haus-alarm", page_url: "https://cronitor.io/app", fail_suffix: "?state=fail&message=Self-test+failed", alarm_suffix: "?state=fail&message=Alarm+triggered", interval: 3600, status: st(34 * 60e3, "ok", "ok", 200) },
       { id: "c3d4e5f6a1b2", name: "Better Stack Büro", url: "https://uptime.betterstack.com/api/v1/heartbeat/Qx7pW2mZk9RtV4sN", fail_suffix: "/fail", alarm_suffix: "", interval: 900, status: st(6 * 60e3, "ok", "timeout", null) },
     ];
     const extra = [
@@ -744,10 +744,20 @@
         if (!ok(msg.interval)) throw { code: "invalid_format", message: "interval" };
         if ("interval_armed" in msg) throw { code: "invalid_format", message: "extra keys not allowed" };
         const entry = { name, url: msg.url, fail_suffix: suffix, alarm_suffix: alarmSuffix, interval: msg.interval };
+        // Link zum Dashboard (1.76.0): freiwillig, wie der Server nur http(s); fehlt im Eintrag, wenn leer
+        const pageUrl = String(msg.page_url || "").trim();
+        if (pageUrl) {
+          let pu;
+          try { pu = new URL(pageUrl); } catch { pu = null; }
+          if (!pu || !["http:", "https:"].includes(pu.protocol) || /\s/.test(pageUrl) || pageUrl.length > 500) throw { code: "invalid_page_url", message: "The link must start with http:// or https://" };
+          entry.page_url = pageUrl;
+        }
         if (msg.check_id) {
           const i = list.findIndex((x) => x.id === msg.check_id);
           if (i < 0) throw { code: "not_found", message: "No such health check" };
-          list[i] = { ...list[i], ...entry, id: msg.check_id };
+          const keep = { ...list[i] };
+          delete keep.page_url;
+          list[i] = { ...keep, ...entry, id: msg.check_id };
           return { id: msg.check_id, healthchecks: out() };
         }
         if (list.length >= 5) throw { code: "too_many", message: "At most 5 health checks" };

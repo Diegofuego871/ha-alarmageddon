@@ -788,9 +788,11 @@ export class HealthLogView extends SensorView {
     const known = suggest(item.url);
     const failUrl = item.fail_suffix ? applySuffix(item.url, item.fail_suffix) : null;
     const row = (label, value, mono = false) => (value ? `<div class="ag-sv-drow ${mono ? "ag-hl-mono" : ""}"><span class="ag-t2">${esc(label)}</span><b>${esc(value)}</b>${copyBtn(value, t("svCopy", { name: label }), 'data-sv="copy"', "ag-sv-copy")}</div>` : "");
+    // Link zum Dashboard (seit 1.76.0, freiwillig): nur mit Link eine Zeile, als Link (neues Fenster) und mit Kopierknopf; der Server lässt nur http(s) zu
+    const pageRow = item.page_url ? `<div class="ag-sv-drow ag-hl-mono"><span class="ag-t2">${esc(t("hcPageRow"))}</span><b><a class="ag-link" data-hl="page" href="${esc(item.page_url)}" target="_blank" rel="noopener noreferrer">${esc(item.page_url)}</a></b>${copyBtn(item.page_url, t("svCopy", { name: t("hcPageRow") }), 'data-sv="copy"', "ag-sv-copy")}</div>` : "";
     const last = d?.last;
     const lastText = last ? [`${this._dayLabel(new Date(last.t))} ${this._clockSec(last.t)}`, this._result(last), last.ms !== null && last.ms !== undefined ? this._ms(last.ms) : null].filter(Boolean).join(" · ") : "";
-    const facts = [row(t("hcName"), item.name), row(t("hlSvKnown"), known?.name), row(t("hcUrl"), item.url, true), row(t("hcSuffix"), item.fail_suffix || t("hlSvNone"), Boolean(item.fail_suffix)),
+    const facts = [row(t("hcName"), item.name), row(t("hlSvKnown"), known?.name), pageRow, row(t("hcUrl"), item.url, true), row(t("hcSuffix"), item.fail_suffix || t("hlSvNone"), Boolean(item.fail_suffix)),
       row(t("hlSvFailUrl"), failUrl, true), row(t("hcInterval"), fmtDur(item.interval))].join("");
     const log = [row(t("hlSvState"), this._stateText(state)), row(t("hlSvLast"), lastText),
       row(t("hlSvSince"), d?.since ? new Date(d.since).toLocaleDateString(this._locale(), { day: "numeric", month: "long", year: "numeric" }) : "")].join("");

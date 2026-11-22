@@ -373,7 +373,9 @@ export class SystemUi {
     };
     const hoursRow = `<div class="ag-setrow ag-sthours"><div class="ag-settx"><b>${esc(t("stEveryLabel"))}</b><small>${esc(t("stEveryHint"))}</small></div>
       <div class="ag-sthfs">${stLine("st.off", "stOff", t("ivOff"), "shieldOff")}${stLine("st.on", "stOn", t("ivOn"), "shield")}</div></div>`;
-    return chapter(t("hcTitle"), `<div class="ag-card ag-setlist ag-codes ag-health">${stRow}${hoursRow}${this.host.healthcheck.summaryRow()}</div>`, t("hcHint"));
+    // Zwei Kapitel mit je eigener Kachel (seit 1.75.4, Wunsch des Nutzers 2026-11-22): Selbsttest und HealthCheck sind nicht dasselbe
+    return chapter(t("stTitle"), `<div class="ag-card ag-setlist ag-codes ag-selftestcard">${stRow}${hoursRow}</div>`, t("stChapHint"))
+      + chapter(t("hcTitle"), `<div class="ag-card ag-setlist ag-codes ag-health">${this.host.healthcheck.summaryRow()}</div>`, t("hcHint"));
   }
 
   _csDlg() {

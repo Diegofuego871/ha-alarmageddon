@@ -1054,6 +1054,7 @@ def loaded_healthcheck(hass: HomeAssistant) -> Any:
         vol.Required("url"): vol.All(str, vol.Length(max=HEALTHCHECK_URL_MAX)),
         vol.Optional("fail_suffix", default=""): vol.All(str, vol.Length(max=HEALTHCHECK_SUFFIX_MAX)),
         vol.Optional("alarm_suffix", default=""): vol.All(str, vol.Length(max=HEALTHCHECK_SUFFIX_MAX)),
+        vol.Optional("page_url", default=""): vol.All(str, vol.Length(max=HEALTHCHECK_URL_MAX)),
         vol.Required("interval"): vol.All(int, vol.Range(min=HEALTHCHECK_INTERVAL_RANGE[0], max=HEALTHCHECK_INTERVAL_RANGE[1])),
     }
 )
@@ -1085,9 +1086,18 @@ async def ws_healthcheck_save(hass: HomeAssistant, connection, msg: dict[str, An
     if alarm_suffix is None:
         connection.send_error(msg["id"], "invalid_suffix", "The alarm suffix must start with /, ? or &")
         return
+    # Link zur Seite des Dienstes (1.76.0, freiwillig): leer erlaubt, sonst http oder https (er wird im Panel zum Link, nie "javascript:")
+    page_url = ""
+    if msg["page_url"].strip():
+        page_url = valid_healthcheck_url(msg["page_url"]) or ""
+        if not page_url:
+            connection.send_error(msg["id"], "invalid_page_url", "The link must start with http:// or https://")
+            return
     settings = await async_get_settings(hass)
     items = [dict(i) for i in settings.healthchecks]
     entry = {"name": name, "url": url, "fail_suffix": suffix, "alarm_suffix": alarm_suffix, "interval": msg["interval"]}
+    if page_url:
+        entry["page_url"] = page_url
     if "check_id" in msg:
         index = next((n for n, i in enumerate(items) if i["id"] == msg["check_id"]), None)
         if index is None:

@@ -250,7 +250,7 @@ def valid_healthcheck_name(value: Any) -> str | None:
 def valid_healthchecks(value: Any) -> list[dict[str, Any]]:
     """
     Lebenszeichen an externe Dienste (1.65.0): höchstens MAX_HEALTHCHECKS, jeder Eintrag einzeln geprüft (ein beschädigter fällt weg, nie die Liste).
-    {"id", "name", "url", "fail_suffix" (leer erlaubt), "alarm_suffix" (leer erlaubt, seit 1.73.0), "interval" (Sekunden)}. Ein ungültiger Zusatz wird leer (der Eintrag sendet dann nur das
+    {"id", "name", "url", "fail_suffix" (leer erlaubt), "alarm_suffix" (leer erlaubt, seit 1.73.0), "page_url" (freiwillig, seit 1.76.0: Link zur Seite des Dienstes, nur http/https; fehlt, wenn leer), "interval" (Sekunden)}. Ein ungültiger Zusatz wird leer (der Eintrag sendet dann nur das
     Lebenszeichen). Der Name ist seit 1.66.0 Pflicht; ein Eintrag ohne gültigen Namen (aus 1.65.0, auch aus einem Backup) heisst wie der Rechner
     seiner URL.
     """
@@ -268,8 +268,12 @@ def valid_healthchecks(value: Any) -> list[dict[str, Any]]:
         interval = max(HEALTHCHECK_INTERVAL_RANGE[0], min(HEALTHCHECK_INTERVAL_RANGE[1], interval))
         seen.add(hid)
         name = valid_healthcheck_name(item.get("name")) or (urlsplit(url).hostname or "?")[:HEALTHCHECK_NAME_MAX]
-        out.append({"id": hid, "name": name, "url": url, "fail_suffix": valid_fail_suffix(url, item.get("fail_suffix")) or "",
-                    "alarm_suffix": valid_fail_suffix(url, item.get("alarm_suffix")) or "", "interval": interval})
+        entry = {"id": hid, "name": name, "url": url, "fail_suffix": valid_fail_suffix(url, item.get("fail_suffix")) or "",
+                 "alarm_suffix": valid_fail_suffix(url, item.get("alarm_suffix")) or "", "interval": interval}
+        # Link zur Seite des Dienstes (seit 1.76.0, freiwillig): nur http oder https (er wird im Panel zum Link), sonst weggelassen
+        if page_url := valid_healthcheck_url(item.get("page_url")):
+            entry["page_url"] = page_url
+        out.append(entry)
     return out
 
 
