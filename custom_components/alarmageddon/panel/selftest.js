@@ -9,6 +9,9 @@ const { ic, esc, errText, iconTitle, MODE_KEY, matchQuery, searchField } = await
 const CHECKED_GROUPS = [["entity", "sensor"], ["entity", "watch"], ["entity", "output"], ["entity", "player"], ["entity", "trigger"], ["service", ""], ["recipient", ""]];
 
 // Befunde, die einen Alarm verhindern oder stumm machen können: rot statt gelb
+// Symbol je Art des Befunds (Liste im Fenster und Marken an den Karten der Aktionen)
+const CODE_ICON = { entity_missing: "close", entity_unavailable: "offline", service_missing: "script", recipient_missing: "bell", no_recipients: "bellOff", sound_missing: "tone",
+      no_url: "speaker", rule_damaged: "alert", system_not_loaded: "shieldOff", step_failed: "alert", healthcheck_missing: "heartPulse", step_hung: "timer", notify_failed: "bellOff", start_failed: "powerOff", backup_failed: "archive", ping_failed: "heartPulse" };
 const RED_CODES = new Set(["system_not_loaded", "start_failed", "no_recipients", "no_url"]);
 
 export class SelfTestUi {
@@ -72,6 +75,53 @@ export class SelfTestUi {
     const tone = n ? (this.problems().some((p) => this._red(p)) ? "err" : "warn") : d.last ? "ok" : "";
     return `<button class="ag-row ag-rowbtn ag-st-row ag-half" data-st="open" data-half="selftest" title="${esc([full, ago].filter(Boolean).join(" · "))}"><span class="ag-mini ${tone}">${ic("stethoscope", 16)}</span>
       <span class="ag-grow"><span class="ag-half-t">${esc(this._t("stHalfTitle"))}</span><small class="ag-t2 ag-block">${esc(state)}</small></span><span class="ag-cbtn">${ic("chevRight", 16)}</span></button>`;
+  }
+
+  // ----- Marken an den Karten der Aktionen (1.86.0, Wunsch des Nutzers 2026-11-23) -----
+
+  // Befunde der Konfiguration einer Anlage, die eine Stelle im Ablauf nennen (area "workflow"): Liste (alarm, after, armed, arming, entry, disarmed, report),
+  // Auslöser, Schritt (ab 1) und bei einer Gruppe die Stelle darin (sub, ab 1). Laufzeitbefunde ("Aufruf gescheitert") nennen keine Stelle und fehlen hier.
+  stepPlaces(entry) {
+    const out = [];
+    for (const p of this.problems()) {
+      if (p.entry_id !== entry || p.kind !== "config") continue;
+      for (const place of p.places || []) if (place.area === "workflow" && place.step) out.push({ p, place });
+    }
+    return out;
+  }
+
+  _mark(p) {
+    const code = this._code(p);
+    return { key: p.key, tone: this._red(p) ? "err" : "warn", icon: CODE_ICON[p.code] || "alert", title: this._t(`stT_${code}`, this._vars(p)) };
+  }
+
+  // Marken einer Karte; sub = 0: die Karte selbst, sonst die Stelle in der Gruppe an `step`
+  cardMarks(entry, trigger, list, step, sub = 0) {
+    const seen = new Set();
+    return this.stepPlaces(entry).filter(({ p, place }) => place.trigger === trigger && place.list === list && place.step === step && (place.sub || 0) === sub && !seen.has(p.key) && seen.add(p.key)).map(({ p }) => this._mark(p));
+  }
+
+  // Marken aller Schritte in der Gruppe an `step` (für die Kopfzeile der Gruppe)
+  groupMarks(entry, trigger, list, step) {
+    const seen = new Set();
+    return this.stepPlaces(entry).filter(({ p, place }) => place.trigger === trigger && place.list === list && place.step === step && place.sub && !seen.has(p.key) && seen.add(p.key)).map(({ p }) => this._mark(p));
+  }
+
+  // Zahl der Befunde je Auslöser (Punkt am Reiter des Modus) und ob einer rot ist
+  triggerMarks(entry, trigger) {
+    const seen = new Map();
+    for (const { p, place } of this.stepPlaces(entry)) if (place.trigger === trigger && !seen.has(p.key)) seen.set(p.key, this._red(p));
+    return { n: seen.size, red: [...seen.values()].some(Boolean) };
+  }
+
+  // Fenster mit dem Befund `key` aufgeklappt öffnen und dorthin scrollen (Tipp auf die Marke einer Karte)
+  openAt(key) {
+    const dlg = this.dlg;
+    if (!dlg) return;
+    this.opened = new Set([key, ...(dlg.open ? this.opened : [])]);
+    this.render(true);
+    if (!dlg.open) dlg.showModal();
+    setTimeout(() => dlg.querySelector(`[data-st-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "center" }), 60);
   }
 
   // ----- Fenster -----
@@ -173,8 +223,7 @@ export class SelfTestUi {
     const vars = this._vars(p);
     const open = this.opened.has(p.key);
     const tone = this._red(p) ? "err" : "warn";
-    const icon = { entity_missing: "close", entity_unavailable: "offline", service_missing: "script", recipient_missing: "bell", no_recipients: "bellOff", sound_missing: "tone",
-      no_url: "speaker", rule_damaged: "alert", system_not_loaded: "shieldOff", step_failed: "alert", healthcheck_missing: "heartPulse", step_hung: "timer", notify_failed: "bellOff", start_failed: "powerOff", backup_failed: "archive", ping_failed: "heartPulse" }[p.code] || "alert";
+    const icon = CODE_ICON[p.code] || "alert";
     const head = `<button type="button" class="ag-st-head" data-st="toggle" data-key="${esc(p.key)}" aria-expanded="${open}"><span class="ag-mini ${tone}">${ic(icon, 16)}</span>
       <span class="ag-grow"><b>${esc(this._t(`stT_${code}`, vars))}</b><small class="ag-t2 ag-block">${esc(this._t(`stKind_${p.kind}`))}${p.kind === "runtime" ? ` · ${esc(this._t("stLastSeen", { time: this._when(p.last) }))}` : ""}</small></span>
       <span class="ag-st-chev ${open ? "open" : ""}">${ic("chevRight", 16)}</span></button>`;
@@ -334,6 +383,7 @@ export class SelfTestUi {
     try {
       const res = await h._hass.callWS({ type: "alarmageddon/selftest_run" });
       if (h._data && res?.selftest) h._data.selftest = res.selftest;
+      h._refreshMarks?.(); // die Marken an den Karten der Aktionen folgen dem neuen Stand
       const n = this.problems().length;
       h._toast(n === 0 ? this._t("stRunDone0") : n === 1 ? this._t("stRunDone1") : this._t("stRunDoneN", { count: n }));
     } catch (err) {
@@ -350,6 +400,7 @@ export class SelfTestUi {
     try {
       const res = await h._hass.callWS({ type: "alarmageddon/selftest_dismiss", key });
       if (h._data && res?.selftest) h._data.selftest = res.selftest;
+      h._refreshMarks?.();
     } catch (err) {
       h._toast(this._t("errGeneric", { message: errText(err) }));
     }

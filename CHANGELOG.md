@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.86.0] - 2026-11-23
+
+### Added
+
+- **Self-test findings on the actions:** if the self-test finds a problem with an action (an entity is missing or not reachable, a service, speaker or recipient is gone), the card of the action now carries a **big red exclamation mark** at its corner, a red frame and a line with the finding; a tap on the line opens exactly that finding in the self-test window. Findings outside the alarm flow are orange. A group shows the number of findings of its actions and marks the cards inside; the tab of a mode with findings carries an exclamation mark as well. After "Check now" or the next check the marks follow the new state. This makes it much faster to fix a problem: you see at once where the missing or unreachable entity is used.
+
 ## [1.85.0] - 2026-11-23
 
 ### Added
@@ -2287,6 +2293,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.86.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.0
 [1.85.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.85.0
 [1.84.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.84.0
 [1.83.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.83.0

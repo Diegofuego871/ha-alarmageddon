@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.86.0] - 2026-11-23
+
+### Hinzugefügt
+
+- **Befunde des Selbsttests an den Aktionen:** findet der Selbsttest ein Problem mit einer Aktion (eine Entität fehlt oder ist nicht erreichbar, ein Dienst, Lautsprecher oder Empfänger ist weg), trägt die Karte der Aktion jetzt ein **grosses rotes Ausrufezeichen** an der Ecke, einen roten Rahmen und eine Zeile mit dem Befund; ein Tipp auf die Zeile öffnet genau diesen Befund im Fenster des Selbsttests. Befunde ausserhalb des Alarmablaufs sind orange. Eine Gruppe zeigt die Zahl der Befunde ihrer Aktionen und markiert die Karten darin; auch der Reiter eines Modus mit Befunden trägt ein Ausrufezeichen. Nach "Jetzt prüfen" oder der nächsten Prüfung folgen die Marken dem neuen Stand. So lässt sich ein Problem viel schneller beheben: man sieht sofort, wo die fehlende oder nicht erreichbare Entität verwendet wird.
+
 ## [1.85.0] - 2026-11-23
 
 ### Hinzugefügt
@@ -2287,6 +2293,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.86.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.0
 [1.85.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.85.0
 [1.84.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.84.0
 [1.83.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.83.0

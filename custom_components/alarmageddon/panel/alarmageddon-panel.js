@@ -849,6 +849,11 @@ class AlarmageddonPanel extends HTMLElement {
     });
   }
 
+  // Die Marken des Selbsttests an den Karten der Aktionen folgen einem neuen Stand der Befunde (1.86.0)
+  _refreshMarks() {
+    if (this._tab === "config" && this._sub === "actions") this.actions.render();
+  }
+
   // Meldung unten; mit `action` ({ label, run }) steht ein Knopf daneben (zum Beispiel "Rückgängig" nach dem Verschieben einer Aktion) und die Meldung bleibt länger
   _toast(text, action = null) {
     clearTimeout(this._toastTimer);

@@ -1001,6 +1001,13 @@ export const STRINGS = {
     stepHealthcheck: "Report to HealthCheck",
     stepHealthcheckHint: "Reports to an external HealthCheck service you set up, for example when the alarm triggers (with your own suffix).",
     stepHealthcheckOff: "No service set up: Configuration › Alarm system › HealthCheck",
+    // Marken des Selbsttests an den Karten der Aktionen (1.86.0)
+    wfProbOpen: "Open this finding in the self-test",
+    wfProbMore: "+{n} more",
+    wfGroupProbOne: "1 problem in this group",
+    wfGroupProb: "{n} problems in this group",
+    wfTabProbOne: "Self-test: 1 problem in the actions of this mode",
+    wfTabProb: "Self-test: {n} problems in the actions of this mode",
     // Aktion verschieben oder kopieren (1.85.0)
     xfBtn: "Move or copy",
     xfTitle: "Move or copy action",
@@ -3129,6 +3136,13 @@ export const STRINGS = {
     stepHealthcheck: "HealthCheck melden",
     stepHealthcheckHint: "Meldet an einen externen HealthCheck-Dienst, den du eingerichtet hast, zum Beispiel beim Alarm (mit eigenem Zusatz).",
     stepHealthcheckOff: "Kein Dienst eingerichtet: Konfiguration › Anlage › HealthCheck",
+    // Marken des Selbsttests an den Karten der Aktionen (1.86.0)
+    wfProbOpen: "Diesen Befund im Selbsttest öffnen",
+    wfProbMore: "+{n} weitere",
+    wfGroupProbOne: "1 Problem in dieser Gruppe",
+    wfGroupProb: "{n} Probleme in dieser Gruppe",
+    wfTabProbOne: "Selbsttest: 1 Problem in den Aktionen dieses Modus",
+    wfTabProb: "Selbsttest: {n} Probleme in den Aktionen dieses Modus",
     // Aktion verschieben oder kopieren (1.85.0)
     xfBtn: "Verschieben oder kopieren",
     xfTitle: "Aktion verschieben oder kopieren",

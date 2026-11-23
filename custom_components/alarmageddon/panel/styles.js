@@ -2081,4 +2081,20 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 :host([narrow]) .ag-xf-modes button { min-width: 0; flex-direction: column; gap: 3px; padding: 7px 2px; font-size: 11.5px; min-height: 54px; justify-content: center; }
 :host([narrow]) .ag-xf-foot { flex-wrap: wrap; } :host([narrow]) .ag-xf-target { flex: 0 0 100%; } :host([narrow]) .ag-xf-btns { width: 100%; flex-wrap: wrap; }
 :host([narrow]) .ag-xf-btns > [data-wf="xf-cancel"] { flex: 0 0 100%; justify-content: center; } :host([narrow]) .ag-xf-btns > .ag-btn:not([data-wf="xf-cancel"]) { flex: 1; justify-content: center; }
+
+/* Marken des Selbsttests an den Karten der Aktionen (1.86.0, Wunsch des Nutzers 2026-11-23): grosses Ausrufezeichen an der Ecke, Rahmen, Zeile je Befund */
+.ag-wf-step.ag-bad { box-shadow: 0 0 0 2px var(--ag-error); }
+.ag-wf-step.ag-bad.warn { box-shadow: 0 0 0 2px var(--ag-warning); }
+.ag-wf-badge { position: absolute; top: -13px; left: -13px; z-index: 3; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--ag-error); color: #fff; font-size: 23px; font-weight: 800; line-height: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .35); border: 2px solid var(--ag-card); pointer-events: none; }
+.ag-wf-badge.warn { background: var(--ag-warning); }
+.ag-wf-probs { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.ag-wf-prob { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600; line-height: 1.3; text-align: left; border: 1px solid color-mix(in srgb, var(--ag-error) 50%, transparent); background: color-mix(in srgb, var(--ag-error) 12%, var(--ag-card)); color: var(--ag-error); }
+button.ag-wf-prob { cursor: pointer; } button.ag-wf-prob:hover { background: color-mix(in srgb, var(--ag-error) 20%, var(--ag-card)); }
+.ag-wf-prob.warn { border-color: color-mix(in srgb, var(--ag-warning) 55%, transparent); background: color-mix(in srgb, var(--ag-warning) 14%, var(--ag-card)); color: var(--ag-warning-text); }
+.ag-wf-prob.more { border-style: dashed; background: none; cursor: default; }
+.ag-wf-prob.gsum { margin-left: 6px; }
+.ag-wf-prob > span { min-width: 0; overflow-wrap: anywhere; }
+.ag-tabmark { position: absolute; top: -5px; right: -3px; z-index: 2; min-width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--ag-error); color: #fff; font-size: 12px; font-weight: 800; line-height: 1; border: 2px solid var(--ag-card); }
+.ag-tabmark.warn { background: var(--ag-warning); }
+.ag-modeseg button { position: relative; }
 `;

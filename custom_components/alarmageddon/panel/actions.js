@@ -589,6 +589,7 @@ export class ActionsUi {
     h._setHtml(head, `<div class="ag-tools"><div class="ag-pmbar" style="flex:1;margin:0">${sw}${d.perMode ? tabs : ""}${d.perMode ? scope : ""}</div>${status}</div>
       ${!d.perMode && tabs ? `<div class="ag-tools" style="margin-top:-4px">${tabs}</div>` : ""}
       ${this.trigger === "always" && d.perMode ? `<div class="ag-t2 ag-small" style="margin:-6px 4px 0">${esc(this._t("wfAlwaysHint"))}</div>` : ""}`);
+    this._markTabs(head);
     const steps = this.steps();
     // Jede Verbindung zeichnet ihre Linie selbst (zwei Stücke über und unter dem Plus): so liegt sie nie über einem Symbol. Alle
     // Verbindungen sehen gleich aus; ob ein Schritt den nächsten aufhält, sagt die Pille "Wartet …" auf dem Schritt.
@@ -923,10 +924,11 @@ export class ActionsUi {
     const k = KINDS.find((x) => x.kind === f.kind);
     const restore = baseZone(zone) === "main" && (f.kind === "sound" || f.restore) && f.kind !== "notify" && f.kind !== "wait" && f.kind !== "acknowledge" ? `<span class="ag-tag none" title="${esc(this._t("wfRestoreMark"))}">${ic("restore", 12)}</span>` : "";
     const title = f.kind === "custom" ? this._serviceName(f.domain, f.service) : this._t(k.label);
-    return `<div class="ag-card ag-wf-step" data-index="${i}">
+    const marks = this._marks(zone, i);
+    return `<div class="ag-card ag-wf-step ${marks.length ? `ag-bad ${marks.some((m) => m.tone === "err") ? "err" : "warn"}` : ""}" data-index="${i}">${this._markBadge(marks)}
       <button class="ag-handle" data-wf="grab" data-index="${i}" aria-label="${esc(this._t("stepGrab"))}" title="${esc(this._t("stepGrab"))}">${ic("grip", 20)}</button>
       <span class="ag-wf-icon k-${f.kind}">${ic(k.icon, 20)}</span>
-      <div class="ag-wf-text"><b>${esc(title)}</b> ${restore}<div class="ag-t2 ag-small">${esc(this._summary(f))}</div>${f.delay ? this._delayPill(zone) : this._waitPill(f)}<span class="ag-zone">${esc(this._t(`zone_${baseZone(zone)}`))}</span></div>
+      <div class="ag-wf-text"><b>${esc(title)}</b> ${restore}<div class="ag-t2 ag-small">${esc(this._summary(f))}</div>${f.delay ? this._delayPill(zone) : this._waitPill(f)}${this._markLines(marks)}<span class="ag-zone">${esc(this._t(`zone_${baseZone(zone)}`))}</span></div>
       <div class="ag-wf-btns">${this._stepTestBtn(i, zone)}
         <button class="ag-iconbtn" data-wf="edit" data-index="${i}" aria-label="${esc(this._t("stepEdit"))}">${ic("pencil", 18)}</button>
         <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this._full(zone) ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
@@ -953,9 +955,13 @@ export class ActionsUi {
     const add = this._t("grpAdd");
     const plus = (j) => `<div class="ag-wf-plus ${j === steps.length ? "last" : ""}"><span class="ag-wf-seg"></span><button class="ag-wf-add" data-wf="add" data-at="${j}" ${full ? "disabled" : ""} aria-label="${esc(add)}" title="${esc(add)}">${ic("plus", 18)}</button><span class="ag-wf-seg"></span>${j === steps.length ? `<small class="ag-wf-plushint ag-t2 ag-small">${esc(this._t(steps.length ? "grpMore" : "grpEmpty"))}</small>` : ""}</div>`;
     const name = String(f.gName || "").trim();
-    return `<div class="ag-wf-step ag-wf-group" data-index="${i}">
+    // Befunde der Schritte in der Gruppe: das Ausrufezeichen an der Gruppe, die Karten darin tragen ihre eigenen
+    const st = this.host.selftest;
+    const gm = st && this.system?.entry_id && this.trigger !== "monitor" ? st.groupMarks(this.system.entry_id, this.trigger, this._stList(zone), i + 1) : [];
+    const gTone = gm.some((m) => m.tone === "err") ? "err" : "warn";
+    return `<div class="ag-wf-step ag-wf-group ${gm.length ? `ag-bad ${gTone}` : ""}" data-index="${i}">${this._markBadge(gm)}
       <div class="ag-wf-ghead"><button class="ag-handle" data-wf="grab" data-index="${i}" aria-label="${esc(this._t("stepGrab"))}" title="${esc(this._t("stepGrab"))}">${ic("grip", 20)}</button>
-        <div class="ag-wf-gtitle"><span class="ag-wf-gpill">${ic("repeat", 16)}<span>${esc(name ? this._t("grpTitleNamed", { name }) : this._t("grpTitle"))}</span></span><span class="ag-wf-gsum">${esc(this._groupSummary(f))}</span>${this._waitPill(f)}</div>
+        <div class="ag-wf-gtitle"><span class="ag-wf-gpill">${ic("repeat", 16)}<span>${esc(name ? this._t("grpTitleNamed", { name }) : this._t("grpTitle"))}</span></span><span class="ag-wf-gsum">${esc(this._groupSummary(f))}</span>${this._waitPill(f)}${gm.length ? `<span class="ag-wf-prob ${gTone} gsum">${esc(this._t(gm.length === 1 ? "wfGroupProbOne" : "wfGroupProb", { n: gm.length }))}</span>` : ""}</div>
         <div class="ag-wf-btns">${this._stepTestBtn(i, zone)}
           <button class="ag-iconbtn" data-wf="edit" data-index="${i}" aria-label="${esc(this._t("grpEdit"))}" title="${esc(this._t("grpEdit"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this._full(zone, 1 + steps.length) ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
@@ -2037,6 +2043,51 @@ export class ActionsUi {
     return { zone, index };
   }
 
+  // ----- Marken des Selbsttests an den Karten (1.86.0, Wunsch des Nutzers 2026-11-23) -----
+
+  // Ein Ausrufezeichen am Reiter eines Modus, in dem der Selbsttest Befunde an Aktionen meldet (so findet man den Modus, ohne alle durchzuklicken)
+  _markTabs(head) {
+    const st = this.host.selftest;
+    const entry = this.system?.entry_id;
+    // Die Seite zeichnet die Reiter nicht immer neu (nur die Unterschiede): alte Marken erst entfernen, sonst bliebe eine behobene Marke stehen
+    head.querySelectorAll(".ag-tabmark").forEach((x) => x.remove());
+    if (!st || !entry) return;
+    for (const btn of head.querySelectorAll("[data-trigger]")) {
+      const t = btn.dataset.trigger;
+      if (t === "monitor") continue;
+      const m = st.triggerMarks(entry, t);
+      if (m.n) btn.insertAdjacentHTML("beforeend", `<span class="ag-tabmark ${m.red ? "err" : "warn"}" title="${esc(this._t(m.n === 1 ? "wfTabProbOne" : "wfTabProb", { n: m.n }))}" aria-label="${esc(this._t(m.n === 1 ? "wfTabProbOne" : "wfTabProb", { n: m.n }))}">!</span>`);
+    }
+  }
+
+  // Liste im Selbsttest (alarm, after, ...) zur Liste der Seite
+  _stList(zone) {
+    return { main: "alarm", after: "after", armed: "armed", arming: "arming", entry: "entry", disarmed: "disarmed", report: "report" }[baseZone(zone)];
+  }
+
+  // Befunde, die diese Karte betreffen (Entität fehlt oder nicht erreichbar, Dienst, Lautsprecher, Empfänger fehlen ...); `i` ist die Stelle in `zone`
+  _marks(zone, i) {
+    const st = this.host.selftest;
+    const entry = this.system?.entry_id;
+    if (!st || !entry || this.trigger === "monitor") return [];
+    const gi = groupIndex(zone);
+    return gi === null ? st.cardMarks(entry, this.trigger, this._stList(zone), i + 1) : st.cardMarks(entry, this.trigger, this._stList(zone), gi + 1, i + 1);
+  }
+
+  // Marke an einer Karte: das grosse rote (bei Befunden ohne Gefahr für den Alarm orange) Ausrufezeichen an der Ecke und je Befund eine Zeile, die den Befund öffnet
+  _markBadge(marks) {
+    if (!marks.length) return "";
+    const tone = marks.some((m) => m.tone === "err") ? "err" : "warn";
+    return `<span class="ag-wf-badge ${tone}" aria-hidden="true">!</span>`;
+  }
+
+  _markLines(marks) {
+    if (!marks.length) return "";
+    const shown = marks.slice(0, 3);
+    const more = marks.length - shown.length;
+    return `<div class="ag-wf-probs">${shown.map((m) => `<button type="button" class="ag-wf-prob ${m.tone}" data-wf="st-open" data-key="${esc(m.key)}" title="${esc(this._t("wfProbOpen"))}">${ic(m.icon, 14)}<span>${esc(m.title)}</span></button>`).join("")}${more > 0 ? `<span class="ag-wf-prob more">${esc(this._t("wfProbMore", { n: more }))}</span>` : ""}</div>`;
+  }
+
   // ----- Aktion verschieben oder kopieren (1.85.0, Fenster in xfer.js) -----
 
   zoneKinds(path) {
@@ -2263,6 +2314,10 @@ export class ActionsUi {
     if (!act) return false;
     if (act.startsWith("mon-")) return this.mon.onClick(el);
     if (act.startsWith("xf-")) return this.xfer.onClick(el);
+    if (act === "st-open") {
+      this.host.selftest.openAt(el.dataset.key);
+      return true;
+    }
     if (act === "permode") {
       const dr = this.ensureDraft();
       const first = this.triggers()[0];
