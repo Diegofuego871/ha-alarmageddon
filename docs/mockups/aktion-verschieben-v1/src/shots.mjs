@@ -152,7 +152,7 @@ const CSS = `
 .mk-new { outline: 2px solid color-mix(in srgb, var(--ag-primary) 60%, transparent); outline-offset: 2px; }
 /* Handy */
 :host([narrow]) .mk-dlg { width: 100vw; max-height: none; height: 100vh; border-radius: 0; padding: 16px 14px 14px; }
-:host([narrow]) .mk-modes { align-self: stretch; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; } :host([narrow]) .mk-modes .ag-segbtn { flex-direction: column; gap: 3px; padding: 7px 2px; font-size: 11.5px; min-height: 54px; justify-content: center; }
+:host([narrow]) .ag-seg.mk-modes { align-self: stretch; display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 2px; } :host([narrow]) .ag-seg.mk-modes .ag-segbtn { min-width: 0; width: auto; flex-direction: column; gap: 3px; padding: 7px 2px; font-size: 11.5px; min-height: 54px; justify-content: center; }
 :host([narrow]) .mk-tiles { grid-template-columns: 1fr; }
 :host([narrow]) .mk-pos { flex-wrap: wrap; } :host([narrow]) .mk-foot { flex-wrap: wrap; } :host([narrow]) .mk-target { flex: 0 0 100%; }
 :host([narrow]) .mk-foot > .ag-btn { flex: 1; justify-content: center; } :host([narrow]) .mk-foot > .ag-grow { display: none; }
@@ -171,6 +171,11 @@ async function shot(name, { mobile = false, theme = "light", html = null, button
   await s.page.setViewportSize({ width: mobile ? 390 : 1400, height: height || (mobile ? 844 : 1100) });
   await s.page.waitForTimeout(300);
   await s.page.screenshot({ path: `${out}${name}.png` });
+  if (html) { // das Fenster allein, für die Vergleichsbilder
+    const box = await s.ev("const d=r.querySelector('.mk-dlg').getBoundingClientRect(); const f=window.frameElement?.getBoundingClientRect() || { left: 0, top: 0 }; return { x: d.left, y: d.top, w: d.width, h: d.height };");
+    const fr = await s.page.evaluate(() => { const f = document.querySelector("#panel-frame").getBoundingClientRect(); return { x: f.left, y: f.top }; });
+    await s.page.screenshot({ path: `${out}${name}-fenster.png`, clip: { x: Math.max(0, box.x + fr.x), y: Math.max(0, box.y + fr.y), width: box.w, height: Math.min(box.h, (height || (mobile ? 844 : 1100)) - Math.max(0, box.y + fr.y)) } });
+  }
   console.log(`${name}.png`, s.errors.join(" | "));
   await s.ctx.close();
 }
@@ -186,10 +191,38 @@ await shot("a-handy-ganz", { mobile: true, theme: "dark", html: variantA(ITEMS.h
 await shot("a-immer-aktiv-desktop", { html: variantA(ITEMS.health, "always", "report", "start") });
 await shot("a-eingeschraenkt-desktop", { html: variantA(ITEMS.sound, "away", "end") });
 await shot("a-eingeschraenkt-handy", { mobile: true, theme: "dark", html: variantA(ITEMS.sound, "away", "grp") });
+await shot("b-handy-ganz", { mobile: true, theme: "dark", html: variantB(ITEMS.health, "away", "end", 1), height: 1500 });
+await shot("c-handy-ganz", { mobile: true, theme: "dark", html: variantC(ITEMS.health, "away", "end"), height: 1250 });
 await shot("b-desktop", { html: variantB(ITEMS.health, "away", "end", 1) });
 await shot("b-handy", { mobile: true, theme: "dark", html: variantB(ITEMS.health, "away", "end", 1) });
 await shot("c-desktop", { html: variantC(ITEMS.health, "away", "end") });
 await shot("c-handy", { mobile: true, theme: "dark", html: variantC(ITEMS.health, "away", "end") });
+
+// ---------- Vergleichsbilder: A, B und C nebeneinander, mit dem Unterschied beschriftet ----------
+const LABELS = [
+  ["A", "Baum, Ziel = Anfang oder Ende", "Ein Kreis je Phase. Unten der Schalter \"Am Anfang / Am Ende\"."],
+  ["B", "Baum mit Einfügepunkten", "Die gewählte Phase klappt auf: ihre Aktionen mit \"Hier einfügen\" dazwischen."],
+  ["C", "Kacheln statt Baum", "Zwei Spalten, keine Linie, keine Gruppe als Ziel. Schalter \"Am Anfang / Am Ende\"."],
+];
+async function compare(name, files, width) {
+  const cols = LABELS.map(([k, t, d], i) => `<div class="col"><div class="lab"><span class="k">${k}</span><div><b>${t}</b><small>${d}</small></div></div><img src="${files[i]}"></div>`).join("");
+  const html = `<!doctype html><meta charset="utf-8"><style>body{margin:0;padding:24px;font-family:Inter,system-ui,sans-serif;background:#eef0f3;color:#1d2330}
+    .row{display:flex;gap:24px;align-items:flex-start}.col{flex:1;min-width:0}.lab{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+    .k{flex:none;width:44px;height:44px;border-radius:50%;background:#03a9f4;color:#fff;font-size:24px;font-weight:700;display:grid;place-items:center}
+    b{display:block;font-size:19px}small{display:block;font-size:14px;color:#566;margin-top:2px;line-height:1.35}img{width:100%;border-radius:18px;box-shadow:0 4px 18px rgba(0,0,0,.2);display:block}</style><div class="row">${cols}</div>`;
+  const file = `${out}_vergleich.html`;
+  (await import("node:fs")).writeFileSync(file, html);
+  const ctx = await browser.newContext({ viewport: { width, height: 900 }, deviceScaleFactor: 1 });
+  const page = await ctx.newPage();
+  await page.goto(`file://${file}`);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}${name}.png`, fullPage: true });
+  await ctx.close();
+  (await import("node:fs")).unlinkSync(file);
+  console.log(`${name}.png`);
+}
+await compare("vergleich-desktop", ["a-desktop-fenster.png", "b-desktop-fenster.png", "c-desktop-fenster.png"].map((f) => `${out}${f}`), 2100);
+await compare("vergleich-handy", ["a-handy-ganz-fenster.png", "b-handy-ganz-fenster.png", "c-handy-ganz-fenster.png"].map((f) => `${out}${f}`), 1350);
 
 await browser.close();
 await server.close?.();

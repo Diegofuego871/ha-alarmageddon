@@ -10,6 +10,8 @@ Aufgenommen im HA-Nachbau (Computer hell, Handy dunkel, Deutsch), gebaut aus den
 Quelle: `src/shots.mjs` (Aufruf im Wurzelverzeichnis: `node docs/mockups/aktion-verschieben-v1/src/shots.mjs`). Das Symbol des Knopfes
 (Pfeile nach oben und unten) ist vorläufig.
 
+**Auf einen Blick:** `vergleich-desktop.png` und `vergleich-handy.png` zeigen A, B und C nebeneinander, mit dem Unterschied beschriftet.
+
 ## Der Knopf (in allen Varianten gleich)
 
 Ein runder Knopf, gleiche Grösse und Art wie Testen, Bearbeiten, Duplizieren und Löschen, zwischen "Duplizieren" und "Löschen". Auf dem Handy
