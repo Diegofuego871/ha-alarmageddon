@@ -1802,6 +1802,8 @@ export class ActionsUi {
       this.saveState = "saved";
       this.host._markSaved(this); // Punkte "ungespeichert" verschwinden sofort
       // Nur warten, wenn die Anlage wirklich neu lädt (der Server sagt es; ältere Server ohne Angabe: wie bisher warten)
+      // Nach dem Speichern sofort prüfen (nur lesen, schnell): behobene Befunde verschwinden an den Karten, neue erscheinen (Wunsch des Nutzers 2026-11-23)
+      h.selftest.checkAfterSave(); // sofort, parallel zum Neuladen
       if (saved?.reload !== false) h._reloadWait(s.entry_id);
       else h._fetch();
     } catch (err) {
@@ -2077,12 +2079,14 @@ export class ActionsUi {
   // Marke an einer Karte: das grosse rote (bei Befunden ohne Gefahr für den Alarm orange) Ausrufezeichen an der Ecke und je Befund eine Zeile, die den Befund öffnet
   _markBadge(marks) {
     if (!marks.length) return "";
+    if (this.host.selftest?.checking) return `<span class="ag-wf-badge chk" aria-hidden="true"><i></i></span>`;
     const tone = marks.some((m) => m.tone === "err") ? "err" : "warn";
     return `<span class="ag-wf-badge ${tone}" aria-hidden="true">!</span>`;
   }
 
   _markLines(marks) {
     if (!marks.length) return "";
+    if (this.host.selftest?.checking) return `<div class="ag-wf-probs"><span class="ag-wf-prob chk">${esc(this._t("wfProbChecking"))}</span></div>`;
     const shown = marks.slice(0, 3);
     const more = marks.length - shown.length;
     return `<div class="ag-wf-probs">${shown.map((m) => `<button type="button" class="ag-wf-prob ${m.tone}" data-wf="st-open" data-key="${esc(m.key)}" title="${esc(this._t("wfProbOpen"))}">${ic(m.icon, 14)}<span>${esc(m.title)}</span></button>`).join("")}${more > 0 ? `<span class="ag-wf-prob more">${esc(this._t("wfProbMore", { n: more }))}</span>` : ""}</div>`;

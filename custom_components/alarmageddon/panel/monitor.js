@@ -368,6 +368,8 @@ export class MonitorUi {
       this.draft = null;
       this.saveState = "saved";
       if (!this.ui.flowDirty?.()) h._markSaved(this.ui);
+      // Nach dem Speichern sofort prüfen (nur lesen, schnell): der Selbsttest prüft auch die Regeln
+      h.selftest.checkAfterSave(); // sofort, parallel zum Neuladen
       if (saved?.reload !== false) h._reloadWait(s.entry_id);
       else h._fetch();
     } catch (err) {

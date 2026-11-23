@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.86.1] - 2026-11-23
+
+### Behoben
+
+- **Die Marken des Selbsttests verschwinden gleich nach dem Speichern:** nach dem Beheben eines Befunds und dem Speichern der Aktionen blieb das Ausrufezeichen an der Karte stehen, bis die Seite wieder abfragte (bis zu einer Minute), und die Statuskachel der Übersicht meldete weiter "1 Problem" und "Fehler gemeldet". Jetzt läuft die Prüfung sofort beim Speichern der Aktionen (oder der Regeln der Überwachung), parallel zum Neuladen der Anlage. Bis das Ergebnis da ist, zeigen die markierten Karten "Wird geprüft …" (drehender Ring); eine Marke verschwindet nur, wenn die Prüfung den Befund wirklich nicht mehr findet. Die Marken, das Fenster des Selbsttests und die Statuskachel folgen dem neuen Stand, und kurz danach wird die Kachel noch einmal aktualisiert (das Lebenszeichen nach einem behobenen Befund geht im Hintergrund hinaus).
+
 ## [1.86.0] - 2026-11-23
 
 ### Hinzugefügt
@@ -2293,6 +2299,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.86.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.1
 [1.86.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.0
 [1.85.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.85.0
 [1.84.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.84.0

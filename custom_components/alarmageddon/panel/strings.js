@@ -1003,6 +1003,7 @@ export const STRINGS = {
     stepHealthcheckOff: "No service set up: Configuration › Alarm system › HealthCheck",
     // Marken des Selbsttests an den Karten der Aktionen (1.86.0)
     wfProbOpen: "Open this finding in the self-test",
+    wfProbChecking: "Checking …",
     wfProbMore: "+{n} more",
     wfGroupProbOne: "1 problem in this group",
     wfGroupProb: "{n} problems in this group",
@@ -3138,6 +3139,7 @@ export const STRINGS = {
     stepHealthcheckOff: "Kein Dienst eingerichtet: Konfiguration › Anlage › HealthCheck",
     // Marken des Selbsttests an den Karten der Aktionen (1.86.0)
     wfProbOpen: "Diesen Befund im Selbsttest öffnen",
+    wfProbChecking: "Wird geprüft …",
     wfProbMore: "+{n} weitere",
     wfGroupProbOne: "1 Problem in dieser Gruppe",
     wfGroupProb: "{n} Probleme in dieser Gruppe",

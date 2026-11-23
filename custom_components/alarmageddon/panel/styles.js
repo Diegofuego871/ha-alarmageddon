@@ -2087,6 +2087,10 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wf-step.ag-bad.warn { box-shadow: 0 0 0 2px var(--ag-warning); }
 .ag-wf-badge { position: absolute; top: -13px; left: -13px; z-index: 3; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--ag-error); color: #fff; font-size: 23px; font-weight: 800; line-height: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .35); border: 2px solid var(--ag-card); pointer-events: none; }
 .ag-wf-badge.warn { background: var(--ag-warning); }
+.ag-wf-badge.chk { background: var(--ag-primary); }
+.ag-wf-badge.chk i { width: 16px; height: 16px; border-radius: 50%; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff; animation: ag-chk-spin .8s linear infinite; }
+.ag-wf-prob.chk { cursor: default; opacity: .8; }
+@keyframes ag-chk-spin { to { transform: rotate(360deg); } }
 .ag-wf-probs { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
 .ag-wf-prob { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600; line-height: 1.3; text-align: left; border: 1px solid color-mix(in srgb, var(--ag-error) 50%, transparent); background: color-mix(in srgb, var(--ag-error) 12%, var(--ag-card)); color: var(--ag-error); }
 button.ag-wf-prob { cursor: pointer; } button.ag-wf-prob:hover { background: color-mix(in srgb, var(--ag-error) 20%, var(--ag-card)); }

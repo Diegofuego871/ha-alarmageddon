@@ -720,6 +720,7 @@
     }
     if (msg.type === "alarmageddon/selftest_run") {
       window.__selftestRuns = (window.__selftestRuns || 0) + 1;
+      if (window.__selftestDelay) await new Promise((r) => setTimeout(r, window.__selftestDelay)); // Nachbau einer Prüfung, die einige Sekunden dauert
       window.__selftest = { ...window.__selftest, last: new Date().toISOString(),
         problems: window.__selftestAfterRun ? JSON.parse(JSON.stringify(window.__selftestAfterRun)) : window.__selftest.problems };
       return { selftest: selftestPayload() };

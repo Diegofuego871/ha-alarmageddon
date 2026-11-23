@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.86.1] - 2026-11-23
+
+### Fixed
+
+- **Marks of the self-test disappear right after saving:** after you fixed a finding and saved the actions, the exclamation mark stayed on the card until the next query of the page (up to a minute), and the status tile of the overview still said "1 problem" and "failure reported". Now the check runs at once when you save the actions (or the rules of the monitoring), in parallel to reloading the system. Until the result is there, the marked cards show "Checking …" (turning ring); a mark disappears only if the check really no longer finds the finding. The marks, the self-test window and the status tile follow the new state, and a moment later the tile is updated once more (the life sign after a fixed finding goes out in the background).
+
 ## [1.86.0] - 2026-11-23
 
 ### Added
@@ -2293,6 +2299,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.86.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.1
 [1.86.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.0
 [1.85.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.85.0
 [1.84.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.84.0

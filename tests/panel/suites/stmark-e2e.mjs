@@ -38,6 +38,25 @@ for (const lang of ["de", "en"]) {
     await s.tap('#ag-selftest [data-st="close"]');
     check(`${tag}: nach "Jetzt prüfen" ohne Befunde sind alle Marken weg (Karten, Zeilen, Reiter)`, await s.ev("return !r.querySelector('.ag-bad, .ag-wf-badge, .ag-wf-prob, .ag-tabmark')"));
 
+    // ----- Nach dem Speichern wird sofort geprüft: die Marke eines behobenen Befunds verschwindet, ohne auf die nächste Abfrage zu warten (Wunsch des Nutzers 2026-11-23) -----
+    const fix = await open(browser, { mobile, lang, tab: "config", prefs: { sub: "actions" }, query: "&selftest=problems" });
+    await fix.waitFor("return !!r.querySelector('.ag-wf-main > .ag-wf-step.ag-bad')");
+    await fix.sim("window.__selftestAfterRun = []; window.__selftestRuns = 0; window.__selftestDelay = 1500; return 1");
+    // Der Nutzer behebt den Fehler: er entfernt den Schritt mit der fehlenden Sirene (Entwurf ändern), dann "Speichern"
+    await fix.ev("const a=r.host.actions; a._setSteps(a.steps('main').filter((_s, i) => i !== 3), 'main'); a.render(); return 1");
+    await fix.waitFor("const b=r.querySelector('[data-wf=\"save\"]'); return !!b && !b.disabled");
+    await fix.tap('[data-wf="save"]');
+
+    check(`${tag}: während der Prüfung zeigt die Karte "Wird geprüft" (drehender Ring) und die Marke ist noch nicht weg`, await fix.waitFor("return !!r.querySelector('.ag-wf-main .ag-wf-badge.chk') && !!r.querySelector('.ag-wf-prob.chk')", 4000).catch(() => false) !== false);
+    check(`${tag}: die Prüfung läuft sofort beim Speichern (ein Lauf), danach sind die Marken weg`, await fix.waitFor("return (window.parent.__selftestRuns ?? window.__selftestRuns ?? 0) >= 1 && !r.querySelector('.ag-bad, .ag-wf-badge, .ag-tabmark')", 9000).catch(() => false) !== false);
+    check(`${tag}: keine Fehler in der Konsole (Speichern)`, fix.errors.length === 0, fix.errors.join(" | "));
+    // Findet die Prüfung den Befund weiterhin, bleibt die Marke nach dem Prüfen stehen (nie "verschwindet" ohne wirklich gut)
+    await fix.sim("window.__selftestAfterRun = null; window.__selftestRuns = 0; return 1");
+    await fix.ev("r.host.selftest.checkAfterSave(); return 1");
+    await fix.waitFor("return !r.querySelector('.ag-wf-badge.chk') && (window.parent.__selftestRuns ?? window.__selftestRuns ?? 0) >= 1", 9000);
+    check(`${tag}: bleibt der Befund bestehen, steht die Marke nach der Prüfung weiter da`, await fix.ev("return r.host.selftest.problems().length === 0 || !!r.querySelector('.ag-wf-badge.err, .ag-wf-badge.warn, .ag-tabmark')"));
+    await fix.ctx.close();
+
     // ----- Gruppen und orange Befunde (Nachbau: Befunde direkt setzen) -----
     await s.sim(`window.__selftest.problems = [
       { key: 'e_haus|entity_missing|light.keller', kind: 'config', code: 'entity_missing', entry_id: 'e_haus', subject: 'light.keller', entity_id: 'light.keller', role: 'output', reason: 'deleted', places: [{ area: 'workflow', list: 'alarm', trigger: 'away', step: 6, sub: 1 }] },

@@ -114,6 +114,42 @@ export class SelfTestUi {
     return { n: seen.size, red: [...seen.values()].some(Boolean) };
   }
 
+  // Nach dem Speichern der Aktionen oder Regeln sofort prüfen (1.86.1, Wunsch des Nutzers 2026-11-23): die Abfrage läuft gleich beim Speichern, parallel zum Neuladen der Anlage
+  // (der Server hat die neuen Einstellungen schon). Bis das Ergebnis da ist, zeigen die markierten Karten "Wird geprüft"; eine Marke verschwindet nur, wenn die Prüfung den
+  // Befund wirklich nicht mehr findet. Nur lesen, nie ein Dienstaufruf; ein Fehler bleibt still und lässt die Marken, wie sie waren.
+  async checkAfterSave() {
+    const h = this.host;
+    const run = (this._runId = (this._runId || 0) + 1);
+    this.checking = true;
+    h._refreshMarks?.();
+    const t0 = Date.now();
+    let res = null;
+    try {
+      res = await h._hass.callWS({ type: "alarmageddon/selftest_run" });
+    } catch (_err) {
+      /* nichts: die nächste Abfrage holt den Stand */
+    }
+    // Mindestens kurz sichtbar, damit der Wechsel nicht flackert
+    const left = 700 - (Date.now() - t0);
+    if (left > 0) await new Promise((r) => setTimeout(r, left));
+    if (run !== this._runId) return; // eine neuere Prüfung hat übernommen
+    this.checking = false;
+    if (h._data && res?.selftest) {
+      h._data.selftest = res.selftest;
+      this.render();
+    }
+    h._refreshMarks?.();
+    try {
+      // Auch die Übersicht (Statuskachel: Selbsttest, HealthCheck) holt den neuen Stand; das Lebenszeichen nach einem behobenen Befund geht erst im Hintergrund hinaus,
+      // darum noch einmal kurz danach
+      await h._fetch?.();
+    } catch (_err) {
+      /* nichts */
+    }
+    clearTimeout(this._laterTimer);
+    this._laterTimer = setTimeout(() => h._fetch?.(), 8000);
+  }
+
   // Fenster mit dem Befund `key` aufgeklappt öffnen und dorthin scrollen (Tipp auf die Marke einer Karte)
   openAt(key) {
     const dlg = this.dlg;
