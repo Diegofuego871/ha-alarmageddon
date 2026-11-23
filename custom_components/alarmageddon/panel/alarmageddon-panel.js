@@ -107,7 +107,7 @@ class AlarmageddonPanel extends HTMLElement {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
       <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg ag-wide" id="ag-accent"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-wide" id="ag-codelist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
-      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog><dialog class="ag-dlg" id="ag-wzask"></dialog><dialog class="ag-dlg ag-wide" id="ag-ntkind"></dialog><dialog class="ag-dlg ag-wide" id="ag-wzpick"></dialog></div>`;
+      <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-xfer"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog><dialog class="ag-dlg" id="ag-wzask"></dialog><dialog class="ag-dlg ag-wide" id="ag-ntkind"></dialog><dialog class="ag-dlg ag-wide" id="ag-wzpick"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
     if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => this._stickySync()).observe(this._content);
     this._initSeg(this._root);
@@ -849,15 +849,32 @@ class AlarmageddonPanel extends HTMLElement {
     });
   }
 
-  _toast(text) {
+  // Meldung unten; mit `action` ({ label, run }) steht ein Knopf daneben (zum Beispiel "Rückgängig" nach dem Verschieben einer Aktion) und die Meldung bleibt länger
+  _toast(text, action = null) {
     clearTimeout(this._toastTimer);
     this._root.querySelector(".ag-toast")?.remove();
     const el = document.createElement("div");
     el.className = "ag-toast";
     el.setAttribute("role", "status");
-    el.textContent = text;
+    const span = document.createElement("span");
+    span.textContent = text;
+    el.appendChild(span);
+    if (action) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ag-toast-act";
+      btn.textContent = action.label;
+      btn.addEventListener("click", () => {
+        el.remove();
+        action.run();
+      });
+      el.appendChild(btn);
+    }
+    // Die feste Fusszeile der Seite (Speichern, Auswahlen) darf die Meldung und ihren Knopf nicht verdecken: die Meldung steht darüber
+    const foot = this._view?.querySelector(".ag-foot");
+    if (foot) el.style.bottom = `${Math.ceil(foot.getBoundingClientRect().height) + 16}px`;
     this._root.querySelector(".ag-root").appendChild(el);
-    this._toastTimer = setTimeout(() => el.remove(), 5000);
+    this._toastTimer = setTimeout(() => el.remove(), action ? 10000 : 5000);
   }
 
   _fmtTime(iso) {

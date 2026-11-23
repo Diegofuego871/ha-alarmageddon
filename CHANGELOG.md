@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.85.0] - 2026-11-23
+
+### Added
+
+- **Move or copy an action:** every action has a new round button (sheet with arrow) between "Duplicate" and "Delete"; "Duplicate" stays. It opens a window with the tabs of the modes (with "Settings per mode") and a tree of all phases of the flow; the chosen phase unfolds and shows its actions with insertion points, so you choose the **exact place**. Only places where the action is allowed are shown (like when dragging), also inside a group. **Move** takes the action away from its place, **Copy** leaves it there; both only change the draft. Afterwards the page **jumps to the action** (also in another mode), highlights it briefly, and a message names the target and offers **Undo** while nothing else has been changed. The message now stands above the footer of the page, so it no longer hides the buttons there.
+
 ## [1.84.0] - 2026-11-23
 
 ### Changed
@@ -2281,6 +2287,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.85.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.85.0
 [1.84.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.84.0
 [1.83.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.83.0
 [1.82.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.82.0

@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.85.0] - 2026-11-23
+
+### Hinzugefügt
+
+- **Aktion verschieben oder kopieren:** jede Aktion hat zwischen "Duplizieren" und "Löschen" einen neuen runden Knopf (Blatt mit Pfeil); "Duplizieren" bleibt. Er öffnet ein Fenster mit den Reitern der Modi (mit "Einstellungen pro Modus") und einem Baum aller Phasen des Ablaufs; die gewählte Phase klappt auf und zeigt ihre Aktionen mit Einfügepunkten, so wählst du die **genaue Stelle**. Gezeigt werden nur Stellen, an denen die Aktion erlaubt ist (wie beim Ziehen), auch in einer Gruppe. **Verschieben** nimmt die Aktion von ihrem Ort weg, **Kopieren** lässt sie dort stehen; beides ändert nur den Entwurf. Danach **springt die Seite zur Aktion** (auch in einen anderen Modus), hebt sie kurz hervor, und eine Meldung nennt das Ziel und bietet **Rückgängig** an, solange sonst nichts geändert wurde. Die Meldung steht jetzt über der Fusszeile der Seite und verdeckt dort die Knöpfe nicht mehr.
+
 ## [1.84.0] - 2026-11-23
 
 ### Geändert
@@ -2281,6 +2287,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.85.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.85.0
 [1.84.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.84.0
 [1.83.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.83.0
 [1.82.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.82.0

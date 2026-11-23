@@ -95,7 +95,7 @@
   // holte der Browser 15 Dateien nacheinander, jede erst nach der vorigen (über eine langsame Verbindung mehrere Sekunden
   // bis zur Übersicht). Neue Datei unter panel/: hier eintragen (tests/test_panel_preload.py prüft die Liste).
   const MODULES = ["alarmageddon-panel", "strings", "styles", "common", "loader", "list", "sensors", "system", "customsounds",
-    "routines", "actions", "monitor", "notify", "log", "sensorview", "selftest", "healthcheck", "healthlog", "wizard"];
+    "routines", "actions", "monitor", "notify", "log", "sensorview", "selftest", "healthcheck", "healthlog", "wizard", "xfer"];
   for (const name of MODULES) {
     const link = document.createElement("link");
     link.rel = "modulepreload";

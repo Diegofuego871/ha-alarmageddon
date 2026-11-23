@@ -76,8 +76,8 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !!r.querySelector('#ag-step [data-key=\"seconds\"]')");
     await s.tap('#ag-step [data-wf="apply"]');
     await s.waitFor("return !r.getElementById('ag-step').open");
-    check(`${tag}: der Schritt liegt in der Gruppe, als Karte wie überall (Test, Bearbeiten, Duplizieren, Löschen)`, (await draft("main"))[0].steps.length === 1 && (await draft("main:0"))[0].type === "wait"
-      && await s.ev("const c=r.querySelector('.ag-wf-glist[data-zone=\"main:0\"] > .ag-wf-step'); return !!c && c.querySelectorAll('.ag-wf-btns .ag-iconbtn').length === 4"));
+    check(`${tag}: der Schritt liegt in der Gruppe, als Karte wie überall (Test, Bearbeiten, Duplizieren, Verschieben oder kopieren, Löschen)`, (await draft("main"))[0].steps.length === 1 && (await draft("main:0"))[0].type === "wait"
+      && await s.ev("const c=r.querySelector('.ag-wf-glist[data-zone=\"main:0\"] > .ag-wf-step'); return !!c && c.querySelectorAll('.ag-wf-btns .ag-iconbtn').length === 5"));
 
     // ----- "Bis deaktiviert": nur beim Alarm, wartet nie -----
     await s.tap('.ag-wf-main > .ag-wf-group[data-index="0"] > .ag-wf-ghead [data-wf="edit"]');

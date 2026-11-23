@@ -6,6 +6,7 @@
 const V = new URL(import.meta.url).search;
 const { ic, esc, fmtDur, MODE_ICON, MODE_KEY, errText, onceBtn, paintOnce, runOnce, copyBtn, copyValue } = await import(`./common.js${V}`);
 const { MonitorUi } = await import(`./monitor.js${V}`);
+const { XferUi } = await import(`./xfer.js${V}`);
 const { suggest, applySuffix } = await import(`./healthcheck.js${V}`);
 const { isCustom, customList, customName, uploadHtml, uploadError, uploadSound } = await import(`./customsounds.js${V}`);
 
@@ -384,6 +385,8 @@ export class ActionsUi {
     this.edit = null; // { index, insert, form, q, error, open }
     this.drag = null;
     this.mon = new MonitorUi(this); // Reiter "Überwachung" (1.48.0)
+    this.xfer = new XferUi(this); // Aktion verschieben oder kopieren (1.85.0)
+    this._rev = 0; // zählt jede Änderung der Listen im Entwurf ("Rückgängig" gilt nur, solange nichts anderes geändert wurde)
     this.previewing = null; // URL des Tons, der gerade auf diesem Gerät läuft
     this._comboPointer = false;
   }
@@ -467,22 +470,22 @@ export class ActionsUi {
 
   // Schritte des gewählten Auslösers: der Ablauf beim Alarm ("main"), die Aktionen nach dem Quittieren ("after") oder die beim
   // Scharfschalten ("armed")
-  steps(zone = "main") {
-    const list = this.ensureDraft()?.[this._draftKey(zone)]?.[this.trigger] || [];
+  steps(zone = "main", trigger = this.trigger) {
+    const list = this.ensureDraft()?.[this._draftKey(zone)]?.[trigger] || [];
     const gi = groupIndex(zone);
     if (gi === null) return list;
     return list[gi]?.type === "group" && Array.isArray(list[gi].steps) ? list[gi].steps : [];
   }
 
   // Schritte einer Liste samt denen ihrer Gruppen: die Grenze des Servers zählt beides (MAX_STEPS)
-  _total(zone) {
-    const list = this.steps(baseZone(zone));
+  _total(zone, trigger = this.trigger) {
+    const list = this.steps(baseZone(zone), trigger);
     return list.length + list.reduce((sum, step) => sum + (step?.type === "group" ? (step.steps || []).length : 0), 0);
   }
 
   // Nimmt die Liste noch `extra` Schritte auf? Eine Gruppe höchstens GROUP_MAX_STEPS, die Liste samt Gruppen höchstens MAX_STEPS
-  _full(zone, extra = 1) {
-    return this._total(zone) + extra > MAX_STEPS || (inGroup(zone) && this.steps(zone).length + 1 > GROUP_MAX_STEPS);
+  _full(zone, extra = 1, trigger = this.trigger) {
+    return this._total(zone, trigger) + extra > MAX_STEPS || (inGroup(zone) && this.steps(zone, trigger).length + 1 > GROUP_MAX_STEPS);
   }
 
   // Schlüssel der Liste im Entwurf ("entry" ist schon die Anlage des Entwurfs, darum entrySteps)
@@ -490,18 +493,19 @@ export class ActionsUi {
     return baseZone(zone) === "entry" ? "entrySteps" : ZONE_KEY[baseZone(zone)] || "wf";
   }
 
-  _setSteps(list, zone = "main") {
+  _setSteps(list, zone = "main", trigger = this.trigger) {
     const d = this.ensureDraft();
     const key = this._draftKey(zone);
     const gi = groupIndex(zone);
     if (gi !== null) {
       // Liste einer Gruppe: die Gruppe in ihrer Liste ersetzen
-      const outer = [...(d[key]?.[this.trigger] || [])];
+      const outer = [...(d[key]?.[trigger] || [])];
       if (outer[gi]?.type !== "group") return;
       outer[gi] = { ...outer[gi], steps: list };
       list = outer;
     }
-    d[key] = { ...(d[key] || {}), [this.trigger]: list };
+    d[key] = { ...(d[key] || {}), [trigger]: list };
+    this._rev += 1;
   }
 
   // Reiter (Auslöser) mit ungespeicherten Änderungen (für den Punkt am Reiter)
@@ -707,9 +711,9 @@ export class ActionsUi {
   }
 
   // Zeit der Verzögerung, die ein Punkt zeigt: die des Reiters, ohne getrennte Modi die längste aller Modi (der Ablauf gilt für alle)
-  _delaySeconds(zone) {
+  _delaySeconds(zone, trigger = this.trigger) {
     const s = this.system;
-    const modes = this.draft?.perMode ? [this.trigger] : (s?.modes || []);
+    const modes = this.draft?.perMode ? [trigger] : (s?.modes || []);
     const values = modes.map((m) => (zone === "arming" ? Number(s?.mode_settings?.[m]?.exit_delay) : Number(s?.entry_delay_max?.[m])) || 0);
     return Math.max(0, ...values);
   }
@@ -926,6 +930,7 @@ export class ActionsUi {
       <div class="ag-wf-btns">${this._stepTestBtn(i, zone)}
         <button class="ag-iconbtn" data-wf="edit" data-index="${i}" aria-label="${esc(this._t("stepEdit"))}">${ic("pencil", 18)}</button>
         <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this._full(zone) ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
+        <button class="ag-iconbtn" data-wf="xfer" data-index="${i}" aria-label="${esc(this._t("xfBtn"))}" title="${esc(this._t("xfBtn"))}">${ic("fileMove", 18)}</button>
         <button class="ag-iconbtn" data-wf="delete" data-index="${i}" aria-label="${esc(this._t("stepDelete"))}">${ic("trash", 18)}</button></div></div>`;
   }
 
@@ -954,6 +959,7 @@ export class ActionsUi {
         <div class="ag-wf-btns">${this._stepTestBtn(i, zone)}
           <button class="ag-iconbtn" data-wf="edit" data-index="${i}" aria-label="${esc(this._t("grpEdit"))}" title="${esc(this._t("grpEdit"))}">${ic("pencil", 18)}</button>
           <button class="ag-iconbtn" data-wf="duplicate" data-index="${i}" ${this._full(zone, 1 + steps.length) ? "disabled" : ""} aria-label="${esc(this._t("stepDuplicate"))}" title="${esc(this._t("stepDuplicate"))}">${ic("copy", 18)}</button>
+          <button class="ag-iconbtn" data-wf="xfer" data-index="${i}" aria-label="${esc(this._t("xfBtn"))}" title="${esc(this._t("xfBtn"))}">${ic("fileMove", 18)}</button>
           <button class="ag-iconbtn" data-wf="delete" data-index="${i}" aria-label="${esc(this._t("grpDelete"))}" title="${esc(this._t("grpDelete"))}">${ic("trash", 18)}</button></div></div>
       <div class="ag-wf-line ag-wf-glist ${steps.length ? "loop" : ""}" data-zone="${inner}">${steps.length ? '<span class="ag-wf-loop" aria-hidden="true"></span>' : ""}${plus(0)}${steps.map((s, j) => this._card(s, j, running, inner) + plus(j + 1)).join("")}</div></div>`;
   }
@@ -1987,27 +1993,33 @@ export class ActionsUi {
   // Schritt in eine andere Liste legen (1.22.0), auch in eine Gruppe hinein oder aus ihr heraus (1.59.0). Er wird dabei für die neue
   // Liste umgerechnet: nach dem Quittieren kehrt nichts zurück, ein Ton in den Listen der Verzögerungen folgt standardmässig der
   // Verzögerung (wie ein neuer Schritt dort). Gibt zurück, wo der Schritt jetzt liegt ({ zone, index }), oder null.
+  // Rückfrage, wenn eine Gruppe in einen anderen Bereich wandert und dort nicht alles gilt (aus _moveAcross herausgelöst; gilt auch für "Verschieben oder
+  // kopieren", 1.85.0). `unchanged` prüft nach der Antwort, ob sich die Liste inzwischen geändert hat. false = abgebrochen.
+  async _confirmGroupMove(f, srcBase, dstBase, unchanged) {
+    if (f.kind !== "group" || dstBase === srcBase) return true;
+    // Eine Gruppe wandert in einen anderen Bereich: Aktionen, die es dort nicht gibt, fallen weg. Vorher fragen (Wunsch des
+    // Nutzers, 2026-11-17); "Abbrechen" lässt die Gruppe, wo und wie sie ist.
+    const kinds = this._zoneKinds(`${dstBase}:0`);
+    const lost = f.gSteps.filter((inner) => !kinds.includes(fromStep(inner).kind));
+    const until = f.gMode === "until_disarmed" && dstBase !== "main";
+    if (lost.length || until) {
+      const names = [...new Set(lost.map((inner) => this._t(KINDS.find((k) => k.kind === fromStep(inner).kind)?.label || "stepCustom")))].join(", ");
+      const text = [lost.length ? this._t(lost.length === 1 ? "grpMoveLostOne" : "grpMoveLost", { count: lost.length, list: names, zone: this._t(`zone_${dstBase}`) }) : "", until ? this._t("grpMoveUntil", { n: f.gCount }) : ""].filter(Boolean).join(" ");
+      if (!(await this.host._confirm(this._t("grpMoveTitle"), text, this._t(lost.length ? "grpMoveOk" : "grpMoveOkPlain")))) return false;
+      if (!unchanged()) return false; // inzwischen hat sich die Liste geändert
+      f.gSteps = f.gSteps.filter((inner) => kinds.includes(fromStep(inner).kind));
+      if (until) f.gMode = "count";
+    }
+    return true;
+  }
+
   async _moveAcross(from, src, dst, at) {
     const step = this.steps(src)[from];
     if (!step) return null;
     const f = fromStep(step);
     if (!this._zoneKinds(dst).includes(f.kind)) return null;
     const dstBase = baseZone(dst);
-    if (f.kind === "group" && dstBase !== baseZone(src)) {
-      // Eine Gruppe wandert in einen anderen Bereich: Aktionen, die es dort nicht gibt, fallen weg. Vorher fragen (Wunsch des
-      // Nutzers, 2026-11-17); "Abbrechen" lässt die Gruppe, wo und wie sie ist.
-      const kinds = this._zoneKinds(`${dstBase}:0`);
-      const lost = f.gSteps.filter((inner) => !kinds.includes(fromStep(inner).kind));
-      const until = f.gMode === "until_disarmed" && dstBase !== "main";
-      if (lost.length || until) {
-        const names = [...new Set(lost.map((inner) => this._t(KINDS.find((k) => k.kind === fromStep(inner).kind)?.label || "stepCustom")))].join(", ");
-        const text = [lost.length ? this._t(lost.length === 1 ? "grpMoveLostOne" : "grpMoveLost", { count: lost.length, list: names, zone: this._t(`zone_${dstBase}`) }) : "", until ? this._t("grpMoveUntil", { n: f.gCount }) : ""].filter(Boolean).join(" ");
-        if (!(await this.host._confirm(this._t("grpMoveTitle"), text, this._t(lost.length ? "grpMoveOk" : "grpMoveOkPlain")))) return null;
-        if (this.steps(src)[from] !== step) return null; // inzwischen hat sich die Liste geändert
-        f.gSteps = f.gSteps.filter((inner) => kinds.includes(fromStep(inner).kind));
-        if (until) f.gMode = "count";
-      }
-    }
+    if (!(await this._confirmGroupMove(f, baseZone(src), dstBase, () => this.steps(src)[from] === step))) return null;
     if (DELAY_ZONES.includes(dst) && isShortTone(f.kind)) Object.assign(f, { delay: true, wait: false });
     // Zielgruppe vor dem Entfernen merken: liegt der Schritt in derselben Liste davor, rückt die Gruppe um eine Stelle nach vorn
     const group = inGroup(dst) ? this.steps(dstBase)[groupIndex(dst)] : null;
@@ -2023,6 +2035,129 @@ export class ActionsUi {
     // Die Karte ist hochgesprungen: dorthin scrollen, falls sie ausser Sicht ist
     this._lineEl(zone)?.querySelector(`:scope > .ag-wf-step[data-index="${index}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     return { zone, index };
+  }
+
+  // ----- Aktion verschieben oder kopieren (1.85.0, Fenster in xfer.js) -----
+
+  zoneKinds(path) {
+    return this._zoneKinds(path);
+  }
+
+  xfKind(step) {
+    return fromStep(step).kind;
+  }
+
+  xfIcon(step) {
+    return KINDS.find((k) => k.kind === fromStep(step).kind)?.icon || "cog";
+  }
+
+  // Name einer Aktion wie auf ihrer Karte
+  xfName(step) {
+    const f = fromStep(step);
+    if (f.kind === "group") {
+      const name = String(f.gName || "").trim();
+      return name ? this._t("grpTitleNamed", { name }) : this._t("grpTitle");
+    }
+    return f.kind === "custom" ? this._serviceName(f.domain, f.service) : this._t(KINDS.find((k) => k.kind === f.kind)?.label || "stepCustom");
+  }
+
+  xfGroupSummary(step) {
+    return this._groupSummary(fromStep(step));
+  }
+
+  // Phasen eines Auslösers in der Reihenfolge des Ablaufs: [Schlüssel, Liste, Text]. Verzögerungen nur mit eingestellter Zeit, "Immer aktiv" wird nie scharf
+  // (dieselben Regeln wie die Ansicht und der Filter "Phase")
+  xfPhases(trigger) {
+    const always = trigger === "always";
+    const delays = (zone) => !always && this._delaySeconds(zone, trigger) > 0;
+    return [
+      ...(delays("arming") ? [["arming", "arming", "wfArming"]] : []),
+      ...(always ? [] : [["armed", "armed", "wfArmed"]]),
+      ["report", "report", "wfReport"],
+      ...(delays("entry") ? [["entry", "entry", "wfEntry"]] : []),
+      ["alarm", "main", "wfStart"],
+      ["end", "after", "wfEnd"],
+      ...(always ? [] : [["disarmed", "disarmed", "wfDisarmed"]]),
+    ];
+  }
+
+  // Nimmt die Zielliste die Aktion nicht mehr auf? Kopie: sie kommt dazu. Verschieben innerhalb derselben Liste ändert nichts an der Zahl; wandert sie in eine
+  // Gruppe oder aus ihr, in eine andere Liste oder einen anderen Auslöser, zählt die Zielliste (die Gruppe höchstens GROUP_MAX_STEPS)
+  xfFull(from, to, size, copy) {
+    const sameBase = from.trigger === to.trigger && baseZone(from.zone) === baseZone(to.zone);
+    if (!copy && sameBase) return inGroup(to.zone) && from.zone !== to.zone && this.steps(to.zone, to.trigger).length + 1 > GROUP_MAX_STEPS;
+    return this._full(to.zone, size, to.trigger);
+  }
+
+  // Zustand der Listen im Entwurf (für "Rückgängig")
+  _lists() {
+    const d = this.ensureDraft();
+    return JSON.stringify({ wf: d.wf, after: d.after, armed: d.armed, arming: d.arming, entrySteps: d.entrySteps, disarmed: d.disarmed, report: d.report });
+  }
+
+  // Aktion verschieben (copy = false) oder kopieren. from = { trigger, zone, index }, to = { trigger, zone, at }; die Stelle `at` zählt vor dem Entfernen
+  // (der Einfügepunkt zwischen den Aktionen, wie ihn das Fenster zeigt). Danach springt die Seite zur Aktion und hebt sie hervor. Gibt { zone, index, undo }
+  // zurück, null bei einem Abbruch oder wenn die Aktion dort nicht erlaubt ist.
+  async _relocate(from, to, copy, phase = "") {
+    const d = this.ensureDraft();
+    const step = d ? this.steps(from.zone, from.trigger)[from.index] : null;
+    if (!step) return null;
+    const f = fromStep(JSON.parse(JSON.stringify(step)));
+    if (!this._zoneKinds(to.zone).includes(f.kind)) return null;
+    const srcBase = baseZone(from.zone);
+    const dstBase = baseZone(to.zone);
+    if (!(await this._confirmGroupMove(f, srcBase, dstBase, () => this.steps(from.zone, from.trigger)[from.index] === step))) return null;
+    if (DELAY_ZONES.includes(dstBase) && isShortTone(f.kind)) Object.assign(f, { delay: true, wait: false });
+    const group = inGroup(to.zone) ? this.steps(dstBase, to.trigger)[groupIndex(to.zone)] : null;
+    if (inGroup(to.zone) && group?.type !== "group") return null;
+    const size = 1 + (f.kind === "group" ? f.gSteps.length : 0);
+    if (this.xfFull(from, to, size, copy)) return null;
+    const before = this._lists();
+    const beforeTrigger = this.trigger;
+    const same = from.trigger === to.trigger && from.zone === to.zone;
+    let at = to.at;
+    if (!copy) {
+      this._setSteps(this.steps(from.zone, from.trigger).filter((_s, k) => k !== from.index), from.zone, from.trigger);
+      if (same && at > from.index) at -= 1;
+    }
+    // Die Gruppe ist nach dem Entfernen eine Stelle weiter vorn, wenn die Aktion davor aus derselben Liste kam
+    const zone = group ? `${dstBase}:${this.steps(dstBase, to.trigger).indexOf(group)}` : to.zone;
+    const list = [...this.steps(zone, to.trigger)];
+    const index = Math.max(0, Math.min(at, list.length));
+    list.splice(index, 0, toStep(f, zone));
+    this._setSteps(list, zone, to.trigger);
+    this.saveState = null;
+    // Sprung: der Reiter des Zielmodus, die Phase sichtbar (ein Filter "Phase" gibt sie frei), die Aktion hervorgehoben
+    if (this.trigger !== to.trigger) {
+      this.trigger = to.trigger;
+      this.host._savePref("trigger", this.trigger);
+    }
+    if (this.phase && phase && this.phase !== phase) this.phase = "";
+    this.render();
+    const el = this._lineEl(zone)?.querySelector(`:scope > .ag-wf-step[data-index="${index}"]`);
+    el?.classList.add("ag-flash");
+    // Erst nach dem Zeichnen und dem Schliessen des Fensters scrollen (vorher stünde die Seite noch unter dem Fenster, und das Neuzeichnen setzt die Lage zurück)
+    const jump = () => el?.isConnected && el.scrollIntoView({ block: "center" });
+    requestAnimationFrame(jump);
+    setTimeout(jump, 250);
+    setTimeout(() => el?.classList.remove("ag-flash"), 2400);
+    const rev = this._rev;
+    const draft = this.draft;
+    const undo = () => {
+      // Nur solange nichts anderes im Entwurf geändert wurde (und er nicht verworfen oder gespeichert ist)
+      if (this.draft !== draft || this._rev !== rev) {
+        this.host._toast(this._t("xfUndoGone"));
+        return;
+      }
+      Object.assign(this.draft, JSON.parse(before));
+      this._rev += 1;
+      this.saveState = null;
+      this.trigger = beforeTrigger;
+      this.host._savePref("trigger", this.trigger);
+      this.render();
+      this.host._toast(this._t("xfUndone"));
+    };
+    return { zone, index, undo };
   }
 
   // Das Element einer Liste: eine der sechs Listen oder die Liste in einer Gruppe
@@ -2127,6 +2262,7 @@ export class ActionsUi {
     const act = el?.dataset.wf;
     if (!act) return false;
     if (act.startsWith("mon-")) return this.mon.onClick(el);
+    if (act.startsWith("xf-")) return this.xfer.onClick(el);
     if (act === "permode") {
       const dr = this.ensureDraft();
       const first = this.triggers()[0];
@@ -2164,6 +2300,8 @@ export class ActionsUi {
         this.saveState = null;
         this.render();
       }
+    } else if (act === "xfer") {
+      this.xfer.open(zone, i);
     } else if (act === "delete") {
       this._setSteps(list.filter((_s, k) => k !== i), zone);
       this.saveState = null;
