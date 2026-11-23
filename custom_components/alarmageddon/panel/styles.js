@@ -947,14 +947,17 @@ button.ag-link, a.ag-link { display: inline-flex; align-items: center; gap: 5px;
 .ag-ntk.maint, .ag-ntk-icon.maint { --tone: var(--ag-warning); --tone-soft: var(--ag-warning-soft); --tone-text: var(--ag-warning-text); }
 .ag-ntk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ag-ntk-grid + .ag-pmscope { margin-top: 20px; }
-.ag-ntk { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 14px 16px; border-left: 4px solid var(--tone); }
+.ag-ntk { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 14px 16px; }
+/* Die Farbe der Gruppe (Störung rot, Wartung orange) steht am Rahmen um alle Karten, nicht an den einzelnen Karten (Wunsch des Nutzers 2026-11-23) */
+.ag-ntgrp.fault { --tone: var(--ag-error); }
+.ag-ntgrp.maint { --tone: var(--ag-warning); }
+.ag-pmgroup.ag-ntgrp, .ag-pmgroup.on.ag-ntgrp { border-left: 5px solid var(--tone); }
 .ag-ntk > .ag-toggle { flex: none; margin: 0; }
 .ag-ntk-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--tone-soft); color: var(--tone-text); }
 .ag-ntk .ag-wf-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ag-ntk .ag-wf-text b { font-size: 16px; font-weight: 600; }
 .ag-ntk .ag-unsaved { font-size: 12.5px; margin-top: 2px; }
 .ag-ntk .ag-origin { margin-top: 2px; }
-.ag-ntk.off { border-left-color: var(--ag-divider); }
 .ag-ntk.off > .ag-ntk-icon { background: var(--ag-subtle); color: var(--ag-text2); }
 .ag-ntk.off .ag-wf-text b { color: var(--ag-text2); }
 :host([narrow]) .ag-ntk-grid { grid-template-columns: 1fr; }

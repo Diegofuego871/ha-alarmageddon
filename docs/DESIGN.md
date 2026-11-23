@@ -184,10 +184,10 @@ Breite der Fenster (seit 1.67.0, Wunsch des Nutzers 2026-11-19): Listen und Form
   "Wartungsmeldungen". Das Kapitel "HealthCheck-Dienste" aus 1.68.0 gibt es nicht mehr: "HealthCheck-Dienst antwortet nicht" ist die letzte
   Wartungsmeldung, aufgebaut wie "Selbsttest" (Wunsch 22:16/22:17), fester Text, Klick öffnet die Liste der Dienste.
 - **Variante C:** jede Meldung eine Karte `.ag-ntk` wie die festen Meldungen unter Aktionen: Schalter links, Symbol 40 px in der Farbe des Kapitels
-  (`.fault` rot `--ag-error`, `.maint` orange `--ag-warning`, Symbol in `--ag-warning-text`), Streifen links 4 px in derselben Farbe, Titel 16 px fett,
+  (`.fault` rot `--ag-error`, `.maint` orange `--ag-warning`, Symbol in `--ag-warning-text`), der Streifen links (5 px, derselben Farbe) sitzt seit 1.83.0 am Rahmen `.ag-ntgrp` um alle Karten eines Kapitels (`.fault`, `.maint`), nie an der einzelnen Karte, Titel 16 px fett,
   Kurzfassung ("An …", "kritisch, 80 %", "bleibt in Home Assistant stehen", eigene Werte wie "unter 20 % · nach 3 Prüfungen", "nach 2
   Fehlversuchen · auch "antwortet wieder"", "mit beiden Knöpfen"; ohne Empfänger "Kein Empfänger" in `ag-warntext`), Play (`onceBtn`, gesperrt bei
-  offenen Änderungen oder ausgeschaltet) und Stift, beide rund 44 px. Aus: Streifen und Symbol grau, Titel grau. Raster `.ag-ntk-grid`: Computer zwei
+  offenen Änderungen oder ausgeschaltet) und Stift, beide rund 44 px. Aus: Symbol grau, Titel grau. Raster `.ag-ntk-grid`: Computer zwei
   Spalten, Handy eine (die Knöpfe in eigener Zeile rechts). Mit "Einstellungen pro Modus" stehen über den Karten die Zeilen `.ag-pmscope` ("Alles
   darunter gilt nur für …", "Für alle Modi").
 - **Fenster `#ag-ntkind`** (`ag-wide`, Aufbau wie das Fenster der festen Meldungen unter Aktionen): Kopf mit Symbol in der Farbe des Kapitels und

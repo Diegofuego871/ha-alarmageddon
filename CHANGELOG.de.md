@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.84.0] - 2026-11-23
+
+### Geändert
+
+- **Farbstreifen am Rahmen statt an jeder Karte:** unter Konfiguration › Benachrichtigungen sitzt der farbige Streifen (Störungsmeldungen rot, Wartungsmeldungen orange) jetzt am linken Rand des Rahmens um die Karten, nicht mehr an jeder einzelnen Meldung.
+
 ## [1.83.0] - 2026-11-23
 
 ### Behoben
@@ -2275,6 +2281,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.84.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.84.0
 [1.83.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.83.0
 [1.82.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.82.0
 [1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0

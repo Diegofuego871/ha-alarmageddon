@@ -46,13 +46,14 @@ for (const lang of ["de", "en"]) {
       return { lefts: [...new Set(b.map((x) => Math.round(x.left)))].length, sameRow: Math.round(b[0].top) === Math.round(b[1].top), full: Math.abs(b[0].width - gb.width) <= 1, cards }`);
     check(`${tag}: ${mobile ? "eine Spalte über die ganze Breite" : "zwei Spalten nebeneinander"}`, mobile ? grid.lefts === 1 && grid.full && !grid.sameRow : grid.lefts === 2 && grid.sameRow, JSON.stringify(grid));
 
-    // ----- Farben des Kapitels: Störung rot, Wartung orange, ausgeschaltet grau -----
+    // ----- Farben des Kapitels: der Streifen links steht am Rahmen um die Karten (Störung rot, Wartung orange), nicht an den einzelnen Karten (Wunsch des Nutzers 2026-11-23) -----
     const colors = await s.ev(`const probe=(v) => { const x=document.createElement('span'); x.style.color='var(' + v + ')'; r.querySelector('.ag-nt').appendChild(x); const c=getComputedStyle(x).color; x.remove(); return c; };
-      const card=(k) => getComputedStyle(r.querySelector('.ag-ntk[data-ntk="' + k + '"]')).borderLeftColor; const icon=(k) => getComputedStyle(r.querySelector('.ag-ntk[data-ntk="' + k + '"] .ag-ntk-icon')).backgroundColor;
-      return { fault: card('sensor_offline'), maint: card('battery_low'), off: card('sensor_unavailable'), red: probe('--ag-error'), orange: probe('--ag-warning'), grey: probe('--ag-divider'),
+      const grp=(sel) => getComputedStyle(r.querySelector(sel)); const card=(k) => { const c=getComputedStyle(r.querySelector('.ag-ntk[data-ntk="' + k + '"]')); return c.borderLeftWidth === c.borderTopWidth; }; const icon=(k) => getComputedStyle(r.querySelector('.ag-ntk[data-ntk="' + k + '"] .ag-ntk-icon')).backgroundColor;
+      return { fault: grp('.ag-ntgrp.fault').borderLeftColor, maint: grp('.ag-ntgrp.maint').borderLeftColor, faultW: grp('.ag-ntgrp.fault').borderLeftWidth, maintW: grp('.ag-ntgrp.maint').borderLeftWidth,
+        cards: ['sensor_offline', 'arm_failed', 'battery_low', 'selftest', 'sensor_unavailable'].map(card), red: probe('--ag-error'), orange: probe('--ag-warning'),
         iconFault: icon('arm_failed'), iconMaint: icon('selftest'), iconOff: icon('sensor_unavailable') }`);
-    check(`${tag}: Streifen links rot (Störung), orange (Wartung), grau (aus); Symbol getönt`, colors.fault === colors.red && colors.maint === colors.orange && colors.off === colors.grey
-      && colors.iconFault !== colors.iconMaint && colors.iconOff !== colors.iconMaint, JSON.stringify(colors));
+    check(`${tag}: Streifen links am Rahmen: rot (Störung), orange (Wartung); die Karten tragen keinen eigenen Streifen; Symbole getönt`, colors.fault === colors.red && colors.maint === colors.orange && colors.faultW === "5px" && colors.maintW === "5px"
+      && colors.cards.every(Boolean) && colors.iconFault !== colors.iconMaint && colors.iconOff !== colors.iconMaint, JSON.stringify(colors));
 
     // ----- Karte: Schalter links, Symbol, Titel, Kurzfassung, Play und Stift -----
     const card = await s.ev(`const c=r.querySelector('${CARD("battery_low")}'); const tg=c.querySelector('[data-nt="enabled"]').getBoundingClientRect(); const ico=c.querySelector('.ag-ntk-icon').getBoundingClientRect();

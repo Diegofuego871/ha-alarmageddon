@@ -272,8 +272,8 @@ export class NotifyUi {
         <div class="ag-pmscope">${ic("shield", 18)}${esc(this._t("ntAllModesScope"))}</div>${grid(GROUPS.alarm.filter(([kind]) => !modeKinds.has(kind)).map(([kind]) => this._card(kind, null, dirty)).join(""))}`
       : grid(list("alarm"));
     const html = chapter(this._t("ntChapRecipients"), `<div class="ag-card ag-setlist">${this._recipients("alarm") + this._recipients("maintenance")}</div>`, this._t("ntChapRecipientsHint"))
-      + chapter(this._t("ntChapAlarm"), `<div class="ag-pmgroup ${d.per_mode ? "on" : ""}">${sw}${alarmBody}</div><p class="ag-chap-h ag-nt-moved">${ic("info", 14)} ${esc(this._t("ntMovedHint"))}</p>`, this._t("ntChapAlarmHint"))
-      + chapter(this._t("ntChapMaint"), `<div class="ag-pmgroup">${grid(list("maintenance"))}</div>`, this._t("ntChapMaintHint"));
+      + chapter(this._t("ntChapAlarm"), `<div class="ag-pmgroup ag-ntgrp fault ${d.per_mode ? "on" : ""}">${sw}${alarmBody}</div><p class="ag-chap-h ag-nt-moved">${ic("info", 14)} ${esc(this._t("ntMovedHint"))}</p>`, this._t("ntChapAlarmHint"))
+      + chapter(this._t("ntChapMaint"), `<div class="ag-pmgroup ag-ntgrp maint">${grid(list("maintenance"))}</div>`, this._t("ntChapMaintHint"));
     h._setHtml(box, html);
     h._placePills();
     if (this.kindEdit && this._dlg()?.open) this.renderKind();
