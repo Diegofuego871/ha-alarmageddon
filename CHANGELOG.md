@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **"Report to HealthCheck" is always visible in the action selection:** without a HealthCheck service it stands there greyed out and cannot be chosen, with a short orange note ("No service set up: Configuration › Alarm system › HealthCheck"), so you can see that the action exists. As soon as a service is set up it is chosen like before.
+- **Symbol on "Start over":** under Configuration › Alarm system › Setup wizard the button "Start over" now carries a symbol like "Continue".
 
 ## [1.82.0] - 2026-11-22
 

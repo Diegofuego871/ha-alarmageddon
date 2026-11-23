@@ -615,7 +615,7 @@ export class SystemUi {
       : this._t("wzState_open", { n, step: stepName });
     const resume = w.state !== "done" && w.step !== "welcome";
     const btns = resume
-      ? `<button class="ag-btn" data-wz="run" data-step="welcome">${esc(this._t("wzRestart"))}</button><button class="ag-btn primary" data-wz="run" data-step="${esc(w.step)}">${ic("wand", 18)}${esc(this._t("wzResume", { n }))}</button>`
+      ? `<button class="ag-btn" data-wz="run" data-step="welcome">${ic("refresh", 18)}${esc(this._t("wzRestart"))}</button><button class="ag-btn primary" data-wz="run" data-step="${esc(w.step)}">${ic("wand", 18)}${esc(this._t("wzResume", { n }))}</button>`
       : `<button class="ag-btn" data-wz="run" data-step="welcome">${ic("wand", 18)}${esc(this._t("wzRun"))}</button>`;
     return chapter(this._t("wzChapter"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum ag-wzrow"><span class="ag-oav ag-tint ag-tint-wizard on">${ic("wand", 20)}</span>
       <div class="ag-settx"><b>${esc(status)}</b><small>${esc(this._t("wzChapterText"))}</small></div><div class="ag-btnrow">${btns}</div></div></div>`, this._t("wzChapterHint"));

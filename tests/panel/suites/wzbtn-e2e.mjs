@@ -86,6 +86,12 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: ausgeblendet: kein Knopf im Kopf`, await s.waitFor(`return !!r.querySelector('[data-act="rename"]') && !r.querySelector('${BTN}')`));
     await s.ctx.close();
 
+    // ----- Konfiguration › Anlage: "Von vorn" trägt wie "Fortsetzen" ein Symbol (Wunsch des Nutzers 2026-11-23) -----
+    s = await open(browser, { mobile, lang, query: "&wizard=later&wzuntil=2999-01-01&wzstep=notify", tab: "config" });
+    await s.tap('[data-sub="system"]');
+    check(`${tag}: "Von vorn" hat ein Symbol, gleich gross wie das von "Fortsetzen"`, await s.waitFor("const b=[...r.querySelectorAll('[data-wz=\"run\"][data-step=\"welcome\"]')].find((x) => x.classList.contains('ag-btn')); const c=r.querySelector('.ag-btn.primary[data-wz=\"run\"]'); return !!b && !!c && !!b.querySelector('svg') && b.querySelector('svg').getBoundingClientRect().width === c.querySelector('svg').getBoundingClientRect().width", 8000));
+    await s.ctx.close();
+
     // ----- Später bei "Fertig": Klick, "Fertig" schliesst ab, danach kein Knopf mehr (auch nicht unter Konfiguration) -----
     s = await open(browser, { mobile, lang, query: "&wizard=later&wzuntil=2999-01-01&wzstep=done" });
     check(`${tag}: später: Knopf mit "${t.resume(8, t.done)}"`, await s.waitFor(`return r.querySelector('${BTN}')?.title === ${J(t.resume(8, t.done))}`));

@@ -16,6 +16,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 ### Geändert
 
 - **"HealthCheck melden" ist in der Auswahl der Aktionen immer sichtbar:** ohne HealthCheck-Dienst steht es ausgegraut da und lässt sich nicht wählen, mit einem kurzen orangen Hinweis ("Kein Dienst eingerichtet: Konfiguration › Anlage › HealthCheck"), damit man sieht, dass es die Aktion gibt. Sobald ein Dienst eingerichtet ist, wählt man sie wie bisher.
+- **Symbol bei "Von vorn":** unter Konfiguration › Anlage › Einrichtungsassistent trägt der Knopf "Von vorn" jetzt wie "Fortsetzen" ein Symbol.
 
 ## [1.82.0] - 2026-11-22
 
