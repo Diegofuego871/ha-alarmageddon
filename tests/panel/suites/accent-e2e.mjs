@@ -17,6 +17,8 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Kapitel "${TITLE[lang]}" direkt über dem Einrichtungsassistenten: Zeile mit eigenem Symbol und Knopf, die Farben stehen nicht auf der Seite`, chap.i >= 0 && chap.wz === chap.i + 1 && chap.btn && chap.tint && !chap.grid && chap.name === NAMES[lang][0] && chap.dot >= 14, JSON.stringify(chap));
     await s.tap('[data-sys="acc-open"]');
     await s.waitFor("return r.getElementById('ag-accent').open");
+    // Das Fenster ist am Computer so breit wie die Fenster der Listen (Dienste, Töne, Backups), Wunsch des Nutzers 2026-11-23
+    if (!mobile) check(`${tag}: Fenster "Akzentfarbe" ist so breit wie die Fenster der Listen (880 px)`, await s.ev("return Math.abs(r.getElementById('ag-accent').getBoundingClientRect().width - Math.min(880, innerWidth - 32)) < 2"));
     const dlg = await s.ev(`const d=r.getElementById('ag-accent'); return { names: [...d.querySelectorAll('.ag-accbtn')].map((b) => b.innerText.trim()), on: d.querySelector('.ag-accbtn.on')?.dataset.key, prev: !!d.querySelector('.ag-accprev'), btns: [...d.querySelectorAll('.ag-dlg-btns .ag-btn')].map((b) => b.innerText.trim()) }`);
     check(`${tag}: Fenster: Symbol und Titel, zehn Farben, Vorschau, Abbrechen und Übernehmen`, JSON.stringify(dlg.names) === JSON.stringify(NAMES[lang]) && dlg.on === "ha" && dlg.prev && dlg.btns.length === 2, JSON.stringify(dlg));
     await s.tap('#ag-accent [data-sys="acc-pick"][data-key="green"]');

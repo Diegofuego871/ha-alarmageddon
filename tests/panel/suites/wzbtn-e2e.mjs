@@ -81,6 +81,15 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: keine Fehler in der Konsole`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
 
+    // ----- Ein Reiterwechsel mitten in der Welle bricht sie nicht ab, sie läuft an der Stelle weiter (Wunsch des Nutzers 2026-11-23) -----
+    s = await open(browser, { mobile, lang, query: LATER });
+    await s.waitFor(`return r.querySelector('${BTN}')?.classList.contains('wave')`, 9000);
+    await new Promise((x) => setTimeout(x, 900));
+    await s.tap('[data-tab="log"]');
+    check(`${tag}: Reiterwechsel mitten in der Welle: der neue Knopf schwingt weiter, an der Stelle, wo die Welle war (nicht von vorn, nicht abgebrochen)`, await s.waitFor(`const b=r.querySelector('${BTN}'); const sk=parseFloat(b?.style.getPropertyValue('--ag-wskip')); const a=b?.querySelector('.ag-wzbtn-dot').getAnimations().find((x) => x.animationName === 'ag-wz-orbit'); return !!b && b.classList.contains('wave') && sk >= 800 && !!a && a.playState === 'running' && a.effect.getComputedTiming().progress >= (sk - 80) / 3900 && a.effect.getComputedTiming().progress < 1`, 4000));
+    check(`${tag}: nach dem Ende der Welle ist der Knopf wieder ruhig`, await s.waitFor(`const b=r.querySelector('${BTN}'); return !!b && !b.classList.contains('wave')`, 7000));
+    await s.ctx.close();
+
     // ----- Ausgeblendet (Nicht mehr anzeigen): schon beim Laden kein Knopf -----
     s = await open(browser, { mobile, lang, query: "&wizard=hidden&wzstep=notify" });
     check(`${tag}: ausgeblendet: kein Knopf im Kopf`, await s.waitFor(`return !!r.querySelector('[data-act="rename"]') && !r.querySelector('${BTN}')`));

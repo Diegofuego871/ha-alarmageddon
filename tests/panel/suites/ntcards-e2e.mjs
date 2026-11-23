@@ -34,6 +34,8 @@ for (const lang of ["de", "en"]) {
       const kinds=(c) => [...c.querySelectorAll('.ag-ntk')].map((x) => x.dataset.ntk);
       return { titles: chaps.map((c) => c.querySelector('.ag-chap-t').textContent), recip: !!chaps[0].querySelector('[data-nt="target-add"]') && !chaps[0].querySelector('.ag-ntk'),
         alarm: kinds(chaps[1]), maint: kinds(chaps[2]), old: !!r.querySelector('.ag-nt .ag-mt'), wide: r.host._content.scrollWidth - r.host._content.clientWidth }`);
+    // Wartungsmeldungen tragen denselben Rahmen wie die Störungsmeldungen (Wunsch des Nutzers 2026-11-23)
+    check(`${tag}: Wartungsmeldungen stehen im gleichen Rahmen wie die Störungsmeldungen (gleiche Linie, gleiche Rundung)`, await s.ev(`const chaps=[...r.querySelectorAll('.ag-nt .ag-chap')]; const f=(c) => { const g=c.querySelector('.ag-pmgroup'); if (!g) return null; const st=getComputedStyle(g); return [st.borderTopWidth, st.borderTopLeftRadius, g.querySelectorAll('.ag-ntk').length]; }; const a=f(chaps[1]), m=f(chaps[2]); return !!a && !!m && a[1] === m[1] && m[0] === a[0] && parseFloat(m[0]) >= 1 && m[2] === 4`));
     check(`${tag}: drei Kapitel ${t.chapters.join(", ")}; Störung: Ausfall, Scharfschalten; Wartung: Batterie, nicht erreichbar, Selbsttest, HealthCheck; keine alten Zeilen`,
       JSON.stringify(page.titles) === JSON.stringify(t.chapters) && page.recip && JSON.stringify(page.alarm) === '["sensor_offline","arm_failed"]'
       && JSON.stringify(page.maint) === '["battery_low","sensor_unavailable","selftest","healthcheck"]' && !page.old && page.wide <= 1, JSON.stringify(page));

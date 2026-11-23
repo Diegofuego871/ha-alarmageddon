@@ -814,14 +814,14 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 .ag-fl-leaf svg { color: var(--ag-primary); }
 .ag-fl-or { font-size: 11px; font-weight: 700; color: var(--ag-primary); letter-spacing: .06em; padding-left: 12px; }
 .ag-fl-grp { border-left: 3px solid var(--ag-primary); background: color-mix(in srgb, var(--ag-primary) 6%, transparent); border-radius: 4px 14px 14px 4px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-.ag-fl-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 8px; margin-top: 12px; }
-.ag-fl-band > div { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 999px; background: var(--ag-subtle); color: var(--ag-text2); font-size: 12.5px; line-height: 1.25; text-align: center; overflow-wrap: normal; word-break: normal; hyphens: manual; }
+.ag-fl-band { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; } /* Pillen so breit wie ihr Text (nie Schrift über den Rand der Pille, Wunsch des Nutzers 2026-11-23), Zeilen füllen die Breite */
+.ag-fl-band > div { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 auto; min-width: 128px; max-width: 100%; box-sizing: border-box; white-space: nowrap; min-height: 36px; padding: 6px 14px; border-radius: 999px; background: var(--ag-subtle); color: var(--ag-text2); font-size: 12.5px; line-height: 1.25; text-align: center; }
 .ag-fl-band > div.on { background: var(--ag-success); color: #fff; font-weight: 600; box-shadow: 0 2px 6px color-mix(in srgb, var(--ag-success) 35%, transparent); }
 .ag-fl-band > div.on::before { content: "✓"; font-weight: 700; }
 .ag-fl-band > div:not(.on)::before { content: "✕"; font-weight: 700; color: var(--ag-error); } /* nicht ausgeführt (seit 1.76.1, Wunsch des Nutzers): rotes Kreuz statt Haken, Knopf und Schrift bleiben grau */
 .ag-fl-skip { display: flex; gap: 8px; align-items: flex-start; margin: 14px 4px 0; font-size: 12.5px; line-height: 1.4; color: var(--ag-text2); }
 .ag-fl-skip svg { margin-top: 1px; }
-:host([narrow]) .ag-fl-band { grid-template-columns: 1fr; }
+:host([narrow]) .ag-fl-band > div { flex-basis: 100%; }
 :host([narrow]) .ag-fl-step { grid-template-columns: 26px minmax(0, 1fr); gap: 8px; }
 :host([narrow]) .ag-fl-node { padding: 12px; }
 .ag-rtsub { padding-left: 22px; border-left: 3px solid var(--ag-primary-soft); margin-left: 10px; }
@@ -1114,9 +1114,9 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
 .ag-wzbtn svg { display: block; overflow: visible; }
 .ag-wzbtn g { transform-box: view-box; }
 .ag-wzbtn-dot { position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--ag-primary); border: 1.5px solid color-mix(in srgb, var(--ag-card) 45%, transparent); pointer-events: none; }
-.ag-wzbtn.wave .ag-wzstick { transform-origin: 3px 21px; animation: ag-wz-swing ${WAVE.swing}ms cubic-bezier(.45, 0, .35, 1) both; }
+.ag-wzbtn.wave .ag-wzstick { transform-origin: 3px 21px; animation: ag-wz-swing ${WAVE.swing}ms cubic-bezier(.45, 0, .35, 1) both; animation-delay: calc(-1 * var(--ag-wskip, 0ms)); }
 /* Ablauf der Welle: siehe WAVE oben. Die Sterne haben je eine Zeitleiste für Bewegung und Ein-/Ausblenden über die ganze Welle. */
-.ag-wzbtn.wave .ag-wzstar { transform-origin: center; transform-box: fill-box; animation-timing-function: ease-in-out; animation-fill-mode: both; animation-duration: ${WAVE.total}ms; }
+.ag-wzbtn.wave .ag-wzstar { transform-origin: center; transform-box: fill-box; animation-timing-function: ease-in-out; animation-fill-mode: both; animation-duration: ${WAVE.total}ms; animation-delay: calc(-1 * var(--ag-wskip, 0ms)); }
 .ag-wzbtn.wave .s0 { animation-name: ag-wz-star0, ag-wz-fade0; }
 .ag-wzbtn.wave .s1 { animation-name: ag-wz-star1, ag-wz-fade1; }
 .ag-wzbtn.wave .s2 { animation-name: ag-wz-star2, ag-wz-fade2; }
@@ -1124,18 +1124,18 @@ dialog.ag-sheetdlg > .ag-dlg-btns { margin: 0; bottom: 0; }
    er dreht um die Knopfmitte (Ursprung (-9, 18) px, gemessen vom Punkt), und der Schweif ist sein ::before, dreht also zwangsläufig mit und kann ihm nie vorauslaufen
    (Wunsch des Nutzers 2026-11-21: "der Schweif muss aus dem Kometen kommen"). Der sichtbare Punkt ist sein ::after (so wird er für das Anschwellen allein skaliert).
    Während der Welle ist der Punkt selbst unsichtbar; ausserhalb gilt der einfache Punkt oben. */
-.ag-wzbtn.wave .ag-wzbtn-dot { background: transparent; border-color: transparent; transform-origin: -9px 18px; animation: ag-wz-orbit ${WAVE.total}ms linear both; }
-.ag-wzbtn.wave .ag-wzbtn-dot::after { content: ""; position: absolute; inset: -1.5px; border-radius: 50%; background: var(--ag-primary); border: 1.5px solid color-mix(in srgb, var(--ag-card) 45%, transparent); animation: ag-wz-land ${WAVE.total}ms linear both; }
+.ag-wzbtn.wave .ag-wzbtn-dot { background: transparent; border-color: transparent; transform-origin: -9px 18px; animation: ag-wz-orbit ${WAVE.total}ms linear both; animation-delay: calc(-1 * var(--ag-wskip, 0ms)); }
+.ag-wzbtn.wave .ag-wzbtn-dot::after { content: ""; position: absolute; inset: -1.5px; border-radius: 50%; background: var(--ag-primary); border: 1.5px solid color-mix(in srgb, var(--ag-card) 45%, transparent); animation: ag-wz-land ${WAVE.total}ms linear both; animation-delay: calc(-1 * var(--ag-wskip, 0ms)); }
 /* Schweif: Ring von der Grösse des Knopfes um dessen Mitte (Knopf 40 px; der Punkt liegt bei (29, 2) px, sein Innenrand bei (31, 4) px). Der Kopf liegt bei 358 Grad des
    Verlaufs; mit 47 Grad Drehung steht er genau auf dem Punkt (oben rechts). Er blendet beim Start schnell ein und am Ende aus. */
 .ag-wzbtn.wave .ag-wzbtn-dot::before { content: ""; position: absolute; left: -31px; top: -4px; width: 40px; height: 40px; border-radius: 50%; pointer-events: none; opacity: 0; transform: rotate(47deg);
   background: conic-gradient(from 0deg, transparent 0deg, transparent 250deg, color-mix(in srgb, var(--ag-primary) 12%, transparent) 250deg, color-mix(in srgb, var(--ag-primary) 90%, #fff) 354deg, #fff3e0 358deg, transparent 360deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  animation: ag-wz-comet-vis ${WAVE.comet}ms linear ${WAVE_LAUNCH}ms both; }
+  animation: ag-wz-comet-vis ${WAVE.comet}ms linear ${WAVE_LAUNCH}ms both; animation-delay: calc(${WAVE_LAUNCH}ms - var(--ag-wskip, 0ms)); }
 /* Explosion bei der Ankunft: ein Ring breitet sich vom Punkt aus und verglimmt */
 .ag-wzbtn.wave::after { content: ""; position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; pointer-events: none; opacity: 0;
   border: 1.5px solid color-mix(in srgb, var(--ag-primary) 80%, #fff); box-shadow: 0 0 5px 0 color-mix(in srgb, var(--ag-primary) 50%, transparent);
-  animation: ag-wz-burst 650ms cubic-bezier(.2, .7, .3, 1) ${WAVE_BOOM}ms both; }
+  animation: ag-wz-burst 650ms cubic-bezier(.2, .7, .3, 1) ${WAVE_BOOM}ms both; animation-delay: calc(${WAVE_BOOM}ms - var(--ag-wskip, 0ms)); }
 @keyframes ag-wz-orbit { ${WAVE_ORBIT} }
 @keyframes ag-wz-comet-vis { 0% { opacity: 0 } 18% { opacity: 1 } 88% { opacity: 1 } 100% { opacity: 0 } }
 @keyframes ag-wz-burst { 0% { transform: scale(.6); opacity: 0 } 8% { transform: scale(1); opacity: .85 } 100% { transform: scale(3.8); opacity: 0 } }

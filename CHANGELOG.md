@@ -11,11 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The wand animation is no longer cut off by a change of tab:** switching tabs rebuilds the page, and the running wand (and the red alarm circle) stopped. Now it carries on at the point where it was, with the comets still running at the same time.
+- **Text in the state pills of the routine preview stays inside the pill:** a long name ("Entry delay", "Exit delay") ran over the edge of its pill. The pills are now as wide as their text.
 - **"Don't show again" in the setup wizard now removes the wand:** the button with the wand in the header stayed after "Don't show again". It is gone now, like after "Finish"; you can still start the wizard by hand under Configuration › Alarm system › Setup wizard. "Show again tomorrow" keeps the button as before.
 
 ### Changed
 
 - **"Report to HealthCheck" is always visible in the action selection:** without a HealthCheck service it stands there greyed out and cannot be chosen, with a short orange note ("No service set up: Configuration › Alarm system › HealthCheck"), so you can see that the action exists. As soon as a service is set up it is chosen like before.
+- **Maintenance messages in a frame:** under Configuration › Notifications the maintenance messages stand in the same frame as the fault messages.
+- **Window "Accent colour" is as wide as the list windows** (services, sounds, backups) on the computer.
 - **Symbol on "Start over":** under Configuration › Alarm system › Setup wizard the button "Start over" now carries a symbol like "Continue".
 
 ## [1.82.0] - 2026-11-22

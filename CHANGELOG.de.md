@@ -11,11 +11,15 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Behoben
 
+- **Die Zauberstab-Animation bricht beim Wechsel des Reiters nicht mehr ab:** ein Reiterwechsel baut die Seite neu auf, dabei blieb der laufende Zauberstab (und der rote Alarmkreis) stehen. Jetzt läuft er an der Stelle weiter, wo er war, die Kometen weiter gleichzeitig.
+- **Die Schrift in den Zustands-Pillen der Routinen-Vorschau bleibt in der Pille:** ein langer Name ("Eingangsverzögerung", "Ausgangsverzögerung") ragte über den Rand seiner Pille. Die Pillen sind jetzt so breit wie ihr Text.
 - **"Nicht mehr anzeigen" im Einrichtungsassistenten entfernt jetzt den Zauberstab:** der Knopf mit dem Zauberstab im Kopf blieb nach "Nicht mehr anzeigen" stehen. Jetzt ist er weg, wie nach "Fertig"; den Assistenten startest du weiterhin von Hand unter Konfiguration › Anlage › Einrichtungsassistent. "Morgen wieder anzeigen" lässt den Knopf wie bisher stehen.
 
 ### Geändert
 
 - **"HealthCheck melden" ist in der Auswahl der Aktionen immer sichtbar:** ohne HealthCheck-Dienst steht es ausgegraut da und lässt sich nicht wählen, mit einem kurzen orangen Hinweis ("Kein Dienst eingerichtet: Konfiguration › Anlage › HealthCheck"), damit man sieht, dass es die Aktion gibt. Sobald ein Dienst eingerichtet ist, wählt man sie wie bisher.
+- **Wartungsmeldungen im Rahmen:** unter Konfiguration › Benachrichtigungen stehen die Wartungsmeldungen im gleichen Rahmen wie die Störungsmeldungen.
+- **Das Fenster "Akzentfarbe" ist am Computer so breit** wie die Fenster der Listen (Dienste, Töne, Backups).
 - **Symbol bei "Von vorn":** unter Konfiguration › Anlage › Einrichtungsassistent trägt der Knopf "Von vorn" jetzt wie "Fortsetzen" ein Symbol.
 
 ## [1.82.0] - 2026-11-22

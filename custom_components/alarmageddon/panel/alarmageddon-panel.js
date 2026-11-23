@@ -105,7 +105,7 @@ class AlarmageddonPanel extends HTMLElement {
 
   _init() {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
-      <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg" id="ag-accent"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
+      <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg ag-wide" id="ag-accent"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-wide" id="ag-codelist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog><dialog class="ag-dlg" id="ag-wzask"></dialog><dialog class="ag-dlg ag-wide" id="ag-ntkind"></dialog><dialog class="ag-dlg ag-wide" id="ag-wzpick"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
@@ -1120,6 +1120,14 @@ class AlarmageddonPanel extends HTMLElement {
     const systems = this._systems();
     const cur = this._system();
     this._setHtml(slot, systems.length && cur ? this._sysBar(systems, cur) : "");
+    // Ein Reiterwechsel baut den ganzen Inhalt neu auf: läuft gerade eine Welle, setzt sie sich an der Stelle fort, wo sie war (nie abgebrochen, Wunsch des Nutzers 2026-11-23)
+    if (this._waving) {
+      const skip = Math.max(0, Math.round(performance.now() - this._waveAt));
+      for (const btn of slot.querySelectorAll(".ag-wzbtn")) {
+        btn.style.setProperty("--ag-wskip", `${skip}ms`);
+        btn.classList.add("wave");
+      }
+    }
     this._waveLater();
   }
 
@@ -1211,6 +1219,7 @@ class AlarmageddonPanel extends HTMLElement {
       }
       this._wzWaved = true;
       this._waving = true;
+      this._waveAt = performance.now();
       for (const btn of buttons) btn.classList.add("wave");
       this._wzWaveTimer = setTimeout(() => {
         this._waving = false;
