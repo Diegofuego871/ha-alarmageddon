@@ -1168,10 +1168,11 @@ class AlarmageddonPanel extends HTMLElement {
   // Knopf des Einrichtungsassistenten im Kopf (1.71.0; Wunsch des Nutzers 2026-11-20, 11:38, Mockup assistent-knopf-v1; Entscheide 11:48: Variante A
   // "Schwung", nur solange der Assistent nicht fertig ist, Bewegung immer). Er erinnert daran, dass der Assistent noch da ist ("Später", "Nicht mehr
   // anzeigen", offen) und führt beim gemerkten Schritt weiter, wie "Fortsetzen" unter Konfiguration › Anlage (offene Änderungen fragen vorher).
-  // Nach "Fertig" gibt es ihn nicht mehr; "Von vorn" steht dann nur unter Konfiguration › Anlage.
+  // Nach "Fertig" und nach "Nicht mehr anzeigen" gibt es ihn nicht mehr; "Von vorn" und "Fortsetzen" stehen dann nur unter Konfiguration › Anlage.
   _wizardBtn(cur) {
     const w = cur.wizard;
-    if (!w || w.state === "done") return "";
+    // "Nicht mehr anzeigen" (hidden) blendet den Knopf aus (Wunsch des Nutzers 2026-11-23, ersetzt den Entscheid von 1.71.0); von Hand startet man den Assistenten unter Konfiguration › Anlage
+    if (!w || w.state === "done" || w.state === "hidden") return "";
     const step = this.wizard.number(w.step) > 0 ? w.step : "welcome";
     const tip = step === "welcome" ? this._t("wzBtnStart") : this._t("wzBtnResume", { n: this.wizard.number(step), step: this._t(`wzS_${step}`) });
     // Der Zauberstab des Panels (Symbol "wand") in Teilen: der Stab schwingt um den Griff, die drei Sterne blitzen nacheinander auf

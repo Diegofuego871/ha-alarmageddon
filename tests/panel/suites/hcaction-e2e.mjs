@@ -5,8 +5,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { while: "Bis der Alarm endet", repeat: "Meldung wiederholen", pause: "Lebenszeichen pausieren", title: "HealthCheck melden", take: "Vorschlag übernehmen", gone: "Dienst fehlt", open: "HealthCheck-Dienste öffnen", sugHc: "Vorschlag für Healthchecks.io: /2" },
-  en: { while: "Until the alarm ends", repeat: "Repeat the report", pause: "Pause life signs", title: "Report to HealthCheck", take: "Use suggestion", gone: "Service missing", open: "Open HealthCheck services", sugHc: "Suggestion for Healthchecks.io: /2" },
+  de: { while: "Bis der Alarm endet", repeat: "Meldung wiederholen", pause: "Lebenszeichen pausieren", title: "HealthCheck melden", off: "Kein Dienst eingerichtet: Konfiguration › Anlage › HealthCheck", take: "Vorschlag übernehmen", gone: "Dienst fehlt", open: "HealthCheck-Dienste öffnen", sugHc: "Vorschlag für Healthchecks.io: /2" },
+  en: { while: "Until the alarm ends", repeat: "Repeat the report", pause: "Pause life signs", title: "Report to HealthCheck", off: "No service set up: Configuration › Alarm system › HealthCheck", take: "Use suggestion", gone: "Service missing", open: "Open HealthCheck services", sugHc: "Suggestion for Healthchecks.io: /2" },
 };
 const HC = "a1b2c3d4e5f6"; // Healthchecks.io (erfunden, ?hc=sample)
 const CRON = "b2c3d4e5f6a1";
@@ -18,13 +18,17 @@ for (const lang of ["de", "en"]) {
     const tag = `${lang}/${mobile ? "Handy" : "Desktop"}`;
     const t = T[lang];
 
-    // ----- Ohne Dienste: die Aktion wird nicht angeboten -----
+    // ----- Ohne Dienste: die Aktion steht ausgegraut da -----
     const none = await open(browser, { mobile, lang, tab: "config" });
     await none.tap('[data-sub="actions"]');
     await none.waitFor("return !!r.querySelector('.ag-wf-main')");
     await none.tap(".ag-wf-main > .ag-wf-plus .ag-wf-add");
     await none.waitFor("return r.getElementById('ag-step').open");
-    check(`${tag}: ohne eingerichtete Dienste fehlt "${t.title}" in der Auswahl`, await none.ev("const k=[...r.querySelectorAll('#ag-step [data-wf=\"kind\"]')].map((b) => b.dataset.kind); return k.length > 3 && !k.includes('healthcheck')"));
+    // Wunsch des Nutzers (1.83.0): die Karte bleibt sichtbar, ausgegraut und nicht wählbar, mit kurzem orangem Hinweis
+    check(`${tag}: ohne eingerichtete Dienste steht "${t.title}" ausgegraut und gesperrt in der Auswahl`, await none.ev("const b=r.querySelector('#ag-step [data-kind=\"healthcheck\"]'); return !!b && b.disabled && b.classList.contains('ag-kind-off') && !b.dataset.wf && parseFloat(getComputedStyle(b.querySelector('b')).opacity) < 0.8 && parseFloat(getComputedStyle(b.querySelector('.ag-kind-note')).opacity) === 1"));
+    check(`${tag}: ohne Dienst steht ein kurzer oranger Hinweis auf der Karte (auch auf dem Handy)`, await none.ev(`const n=r.querySelector('#ag-step .ag-kind-off .ag-kind-note'); return !!n && n.textContent.trim() === ${JSON.stringify(t.off)} && n.getBoundingClientRect().height > 0 && getComputedStyle(n).color !== getComputedStyle(r.querySelector('#ag-step .ag-kind-off b')).color`));
+    check(`${tag}: die übrigen Karten bleiben wählbar`, await none.ev("const k=[...r.querySelectorAll('#ag-step [data-wf=\"kind\"]')].map((b) => b.dataset.kind); return k.length > 3 && !k.includes('healthcheck')"));
+    check(`${tag}: ein Tippen auf die gesperrte Karte öffnet keinen Schritt`, await none.ev("r.querySelector('#ag-step [data-kind=\"healthcheck\"]').click(); return r.host.actions.edit?.form?.kind !== 'healthcheck' && !r.querySelector('#ag-step .ag-fld, #ag-step [data-wf=\"save-step\"]')"));
     await none.ctx.close();
 
     // ----- Mit Diensten -----

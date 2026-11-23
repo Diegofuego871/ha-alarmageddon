@@ -7,6 +7,16 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.83.0] - 2026-11-23
+
+### Behoben
+
+- **"Nicht mehr anzeigen" im Einrichtungsassistenten entfernt jetzt den Zauberstab:** der Knopf mit dem Zauberstab im Kopf blieb nach "Nicht mehr anzeigen" stehen. Jetzt ist er weg, wie nach "Fertig"; den Assistenten startest du weiterhin von Hand unter Konfiguration › Anlage › Einrichtungsassistent. "Morgen wieder anzeigen" lässt den Knopf wie bisher stehen.
+
+### Geändert
+
+- **"HealthCheck melden" ist in der Auswahl der Aktionen immer sichtbar:** ohne HealthCheck-Dienst steht es ausgegraut da und lässt sich nicht wählen, mit einem kurzen orangen Hinweis ("Kein Dienst eingerichtet: Konfiguration › Anlage › HealthCheck"), damit man sieht, dass es die Aktion gibt. Sobald ein Dienst eingerichtet ist, wählt man sie wie bisher.
+
 ## [1.82.0] - 2026-11-22
 
 Enthält die Änderungen aus 1.81.0, 1.80.0 und 1.79.1.
@@ -2260,6 +2270,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.83.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.83.0
 [1.82.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.82.0
 [1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0
 [1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0

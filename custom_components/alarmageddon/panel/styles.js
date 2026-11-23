@@ -733,6 +733,11 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 .ag-kind .ag-wf-icon { grid-row: span 2; }
 .ag-kind b { font-weight: 500; }
 .ag-kind small { color: var(--ag-text2); font-size: 12px; line-height: 1.3; }
+/* Ohne eingerichteten Dienst: sichtbar, aber nicht wählbar, mit kurzem orangem Hinweis (der Hinweis bleibt auch auf dem Handy stehen) */
+.ag-kind-off { cursor: not-allowed; }
+.ag-kind-off > :not(.ag-kind-note) { opacity: 0.5; }
+.ag-kind-off:hover { border-color: var(--ag-divider); }
+.ag-kind-note { grid-column: 2; font-style: normal; font-size: 12px; font-weight: 500; line-height: 1.3; margin-top: 4px; color: var(--ag-warning-text); }
 .ag-dlg-body .list-search { flex: none; height: 48px; min-height: 48px; min-width: 0; padding: 0 8px 0 14px; }
 .ag-dlg-body .list-search input { font-size: 15px; }
 /* Handy: das Suchfeld im Fenster darf nicht mit "flex: 1 1 100%" der Seite in die Höhe wachsen (Geräteauswahl der Routinen) */

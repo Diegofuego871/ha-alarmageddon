@@ -7,6 +7,16 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.83.0] - 2026-11-23
+
+### Fixed
+
+- **"Don't show again" in the setup wizard now removes the wand:** the button with the wand in the header stayed after "Don't show again". It is gone now, like after "Finish"; you can still start the wizard by hand under Configuration › Alarm system › Setup wizard. "Show again tomorrow" keeps the button as before.
+
+### Changed
+
+- **"Report to HealthCheck" is always visible in the action selection:** without a HealthCheck service it stands there greyed out and cannot be chosen, with a short orange note ("No service set up: Configuration › Alarm system › HealthCheck"), so you can see that the action exists. As soon as a service is set up it is chosen like before.
+
 ## [1.82.0] - 2026-11-22
 
 Includes the changes from 1.81.0, 1.80.0 and 1.79.1.
@@ -2260,6 +2270,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.83.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.83.0
 [1.82.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.82.0
 [1.79.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.79.0
 [1.78.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.78.0

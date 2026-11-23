@@ -70,17 +70,25 @@ for (const lang of ["de", "en"]) {
     await s.tap(BTN);
     check(`${tag}: Klick öffnet den Assistenten bei "${t.notify}" (Server: start bei notify); dort kein Knopf im Kopf`, await s.waitFor(`return r.querySelector('.ag-wz')?.dataset.step === 'notify' && !r.querySelector('.ag-wzbtn')`, 8000)
       && J((await s.sim("return window.__wzCalls")).map((c) => [c.action, c.step])) === J([["start", "notify"]]));
-    // "Später" › "Nicht mehr anzeigen": der Knopf ist wieder da (schwingt in diesem Laden nicht noch einmal)
+    // "Später" › "Nicht mehr anzeigen": der Knopf ist weg (Wunsch des Nutzers 2026-11-23); der Assistent bleibt unter Konfiguration › Anlage
     await s.tap('[data-wz="later"]');
     await s.waitFor("return r.getElementById('ag-wzask').open");
     await s.tap('#ag-wzask [data-wz="ask-hide"]');
-    check(`${tag}: nach "Nicht mehr anzeigen" steht der Knopf wieder im Kopf, Schritt 5`, await s.waitFor(`return !r.querySelector('.ag-wz') && r.querySelector('${BTN}')?.title === ${J(t.resume(5, t.notify))}`, 8000));
+    check(`${tag}: nach "Nicht mehr anzeigen" ist der Knopf im Kopf weg (Server: hidden)`, await s.waitFor(`return !r.querySelector('.ag-wz') && !!r.querySelector('[data-act="rename"]') && !r.querySelector('${BTN}')`, 8000)
+      && (await s.sim("return window.__systems[0].wizard.state")) === "hidden");
+    await s.tap('[data-tab="config"]');
+    check(`${tag}: ausgeblendet: auch unter Konfiguration kein Knopf im Kopf`, await s.waitFor(`return !!r.querySelector('.ag-cfg, [data-sub]') && !r.querySelector('${BTN}')`));
     check(`${tag}: keine Fehler in der Konsole`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
 
-    // ----- Ausgeblendet bei "Fertig": Klick, "Fertig" schliesst ab, danach kein Knopf mehr (auch nicht unter Konfiguration) -----
-    s = await open(browser, { mobile, lang, query: "&wizard=hidden&wzstep=done" });
-    check(`${tag}: ausgeblendet: Knopf mit "${t.resume(8, t.done)}"`, await s.waitFor(`return r.querySelector('${BTN}')?.title === ${J(t.resume(8, t.done))}`));
+    // ----- Ausgeblendet (Nicht mehr anzeigen): schon beim Laden kein Knopf -----
+    s = await open(browser, { mobile, lang, query: "&wizard=hidden&wzstep=notify" });
+    check(`${tag}: ausgeblendet: kein Knopf im Kopf`, await s.waitFor(`return !!r.querySelector('[data-act="rename"]') && !r.querySelector('${BTN}')`));
+    await s.ctx.close();
+
+    // ----- Später bei "Fertig": Klick, "Fertig" schliesst ab, danach kein Knopf mehr (auch nicht unter Konfiguration) -----
+    s = await open(browser, { mobile, lang, query: "&wizard=later&wzuntil=2999-01-01&wzstep=done" });
+    check(`${tag}: später: Knopf mit "${t.resume(8, t.done)}"`, await s.waitFor(`return r.querySelector('${BTN}')?.title === ${J(t.resume(8, t.done))}`));
     await s.tap(BTN);
     check(`${tag}: Klick öffnet den Schritt "${t.done}"`, await s.waitFor("return r.querySelector('.ag-wz')?.dataset.step === 'done' && !r.querySelector('.ag-wz-next[disabled]')", 8000));
     await s.tap('[data-wz="next"]');

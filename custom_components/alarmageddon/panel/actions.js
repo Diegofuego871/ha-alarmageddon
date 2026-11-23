@@ -1159,9 +1159,13 @@ export class ActionsUi {
   openPicker(at, zone = "main") {
     this.edit = { insert: at, index: null, form: null, q: "", error: "", open: false, zone };
     // Je Liste nur, was dort Sinn hat: beim Alarm die Sirene (kein Aktivierungston), beim Scharfschalten der Aktivierungston (keine Sirene)
-    const kinds = this._zoneKinds(zone).filter((kind) => kind !== "healthcheck" || this._hcItems().length).map((kind) => KINDS.find((k) => k.kind === kind));
+    const kinds = this._zoneKinds(zone).map((kind) => KINDS.find((k) => k.kind === kind));
+    // Ohne eingerichteten Dienst bleibt "HealthCheck melden" sichtbar, aber ausgegraut mit kurzem Hinweis (Wunsch des Nutzers, 1.83.0): so sieht man, dass es das gibt
+    const noHc = !this._hcItems().length;
     const dlg = this._dlg();
-    this.host._setHtml(dlg, `<div class="ag-dlg-body"><h3>${esc(this._t("stepPick"))}</h3><div class="ag-kinds">${kinds.map((k) => `<button class="ag-kind" data-wf="kind" data-kind="${k.kind}"><span class="ag-wf-icon k-${k.kind}">${ic(k.icon, 22)}</span><b>${esc(this._t(k.label))}</b><small>${esc(this._t(k.hint))}</small></button>`).join("")}</div>
+    this.host._setHtml(dlg, `<div class="ag-dlg-body"><h3>${esc(this._t("stepPick"))}</h3><div class="ag-kinds">${kinds.map((k) => (k.kind === "healthcheck" && noHc
+      ? `<button class="ag-kind ag-kind-off" data-kind="healthcheck" disabled aria-disabled="true"><span class="ag-wf-icon k-${k.kind}">${ic(k.icon, 22)}</span><b>${esc(this._t(k.label))}</b><small>${esc(this._t(k.hint))}</small><em class="ag-kind-note">${esc(this._t("stepHealthcheckOff"))}</em></button>`
+      : `<button class="ag-kind" data-wf="kind" data-kind="${k.kind}"><span class="ag-wf-icon k-${k.kind}">${ic(k.icon, 22)}</span><b>${esc(this._t(k.label))}</b><small>${esc(this._t(k.hint))}</small></button>`)).join("")}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-wf="close">${esc(this._t("cancel"))}</button></div></div>`);
     dlg.showModal();
   }

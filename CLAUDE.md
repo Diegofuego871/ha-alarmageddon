@@ -324,8 +324,8 @@ Umsetzung:
   beide an, **ohne Angabe = aus**, `workflow._healthcheck`: `step.get("repeat") is True`): "Meldung wiederholen" sendet die Meldung bis zum Ende des Alarms im Abstand des Dienstes (`item["interval"]`, **nie ein eigener**), "Lebenszeichen pausieren" hält die normalen
   Lebenszeichen dieses Dienstes zurück (`HealthCheck._paused`, Prüfung in `async_ping`; ein Fehler des Selbsttests geht weiter hinaus). Nie in einem Test, nie in den Läufen neben dem Alarm (`workflow._hc_hold`); der Eintrag steht in `run["hc"]` und in
   `hass.data[DATA_HEALTHCHECK_HOLDS]` (der HealthCheck startet nach den Aktionen und gleicht beim Start ab), endet mit dem Alarm (`async_stop` → `_hc_release(True)`: gleich ein Lebenszeichen), ein Neuladen löst nur (`async_unload`, danach setzt `async_start` es mit einer Meldung sofort fort).
-  Nichts davon hält einen Schritt oder den Alarm auf (alles im `try`). Nicht in der Überwachung. Tests `tests/test_healthcheck_hold.py`, Zeilen "HealthCheck Halten" in `scripts/mutation_check.py`. Der Play-Knopf der Karte ist der gewöhnliche Schritt-Test (`test_workflow` mit dem Schritt). Panel (`actions.js`): nur im Auswahlfenster nur mit eingerichteten
-  Diensten (ein vorhandener Schritt bleibt immer gültig), Auswahl der Dienste, Zusatz frei bearbeitbar mit Vorschlag erkannter Dienste (`KNOWN.alarm` in `healthcheck.js`; der Nutzer hat das
+  Nichts davon hält einen Schritt oder den Alarm auf (alles im `try`). Nicht in der Überwachung. Tests `tests/test_healthcheck_hold.py`, Zeilen "HealthCheck Halten" in `scripts/mutation_check.py`. Der Play-Knopf der Karte ist der gewöhnliche Schritt-Test (`test_workflow` mit dem Schritt). Panel (`actions.js`): im Auswahlfenster immer sichtbar, ohne eingerichteten
+  Dienst ausgegraut und nicht wählbar mit kurzem orangem Hinweis (`.ag-kind-off`, `.ag-kind-note`, Text `stepHealthcheckOff`; seit 1.83.0, Wunsch des Nutzers 2026-11-23; ein vorhandener Schritt bleibt immer gültig), Auswahl der Dienste, Zusatz frei bearbeitbar mit Vorschlag erkannter Dienste (`KNOWN.alarm` in `healthcheck.js`; der Nutzer hat das
   letzte Wort, `hcTouched`; Knopf "Vorschlag übernehmen"), die ganze Adresse nur zur Ansicht, Link zu den Diensten (`hc-open`). Tests `tests/test_healthcheck.py -k "step or alarm_suffix or hanging_service"`,
   `tests/test_action_hang.py -k health_check`, Suite `hcaction-e2e.mjs`, Zeilen "HealthCheck melden" in `scripts/mutation_check.py`. Ein neuer Schritt braucht weiter `step_budget`, einen Fall in
   `HANGING_STEPS` und Tests "scheitert" und "hängt".
@@ -402,7 +402,7 @@ Umsetzung:
   auf "Fertig" (`start`, offene Änderungen fragen vorher). Suite `wzmore-e2e.mjs`. Der Knopf "Konfiguration öffnen" schliesst ab wie "Fertig". Testmeldungen im Assistenten (seit 1.71.0, Wunsch des Nutzers
   2026-11-20, 11:40): je eine an die Standard-Empfänger der Alarme und der Wartung (`test_notify` mit `group`, `Notifier.send_group_test`: ohne
   Empfänger der Gruppe geht nichts hinaus, nie an die Empfänger einer Art; `kind` und `group` schliessen sich aus). Knopf im Kopf (seit 1.71.0,
-  Entscheide des Nutzers 11:48): rund neben dem Stift (`_wizardBtn`), nur solange der Assistent nicht `done` ist, führt beim gemerkten Schritt weiter
+  Entscheide des Nutzers 11:48): rund neben dem Stift (`_wizardBtn`), nur solange der Assistent weder `done` noch `hidden` ("Nicht mehr anzeigen") ist (seit 1.83.0, Wunsch des Nutzers 2026-11-23, ersetzt den Entscheid von 1.71.0), führt beim gemerkten Schritt weiter
   (`data-wz="run"`, offene Änderungen fragen vorher); der Zauberstab schwingt einmal je Laden, `WAVE_MS` nach dem Erscheinen (`_waveLater`), **auch bei
   "Bewegung reduzieren"** (Entscheid "immer animieren"); Suite `wzbtn-e2e.mjs`. Ein neuer Schritt ergänzt `WZ_STEPS` (Panel) und `WIZARD_STEPS` (Server), die Texte `wz*`
   und die Suite `wizard-e2e.mjs`; Tests `tests/test_wizard.py`, Zeilen "Assistent" in `scripts/mutation_check.py`.
