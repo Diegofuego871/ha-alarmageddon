@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.86.2] - 2026-11-23
+
+### Behoben
+
+- **Die Marken des Selbsttests sitzen nie an der falschen Karte:** die Marken an den Karten der Aktionen beruhen auf der Stelle des Schritts. Wer im Entwurf Aktionen verschob, duplizierte, löschte oder umordnete, konnte eine Marke bis zur nächsten Prüfung an einer anderen Karte sehen. Jetzt fehlen die Marken einer Liste, sobald ihre Reihenfolge vom gespeicherten Stand abweicht, und kommen nach dem Speichern und der Prüfung danach wieder (oder wenn die Reihenfolge wieder stimmt). Andere Listen behalten ihre Marken.
+
 ## [1.86.1] - 2026-11-23
 
 ### Behoben
@@ -2299,6 +2305,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.86.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.2
 [1.86.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.1
 [1.86.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.0
 [1.85.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.85.0

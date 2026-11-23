@@ -66,11 +66,17 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return r.host._data?.selftest?.problems?.length === 2");
     await s.ev("const a=r.host.actions; a.reset(); a.render(); return 1");
     await s.waitFor("return !!r.querySelector('.ag-wf-main > .ag-wf-step')");
-    await s.ev("const a=r.host.actions; a._setSteps([...a.steps('main'), { type: 'group', mode: 'count', count: 2, steps: [{ type: 'wait', seconds: 5 }] }], 'main'); a._setSteps([{ type: 'wait', seconds: 1 }], 'armed'); a.render(); return 1");
+    await s.ev("const a=r.host.actions; a._setSteps([...a.steps('main'), { type: 'group', mode: 'count', count: 2, steps: [{ type: 'wait', seconds: 5 }] }], 'main'); a._setSteps([{ type: 'wait', seconds: 1 }], 'armed'); const sys=r.host._system(); sys.workflows={...sys.workflows,[a.trigger]:JSON.parse(JSON.stringify(a.steps('main')))}; sys.workflows_armed={...sys.workflows_armed,[a.trigger]:JSON.parse(JSON.stringify(a.steps('armed')))}; a.render(); return 1");
     await s.waitFor("return !!r.querySelector('.ag-wf-main > .ag-wf-group')");
     check(`${tag}: eine Gruppe trägt das Ausrufezeichen und zählt ihre Befunde ("1 Problem"), die Karte in der Gruppe trägt ihren eigenen`, await s.ev("const g=r.querySelector('.ag-wf-main > .ag-wf-group'); const inner=g.querySelector('.ag-wf-glist > .ag-wf-step'); const sum=g.querySelector('.ag-wf-ghead .ag-wf-prob.gsum'); return g.classList.contains('ag-bad') && !!g.querySelector(':scope > .ag-wf-badge') && !!sum && /1/.test(sum.textContent) && !!inner && inner.classList.contains('ag-bad') && !!inner.querySelector('.ag-wf-prob') && /Keller|keller/i.test(inner.querySelector('.ag-wf-prob').textContent)"));
     check(`${tag}: ein Befund ausserhalb des Alarms (Gerät nicht erreichbar beim Scharfschalten) ist orange, nicht rot`, await s.ev("const c=r.querySelector('.ag-wf-armed > .ag-wf-step'); const b=c?.querySelector(':scope > .ag-wf-badge'); return !!c && c.classList.contains('warn') && !!b && b.classList.contains('warn') && getComputedStyle(b).backgroundColor !== getComputedStyle(r.querySelector('.ag-wf-main .ag-wf-badge')).backgroundColor"));
     check(`${tag}: der Reiter trägt die Zahl beider Befunde (ein roter dabei)`, await s.ev("const a=r.querySelector('[data-trigger=\"away\"] .ag-tabmark'); return !!a && /2/.test(a.title) && a.classList.contains('err')"));
+    // Absicherung: ändert sich die Reihenfolge der Schritte im Entwurf, sässen die Marken (über die Stelle) an der falschen Karte: sie fehlen bis zum Speichern und Prüfen
+    await s.ev("const a=r.host.actions; a._setSteps([...a.steps('main')].reverse(), 'main'); a.render(); return 1");
+    check(`${tag}: nach einer geänderten Reihenfolge im Entwurf steht keine Marke an einer Karte der Liste (nie an der falschen)`, await s.waitFor("return !r.querySelector('.ag-wf-main .ag-wf-badge, .ag-wf-main .ag-wf-prob')", 3000).catch(() => false) !== false);
+    check(`${tag}: die Marken einer anderen, unveränderten Liste bleiben`, await s.ev("return !!r.querySelector('.ag-wf-armed > .ag-wf-step > .ag-wf-badge')"));
+    await s.ev("const a=r.host.actions; a._setSteps([...a.steps('main')].reverse(), 'main'); a.render(); return 1");
+    check(`${tag}: stimmt die Reihenfolge wieder, sind die Marken wieder da`, await s.waitFor("return !!r.querySelector('.ag-wf-main .ag-wf-badge')", 3000).catch(() => false) !== false);
     check(`${tag}: keine Fehler in der Konsole`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
   }

@@ -2067,6 +2067,21 @@ export class ActionsUi {
     return { main: "alarm", after: "after", armed: "armed", arming: "arming", entry: "entry", disarmed: "disarmed", report: "report" }[baseZone(zone)];
   }
 
+  // Stimmt die Reihenfolge der Schritte im Entwurf noch mit dem gespeicherten Stand überein, auf dem der Selbsttest prüfte? Die Marken sitzen über die Stelle
+  // (Schritt ab 1): nach Ziehen, Verschieben, Duplizieren oder Löschen im Entwurf würden sie an der falschen Karte stehen. Dann fehlen sie für diese Liste bis zum
+  // Speichern und der Prüfung danach (nie eine falsche Marke; Gleichheit der Art und Verschachtelung der Schritte genügt)
+  marksFit(trigger, list) {
+    const s = this.system;
+    const d = this.draft;
+    if (!s || !d || d.entry !== s.entry_id) return true;
+    const saved = { alarm: "workflows", after: "workflows_after", armed: "workflows_armed", arming: "workflows_arming", entry: "workflows_entry", disarmed: "workflows_disarmed", report: "workflows_report" }[list];
+    const key = list === "alarm" ? "wf" : list === "entry" ? "entrySteps" : list;
+    const mine = d[key]?.[trigger];
+    if (!saved || mine === undefined) return true;
+    const sig = (steps) => (Array.isArray(steps) ? steps : []).map((x) => (x?.type === "group" ? `g[${sig(x.steps)}]` : x?.type)).join(",");
+    return sig(mine) === sig((s[saved] || {})[trigger]);
+  }
+
   // Befunde, die diese Karte betreffen (Entität fehlt oder nicht erreichbar, Dienst, Lautsprecher, Empfänger fehlen ...); `i` ist die Stelle in `zone`
   _marks(zone, i) {
     const st = this.host.selftest;

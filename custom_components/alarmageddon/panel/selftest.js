@@ -85,7 +85,7 @@ export class SelfTestUi {
     const out = [];
     for (const p of this.problems()) {
       if (p.entry_id !== entry || p.kind !== "config") continue;
-      for (const place of p.places || []) if (place.area === "workflow" && place.step) out.push({ p, place });
+      for (const place of p.places || []) if (place.area === "workflow" && place.step && (this.host.actions?.marksFit?.(place.trigger, place.list) ?? true)) out.push({ p, place });
     }
     return out;
   }

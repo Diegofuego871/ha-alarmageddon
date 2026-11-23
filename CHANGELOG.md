@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.86.2] - 2026-11-23
+
+### Fixed
+
+- **Marks of the self-test never sit on the wrong card:** the marks on the cards of the actions rely on the position of the step. If you moved, duplicated, deleted or reordered actions in the draft, a mark could sit on another card until the next check. Now the marks of a list are hidden as soon as its order differs from the saved state, and come back after saving and the check that follows (or when the order matches again). Other lists keep their marks.
+
 ## [1.86.1] - 2026-11-23
 
 ### Fixed
@@ -2299,6 +2305,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.86.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.2
 [1.86.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.1
 [1.86.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.0
 [1.85.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.85.0
