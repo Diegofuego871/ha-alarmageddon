@@ -114,6 +114,13 @@ for (const lang of ["de", "en"]) {
       const s = await open("&status=warn&missing=1");
       await s.page.evaluate(() => { window.__states["binary_sensor.wohnung_ready_to_arm_away"].attributes.blocking_sensors = ["binary_sensor.garagentor"]; window.__setState("binary_sensor.wohnung_ready_to_arm_away", "off", {}); });
       check(`${tag}: ein offener Sensor sperrt "${t.away}": Warnzeichen und "Garagentor"`, await s.waitFor("const r=root(0); return r.querySelectorAll('.ag-rchip.no').length === 1 && r.querySelector('.ag-ready').parentElement.textContent.includes('Garagentor')"));
+      // 1.87.0: nicht erreichbar mit "Muss beim Scharfschalten erreichbar sein" (Attribut unreachable_sensors der Bereit-Entität): eigene Zeile
+      // (Der Nachbau setzt last_updated fest: erst "bereit", dann "nicht bereit" mit dem Attribut, damit die Karte neu zeichnet wie bei HA)
+      await s.page.evaluate(() => window.__setState("binary_sensor.wohnung_ready_to_arm_away", "on", { blocking_sensors: [] }));
+      await s.waitFor("return root(0).querySelectorAll('.ag-rchip.no').length === 0");
+      await s.page.evaluate(() => window.__setState("binary_sensor.wohnung_ready_to_arm_away", "off", { blocking_sensors: [], unreachable_sensors: ["binary_sensor.fenster_bad"] }));
+      const goneText = lang === "de" ? "ist nicht erreichbar" : "is not reachable";
+      check(`${tag}: ein nicht erreichbarer Sensor steht mit "${goneText}" unter "Bereit für"`, await s.waitFor(`const r=root(0); return r.querySelector('.ag-ready').parentElement.textContent.includes('${goneText}')`));
       check(`${tag}: Status: zwei Warnungen mit den Namen der Sensoren`, await s.ev(`const r=root(1); const x=r.textContent; return !!r.querySelector('.ag-status.warn') && x.includes('${t.offline}') && x.includes('Fenster Bad') && x.includes('${t.battery}') && x.includes('Haustür')`));
       check(`${tag}: unbekannte Entität: Hinweis "${t.missing}" statt eines Fehlers`, await s.ev(`return root(2).textContent.includes('${t.missing}')`));
       await s.page.evaluate(() => { window.__fail = new Error("Kaputt"); });

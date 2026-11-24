@@ -17,6 +17,9 @@ from homeassistant.core import CoreState, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import service
+from homeassistant.components.alarm_control_panel import DOMAIN as ALARM_DOMAIN
+import voluptuous as vol
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.storage import STORAGE_DIR, Store
 from homeassistant.helpers.typing import ConfigType
@@ -33,6 +36,7 @@ from .const import (
     CONF_ZONE_PREFIX,
     DATA_RECEPTION,
     DATA_SELFTEST,
+    DATA_STATE_STORES,
     DOMAIN,
     HEALTHCHECK_STORE_KEY,
     HEALTHLOG_STORE_KEY,
@@ -84,6 +88,12 @@ type AlarmageddonConfigEntry = ConfigEntry[RuntimeData]
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Einmal pro HA, nicht pro Anlage: sonst meldet HA doppelte Befehle
     websocket_api.async_register(hass)
+    # Quittieren für jeden Nutzer (Dashboard-Karte): ein Entitätsdienst, den HA nur für die Alarm-Entitäten von Alarmageddon annimmt. Das Panel
+    # braucht Administratorrechte, dieser Dienst nicht; ob ein Code nötig ist, bestimmt der Administrator (Einstellung der Anlage). Seit 1.87.0
+    # hier statt in der Plattform (Quality Scale "action-setup"): der Dienst gibt es, auch wenn eine Anlage gerade nicht geladen ist.
+    service.async_register_platform_entity_service(
+        hass, DOMAIN, "acknowledge", entity_domain=ALARM_DOMAIN, schema={vol.Optional("code"): cv.string}, func="async_acknowledge_alarm"
+    )
     return True
 
 
@@ -355,7 +365,8 @@ async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     await async_remove_recordings(hass, entry.entry_id)
     await async_remove_workflow_store(hass, entry.entry_id)
     await async_remove_monitor_store(hass, entry.entry_id)
-    await Store(hass, 1, f"{STATE_STORE_KEY}.{entry.entry_id}").async_remove()
+    # Dieselbe Ablage wie die der Anlage (1.87.0): ein ausstehender Schreibvorgang legte die Datei sonst nach dem Löschen wieder an
+    await (hass.data.get(DATA_STATE_STORES, {}).pop(entry.entry_id, None) or Store(hass, 1, f"{STATE_STORE_KEY}.{entry.entry_id}")).async_remove()
     # Einrichtungsassistent (1.69.0): der Zustand der Anlage verschwindet mit ihr
     (await async_get_settings(hass)).forget_wizard(entry.entry_id)
     # Selbsttest: die Meldung der Anlage unter "Reparaturen" verschwindet mit ihr; die übrigen Anlagen prüft er kurz danach neu

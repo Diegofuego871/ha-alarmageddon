@@ -162,7 +162,8 @@ async def test_presets_via_websocket(hass: HomeAssistant, hass_ws_client, hass_s
     client = await hass_ws_client(hass)
     await client.send_json({"id": 1, "type": "alarmageddon/data"})
     result = (await client.receive_json())["result"]
-    assert result["presets"]["motion"] == ["open_ok"]
+    # Seit 1.87.0 auch "Muss beim Scharfschalten erreichbar sein" (Entscheid des Nutzers, Code-Review M4)
+    assert result["presets"]["motion"] == ["open_ok", "reachable"]
     assert result["sensors"][MOTION]["type"] == "motion"
     await client.send_json({"id": 2, "type": "alarmageddon/save_presets", "presets": {"motion": [], "door": ["arm_on_close"]}})
     assert (await client.receive_json())["success"]

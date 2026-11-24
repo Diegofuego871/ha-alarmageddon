@@ -14,8 +14,8 @@ from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_ON, EntityCategory
-from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN, EntityCategory
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, State, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
@@ -27,6 +27,9 @@ from .entity import AlarmageddonEntity
 # So viele Befunde stehen in den Attributen (der Rest im Panel); die Liste wird nicht aufgezeichnet
 SELFTEST_ATTR_ITEMS = 20
 
+
+# Keine Abfrage, die Werte kommen vom Automaten und von Home Assistant (Quality Scale "parallel-updates", 1.87.0)
+PARALLEL_UPDATES = 0
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     controller: AlarmController = entry.runtime_data.controller
@@ -74,8 +77,9 @@ class ZoneSensor(AlarmageddonEntity, BinarySensorEntity):
 class ReadySensor(AlarmageddonEntity, BinarySensorEntity):
     """
     "Bereit zum Scharfschalten" je Modus (aus Alarmo übernommen, Entscheid des
-    Nutzers): ein, wenn kein offener Sensor das Scharfschalten verhindert.
-    Für Automationen, Wandtablets und die Übersicht im Panel.
+    Nutzers): ein, wenn kein offener und (seit 1.87.0) kein nicht erreichbarer
+    Sensor mit "Muss beim Scharfschalten erreichbar sein" das Scharfschalten
+    verhindert. Für Automationen, Wandtablets und die Übersicht im Panel.
     """
 
     def __init__(self, entry: ConfigEntry, controller: AlarmController, mode: str) -> None:
@@ -90,7 +94,7 @@ class ReadySensor(AlarmageddonEntity, BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"blocking_sensors": self._ctl.blocking_sensors(self._mode)}
+        return {"blocking_sensors": self._ctl.blocking_sensors(self._mode), "unreachable_sensors": self._ctl.blocking_unreachable(self._mode)}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -99,9 +103,14 @@ class ReadySensor(AlarmageddonEntity, BinarySensorEntity):
 
     @callback
     def _on_member(self, event: Event[EventStateChangedData]) -> None:
-        old, new = event.data["old_state"], event.data["new_state"]
-        if (old is not None and old.state == STATE_ON) != (new is not None and new.state == STATE_ON):
+        # Offen und (seit 1.87.0) erreichbar zählen beide: ein Sensor, der von "zu" auf "nicht verfügbar" geht, ändert "Bereit" ebenso
+        if _readiness(event.data["old_state"]) != _readiness(event.data["new_state"]):
             self.async_write_ha_state()
+
+
+def _readiness(state: State | None) -> tuple[bool, bool]:
+    """Was an einem Sensor für "Bereit" zählt: offen, nicht erreichbar (fehlt, nicht verfügbar, unbekannt)."""
+    return (state is not None and state.state == STATE_ON, state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN))
 
 
 class SelfTestSensor(AlarmageddonEntity, BinarySensorEntity):

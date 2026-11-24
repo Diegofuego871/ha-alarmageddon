@@ -415,6 +415,20 @@ Umsetzung:
   geprüft, ein beschädigter Wert macht die Anlage nie "nicht verfügbar". Nie `hass.async_block_till_done()` im Code der Integration (wartet auf jede
   Aufgabe von HA); Ziele von `async_call_later` sind immer `@callback`-Funktionen, nie ein `lambda` (läuft sonst in einem Thread). Tests in
   `tests/test_review_1_58.py`, Zeilen "Code-Review 1.58.0" in `scripts/mutation_check.py`.
+- Code-Review 1.87.0 (2026-11-24, Entscheide des Nutzers; Tests `tests/test_review_1_87.py`, Zeilen "Code-Review 1.87.0" in `scripts/mutation_check.py`):
+  **Übergabe zwischen Läufen (K1):** ein endender Lauf (quittierter Alarm, Voralarm, Test) stellt Geräte, die ein neuer Alarm schon schaltet, nie zurück,
+  sondern gibt ihren Zustand von vorher weiter (`workflow._owned_by_alarm`, `_hand_over`, `_taken_over`); ein Schritt des Alarms wartet höchstens
+  `HANDOVER_TIMEOUT`, bis der alte Lauf ein Gerät freigibt (`_await_free`, in `step_budget` eingerechnet). Jeder neue Schritt, der Geräte schaltet, ruft
+  `_await_free` und stellt über `_restore(run, owner)` zurück. **Sensorgedächtnis (H1, M1):** zu → ausgefallen (während überwacht) → offen zählt nach
+  `RETURN_CONFIRM` als Öffnen; Wechsel während des Neuladens reicht `_apply_handover` nach; nie ein Alarm aus "nicht verfügbar → offen" ohne vorheriges
+  "zu" unter Überwachung. **"Muss beim Scharfschalten erreichbar sein" (M4):** Option `reachable` (Voreinstellung Tür, Fenster, Bewegung; einmalige
+  Migration über `presets_reachable` in Einstellungen und Backups, danach entscheidet der Nutzer); `open_ok` wird im Panel umgekehrt als "Muss
+  geschlossen sein" gezeigt (`invert`), bei Bewegung nicht (`notFor`). Panel (`_unreachable`), Karte (`unreachable_sensors`) und Server
+  (`blocking_unreachable`) rechnen gleich. **Weiterer Sensor im Alarm (H2):** immer Protokoll und Meldung (`alarm_again`, gedrosselt); Nachalarm nur
+  mit `realarm_enabled`, nur wenn die Aktionen durch sind, höchstens `realarm_count`, Zustand "vorher" bleibt der vor dem ersten Alarm. **Codes (M2,
+  M3):** Sperre wächst nach `CODE_LOCKOUT_STEPS`, steht in der eigenen Ablage (eine `Store` je Anlage für die Laufzeit von HA, `controller.state_store`;
+  nie eine zweite Instanz derselben Ablage anlegen, sonst liest das Neuladen einen alten Stand); Moduswechsel im scharfen Zustand und in der
+  Ausgangsverzögerung verlangt den Code (`code_mode_change`), ausser `skip_code`. **Nie signierte Ton-URLs einbauen** (Entscheid M7 "Nie umsetzen").
 - Jede Änderung am Zustandsautomaten oder an der Szenario-Engine braucht
   Tests für: Deaktivieren während Verzögerung, Neustart während Alarm,
   Sensor fällt im scharfen Zustand aus.

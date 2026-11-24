@@ -39,7 +39,7 @@ from .monitor import check_monitors
 from .routines import check_routines, migrate_options
 from .schemas import SYSTEM_OPTIONS_SCHEMA
 from .selftest import async_note, async_resolve
-from .settings import async_get_settings, valid_healthchecks, valid_notify, valid_presets
+from .settings import async_get_settings, valid_healthchecks, valid_notify, valid_presets, with_reachable
 from .systems import async_create_system, new_system_name
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ async def async_export(hass: HomeAssistant, integration_version: str | None) -> 
         "created": dt_util.utcnow().isoformat(),
         # Eigene Töne (1.39.0): die Schritte verweisen nur auf die Kennung, die Datei steckt hier (Base64), damit ein Wiederherstellen nichts vermisst
         # HealthCheck (1.65.0): die Lebenszeichen mit ihren URLs gehören ins Backup (Entscheid des Nutzers 2026-11-18)
-        "settings": {"presets": settings.presets, "notify": settings.notify, "names_with_device": settings.names_with_device, "healthchecks": settings.healthchecks,
+        "settings": {"presets": settings.presets, "presets_reachable": True, "notify": settings.notify, "names_with_device": settings.names_with_device, "healthchecks": settings.healthchecks,
                      "custom_sounds": await registry.async_export() if (registry := hass.data.get(DATA_CUSTOM_SOUNDS)) is not None else []},
         "systems": systems,
     }
@@ -99,7 +99,9 @@ def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
     settings = data.get("settings") if isinstance(data.get("settings"), dict) else {}
     return {
         "systems": systems,
-        "presets": valid_presets(settings["presets"]) if "presets" in settings else None,
+        # Backups vor 1.87.0 kennen "Muss erreichbar sein" nicht: wie beim Laden der Einstellungen ergänzt (settings.with_reachable)
+        "presets": (valid_presets(settings["presets"]) if settings.get("presets_reachable") is True else with_reachable(valid_presets(settings["presets"])))
+        if "presets" in settings else None,
         "notify": valid_notify(settings["notify"]) if "notify" in settings else None,
         # Anzeige der Namen (1.12.0); ältere Sicherungen kennen sie nicht, dann bleibt die Einstellung, wie sie ist
         "names_with_device": settings["names_with_device"] if isinstance(settings.get("names_with_device"), bool) else None,

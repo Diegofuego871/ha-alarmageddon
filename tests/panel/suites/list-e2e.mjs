@@ -93,6 +93,9 @@ for (const mobile of [false, true]) {
   await s.tap('[data-sen="detail"][data-ent="binary_sensor.fenster_kueche"]');
   const sheet = mobile ? "#ag-sheet" : ".ag-side";
   check(`${tag}: Seitenblatt offen`, await s.waitFor(`return r.querySelector('${sheet}')?.innerText.includes('Fenster Küche')`));
+  // 1.87.0: "Darf offen sein" steht umgekehrt als "Muss beim Scharfschalten geschlossen sein" da (Fenster: an), dazu "Muss … erreichbar sein" (an)
+  const on = (key) => s.ev(`const b=r.querySelector('${sheet} [data-sen="opt"][data-key="${key}"]'); return !!b && (b.getAttribute('aria-checked') || b.getAttribute('aria-pressed')) === 'true'`);
+  check(`${tag}: Fenster: "Muss beim Scharfschalten geschlossen sein" an (open_ok aus) und "Muss … erreichbar sein" an`, (await on("open_ok")) && (await on("reachable")) && await s.ev(`return r.querySelector('${sheet}').innerText.includes('Muss beim Scharfschalten geschlossen sein') && r.querySelector('${sheet}').innerText.includes('Muss beim Scharfschalten erreichbar sein')`));
   // Fenster: alles aus der Voreinstellung; "Ausfall gilt als Alarm" einschalten macht einen eigenen Wert
   await s.tap(`${sheet} [data-sen="opt"][data-key="offline_alarm"]`);
   check(`${tag}: eigener Wert sichtbar`, await s.waitFor(`return !!r.querySelector('${sheet} [data-sen="reset-opt"][data-key="offline_alarm"]')`));
@@ -100,16 +103,18 @@ for (const mobile of [false, true]) {
   // Zurück zur Voreinstellung: keine Änderung mehr
   await s.tap(`${sheet} [data-sen="reset-opt"][data-key="offline_alarm"]`);
   check(`${tag}: zurück zur Voreinstellung`, await s.waitFor("return r.querySelector('.ag-foot').innerText.includes('Keine Änderungen')"));
-  // Bewegungsmelder: "darf offen sein" aus der Voreinstellung ausschalten und speichern
+  // Bewegungsmelder (1.87.0): ohne "Muss beim Scharfschalten geschlossen sein" (ein Melder darf beim Scharfschalten melden); "Muss beim
+  // Scharfschalten erreichbar sein" aus der Voreinstellung ausschalten und speichern
   if (mobile) await s.tap('#ag-sheet .ag-dlg-btns [data-sen="close-detail"]');
   await s.tap('[data-sen="detail"][data-ent="binary_sensor.bewegung_flur"]');
   await s.waitFor(`return r.querySelector('${sheet}')?.innerText.includes('Bewegung Flur')`);
-  await s.tap(`${sheet} [data-sen="opt"][data-key="open_ok"]`);
+  check(`${tag}: Bewegungsmelder: kein "Muss geschlossen sein", "Muss erreichbar sein" an`, await s.ev(`return !r.querySelector('${sheet} [data-sen="opt"][data-key="open_ok"]')`) && (await on("reachable")));
+  await s.tap(`${sheet} [data-sen="opt"][data-key="reachable"]`);
   if (mobile) await s.tap('#ag-sheet .ag-dlg-btns [data-sen="close-detail"]');
   await s.tap('[data-sen="save"]');
   check(`${tag}: gespeichert`, await s.waitFor("return r.querySelector('.ag-foot').innerText.includes('Gespeichert')"));
   const saved = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_zones').at(-1)");
-  check(`${tag}: Optionen gesendet`, saved?.sensor_options?.["binary_sensor.bewegung_flur"]?.open_ok === false && saved.sensor_options["binary_sensor.terrassentuer"]?.offline_alarm === true, JSON.stringify(saved?.sensor_options));
+  check(`${tag}: Optionen gesendet`, saved?.sensor_options?.["binary_sensor.bewegung_flur"]?.reachable === false && saved.sensor_options["binary_sensor.terrassentuer"]?.offline_alarm === true, JSON.stringify(saved?.sensor_options));
   check(`${tag}: keine Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
   await s.ctx.close();
 }
@@ -123,7 +128,8 @@ for (const mobile of [false, true]) {
   await s.tap('[data-sen="presets-save"]');
   check("Voreinstellungen gespeichert", await s.waitFor(`return !r.getElementById("ag-presets").open`));
   const presets = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_presets').at(-1)?.presets");
-  check("Voreinstellungen gesendet", JSON.stringify(presets?.window) === '["offline_alarm"]' && JSON.stringify(presets?.door) === '["arm_on_close"]', JSON.stringify(presets));
+  // Seit 1.87.0 tragen Tür und Fenster "Muss beim Scharfschalten erreichbar sein" (Voreinstellung wie der Server nach dem Update)
+  check("Voreinstellungen gesendet", JSON.stringify(presets?.window) === '["reachable","offline_alarm"]' && JSON.stringify(presets?.door) === '["reachable","arm_on_close"]', JSON.stringify(presets));
   check("Kurzzeile folgt der neuen Voreinstellung", await s.waitFor(`return r.querySelector('.ag-table').innerText.includes('Fenster · Ausfall')`));
 
   await s.tap('[data-sub="system"]');

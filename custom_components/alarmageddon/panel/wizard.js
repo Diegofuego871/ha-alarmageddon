@@ -17,7 +17,7 @@ const EMBED = { zones: true, actions: true, monitor: true };
 // Rauch, Wasser, Gas und Hitze: lösen über "Immer aktiv" aus, nicht über eine Zone
 const SAFETY = new Set(["smoke", "gas", "carbon_monoxide", "moisture", "heat"]);
 // Meldungen mit Schalter im Assistenten (die Alarmmeldung ist immer an; "Scharf geschaltet" und "Deaktiviert" stehen bei den Aktionen)
-const KINDS = [["arm_failed", "window"], ["sensor_offline", "offline"], ["battery_low", "battery"], ["sensor_unavailable", "offline"], ["selftest", "stethoscope"], ["healthcheck", "heartPulse"]];
+const KINDS = [["arm_failed", "window"], ["sensor_offline", "offline"], ["alarm_again", "bell"], ["code_locked", "key"], ["battery_low", "battery"], ["sensor_unavailable", "offline"], ["selftest", "stethoscope"], ["healthcheck", "heartPulse"]];
 // Messwerte der Überwachung nach Art (Filter im Fenster "Messwerte hinzufügen" und in der Liste der gewählten; Wunsch des Nutzers 2026-11-20,
 // 08:31: statt aller Messwerte als Knöpfe eine leere Liste, ein Fenster mit Suche und Filtern wie "Sensoren hinzufügen", die gewählten wieder
 // mit Suche und Filtern)
@@ -880,7 +880,7 @@ export class WizardUi {
       return `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(targets ? this._t("wzTestMsgHint", { targets }) : this._t("wzSumNoTargets"))}</small></div>${this._groupTestBtn(group, "ntTestType", targets)}</div>`;
     };
     const ready = (s.modes || []).map((m) => {
-      const open = h._blocking(s, m);
+      const open = [...h._blocking(s, m), ...h._unreachable(s, m)]; // offen oder nicht erreichbar (1.87.0)
       return `<span class="ag-rchip ${open.length ? "no" : "ok"}">${ic(open.length ? "alert" : "check", 14)}${esc(this._t(MODE_KEY[m]))}${open.length ? `: ${esc(open.map((id) => h._name(id)).join(", "))}` : ""}</span>`;
     }).join("");
     // Nur zur Information, keine Kacheln (sie verleiteten zum Klicken): je Funktion, was sie tut und wo sie steht; unten ein Knopf, der den

@@ -260,6 +260,10 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
         assert "00000000-1111-2222-3333-444444444444" not in text and "hc-ping.com" not in text
     alarm = hass.states.get(ALARM)
     answers["state"] = {"state": alarm.state, "attributes": dict(alarm.attributes)}
+    # Diagnose (1.87.0): der Download unter Geräte und Dienste trägt die Optionen der Anlage, nie Code, Hash oder Salz
+    from custom_components.alarmageddon.diagnostics import async_get_config_entry_diagnostics
+    answers["diagnostics"] = await async_get_config_entry_diagnostics(hass, entry)
+    assert answers["diagnostics"]["options"]["codes"] == "**REDACTED**", "die Diagnose muss geprüft werden"
     answers["entities"] = {s.entity_id: {"state": s.state, "attributes": dict(s.attributes)} for s in hass.states.async_all() if s.entity_id.split(".")[1].startswith("haus")}
     assert any("selbsttest" in e or "self_test" in e for e in answers["entities"]), "die Entität des Selbsttests muss geprüft werden"
     await hass.data[DATA_SELFTEST].async_save()

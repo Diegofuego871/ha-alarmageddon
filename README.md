@@ -38,8 +38,21 @@
 - **More than burglary.** Monitoring rules for the fridge, the cellar or the air report when a value leaves its limits, separate from the alarm and never with the siren.
 - **Watches itself.** A self-test checks regularly (every few hours by default, as often as every 5 minutes if you like) whether everything the alarm systems use is still there and reachable. A HealthCheck service outside (Healthchecks.io, Cronitor, Better Stack …) gets a regular life sign and alerts you when Home Assistant falls silent; Alarmageddon logs every life sign and tells you when a service stops answering.
 - **Traceable.** Every alarm is recorded with a timeline: which sensor, which steps, which notifications, who acknowledged.
-- **When in doubt, alarm.** State, delays and alarms survive a restart and a crash, no device holds up the siren, a watchdog supervises the flow.
+- **When in doubt, alarm.** State, delays and alarms survive a restart and a crash, no device holds up the siren, a watchdog supervises the flow. A door that is closed, drops off the radio and comes back open counts as opened; a door, window or motion sensor that does not answer prevents arming; another sensor during an alarm is reported and, if you like, sets off the alarm actions again.
 - **Stays at home.** No cloud, no account. Each alarm system is an ordinary `alarm_control_panel` entity; any sensor of Home Assistant works (Zigbee, Z-Wave, Thread/Matter, Wi-Fi, Bluetooth).
+
+## Why without automations?
+
+Many alarm systems in Home Assistant are a bundle of automations around an alarm entity. That works until something unusual happens: a second sensor while the first automation is still running, a restart in the middle of an alarm, a device that does not answer, a renamed entity. Alarmageddon is one piece of code instead, built only for this purpose:
+
+- **One state machine decides.** Every sensor change goes through the same rules, one after the other. Nothing depends on the mode of an automation ("single", "restart", "queued") or on which automation happens to run first.
+- **Restart and crash are part of the design.** State, delays and the step the alarm actions had reached are written at once and continue after a restart. A running automation is gone after a restart.
+- **Nothing holds up the siren.** Every device call has a time limit, a failing step never stops the rest, and a watchdog supervises the whole flow. You would have to build each of these into every automation yourself.
+- **Safe to change.** Changes are a draft that the integration checks before saving; the self-test finds a missing or unreachable siren, speaker or recipient before an alarm needs it.
+- **Built-in security.** Codes per person only as a salted hash with an increasing lockout, push buttons that only work from the phone of a recipient, an administrator-only panel.
+- **Tested like a product.** Every promise above is checked by automated tests, and a mutation check removes each safeguard and requires a test to fail.
+
+Automations stay possible: each alarm system is an ordinary `alarm_control_panel` entity with "Ready" and zone entities, and "Own action" in the flow calls anything Home Assistant can do. The [manual](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.md#why-without-automations) explains it in detail, including what automations still do better.
 
 ## Installation
 
@@ -103,12 +116,14 @@ An alarm system has to work when something else does not. This is built in and c
 
 - **Restart and crash:** every change of state is written at once. An entry delay that runs out during a restart becomes an alarm; a running alarm continues.
 - **Nothing holds up the siren:** a device that does not answer is skipped after 10 seconds; a failing step never stops the rest; a watchdog starts the flow itself if it fails to begin.
-- **Codes:** stored only as a salted hash, never shown, never in a backup. Five wrong codes lock the alarm system for one minute.
+- **Codes:** stored only as a salted hash, never shown, never in a backup. Five wrong codes lock the codes for one minute, each further lockout for longer (up to 15 minutes); the lockout survives saving and restarting, every wrong code is in the log, and a lockout is reported by push. Switching between modes while armed asks for the code too.
 - **Administrators only** reach the panel and its commands. Buttons in push notifications only work from the phone of a recipient.
-- **Failures:** a sensor that stops answering while armed is reported, or counts as an alarm if you like.
+- **Failures:** a sensor that stops answering while armed is reported (at most every 10 minutes per sensor), or counts as an alarm if you like. A sensor that was closed, drops out and comes back open counts as opened (after 2 seconds). Doors, windows and motion sensors must be reachable when arming (adjustable per sensor type and per sensor).
+- **During an alarm:** another sensor is reported; with "Re-alarm" the alarm actions run again once they are over (off by default, at most 1 to 10 times). Acknowledging and an immediate new alarm no longer switch off the siren of the new alarm.
+- **Saving while armed:** every save reloads the alarm system; a sensor that opens or drops out in that moment is evaluated afterwards, never lost.
 - **Self-test:** checks regularly whether everything the alarm uses is there and reachable, and records what failed; it only reads and never holds up an alarm.
 - **HealthCheck:** life signs to a service outside report a silent Home Assistant. The ping URL appears in full only in the panel and in backups, never in the log or a notification; a life sign waits at most 10 seconds.
-- **Tested:** more than 1,600 automated tests against a real Home Assistant (in two versions), about 8,700 checks of the interface, and a mutation check that removes each of 410 safeguards and requires a test to fail.
+- **Tested:** more than 1,700 automated tests against a real Home Assistant (in two versions), about 9,500 checks of the interface, and a mutation check that removes each of 491 safeguards and requires a test to fail.
 
 ### Limits
 
@@ -122,7 +137,7 @@ Alarmageddon is not a certified alarm system:
 
 1. Add the alarm entity to the HomeKit Bridge of Home Assistant (include the domain `alarm_control_panel` or the entity).
 2. Apple Home shows "Off" and the modes that are switched on.
-3. With a code: HomeKit does not ask for it. Set it in the HomeKit Bridge configuration (`entity_config` → `code`) or as default code in the entity settings.
+3. With a code: HomeKit does not ask for it. Set it in the HomeKit Bridge configuration (`entity_config` → `code`) or as default code in the entity settings. Since 1.87.0 switching between modes while armed needs the code as well; with the code set there, Apple Home switches as before.
 
 ## Learn more
 

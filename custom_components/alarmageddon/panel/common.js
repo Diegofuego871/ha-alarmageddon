@@ -277,7 +277,12 @@ export const isConnectionError = (err) => err === 1 || err === 3 || err?.code ==
 // Optionen pro Sensor (Reihenfolge wie im Seitenblatt) und Sensorarten (wie const.py)
 export const OPTIONS = [
   { key: "always", icon: "flash", name: "optAlways", hint: "optAlwaysHint", short: "optAlwaysShort" },
-  { key: "open_ok", icon: "doorOpen", name: "optOpenOk", hint: "optOpenOkHint", short: "optOpenOkShort" },
+  // Seit 1.87.0 als "Muss beim Scharfschalten geschlossen sein" angezeigt (Entscheid des Nutzers 2026-11-24): der Schalter zeigt das Gegenteil des
+  // gespeicherten Werts (invert), gespeichert bleibt "open_ok". Bei Bewegungsmeldern nicht angezeigt (notFor): ein Melder darf beim Scharfschalten
+  // ausgelöst sein, ihr Wert bleibt die Voreinstellung. Der Kurztext in der Tabelle erscheint wie bisher, wenn der Sensor offen sein darf.
+  { key: "open_ok", invert: true, notFor: ["motion"], icon: "door", name: "optMustClose", hint: "optMustCloseHint", short: "optOpenOkShort" },
+  // Muss beim Scharfschalten erreichbar sein (1.87.0, Code-Review M4): ohne Kurztext in der Tabelle (bei fast allen Sensoren an)
+  { key: "reachable", icon: "signal", name: "optReachable", hint: "optReachableHint", short: null },
   { key: "bypass", icon: "shieldOff", name: "optBypass", hint: "optBypassHint", short: "optBypassShort" },
   { key: "arm_on_close", icon: "lockClosed", name: "optArmOnClose", hint: "optArmOnCloseHint", short: "optArmOnCloseShort" },
   { key: "offline_alarm", icon: "offline", name: "optOffline", hint: "optOfflineHint", short: "optOfflineShort" },
@@ -288,7 +293,7 @@ export const TYPES = [
   ["door", "door", "typeDoor"], ["window", "window", "typeWindow"], ["motion", "motion", "typeMotion"],
   ["environment", "smoke", "typeEnvironment"], ["tamper", "alert", "typeTamper"], ["other", "sensor", "typeOther"],
 ];
-export const DEFAULT_PRESETS = { door: ["arm_on_close"], window: [], motion: ["open_ok"], environment: ["always"], tamper: ["offline_alarm"], other: [] };
+export const DEFAULT_PRESETS = { door: ["reachable", "arm_on_close"], window: ["reachable"], motion: ["open_ok", "reachable"], environment: ["always"], tamper: ["offline_alarm"], other: [] };
 export const GONE = new Set(["unavailable", "unknown"]);
 
 // Suche in den Listen der Fenster (Routinen, eigene Töne, Sicherungen; 1.60.0): jedes Wort der Eingabe muss in einem der Texte vorkommen,

@@ -38,8 +38,21 @@
 - **Mehr als Einbruch.** Regeln der Überwachung für Kühlschrank, Keller oder Luft melden, wenn ein Wert seine Grenzen verlässt, getrennt vom Alarm und nie mit der Sirene.
 - **Behält sich selbst im Blick.** Ein Selbsttest prüft regelmässig (standardmässig alle paar Stunden, auf Wunsch bis alle 5 Minuten), ob alles, was die Anlagen brauchen, noch da und erreichbar ist. Ein HealthCheck-Dienst draussen (Healthchecks.io, Cronitor, Better Stack …) bekommt regelmässig ein Lebenszeichen und meldet sich, wenn Home Assistant verstummt; Alarmageddon protokolliert jedes Lebenszeichen und sagt dir, wenn ein Dienst nicht mehr antwortet.
 - **Nachvollziehbar.** Jeder Alarm wird mit Zeitachse aufgezeichnet: welcher Sensor, welche Schritte, welche Meldungen, wer quittiert hat.
-- **Im Zweifel alarmieren.** Zustand, Verzögerungen und Alarme überstehen Neustart und Absturz, kein Gerät hält die Sirene auf, ein Wächter beaufsichtigt den Ablauf.
+- **Im Zweifel alarmieren.** Zustand, Verzögerungen und Alarme überstehen Neustart und Absturz, kein Gerät hält die Sirene auf, ein Wächter beaufsichtigt den Ablauf. Eine Tür, die zu ist, aus dem Funk fällt und offen zurückkommt, gilt als geöffnet; ein Tür-, Fenster- oder Bewegungssensor, der nicht antwortet, verhindert das Scharfschalten; ein weiterer Sensor während eines Alarms wird gemeldet und startet auf Wunsch die Alarmaktionen erneut.
 - **Bleibt zu Hause.** Keine Cloud, kein Konto. Jede Anlage ist eine gewöhnliche `alarm_control_panel`-Entität; jeder Sensor von Home Assistant funktioniert (Zigbee, Z-Wave, Thread/Matter, WLAN, Bluetooth).
+
+## Warum ohne Automationen?
+
+Viele Alarmanlagen in Home Assistant sind ein Bündel von Automationen um eine Alarm-Entität. Das geht gut, bis etwas Ungewöhnliches geschieht: ein zweiter Sensor, während die erste Automation noch läuft, ein Neustart mitten im Alarm, ein Gerät, das nicht antwortet, eine umbenannte Entität. Alarmageddon ist stattdessen ein Stück Code, nur für diesen Zweck gebaut:
+
+- **Ein Automat entscheidet.** Jede Änderung eines Sensors geht durch dieselben Regeln, eine nach der anderen. Nichts hängt vom Modus einer Automation ab ("single", "restart", "queued") oder davon, welche Automation zuerst läuft.
+- **Neustart und Absturz sind eingeplant.** Zustand, Verzögerungen und der Schritt, den die Alarmaktionen erreicht hatten, werden sofort geschrieben und laufen nach einem Neustart weiter. Eine laufende Automation ist nach einem Neustart weg.
+- **Nichts hält die Sirene auf.** Jeder Aufruf eines Geräts hat eine Zeitgrenze, ein scheiternder Schritt stoppt den Rest nie, und ein Wächter beaufsichtigt den ganzen Ablauf. In Automationen müsstest du das alles in jede einzeln einbauen.
+- **Sicher ändern.** Änderungen sind ein Entwurf, den die Integration vor dem Speichern prüft; der Selbsttest findet eine fehlende oder nicht erreichbare Sirene, einen Lautsprecher oder Empfänger, bevor ein Alarm sie braucht.
+- **Sicherheit eingebaut.** Codes pro Person nur als Hash mit Salz und mit wachsender Sperre, Push-Knöpfe, die nur vom Handy eines Empfängers wirken, ein Panel nur für Administratoren.
+- **Getestet wie ein Produkt.** Jede Zusage oben wird von automatischen Tests geprüft, und eine Mutationsprobe baut jede Schutzmassnahme aus und verlangt, dass ein Test scheitert.
+
+Automationen bleiben möglich: Jede Anlage ist eine gewöhnliche `alarm_control_panel`-Entität mit Entitäten "Bereit" und Zonen, und "Eigene Aktion" im Ablauf ruft alles auf, was Home Assistant kann. Das [Handbuch](https://github.com/Diegofuego871/ha-alarmageddon/blob/main/docs/MANUAL.de.md#warum-ohne-automationen) erklärt es im Detail, auch, was Automationen weiterhin besser können.
 
 ## Installation
 
@@ -103,12 +116,14 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Das ist ei
 
 - **Neustart und Absturz:** Jeder Wechsel des Zustands wird sofort geschrieben. Eine Eingangsverzögerung, die während eines Neustarts abläuft, wird zum Alarm; ein laufender Alarm geht weiter.
 - **Nichts hält die Sirene auf:** Ein Gerät, das nicht antwortet, wird nach 10 Sekunden übergangen; ein scheiternder Schritt stoppt den Rest nie; ein Wächter startet den Ablauf selbst, wenn er ausbleibt.
-- **Codes:** nur als Hash mit Salz gespeichert, nie angezeigt, nie in einem Backup. Fünf falsche Codes sperren die Anlage für eine Minute.
+- **Codes:** nur als Hash mit Salz gespeichert, nie angezeigt, nie in einem Backup. Fünf falsche Codes sperren die Codes für eine Minute, jede weitere Sperre länger (bis 15 Minuten); die Sperre übersteht Speichern und Neustart, jeder falsche Code steht im Protokoll, und eine Sperre kommt als Push-Meldung. Auch der Wechsel zwischen Modi im scharfen Zustand verlangt den Code.
 - **Nur Administratoren** erreichen das Panel und seine Befehle. Knöpfe in Push-Meldungen wirken nur vom Handy eines Empfängers.
-- **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet, wird gemeldet oder zählt auf Wunsch als Alarm.
+- **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet, wird gemeldet (höchstens alle 10 Minuten je Sensor) oder zählt auf Wunsch als Alarm. Ein Sensor, der zu war, ausfällt und offen zurückkommt, gilt als geöffnet (nach 2 Sekunden). Türen, Fenster und Bewegungsmelder müssen beim Scharfschalten erreichbar sein (einstellbar je Sensorart und je Sensor).
+- **Während eines Alarms:** Ein weiterer Sensor wird gemeldet; mit "Nachalarm" laufen die Alarmaktionen erneut, wenn sie vorbei sind (standardmässig aus, höchstens 1 bis 10 Mal). Quittieren und sofort ein neuer Alarm schalten die Sirene des neuen Alarms nicht mehr ab.
+- **Speichern im scharfen Zustand:** Jedes Speichern lädt die Anlage neu; ein Sensor, der in diesem Moment öffnet oder ausfällt, wird danach ausgewertet, nie vergessen.
 - **Selbsttest:** prüft regelmässig, ob alles, was der Alarm braucht, da und erreichbar ist, und hält fest, was scheiterte; er liest nur und hält nie einen Alarm auf.
 - **HealthCheck:** Lebenszeichen an einen Dienst draussen melden ein verstummtes Home Assistant. Die Ping-URL steht ganz nur im Panel und im Backup, nie im Log oder in einer Meldung; ein Lebenszeichen wartet höchstens 10 Sekunden.
-- **Getestet:** über 1600 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 8700 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 410 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
+- **Getestet:** über 1700 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen), rund 9500 Prüfungen der Oberfläche und eine Mutationsprobe, die jede von 491 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert.
 
 ### Grenzen
 
@@ -122,7 +137,7 @@ Alarmageddon ist keine zertifizierte Alarmanlage:
 
 1. Die Alarm-Entität in die HomeKit Bridge von Home Assistant aufnehmen (Domäne `alarm_control_panel` oder die Entität einschliessen).
 2. Apple Home zeigt "Aus" und die eingeschalteten Modi.
-3. Mit Code: HomeKit fragt nicht danach. Trage ihn in der Konfiguration der HomeKit Bridge ein (`entity_config` → `code`) oder als Standardcode in den Einstellungen der Entität.
+3. Mit Code: HomeKit fragt nicht danach. Trage ihn in der Konfiguration der HomeKit Bridge ein (`entity_config` → `code`) oder als Standardcode in den Einstellungen der Entität. Seit 1.87.0 verlangt auch der Wechsel zwischen Modi im scharfen Zustand den Code; ist er dort eingetragen, wechselt Apple Home wie bisher.
 
 ## Mehr erfahren
 

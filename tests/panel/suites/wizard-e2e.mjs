@@ -9,13 +9,13 @@ const T = {
     askTitle: "Assistent später fortsetzen?", later: "Später", stepOf: (n, total) => `Schritt ${n} von ${total}`, chapter: "Einrichtungsassistent", del: "Anlage löschen",
     stDone: "Abgeschlossen", stLater: "Verschoben bis", stHidden: "Ausgeblendet, bei Schritt 3", run: "Assistent starten", resume: "Bei Schritt 3 fortsetzen", restart: "Von vorn",
     dirty: "Ungespeicherte Änderungen", chosen: (n, total) => `${n} von ${total} gewählt`, codeSome: "Codes dieser Anlage: Diego", codeAnna: "Codes dieser Anlage: Anna",
-    siren: "Sirene 3 Minuten", sound: "Alarmton", sumZones: "3 Sensoren · Eingang: Haustür · Verlassen: 60 s · Deaktivieren: 45 s", sumNotify: "an diego · 6 von 7 Meldungen an",
+    siren: "Sirene 3 Minuten", sound: "Alarmton", sumZones: "3 Sensoren · Eingang: Haustür · Verlassen: 60 s · Deaktivieren: 45 s", sumNotify: "an diego · 8 von 9 Meldungen an",
     sumActions: "nur die Alarmmeldung", found: "Gefunden: 3 Sensoren", entry: "Eingangsverzögerung", modes: ["Anwesend", "Abwesend", "Nacht"] },
   en: { moreTitles: ["Routines", "Codes per person", "Your own sounds", "HealthCheck", "Dashboard card"], tAlarm: "Alarm notification", tMaint: "Maintenance notification", tMsgAlarm: "Test notification: alarm", tMsgMaint: "Test notification: maintenance", monAdd: "Add measurements", monChosen: "chosen", more: "More features", openCfg: "Open configuration", welcome: "Welcome to Alarmageddon", welcomeShort: "Welcome", title: "Setup assistant", start: "Let's go", next: "Next", finish: "Finish", skipCode: "Continue without code",
     askTitle: "Continue the assistant later?", later: "Later", stepOf: (n, total) => `Step ${n} of ${total}`, chapter: "Setup assistant", del: "Delete alarm system",
     stDone: "Completed", stLater: "Postponed until", stHidden: "Hidden, at step 3", run: "Start assistant", resume: "Continue at step 3", restart: "Start over",
     dirty: "Unsaved changes", chosen: (n, total) => `${n} of ${total} chosen`, codeSome: "Codes of this alarm system: Diego", codeAnna: "Codes of this alarm system: Anna",
-    siren: "Siren 3 minutes", sound: "Alarm sound", sumZones: "3 sensors · entry: Haustür · leave: 60 s · disarm: 45 s", sumNotify: "to diego · 6 of 7 notifications on",
+    siren: "Siren 3 minutes", sound: "Alarm sound", sumZones: "3 sensors · entry: Haustür · leave: 60 s · disarm: 45 s", sumNotify: "to diego · 8 of 9 notifications on",
     sumActions: "only the alarm notification", found: "Found: 3 sensors", entry: "Entry delay", modes: ["Home", "Away", "Night"] },
 };
 const DOOR = "binary_sensor.haustuer";
@@ -230,8 +230,8 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-wz="next"]');
 
     // Meldungen: zwei Empfängergruppen, Schalter je Meldung
-    check(`${tag}: Meldungen: Empfänger der Alarme und der Wartung, Alarmmeldung immer an, sechs Schalter (mit HealthCheck)`, await H.waitStep("notify") && (await s.waitFor(`const g=r.querySelectorAll('.ag-recip'); return g.length === 2 && !!g[1].querySelector('.ag-warntext')
-      && !!r.querySelector('.ag-wz-lock') && r.querySelectorAll('[data-wz="kind"]').length === 6`)));
+    check(`${tag}: Meldungen: Empfänger der Alarme und der Wartung, Alarmmeldung immer an, acht Schalter (mit HealthCheck; seit 1.87.0 mit weiterem Sensor im Alarm und Code-Sperre)`, await H.waitStep("notify") && (await s.waitFor(`const g=r.querySelectorAll('.ag-recip'); return g.length === 2 && !!g[1].querySelector('.ag-warntext')
+      && !!r.querySelector('.ag-wz-lock') && r.querySelectorAll('[data-wz="kind"]').length === 8`)));
     // Zwei Testknöpfe (Wunsch des Nutzers 2026-11-20, 11:40: die Empfänger von Alarmen und von Wartungsmeldungen können verschieden sein)
     const tbtns = () => s.ev("return [...r.querySelectorAll('[data-wz=\"nt-test\"]')].map((b) => ({ g: b.dataset.group, t: b.innerText.trim(), off: b.disabled }))");
     const tb0 = await tbtns();

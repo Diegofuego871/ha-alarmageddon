@@ -43,8 +43,12 @@ from .const import (
     DOMAIN,
     MODES,
     NOTIFY_MODE_KINDS,
+    OPT_REACHABLE,
     SENSOR_OPTIONS,
     SENSOR_TYPES,
+    TYPE_DOOR,
+    TYPE_MOTION,
+    TYPE_WINDOW,
     SETTINGS_STORE_KEY,
     TYPE_OTHER,
     WIZARD_STATES,
@@ -68,6 +72,22 @@ def valid_presets(value: Any) -> dict[str, list[str]]:
         for kind in SENSOR_TYPES:
             if isinstance(value.get(kind), list):
                 out[kind] = [o for o in SENSOR_OPTIONS if o in value[kind]]
+    return out
+
+
+# Arten, bei denen "Muss beim Scharfschalten erreichbar sein" voreingestellt ist (1.87.0, Entscheid des Nutzers 2026-11-24)
+REACHABLE_TYPES = (TYPE_DOOR, TYPE_WINDOW, TYPE_MOTION)
+
+
+def with_reachable(presets: dict[str, list[str]]) -> dict[str, list[str]]:
+    """
+    Voreinstellungen aus der Zeit vor 1.87.0 (Ablage, Backup) bekommen "Muss erreichbar sein" für Tür, Fenster und Bewegung: auch bestehende Anlagen
+    verhindern damit das Scharfschalten mit einem nicht erreichbaren Sensor (Entscheid des Nutzers, Code-Review M4). Danach entscheidet der Nutzer.
+    """
+    out = {kind: list(options) for kind, options in presets.items()}
+    for kind in REACHABLE_TYPES:
+        if OPT_REACHABLE not in out.get(kind, []):
+            out[kind] = [o for o in SENSOR_OPTIONS if o in {*out.get(kind, []), OPT_REACHABLE}]
     return out
 
 
@@ -310,6 +330,8 @@ class Settings:
         self._store = Store(hass, 1, SETTINGS_STORE_KEY)
         self.data: dict[str, Any] = {
             "presets": copy.deepcopy(DEFAULT_PRESETS),
+            # Die Voreinstellungen kennen "Muss erreichbar sein" (1.87.0); fehlt der Vermerk in der Ablage, wird es einmal ergänzt (with_reachable)
+            "presets_reachable": True,
             "notify": copy.deepcopy(DEFAULT_NOTIFY),
             # Namen der Sensoren (1.12.0): an (Standard) = "Gerät - Sensor", aus = nur der Name des Sensors. Gilt überall, wo ein
             # Sensor genannt wird (Panel, Protokoll, Meldungen), siehe devices.display_name
@@ -359,6 +381,10 @@ class Settings:
             self.data["wizard"] = {e.entry_id: {"state": "done"} for e in self.hass.config_entries.async_entries(DOMAIN)}
         self.data["wizard"] = valid_wizard(self.data.get("wizard"))
         self.data["presets"] = valid_presets(self.data.get("presets"))
+        reachable = isinstance(stored, dict) and stored.get("presets_reachable") is not True
+        if reachable:
+            self.data["presets"] = with_reachable(self.data["presets"])
+            self.data["presets_reachable"] = True
         self.data["notify"] = valid_notify(self.data.get("notify"))
         self.data["names_with_device"] = self.data.get("names_with_device") is not False
         self.data["auto_backup"] = valid_auto_backup(self.data.get("auto_backup"))
@@ -369,8 +395,9 @@ class Settings:
         self.data.pop("cleanup", None)  # kurzzeitiger Vermerk eines Zwischenstands von 1.82.0
         stored_changes = self.data.get("last_changes")
         self.data["last_changes"] = {k: v for k, v in stored_changes.items() if isinstance(k, str) and isinstance(v, str)} if isinstance(stored_changes, dict) else {}
-        if migrate:
-            # Sofort festhalten: sonst hielte ein späterer Start die inzwischen neu angelegten Anlagen ebenfalls für eingerichtet
+        if migrate or reachable:
+            # Sofort festhalten: sonst hielte ein späterer Start die inzwischen neu angelegten Anlagen ebenfalls für eingerichtet (Assistent), und
+            # ein vom Nutzer später abgewähltes "Muss erreichbar sein" käme nie wieder zurück
             await self._async_write()
 
     # -- Einrichtungsassistent (1.69.0) --

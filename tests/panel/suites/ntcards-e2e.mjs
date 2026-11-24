@@ -36,9 +36,18 @@ for (const lang of ["de", "en"]) {
         alarm: kinds(chaps[1]), maint: kinds(chaps[2]), old: !!r.querySelector('.ag-nt .ag-mt'), wide: r.host._content.scrollWidth - r.host._content.clientWidth }`);
     // Wartungsmeldungen tragen denselben Rahmen wie die Störungsmeldungen (Wunsch des Nutzers 2026-11-23)
     check(`${tag}: Wartungsmeldungen stehen im gleichen Rahmen wie die Störungsmeldungen (gleiche Linie, gleiche Rundung)`, await s.ev(`const chaps=[...r.querySelectorAll('.ag-nt .ag-chap')]; const f=(c) => { const g=c.querySelector('.ag-pmgroup'); if (!g) return null; const st=getComputedStyle(g); return [st.borderTopWidth, st.borderTopLeftRadius, g.querySelectorAll('.ag-ntk').length]; }; const a=f(chaps[1]), m=f(chaps[2]); return !!a && !!m && a[1] === m[1] && m[0] === a[0] && parseFloat(m[0]) >= 1 && m[2] === 4`));
-    check(`${tag}: drei Kapitel ${t.chapters.join(", ")}; Störung: Ausfall, Scharfschalten; Wartung: Batterie, nicht erreichbar, Selbsttest, HealthCheck; keine alten Zeilen`,
-      JSON.stringify(page.titles) === JSON.stringify(t.chapters) && page.recip && JSON.stringify(page.alarm) === '["sensor_offline","arm_failed"]'
+    // 1.87.0: dazu "Weiterer Sensor während eines Alarms" und "Codes nach Fehleingaben gesperrt"
+    check(`${tag}: drei Kapitel ${t.chapters.join(", ")}; Störung: Ausfall, Scharfschalten, weiterer Sensor im Alarm, Codes gesperrt; Wartung: Batterie, nicht erreichbar, Selbsttest, HealthCheck; keine alten Zeilen`,
+      JSON.stringify(page.titles) === JSON.stringify(t.chapters) && page.recip && JSON.stringify(page.alarm) === '["sensor_offline","arm_failed","alarm_again","code_locked"]'
       && JSON.stringify(page.maint) === '["battery_low","sensor_unavailable","selftest","healthcheck"]' && !page.old && page.wide <= 1, JSON.stringify(page));
+
+    // 1.87.0: die neuen Störungsmeldungen sind Karten wie die anderen (Titel, Play, Stift, an); "Weiterer Sensor" ist standardmässig kritisch
+    const fresh = await s.ev(`return ['alarm_again', 'code_locked'].map((k) => { const c=r.querySelector('.ag-ntk[data-ntk="' + k + '"]:not([data-mode])'); if (!c) return null; const p=c.querySelector('[data-nt="test"]');
+      return { title: c.querySelector('.ag-wf-text b').textContent, sum: c.querySelector('.ag-wf-text small').textContent, play: !!p && !p.disabled, pen: !!c.querySelector('[data-nt="edit"]'),
+        on: c.querySelector('[data-nt="enabled"]').getAttribute('aria-checked') }; })`);
+    const fr = lang === "de" ? { again: "Weiterer Sensor während eines Alarms", locked: "Codes nach Fehleingaben gesperrt", crit: "kritisch" } : { again: "Another sensor during an alarm", locked: "Codes locked after wrong entries", crit: "critical" };
+    check(`${tag}: neue Karten "${fr.again}" (kritisch) und "${fr.locked}" mit Play und Stift, eingeschaltet`, fresh.every((x) => x && x.play && x.pen && x.on === "true")
+      && fresh[0].title === fr.again && fresh[1].title === fr.locked && fresh[0].sum.toLowerCase().includes(fr.crit) && !fresh[1].sum.toLowerCase().includes(fr.crit), JSON.stringify(fresh));
 
     // ----- Raster: am Computer zwei Spalten, auf dem Handy eine -----
     const grid = await s.ev(`const cards=[...r.querySelectorAll('.ag-chap:nth-of-type(3) .ag-ntk, .ag-nt .ag-ntk-grid')].length; const g=[...r.querySelectorAll('.ag-nt .ag-ntk-grid')].at(-1);

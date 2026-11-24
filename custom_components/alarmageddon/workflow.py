@@ -45,6 +45,8 @@ from .const import (
     CONF_WORKFLOWS_ARMED,
     CONF_WORKFLOWS_DISARMED,
     CONF_WORKFLOWS_REPORT,
+    CONF_REALARM_ENABLED,
+    realarm_count,
     WORKFLOW_ALWAYS,
     CONF_WORKFLOWS_ARMING,
     CONF_WORKFLOWS_ENTRY,
@@ -65,12 +67,17 @@ DELAY_PHASES = {
     str(AlarmControlPanelState.ARMING): ("arming", CONF_WORKFLOWS_ARMING),
     str(AlarmControlPanelState.PENDING): ("pending", CONF_WORKFLOWS_ENTRY),
 }
-SIDE_PHASES = ("armed", "arming", "pending", "report")  # Läufe neben dem Alarm, die mit dem Deaktivieren sofort enden
+SIDE_PHASES = ("armed", "arming", "pending", "report")
+# Töne, die nach einem Neustart mitten im Alarm weiterspielen, wenn sie nebenher liefen (1.87.0, Code-Review H3)
+TONE_RESUME_TYPES = ("sound", "prealarm")  # Läufe neben dem Alarm, die mit dem Deaktivieren sofort enden
 # Ein Gerät, das länger nicht antwortet, hält den Ablauf nie auf: nach dieser Zeit (Sekunden) läuft er mit dem nächsten Schritt weiter.
 # Der hängende Aufruf wird nicht abgebrochen (ein Skript soll weiterlaufen dürfen), nur nicht mehr abgewartet; Deaktivieren beendet ihn.
 SERVICE_TIMEOUT = 10
 # Der Schnappschuss vor dem ersten Schritt darf den Alarm höchstens so lange verzögern
 SNAPSHOT_TIMEOUT = 3
+# Ein Schritt des Alarms wartet höchstens so lange, bis ein endender voriger Lauf (quittiert, sofort wieder ausgelöst) seine Geräte nicht mehr
+# gerade schaltet (1.87.0, Code-Review K1): sonst käme dessen Zurückstellen nach dem Einschalten an
+HANDOVER_TIMEOUT = 3
 # Wächter: Zuschlag (Sekunden) auf die erwartete Dauer, bevor er eingreift. Die erwartete Dauer eines Schritts steht in
 # step_budget, die der Vorbereitung in start_budget. Der Wächter ist die zweite Sicherung hinter den Grenzen oben: er
 # greift auch, wenn etwas aus einem Grund hängt, den niemand vorhergesehen hat.
@@ -104,11 +111,11 @@ def step_budget(step: dict[str, Any]) -> float:
         duration = step.get("duration")
         if duration is None:  # ältere Form: so oft wiederholen, jeder Aufruf höchstens SERVICE_TIMEOUT
             repeat = max(1, int(step.get("repeat", 1) or 1))
-            return repeat * (length + SERVICE_TIMEOUT) + SERVICE_TIMEOUT + SNAPSHOT_TIMEOUT + 4 * SERVICE_TIMEOUT + WATCHDOG_GRACE
+            return repeat * (length + SERVICE_TIMEOUT) + SERVICE_TIMEOUT + SNAPSHOT_TIMEOUT + 4 * SERVICE_TIMEOUT + HANDOVER_TIMEOUT + WATCHDOG_GRACE
         # Lautstärke, letzter Start und Stopp je höchstens SERVICE_TIMEOUT, dazu ein angefangener Ton. Dazu das Merken des Zustands
         # vorher (SNAPSHOT_TIMEOUT) und das Zurückstellen danach (Stopp, Wiedergabe oder Lautstärke, Stummschaltung, Ausschalten)
-        return int(duration or 0) + length + 3 * SERVICE_TIMEOUT + SNAPSHOT_TIMEOUT + 4 * SERVICE_TIMEOUT + WATCHDOG_GRACE
-    return SERVICE_TIMEOUT + WATCHDOG_GRACE  # Aktion (und jeder künftige Typ, bis er eine eigene Grenze bekommt)
+        return int(duration or 0) + length + 3 * SERVICE_TIMEOUT + SNAPSHOT_TIMEOUT + 4 * SERVICE_TIMEOUT + HANDOVER_TIMEOUT + WATCHDOG_GRACE
+    return SERVICE_TIMEOUT + HANDOVER_TIMEOUT + WATCHDOG_GRACE  # Aktion (und jeder künftige Typ, bis er eine eigene Grenze bekommt)
 
 
 def step_waits(step: dict[str, Any]) -> bool:
@@ -226,6 +233,15 @@ class WorkflowRunner:
         # abgelegten Gruppen des Laufs starten dann wieder (_execute)
         self._endless: set[tuple[str, int]] = set()
         self._undo_tasks: dict[int, asyncio.Task] = {}  # Aufgabe je vorgemerktem Gegendienst (Schlüssel: der Eintrag), um ihn ersetzen zu können
+        # Übergabe an einen neuen Alarm (1.87.0, Code-Review K1): Läufe, die gerade enden, während schon ein neuer Alarm beginnen kann (nach dem
+        # Quittieren, Voralarm vor dem Alarm), und der Zustand vor dem alten Lauf für Geräte, die der neue Alarm übernommen hat. Bis 1.86.x stellte
+        # der alte Lauf diese Geräte noch zurück, nachdem der neue Alarm sie geschaltet hatte (Sirene aus im Alarm, danach dauerhaft an).
+        self._stopping: list[dict[str, Any]] = []
+        self._handover: dict[str, Any] = {"snapshot": {}, "sonos": set()}
+        self._busy: dict[int, set[str]] = {}
+        # Nachalarme des laufenden Alarms (1.87.0, Entscheid des Nutzers 2026-11-24), höchstens realarm_count
+        self._realarms = 0
+        self._busy_event = asyncio.Event()
 
     # ----- Konfiguration -----
 
@@ -292,6 +308,7 @@ class WorkflowRunner:
             unsub()
         self._unsubs.clear()
         self._cancel_timers()
+        self._cancel_guard()
         self._hc_release(False)  # ein Neuladen beendet den Alarm nicht: die Pause bleibt nicht hängen, nach dem Start gilt sie wieder
         await self._cancel_task()
         if self._run is not None and not self._run.get("test"):
@@ -307,6 +324,14 @@ class WorkflowRunner:
         if self._test_timer:
             self._test_timer()
             self._test_timer = None
+
+    @callback
+    def _cancel_guard(self) -> None:
+        """
+        Den Startwächter abbrechen: nur beim Entladen und bei "Alarmton stumm". Nie beim Ende eines Laufs (1.87.0): der Stopp des vorigen
+        Alarms oder eines Tests lief bis 1.86.x oft erst an, nachdem ein neuer Alarm seinen Wächter schon gestellt hatte, und brach ihn ab.
+        Nach dem Deaktivieren oder Quittieren tut der Wächter ohnehin nichts (_check_started prüft den Zustand).
+        """
         if self._guard is not None:
             self._guard.cancel()
             self._guard = None
@@ -321,6 +346,7 @@ class WorkflowRunner:
         if state == previous:
             return
         if state == AlarmControlPanelState.TRIGGERED:
+            self._realarms = 0
             # Hauptablauf des Alarms (Modus oder "Immer aktiv"); ein zweiter Ablauf kommt in async_run aus demselben Plan dazu
             self._plan = list(self._ctl.alarm_plan())  # für die Aktionen nach dem Quittieren: am Ende ist der Plan des Automaten schon geleert
             trigger = self._plan[0]
@@ -348,11 +374,18 @@ class WorkflowRunner:
             self.hass.async_create_task(self._on_disarmed(self._mode_seen))
 
     async def _end(self, plan: list[str], disarmed_mode: str | None = None) -> None:
+        self._realarms = 0
+        await self._end_alarm(plan, disarmed_mode)
+
+    async def _end_alarm(self, plan: list[str], disarmed_mode: str | None = None) -> None:
         """
         Der Alarm ist zu Ende: Ablauf stoppen und Geräte zurückstellen; erst dann laufen die Aktionen nach dem Quittieren, bei
         einem Deaktivieren danach (im selben Lauf) die Aktionen "Beim Deaktivieren" des Modus, der scharf war.
+
+        Beginnt währenddessen ein neuer Alarm (quittiert, sofort wieder ausgelöst), übergibt der Stopp ihm die Geräte, die er schaltet
+        (`yield_to_alarm`, siehe _owned_by_alarm): er stellt sie nicht mehr zurück.
         """
-        await self.async_stop()
+        await self.async_stop(yield_to_alarm=True)
         try:
             await self.async_run_after(plan, disarmed_mode)
         except Exception:  # noqa: BLE001 - das Ende des Alarms selbst ist schon erledigt
@@ -521,6 +554,46 @@ class WorkflowRunner:
     def _on_event(self, kind: str, data: dict[str, Any]) -> None:
         if kind == "sensor_report":
             self.hass.async_create_task(self._start_report(data.get("scope")))
+        elif kind == "sensor_again":
+            self.hass.async_create_task(self._realarm())
+
+    # ----- Nachalarm (1.87.0, Entscheid des Nutzers 2026-11-24, Code-Review H2) -----
+
+    def _alarm_done(self) -> bool:
+        """Sind die Aktionen des laufenden Alarms durchgelaufen (alle Schritte, Töne nebenher und vorgemerkte Gegendienste)?"""
+        run = self._run
+        if run is None:
+            return True
+        if run.get("test") or run.get("after") or self._begun is not run:
+            return False
+        tasks = [self._task, self._also_task, *self._side_tasks]
+        return all(task is None or task.done() for task in tasks)
+
+    async def _realarm(self) -> None:
+        """
+        Ein weiterer Sensor im Zustand "Alarm": ist der Nachalarm der Anlage eingeschaltet und sind die Alarmaktionen durchgelaufen, starten sie
+        erneut, höchstens realarm_count-Mal je Alarm. Der Zustand vor dem ersten Alarm bleibt der Stand für das Deaktivieren. Laufen die Aktionen
+        noch (Sirene, "bis deaktiviert"), geschieht nichts: der Alarm ist ja noch hörbar. Zusatz: ein Fehler hier steht nur im Log.
+        """
+        try:
+            if not self.entry.options.get(CONF_REALARM_ENABLED) or self._ctl.state != AlarmControlPanelState.TRIGGERED:
+                return
+            if self._realarms >= realarm_count(self.entry.options) or not self._alarm_done():
+                return
+            plan = self._plan or list(self._ctl.alarm_plan())
+            trigger = plan[0]
+            if not self.steps(trigger):
+                return
+            self._realarms += 1
+            self._ctl.emit("realarm", count=self._realarms)
+            previous, self._run = self._run, None
+            self._begun = None
+            self._watch_start(trigger)
+            await self._start(trigger, previous)
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa: BLE001 - der Nachalarm ist Zusatz
+            _LOGGER.exception("%s: the alarm actions could not be started again", self.entry.title)
 
     def steps_report(self, scope: str | None) -> list[dict[str, Any]]:
         """Schritte "Stiller Alarm" für den Auslöser: den Modus, in dem die Anlage scharf ist, oder "always" (immer aktiver Sensor)."""
@@ -629,10 +702,10 @@ class WorkflowRunner:
         self._task = None
         self.hass.async_create_task(self._store.async_remove())
 
-    async def _start(self, trigger: str) -> None:
+    async def _start(self, trigger: str, previous: dict[str, Any] | None = None) -> None:
         """Ablauf beim Alarm starten. Scheitert der Start selbst, beginnt der Wächter die Schritte sofort (nicht erst nach der Startgrenze)."""
         try:
-            await self.async_run(trigger)
+            await self.async_run(trigger, previous=previous)
         except asyncio.CancelledError:
             raise
         except Exception:  # noqa: BLE001 - Sicherheitsregel: die Schritte laufen in jedem Fall
@@ -641,7 +714,7 @@ class WorkflowRunner:
 
     # ----- Ablauf -----
 
-    async def async_run(self, trigger: str, test: bool = False, steps: list[dict[str, Any]] | None = None) -> bool:
+    async def async_run(self, trigger: str, test: bool = False, steps: list[dict[str, Any]] | None = None, previous: dict[str, Any] | None = None) -> bool:
         """
         Ablauf starten. Mit `steps` (nur im Test) läuft genau diese Liste statt des gespeicherten Ablaufs: so lässt sich ein
         einzelner Schritt testen, auch einer, der noch nicht gespeichert ist. Test und Stopp wie beim ganzen Ablauf.
@@ -649,11 +722,16 @@ class WorkflowRunner:
         Jedes Warten hier steht unter Aufsicht des Wächters (`_watched`): nichts vor dem ersten Schritt kann ihn länger als
         seine Grenze aufhalten (tests/test_action_hang.py prüft das auch am Quelltext).
         """
-        inherited: dict[str, Any] | None = None
+        # Nachalarm: der durchgelaufene Lauf desselben Alarms gibt seinen Stand von vorher weiter (Deaktivieren stellt auf den Stand vor dem ersten
+        # Alarm zurück); seine Aufgaben sind schon zu Ende
+        inherited: dict[str, Any] | None = previous if not test else None
         if self._run is not None and not test and (self._run.get("test") or self._run.get("after")):
             # Echter Alarm während eines Tests: der Test endet sofort, der echte Ablauf startet. Sonst liefe im Testfenster
             # weder der Ablauf noch die Alarmmeldung (Sicherheitsregel: im Zweifel alarmieren)
             inherited = self._run
+            # Seine Töne stellen die Lautsprecher nicht mehr zurück, die der Alarm übernimmt (Voralarm vor dem Alarmton auf demselben
+            # Lautsprecher): ihr Zustand von vorher geht an den Alarm (1.87.0, Code-Review K1)
+            inherited["yield"] = True
             try:
                 await self._watched(self._end_test(), SNAPSHOT_TIMEOUT, "test")
             except asyncio.CancelledError:
@@ -705,9 +783,18 @@ class WorkflowRunner:
         entities = sorted({e for s in steps for e in step_entities(s)})
         before = (inherited or {}).get("snapshot") or {}
         sonos_before = [e for e in (inherited or {}).get("sonos") or [] if isinstance(e, str)]
+        # Geräte, die ein endender Lauf (voriger Alarm, Voralarm) noch zurückstellen wollte: es gilt ihr Zustand vor jenem Lauf, nicht der
+        # jetzige (der ist noch der Alarmzustand). Ihr Schnappschuss bei Sonos ist schon gemacht: nicht mit dem Alarmzustand überschreiben.
+        taken, taken_sonos = self._taken_over(entities)
         # Nach einem abgebrochenen Test gilt dessen Schnappschuss: er zeigt die Geräte vor dem Test, nicht mitten im Test
-        run["snapshot"] = {**self._snapshot(entities), **before}
-        run["sonos"] = sorted({*sonos_before, *await self._sonos_snapshot([e for e in entities if e not in sonos_before])})
+        run["snapshot"] = {**self._snapshot(entities), **before, **taken}
+        known = {*sonos_before, *taken_sonos}
+        run["sonos"] = sorted({*known, *await self._sonos_snapshot([e for e in entities if e not in known and e not in taken])})
+        run["prepared"] = True
+        # Was ein endender Lauf während des Merkens übergeben hat, gehört ebenfalls dazu (ab jetzt geht es direkt in diesen Lauf)
+        late, late_sonos = self._taken_over([])
+        run["snapshot"] = {**run["snapshot"], **late}
+        run["sonos"] = sorted({*run["sonos"], *late_sonos})
         # Ein beendeter Test oder Lauf daneben hinterlässt vorgemerkte Gegendienste (Steckdose mit Sirene): der echte Alarm übernimmt sie
         # mit ihrer Zeit, sie gehen nie verloren und enden nie früher als eingestellt
         for entry in list((inherited or {}).get("undo") or []):
@@ -907,11 +994,14 @@ class WorkflowRunner:
                       self.entry.title, start_budget())
         if run is None or run.get("test") or run.get("after"):
             # Kein Lauf (der Start ist gescheitert) oder noch der Test (sein Ende hängt): ein neuer Lauf, die Aufgaben des alten enden
+            if run is not None:
+                run["yield"] = True  # seine Töne geben die Lautsprecher an den Alarm ab (1.87.0)
             for task in self._take_tasks():
                 task.add_done_callback(_retrieve)
             inherited = run or {}
-            run = {"trigger": trigger, "index": 0, "test": False, "snapshot": dict(inherited.get("snapshot") or {}),
-                   "sonos": list(inherited.get("sonos") or []), "steps": None}
+            taken, taken_sonos = self._taken_over([])
+            run = {"trigger": trigger, "index": 0, "test": False, "snapshot": {**dict(inherited.get("snapshot") or {}), **taken},
+                   "sonos": sorted({*(inherited.get("sonos") or []), *taken_sonos}), "steps": None, "prepared": True}
             also = self._also(trigger)
             if also:
                 run["also"] = {"trigger": also, "index": 0}
@@ -975,6 +1065,10 @@ class WorkflowRunner:
             self._resume_endless(trigger, steps, start, test)
         except Exception:  # noqa: BLE001 - Sicherheitsregel: die Schritte laufen in jedem Fall
             _LOGGER.exception("%s: resuming the groups of the alarm actions failed", self.entry.title)
+        try:
+            self._resume_tones(trigger, steps, start, test)
+        except Exception:  # noqa: BLE001 - Sicherheitsregel: die Schritte laufen in jedem Fall
+            _LOGGER.exception("%s: resuming the tones of the alarm actions failed", self.entry.title)
         for index in range(start, len(steps)):
             if self._run is None:
                 return
@@ -1001,6 +1095,8 @@ class WorkflowRunner:
                     # Nicht abwarten: läuft nebenher, der nächste Schritt startet sofort (langer Alarmton, träges Gerät)
                     if step.get("type") == "group" and step.get("mode") == "until_disarmed":
                         self._note_endless(trigger, index, test)
+                    elif step.get("type") in TONE_RESUME_TYPES:
+                        self._note_tone(trigger, index, step, test)
                     task = self._background(self._side(step, test, index))
                     self._side_tasks.add(task)
                     task.add_done_callback(self._side_tasks.discard)
@@ -1135,6 +1231,8 @@ class WorkflowRunner:
             data = dict(step.get("data") or {})
             if step.get("target"):
                 data["entity_id"] = list(step["target"])
+            if not test:
+                await self._await_free([t for t in data.get("entity_id") or [] if isinstance(t, str)])
             await self._bounded(self.hass.services.async_call(domain, service, data, blocking=True), f"{domain}.{service}", targets=data.get("entity_id"))
             self._plan_undo(step, domain, service, data)
         elif kind == "sound":
@@ -1257,6 +1355,64 @@ class WorkflowRunner:
         state["endless"] = sorted({*[i for i in state.get("endless") or [] if isinstance(i, int)], index})
         self._store.async_delay_save(lambda: self._run or {}, 0)
 
+    def _note_tone(self, trigger: str, index: int, step: dict[str, Any], test: bool) -> None:
+        """
+        Ein Ton im Alarm beginnt nebenher (1.87.0, Code-Review H3): im Lauf ablegen, bis wann er spielt ("bis zum Deaktivieren" ohne Ende), und in
+        diesem Prozess merken. Nach einem Neustart mitten im Alarm spielt er den Rest (_resume_endless); bis 1.86.x blieb er still.
+        """
+        self._endless.add((trigger, index))
+        run = self._run
+        if run is None or test:
+            return
+        try:
+            duration = step.get("duration")
+            if duration is None:
+                return  # ältere Form mit Wiederholungen: wenige Sekunden, wird nicht fortgesetzt
+            entry: dict[str, Any] = {"index": index}
+            if int(duration) > 0:
+                entry["until"] = (dt_util.utcnow() + timedelta(seconds=int(duration))).isoformat()
+            state = self._state(run, trigger)
+            state["tones"] = [t for t in state.get("tones") or [] if isinstance(t, dict) and t.get("index") != index] + [entry]
+            self._store.async_delay_save(lambda: self._run or {}, 0)
+        except Exception:  # noqa: BLE001 - Mitschreiben hält den Ton nie auf
+            _LOGGER.exception("%s: saving a running tone of the alarm failed", self.entry.title)
+
+    def _resume_tones(self, trigger: str, steps: list[dict[str, Any]], start: int, test: bool) -> None:
+        """Nach einem Neustart: Töne, die vor dem gespeicherten Schritt nebenher begonnen haben, spielen weiter (Rest der Dauer, nie länger)."""
+        run = self._run
+        if run is None or test:
+            return
+        now = dt_util.utcnow()
+        state = self._state(run, trigger)
+        if "tones" in state:
+            items = state.get("tones") or []
+        else:
+            # Gespeichert von einer Version vor 1.87.0: ein Ton "bis zum Deaktivieren" vor dem gespeicherten Schritt lief sicher noch
+            items = [{"index": i} for i, step in enumerate(steps[:start]) if step.get("type") in TONE_RESUME_TYPES and step.get("duration") == 0]
+        for item in items:
+            index = item.get("index") if isinstance(item, dict) else None
+            if not isinstance(index, int) or not 0 <= index < min(start, len(steps)) or (trigger, index) in self._endless:
+                continue
+            step = steps[index]
+            if step.get("type") not in TONE_RESUME_TYPES:
+                continue
+            if item.get("until") is None:
+                if step.get("duration") != 0:
+                    continue  # der Schritt wurde inzwischen geändert: nicht raten
+                resumed = step
+            else:
+                end = dt_util.parse_datetime(str(item.get("until")))
+                left = (end - now).total_seconds() if end is not None else 0
+                if left < 1:
+                    continue  # die Zeit war beim Wiederanlauf schon um
+                resumed = {**step, "duration": min(int(step.get("duration") or 0), math.ceil(left))}
+                if resumed["duration"] < 1:
+                    continue
+            self._endless.add((trigger, index))
+            task = self._background(self._side(resumed, test, index))
+            self._side_tasks.add(task)
+            task.add_done_callback(self._side_tasks.discard)
+
     def _resume_endless(self, trigger: str, steps: list[dict[str, Any]], start: int, test: bool) -> None:
         """
         Nach einem Neustart von Home Assistant mitten im Alarm: Gruppen "bis deaktiviert", die vor dem gespeicherten Schritt begonnen
@@ -1343,7 +1499,14 @@ class WorkflowRunner:
         entries.remove(entry)
         if self._run is run:
             self._store.async_delay_save(lambda: self._run or {}, 0)
-        await self._call(str(entry.get("domain")), str(entry.get("service")), {"entity_id": list(entry.get("target") or [])})
+        # Geräte, die inzwischen ein neuer Alarm schaltet, schaltet der alte Lauf nicht mehr zurück (1.87.0, Code-Review K1)
+        targets = [str(t) for t in entry.get("target") or [] if not self._owned_by_alarm(run, str(t))]
+        if targets:
+            self._mark_busy(run, targets)
+            try:
+                await self._call(str(entry.get("domain")), str(entry.get("service")), {"entity_id": targets})
+            finally:
+                self._mark_idle(run, targets)
 
     async def _flush_undos(self, run: dict[str, Any]) -> None:
         """Alle noch vorgemerkten Gegendienste sofort ausführen (Lauf zu Ende: Deaktivieren, Quittieren, Test beendet). Parallel, je höchstens SERVICE_TIMEOUT."""
@@ -1383,7 +1546,10 @@ class WorkflowRunner:
                 return None
 
     async def _play(self, step: dict[str, Any], resumable: bool = False) -> None:
+        owner = self._run  # der Lauf dieses Tons: löst ihn ein neuer Alarm ab, übernimmt der den Lautsprecher (siehe _owned_by_alarm)
         players = list(step.get("players", []))
+        if owner is not None and not owner.get("test"):
+            await self._await_free(players)
         found = self._sound(step.get("sound", "siren"), {"prealarm": "pre_beep", "chime": "tone_pip", "dechime": "off_fall"}.get(str(step.get("type")), "siren"))
         if not players or found is None:
             return
@@ -1413,9 +1579,10 @@ class WorkflowRunner:
                 if duration and dt_util.utcnow() >= end:
                     break
         finally:
-            # Zeit um, deaktiviert oder "Alarmton stumm": der Ton darf nicht ausklingen oder weiterlaufen
-            await self._call("media_player", "media_stop", {"entity_id": players})
-            await self._put_back(remembered)
+            # Zeit um, deaktiviert oder "Alarmton stumm": der Ton darf nicht ausklingen oder weiterlaufen. Lautsprecher, die ein neuer Alarm
+            # übernommen hat, stoppt und stellt der abgelöste Ton nicht mehr (1.87.0, Code-Review K1)
+            await self._stop_players(players, owner)
+            await self._put_back(remembered, owner)
 
     def _restores_itself(self, step: dict[str, Any]) -> bool:
         """
@@ -1445,10 +1612,23 @@ class WorkflowRunner:
             _LOGGER.exception("%s: remembering the state of the speakers failed; the tone plays without it", self.entry.title)
             return None
 
-    async def _put_back(self, remembered: dict[str, Any] | None) -> None:
-        """Lautsprecher nach dem Ton wieder so stellen, wie sie vorher waren (auch wieder ausschalten, wenn sie aus waren)."""
+    async def _put_back(self, remembered: dict[str, Any] | None, owner: dict[str, Any] | None = None) -> None:
+        """
+        Lautsprecher nach dem Ton wieder so stellen, wie sie vorher waren (auch wieder ausschalten, wenn sie aus waren). Hat ein neuer Alarm
+        einen Lautsprecher übernommen, geht sein Zustand von vorher an den Alarm (`owner`: der Lauf des Tons).
+        """
         if remembered:
-            await self._restore(remembered)
+            await self._restore(remembered, owner if owner is not None else {})
+
+    async def _stop_players(self, players: list[str], owner: dict[str, Any] | None) -> None:
+        """Lautsprecher eines Tons stoppen, ausser denen, die ein neuer Alarm übernommen hat."""
+        free = [p for p in players if not self._owned_by_alarm(owner, p)]
+        if free:
+            self._mark_busy(owner, free)
+            try:
+                await self._call("media_player", "media_stop", {"entity_id": free})
+            finally:
+                self._mark_idle(owner, free)
 
     async def _set_volumes(self, step: dict[str, Any], players: list[str]) -> None:
         """
@@ -1469,7 +1649,10 @@ class WorkflowRunner:
         Aktivierungston: nur ganze Wiederholungen, mindestens eine. Ein melodischer Ton (Dreiklang, Glocke) wird so nie mitten in
         der Melodie abgeschnitten: bei 3 Sekunden spielt ein Ton von 1 Sekunde dreimal, einer von 2 Sekunden einmal.
         """
+        owner = self._run
         players = list(step.get("players", []))
+        if owner is not None and not owner.get("test"):
+            await self._await_free(players)
         found = self._sound(step.get("sound", "off_fall" if step.get("type") == "dechime" else "tone_pip"), "off_fall" if step.get("type") == "dechime" else "tone_pip")
         if not players or found is None:
             return
@@ -1484,8 +1667,8 @@ class WorkflowRunner:
             await self._call("media_player", "play_media", {"entity_id": players, "media_content_id": loop_url(base, sound, total), "media_content_type": "music"})
             await self._sleep(total)
         finally:
-            await self._call("media_player", "media_stop", {"entity_id": players})
-            await self._put_back(remembered)
+            await self._stop_players(players, owner)
+            await self._put_back(remembered, owner)
 
     async def _bounded(self, coro: Any, label: str, timeout: float | None = None, targets: Any = None) -> None:
         """
@@ -1558,11 +1741,13 @@ class WorkflowRunner:
         (Deaktivieren bleibt Sache des Nutzers). Nur bei einem echten, laufenden Ablauf; ein Test endet mit "Test stoppen".
         """
         if self._run and not self._run.get("test"):
+            self._cancel_guard()  # der Wächter darf die gestoppten Schritte nicht wieder starten
             await self.async_stop()
             await self._mark_silenced()
             return True
         # Ablauf schon zu Ende (alle Schritte durch), der Ton klingt aber vielleicht noch: auf jeden Fall stoppen
         if self._run is None and self._ctl.state == AlarmControlPanelState.TRIGGERED:
+            self._cancel_guard()
             players = sorted({p for flow in self._ctl.alarm_plan() for st in flat_steps(self.steps(flow)) if st.get("type") in ("sound", "prealarm", "chime", "dechime") for p in st.get("players", [])})
             if players:
                 await self._call("media_player", "media_stop", {"entity_id": players})
@@ -1583,19 +1768,30 @@ class WorkflowRunner:
         except Exception:  # noqa: BLE001
             _LOGGER.exception("%s: remembering the silenced alarm failed", self.entry.title)
 
-    async def async_stop(self) -> None:
-        """Alle Schritte abbrechen und den Zustand vor dem Alarm wiederherstellen."""
+    async def async_stop(self, *, yield_to_alarm: bool = False) -> None:
+        """
+        Alle Schritte abbrechen und den Zustand vor dem Alarm wiederherstellen. `yield_to_alarm` (Ende eines Alarms): beginnt währenddessen
+        ein neuer Alarm, gehen ihm dessen Geräte samt Zustand von vorher über, statt zurückgestellt zu werden (siehe _owned_by_alarm).
+        """
         self._cancel_timers()
         # Zuerst und ohne Warten: ab hier gehört ein neuer Lauf (echter Alarm, Start durch den Wächter) nicht mehr zu diesem Stopp
         run, self._run = self._run, None
-        await self._cancel_task()
-        if run and run.get("hc"):
-            self._hc_release(True)  # der Alarm ist vorbei: Wiederholen endet, die normalen Lebenszeichen laufen wieder
-        if run:
-            await self._flush_undos(run)
-            await self._restore(run)
+        if run is not None and yield_to_alarm:
+            run["yield"] = True  # vor dem Abbruch: die Töne des Laufs fragen es in ihrem `finally`
+            self._stopping.append(run)
+        try:
+            await self._cancel_task()
+            if run and run.get("hc"):
+                self._hc_release(True)  # der Alarm ist vorbei: Wiederholen endet, die normalen Lebenszeichen laufen wieder
+            if run:
+                await self._flush_undos(run)
+                await self._restore(run)
+        finally:
+            self._stopping = [old for old in self._stopping if old is not run]
         if self._run is None:
             await self._store.async_remove()
+            if self._ctl.state != AlarmControlPanelState.TRIGGERED:
+                await self._restore_handover()
 
     # ----- Schnappschuss und Wiederherstellung -----
 
@@ -1616,35 +1812,155 @@ class WorkflowRunner:
             await self._call("sonos", "snapshot", {"entity_id": sonos, "with_group": True}, SNAPSHOT_TIMEOUT)
         return sonos
 
-    async def _restore(self, run: dict[str, Any]) -> None:
+    # ----- Übergabe an einen neuen Alarm (1.87.0, Code-Review K1) -----
+    #
+    # Ein Lauf, der endet, während schon ein neuer Alarm läuft oder beginnt, stellt die Geräte dieses Alarms nicht zurück und stoppt seine
+    # Lautsprecher nicht: Er gibt ihren Zustand von vorher an den Alarm weiter, der sie beim Deaktivieren dorthin zurückstellt. Betroffen sind
+    # der vorige Alarm (quittiert, sofort neu ausgelöst: `_end`) und Läufe neben dem Alarm, die er ablöst (Voralarm der Eingangsverzögerung auf
+    # demselben Lautsprecher wie der Alarmton, Test). Die übrigen Geräte stellt der alte Lauf wie gewohnt zurück.
+
+    def _alarm_entities(self) -> set[str]:
+        """Alle Geräte, die der laufende Alarm schaltet (Ziele von Aktionen, Lautsprecher von Tönen), auch ohne "Rückgängig"."""
+        plan = self._plan or self._ctl.alarm_plan()
+        out: set[str] = set()
+        for flow in plan:
+            for step in flat_steps(self.steps(flow)):
+                if step.get("type") == "action":
+                    out.update(t for t in step.get("target") or [] if isinstance(t, str))
+                elif step.get("type") in ("sound", "chime", "dechime", "prealarm"):
+                    out.update(p for p in step.get("players") or [] if isinstance(p, str))
+        return out
+
+    def _owned_by_alarm(self, owner: dict[str, Any] | None, entity_id: str) -> bool:
+        """Gehört dieses Gerät eines endenden Laufs inzwischen dem neuen Alarm? Nie ein Fehler: im Zweifel stellt der alte Lauf zurück."""
+        try:
+            if not owner or not owner.get("yield") or self._ctl.state != AlarmControlPanelState.TRIGGERED:
+                return False
+            return entity_id in self._alarm_entities()
+        except Exception:  # noqa: BLE001 - die Übergabe ist Zusatz
+            _LOGGER.exception("%s: deciding whether the new alarm took over %s failed", self.entry.title, entity_id)
+            return False
+
+    def _taken_over(self, entities: list[str]) -> tuple[dict[str, Any], set[str]]:
+        """
+        Zustand vor dem alten Lauf für die Geräte des neuen Alarms: aus Läufen, die gerade enden (`entities`), und was ein endender Lauf schon
+        übergeben hat. Der früheste Stand gewinnt. Leert die Übergabe.
+        """
+        snapshot: dict[str, Any] = {}
+        sonos: set[str] = set()
+        for old in self._stopping:
+            saved = old.get("snapshot") or {}
+            for entity_id in entities:
+                if entity_id in saved and entity_id not in snapshot:
+                    snapshot[entity_id] = saved[entity_id]
+                    if entity_id in (old.get("sonos") or []):
+                        sonos.add(entity_id)
+        for entity_id, saved in self._handover["snapshot"].items():
+            snapshot.setdefault(entity_id, saved)
+        sonos |= self._handover["sonos"]
+        self._handover = {"snapshot": {}, "sonos": set()}
+        return snapshot, sonos
+
+    def _hand_over(self, snapshot: dict[str, Any], sonos: list[str] | set[str]) -> None:
+        """Zustand von vorher an den neuen Alarm geben: direkt in seinen Lauf, wenn er schon gemerkt hat, sonst bis zu seinem Merken aufbewahren."""
+        if not snapshot and not sonos:
+            return
+        run = self._run
+        if run is not None and not run.get("test") and not run.get("after") and run.get("prepared"):
+            run["snapshot"] = {**(run.get("snapshot") or {}), **snapshot}  # der frühere Stand gewinnt
+            run["sonos"] = sorted({*(run.get("sonos") or []), *sonos})
+            self._store.async_delay_save(lambda: self._run or {}, 0)
+            return
+        for entity_id, saved in snapshot.items():
+            self._handover["snapshot"].setdefault(entity_id, saved)
+        self._handover["sonos"] |= set(sonos)
+
+    async def _restore_handover(self) -> None:
+        """Übergebener Zustand, den kein Alarm übernommen hat (er hatte keine Schritte): selbst zurückstellen, nie liegen lassen."""
+        if not self._handover["snapshot"]:
+            return
+        pending, self._handover = self._handover, {"snapshot": {}, "sonos": set()}
+        await self._restore({"snapshot": pending["snapshot"], "sonos": sorted(pending["sonos"])})
+
+    async def _restore(self, run: dict[str, Any], owner: dict[str, Any] | None = None) -> None:
+        """Geräte auf den gemerkten Stand zurück. `owner`: der Lauf, dem der Stand gehört (für die Übergabe an einen neuen Alarm)."""
+        owner = run if owner is None else owner
         snapshot: dict[str, Any] = run.get("snapshot") or {}
         sonos = set(run.get("sonos") or [])
         for entity_id, saved in snapshot.items():
-            domain = entity_id.split(".")[0]
-            state, attrs = saved.get("state"), saved.get("attributes", {})
-            data = {"entity_id": entity_id}
-            if domain == "media_player":
-                await self._call("media_player", "media_stop", data)
-                if entity_id in sonos and self.hass.services.has_service("sonos", "restore"):
-                    await self._call("sonos", "restore", {**data, "with_group": True})
-                    continue
-                if "volume_level" in attrs:
-                    await self._call("media_player", "volume_set", {**data, "volume_level": attrs["volume_level"]})
-                if "is_volume_muted" in attrs:
-                    await self._call("media_player", "volume_mute", {**data, "is_volume_muted": attrs["is_volume_muted"]})
-                if state == "off":
-                    # Er war vorher aus (der Ton hat ihn eingeschaltet): wieder ausschalten
-                    await self._call("media_player", "turn_off", data)
-            elif domain == "cover":
-                if "current_position" in attrs:
-                    await self._call("cover", "set_cover_position", {**data, "position": attrs["current_position"]})
-                elif state in ("open", "closed"):
-                    await self._call("cover", "open_cover" if state == "open" else "close_cover", data)
-            elif domain == "light":
-                if state == "on":
-                    extra = {k: attrs[k] for k in ("brightness", "color_temp_kelvin") if k in attrs}
-                    await self._call("light", "turn_on", {**data, **extra})
-                elif state == "off":
-                    await self._call("light", "turn_off", data)
-            elif state in ("on", "off"):
-                await self._call(domain, f"turn_{state}", data)
+            if self._owned_by_alarm(owner, entity_id):
+                # Vor jedem Gerät neu gefragt: der neue Alarm kann mitten im Zurückstellen beginnen
+                self._hand_over({entity_id: saved}, [entity_id] if entity_id in sonos else [])
+                continue
+            self._mark_busy(owner, [entity_id])
+            try:
+                await self._restore_one(entity_id, saved, entity_id in sonos)
+            finally:
+                self._mark_idle(owner, [entity_id])
+
+    async def _restore_one(self, entity_id: str, saved: dict[str, Any], sonos: bool) -> None:
+        domain = entity_id.split(".")[0]
+        state, attrs = saved.get("state"), saved.get("attributes", {})
+        data = {"entity_id": entity_id}
+        if domain == "media_player":
+            await self._call("media_player", "media_stop", data)
+            if sonos and self.hass.services.has_service("sonos", "restore"):
+                await self._call("sonos", "restore", {**data, "with_group": True})
+                return
+            if "volume_level" in attrs:
+                await self._call("media_player", "volume_set", {**data, "volume_level": attrs["volume_level"]})
+            if "is_volume_muted" in attrs:
+                await self._call("media_player", "volume_mute", {**data, "is_volume_muted": attrs["is_volume_muted"]})
+            if state == "off":
+                # Er war vorher aus (der Ton hat ihn eingeschaltet): wieder ausschalten
+                await self._call("media_player", "turn_off", data)
+        elif domain == "cover":
+            if "current_position" in attrs:
+                await self._call("cover", "set_cover_position", {**data, "position": attrs["current_position"]})
+            elif state in ("open", "closed"):
+                await self._call("cover", "open_cover" if state == "open" else "close_cover", data)
+        elif domain == "light":
+            if state == "on":
+                extra = {k: attrs[k] for k in ("brightness", "color_temp_kelvin") if k in attrs}
+                await self._call("light", "turn_on", {**data, **extra})
+            elif state == "off":
+                await self._call("light", "turn_off", data)
+        elif state in ("on", "off"):
+            await self._call(domain, f"turn_{state}", data)
+
+    # Aufrufe, die ein endender Lauf gerade an ein Gerät richtet (je Lauf, Schlüssel id(Lauf)): ein neuer Alarm wartet kurz auf sie, bevor er
+    # dieselben Geräte schaltet; sonst käme das Zurückstellen des alten Laufs nach seinem Einschalten an (Sirene aus mitten im Alarm)
+
+    def _mark_busy(self, owner: dict[str, Any] | None, entities: list[str]) -> None:
+        if owner is not None:
+            self._busy.setdefault(id(owner), set()).update(entities)
+
+    def _mark_idle(self, owner: dict[str, Any] | None, entities: list[str]) -> None:
+        if owner is None:
+            return
+        busy = self._busy.get(id(owner))
+        if busy is not None:
+            busy.difference_update(entities)
+            if not busy:
+                self._busy.pop(id(owner), None)
+        event, self._busy_event = self._busy_event, asyncio.Event()
+        event.set()
+
+    async def _await_free(self, entities: list[str]) -> None:
+        """
+        Bevor ein Schritt des Alarms Geräte schaltet: warten, bis ein endender Lauf keines davon mehr gerade schaltet (danach gibt er sie ab,
+        _owned_by_alarm). Höchstens HANDOVER_TIMEOUT, nur dieser Schritt wartet, die übrigen laufen (step_budget rechnet die Zeit ein).
+        """
+        wanted = set(entities)
+        if not wanted or not self._stopping:
+            return
+        deadline = self.hass.loop.time() + HANDOVER_TIMEOUT
+        while any(self._busy.get(id(run), set()) & wanted for run in self._stopping):
+            left = deadline - self.hass.loop.time()
+            if left <= 0:
+                _LOGGER.warning("%s: the end of the previous alarm still switches %s; the new alarm goes on", self.entry.title, ", ".join(sorted(wanted)))
+                return
+            try:
+                await asyncio.wait_for(self._busy_event.wait(), left)
+            except TimeoutError:
+                return

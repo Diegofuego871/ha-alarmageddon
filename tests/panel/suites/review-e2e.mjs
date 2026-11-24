@@ -6,8 +6,8 @@ import { readFileSync } from "node:fs";
 import { check, done, launch, open, outDir } from "../lib.mjs";
 
 const T = {
-  de: { open: "Garagentor ist offen", allModes: "Für alle Modi", conn: "Keine Verbindung zu Home Assistant", failed: "Das hat nicht geklappt", water: "Wassermelder Keller" },
-  en: { open: "Garagentor is open", allModes: "For all modes", conn: "No connection to Home Assistant", failed: "That did not work", water: "Wassermelder Keller" },
+  de: { open: "Garagentor ist offen", gone: "Garagentor ist nicht erreichbar", allModes: "Für alle Modi", conn: "Keine Verbindung zu Home Assistant", failed: "Das hat nicht geklappt", water: "Wassermelder Keller" },
+  en: { open: "Garagentor is open", gone: "Garagentor is not reachable", allModes: "For all modes", conn: "No connection to Home Assistant", failed: "That did not work", water: "Wassermelder Keller" },
 };
 const GARAGE = "binary_sensor.garagentor";
 const WATER = "binary_sensor.wasser_keller";
@@ -40,6 +40,19 @@ for (const lang of ["de", "en"]) {
       await s.sim(`window.__systems[1].per_mode_sensors = false`);
       await refetch();
       check(`${tag}: ohne Schalter gelten die Werte je Modus nicht`, JSON.stringify(await ready()) === "[false,false]", JSON.stringify(await ready()));
+      // 1.87.0: nicht erreichbar mit "Muss beim Scharfschalten erreichbar sein" (Voreinstellung der Sensorart Tür) verhindert wie offen und wird
+      // genannt; mit "Umgehen" oder ohne die Option nicht (wie controller.blocking_unreachable)
+      await s.sim(`window.__setState("${GARAGE}", "unavailable")`);
+      await refetch();
+      check(`${tag}: nicht erreichbares Garagentor verhindert beide Modi und wird genannt`, JSON.stringify(await ready()) === "[false,false]" && (await card()).includes(t.gone) && !(await card()).includes(t.open), await card());
+      await s.sim(`window.__systems[1].sensor_options = { "${GARAGE}": { bypass: true } }`);
+      await refetch();
+      check(`${tag}: nicht erreichbar mit "Umgehen": bereit`, JSON.stringify(await ready()) === "[true,true]" && !(await card()).includes(t.gone), await card());
+      await s.sim(`window.__systems[1].sensor_options = { "${GARAGE}": { reachable: false } }`);
+      await refetch();
+      check(`${tag}: nicht erreichbar ohne "Muss erreichbar sein": bereit`, JSON.stringify(await ready()) === "[true,true]", JSON.stringify(await ready()));
+      await s.sim(`window.__systems[1].sensor_options = {}; window.__setState("${GARAGE}", "on")`);
+      await refetch();
       // Fehlermeldung beim Scharfschalten nennt das Hindernis des gewählten Modus
       // ----- Sensorliste: "Immer aktiv" aus dem Reiter "Immer aktiv" -----
       const row = () => s.ev(`return !!r.querySelector('.ag-ov-list [data-entity="${WATER}"]')`);
@@ -93,8 +106,9 @@ for (const lang of ["de", "en"]) {
       await s.page.waitForTimeout(500);
       const kinds = () => s.ev(`return [...r.querySelectorAll('.ag-nt [data-nt="enabled"]')].map((b) => b.dataset.kind + (b.dataset.mode ? ":" + b.dataset.mode : ""))`);
       // Seit 1.62.0 ohne "Stiller Alarm", "Eingangsverzögerung", "Scharf geschaltet" und "Deaktiviert" (feste Elemente im Reiter Aktionen);
-      // seit 1.65.0 mit "Selbsttest", seit 1.69.0 mit "HealthCheck-Dienst antwortet nicht" (Wartungsmeldungen, ohne Modus)
-      const all = ["sensor_offline", "arm_failed", "battery_low", "sensor_unavailable", "selftest", "healthcheck"];
+      // seit 1.65.0 mit "Selbsttest", seit 1.69.0 mit "HealthCheck-Dienst antwortet nicht" (Wartungsmeldungen, ohne Modus); seit 1.87.0 mit
+      // "Weiterer Sensor während eines Alarms" und "Codes nach Fehleingaben gesperrt" (Störungsmeldungen, ohne Modus)
+      const all = ["sensor_offline", "arm_failed", "alarm_again", "code_locked", "battery_low", "sensor_unavailable", "selftest", "healthcheck"];
       const off = await kinds();
       check(`${tag}: Schalter aus: eine Liste mit allen Arten, ohne Modus`, all.every((k) => off.includes(k)) && off.every((k) => !k.includes(":")) && off.length === all.length, off.join(","));
       await s.tap('[data-nt="permode"]');

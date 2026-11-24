@@ -23,6 +23,7 @@ from homeassistant.util import dt as dt_util, slugify
 
 from .const import (
     ARM_BUTTONS_VALID,
+    CODE_MAX_ATTEMPTS,
     CONF_EVENT_NOTIFY,
     DATA_ARM_FAILED,
     EVENT_NOTIFY_KINDS,
@@ -30,6 +31,7 @@ from .const import (
     ICON_URL_PATH,
     NOTIFY_MODE_KINDS,
     NOTIFY_TYPES,
+    OFFLINE_NOTIFY_GAP,
     PUSH_ACTION_ACK,
     PUSH_ACTION_DISARM,
     PUSH_ACTION_FORCE,
@@ -95,8 +97,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "ended_noby": "The alarm is over.",
         "arm_failed_title": "⛔ {name}: cannot arm {mode}",
         "arm_failed": "Open: {sensors}.",
+        "arm_failed_unreachable": "Not reachable: {sensors}.",
         "offline_title": "📡 Sensor unreachable: {name}",
         "offline": "{sensor} no longer responds while the alarm system is armed.",
+        "again_title": "🚨 Another sensor: {name}",
+        "again": "{sensor} triggered at {time} while the alarm is still running.",
+        "code_locked_title": "🔒 {name}: codes locked",
+        "code_locked": "{count} wrong codes in a row. Codes are locked for {minutes} minutes.",
         "test_title": "🧪 Test: {name}",
         "test": "This is a test notification from Alarmageddon.",
         "group_alarm": "Alarm notifications", "group_maintenance": "Maintenance notifications",
@@ -115,6 +122,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "report": "{sensor} responded while armed. No alarm was triggered because this sensor is set to \"Silent alarm\".",
         "type_triggered": "Alarm", "type_pending": "Entry delay", "type_armed": "Armed", "type_disarmed": "Disarmed",
         "type_arm_failed": "Arming not possible", "type_sensor_offline": "Sensor unreachable while armed",
+        "type_alarm_again": "Another sensor during an alarm", "type_code_locked": "Codes locked after wrong entries",
         "type_sensor_report": "Silent alarm", "type_battery_low": "Low battery",
         "type_sensor_unavailable": "Sensor unreachable",
         "by_schedule": "Schedule",
@@ -213,8 +221,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "ended_noby": "Der Alarm ist vorbei.",
         "arm_failed_title": "⛔ {name}: {mode} nicht möglich",
         "arm_failed": "Offen: {sensors}.",
+        "arm_failed_unreachable": "Nicht erreichbar: {sensors}.",
         "offline_title": "📡 Sensor nicht erreichbar: {name}",
         "offline": "{sensor} antwortet nicht mehr, während die Anlage scharf ist.",
+        "again_title": "🚨 Weiterer Sensor: {name}",
+        "again": "{sensor} hat um {time} ausgelöst, der Alarm läuft noch.",
+        "code_locked_title": "🔒 {name}: Codes gesperrt",
+        "code_locked": "{count} falsche Codes hintereinander. Codes sind für {minutes} Minuten gesperrt.",
         "test_title": "🧪 Test: {name}",
         "test": "Das ist eine Testmeldung von Alarmageddon.",
         "group_alarm": "Alarmmeldungen", "group_maintenance": "Wartungsmeldungen",
@@ -233,6 +246,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "report": "{sensor} hat im scharfen Zustand angesprochen. Es wurde kein Alarm ausgelöst, weil dieser Sensor auf \"Stiller Alarm\" steht.",
         "type_triggered": "Alarm", "type_pending": "Eingangsverzögerung", "type_armed": "Scharf geschaltet", "type_disarmed": "Deaktiviert",
         "type_arm_failed": "Scharfschalten nicht möglich", "type_sensor_offline": "Sensor im scharfen Zustand nicht erreichbar",
+        "type_alarm_again": "Weiterer Sensor während eines Alarms", "type_code_locked": "Codes nach Fehleingaben gesperrt",
         "type_sensor_report": "Stiller Alarm", "type_battery_low": "Batterie schwach",
         "type_sensor_unavailable": "Sensor nicht erreichbar",
         "by_schedule": "Zeitplan",
@@ -515,6 +529,8 @@ class Notifier:
         self.workflow_has_notify = lambda _trigger: False
         # Knopf "Alarmton stumm": Ablauf stoppen (vom Ablauf der Anlage gesetzt)
         self.silence = None
+        # Letzte Meldung "nicht erreichbar" je Sensor (1.87.0, Drosselung)
+        self._offline_sent: dict[str, Any] = {}
 
     @property
     def cfg(self) -> dict[str, Any]:
@@ -610,18 +626,42 @@ class Notifier:
                 self._arm_attempts()[self.entry.entry_id] = {"mode": data["mode"], "at": dt_util.utcnow()}
                 actions = [{"action": f"{prefix}{self.entry.entry_id}", "title": self._t(f"action_{key}")}
                            for key, prefix in (("retry", PUSH_ACTION_RETRY), ("force", PUSH_ACTION_FORCE)) if self.cfg.get(f"arm_{key}_action")]
+            # Nicht erreichbare Sensoren (1.87.0, "Muss beim Scharfschalten erreichbar sein") stehen in einem eigenen Satz
+            parts = [self._t("arm_failed", sensors=sensors)] if data.get("sensors") else []
+            if data.get("unreachable"):
+                parts.append(self._t("arm_failed_unreachable", sensors=", ".join(self._name(e) for e in data["unreachable"])))
             self._send("arm_failed", self._t("arm_failed_title", name=name, mode=self._mode(data.get("mode"))),
-                       self._t("arm_failed", sensors=sensors), actions=actions or None)
-        elif kind == "sensor_offline" and self._on("sensor_offline", self._ctl.mode):
-            # Im scharfen Zustand ist ein ausgefallener Melder ein blinder Fleck (Standard: kritisch an die Alarm-Empfänger)
+                       " ".join(parts), actions=actions or None)
+        elif kind == "sensor_offline" and self._on("sensor_offline", self._ctl.mode) and self._offline_due(data.get("sensor")):
+            # Im scharfen Zustand ist ein ausgefallener Melder ein blinder Fleck (Standard: kritisch an die Alarm-Empfänger). Je Sensor höchstens
+            # einmal in OFFLINE_NOTIFY_GAP (1.87.0, Code-Review M6): ein flatternder Sensor klingelte sonst bei jedem Abriss
             self._send("sensor_offline", self._t("offline_title", name=self._name(data.get("sensor"))),
                        self._t("offline", sensor=self._name(data.get("sensor"))))
+        elif kind == "sensor_again" and self._on("alarm_again"):
+            # Weiterer Sensor im Zustand "Alarm" (1.87.0, Code-Review H2): der Automat drosselt je Sensor (ALARM_AGAIN_THROTTLE)
+            sensor = data.get("sensor")
+            time = dt_util.as_local(dt_util.utcnow()).strftime("%H:%M")
+            self._send("alarm_again", self._t("again_title", name=self._name(sensor)), self._t("again", sensor=self._name(sensor), time=time),
+                       tag=f"alarmageddon_{self.entry.entry_id}_again_{sensor}")
+        elif kind == "code_locked" and self._on("code_locked"):
+            # Sperre nach falschen Codes (1.87.0, Code-Review M2): nie der Code, nur Anzahl und Dauer
+            minutes = max(1, round(int(data.get("seconds") or 60) / 60))
+            self._send("code_locked", self._t("code_locked_title", name=name), self._t("code_locked", count=CODE_MAX_ATTEMPTS, minutes=minutes))
         elif kind == "sensor_report":
             # Sensor auf "Stiller Alarm": keine Alarmauslösung, aber eine Meldung (Standard: kritisch), eigener tag je Sensor. Es gilt die
             # Meldung des Auslösers: der Modus, in dem die Anlage scharf ist, oder "Immer aktiv" (ein immer aktiver Sensor)
             scope = data.get("scope") or self._ctl.mode or WORKFLOW_ALWAYS
             if self.notice("sensor_report", scope)["enabled"]:
                 self.send_event("sensor_report", scope, sensor=data.get("sensor"))
+
+    def _offline_due(self, sensor: Any) -> bool:
+        """Meldung "nicht erreichbar" für diesen Sensor fällig? Höchstens einmal je OFFLINE_NOTIFY_GAP."""
+        now = dt_util.utcnow()
+        last = self._offline_sent.get(str(sensor))
+        if last is not None and (now - last).total_seconds() < OFFLINE_NOTIFY_GAP:
+            return False
+        self._offline_sent[str(sensor)] = now
+        return True
 
     def _alarm_recipients(self) -> list[str]:
         """Alarm-Empfänger der Konfiguration und die eigenen Empfänger der Meldungen dieser Anlage (Schritt "Push-Meldung", "Alarm endet")."""

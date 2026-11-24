@@ -138,6 +138,12 @@
     "open_sensors": {
       "message": "Cannot arm: open sensors: {sensors}."
     },
+    "sensors_not_ready": {
+      "message": "Cannot arm: sensors not reachable: {unreachable}. Open: {open}."
+    },
+    "code_mode_change": {
+      "message": "Enter the code to change the mode while the alarm system is armed."
+    },
     "disarm_first": {
       "message": "Disarm the alarm system first."
     },

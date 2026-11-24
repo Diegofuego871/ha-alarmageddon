@@ -138,6 +138,12 @@
     "open_sensors": {
       "message": "Scharfschalten nicht möglich, offene Sensoren: {sensors}."
     },
+    "sensors_not_ready": {
+      "message": "Scharfschalten nicht möglich: Sensoren nicht erreichbar: {unreachable}. Offen: {open}."
+    },
+    "code_mode_change": {
+      "message": "Code eingeben, um den Modus einer scharfen Anlage zu wechseln."
+    },
     "disarm_first": {
       "message": "Deaktiviere die Alarmanlage zuerst."
     },

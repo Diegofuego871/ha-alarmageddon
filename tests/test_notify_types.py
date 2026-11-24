@@ -33,7 +33,8 @@ def test_defaults_cover_every_type() -> None:
     cfg = valid_notify(None)
     assert set(cfg["types"]) == set(NOTIFY_TYPES)
     # Im Zweifel melden: Alarm, Sensorausfall im scharfen Zustand und "Stiller Alarm" sind kritisch
-    assert [k for k, v in cfg["types"].items() if v["critical"]] == ["triggered", "sensor_offline", "sensor_report"]
+    # Seit 1.87.0 auch "Weiterer Sensor während eines Alarms" (Code-Review H2): ein Einbruch im Alarmzustand ist so dringend wie der Alarm
+    assert [k for k, v in cfg["types"].items() if v["critical"]] == ["triggered", "sensor_offline", "sensor_report", "alarm_again"]
     assert all(0 <= v["volume"] <= 1 for v in cfg["types"].values())
 
 

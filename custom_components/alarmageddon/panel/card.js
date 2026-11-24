@@ -326,12 +326,15 @@ class AlarmageddonCard extends AlarmageddonCardBase {
     if (state === "disarmed" && this._config.show_ready !== false && rel.ready.length) {
       const chips = rel.ready.filter(([m]) => modes.includes(m)).map(([m, eid]) => {
         const blocked = hass.states[eid].state !== "on";
-        return [m, blocked, hass.states[eid].attributes?.blocking_sensors || []];
+        return [m, blocked, hass.states[eid].attributes?.blocking_sensors || [], hass.states[eid].attributes?.unreachable_sensors || []];
       });
       const open = [...new Set(chips.flatMap(([, , b]) => b))];
+      // Nicht erreichbar mit "Muss beim Scharfschalten erreichbar sein" (1.87.0, Attribut unreachable_sensors der Bereit-Entität)
+      const gone = [...new Set(chips.flatMap(([, , , g]) => g))];
+      const line = (sid, key) => `<div class="ag-row"><span class="ag-mini warn">${ic("alert", 16)}</span><span class="ag-grow">${esc(this._t(key, { name: this._name(sid) }))}</span></div>`;
       rows = `<div class="ag-rows"><div class="ag-ready"><span class="ag-t2">${esc(this._t("readyFor"))}</span>${chips
         .map(([m, blocked]) => `<span class="ag-rchip ${blocked ? "no" : "ok"}">${ic(blocked ? "alert" : "check", 14)}${esc(this._t(MODE_KEY[m]))}</span>`).join("")}</div>
-        ${open.map((sid) => `<div class="ag-row"><span class="ag-mini warn">${ic("alert", 16)}</span><span class="ag-grow">${esc(this._t("isOpen", { name: this._name(sid) }))}</span></div>`).join("")}</div>`;
+        ${open.map((sid) => line(sid, "isOpen")).join("")}${gone.map((sid) => line(sid, "isUnreachable")).join("")}</div>`;
     }
     const armedClass = ARMED[state] ? ` ag-armed ag-armed-${ARMED[state]}` : state === "triggered" ? " ag-armed ag-alarmed" : state === "disarmed" ? " ag-disarmed" : "";
     const band = state === "triggered" && this._config.show_alarm_band !== false
@@ -363,7 +366,9 @@ class AlarmageddonCard extends AlarmageddonCardBase {
     const mode = el.dataset.mode;
     const service = mode === "off" ? "alarm_disarm" : ARM_SERVICE[mode];
     const call = (code) => hass.callService("alarm_control_panel", service, { entity_id: id, ...(code ? { code } : {}) });
-    const needsCode = Boolean(attrs.code_format) && (mode === "off" || attrs.code_arm_required);
+    // Wechsel des Modus einer scharfen (oder scharf werdenden) Anlage verlangt den Code (1.87.0, wie controller.async_arm)
+    const armed = st.state === "arming" || String(st.state).startsWith("armed_");
+    const needsCode = Boolean(attrs.code_format) && (mode === "off" || attrs.code_arm_required || armed);
     if (needsCode) {
       this._askCode(mode === "off" ? this._t("codeDisarm", { name: this._title(st) }) : this._t("codeArm", { mode: this._t(MODE_KEY[mode]), name: this._title(st) }), call);
       return;

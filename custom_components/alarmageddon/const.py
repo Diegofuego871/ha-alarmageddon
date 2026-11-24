@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Any, Final
 
 DOMAIN: Final = "alarmageddon"
 
@@ -22,6 +22,20 @@ CONF_HOME_ENABLED: Final = "home_enabled"
 CONF_ALWAYS_ENABLED: Final = "always_enabled"
 # "Überwachung" (1.48.0) als Ganzes ein- oder ausschalten; Standard aus (Entscheid des Nutzers, 2026-11-16). Aus: keine Regel läuft, die Regeln bleiben gespeichert
 CONF_MONITOR_ENABLED: Final = "monitor_enabled"
+# Nachalarm (1.87.0, Entscheid des Nutzers 2026-11-24): bleibt die Anlage nach einem Alarm im Zustand "Alarm" und sind die Alarmaktionen
+# durchgelaufen, startet ein weiterer Sensor sie erneut, höchstens REALARM-Mal je Alarm. Je Anlage, Standard aus und 3.
+CONF_REALARM_ENABLED: Final = "realarm_enabled"
+CONF_REALARM_COUNT: Final = "realarm_count"
+REALARM_COUNT_DEFAULT: Final = 3
+REALARM_COUNT_RANGE: Final = (1, 10)
+
+
+def realarm_count(options: Any) -> int:
+    """Höchstzahl der Nachalarme je Alarm aus den Optionen einer Anlage, immer im erlaubten Bereich (auch bei einem beschädigten Wert)."""
+    value = options.get(CONF_REALARM_COUNT, REALARM_COUNT_DEFAULT) if hasattr(options, "get") else REALARM_COUNT_DEFAULT
+    if not isinstance(value, int) or isinstance(value, bool):
+        return REALARM_COUNT_DEFAULT
+    return max(REALARM_COUNT_RANGE[0], min(REALARM_COUNT_RANGE[1], value))
 CONF_ACCENT: Final = "accent"  # Akzentfarbe der Anlage im Panel (1.75.0, Wunsch des Nutzers 2026-11-21)
 # Auswahl wie im Device Panel; "ha" folgt der Farbe des Home-Assistant-Themes. Die Werte (Farben) stehen im Panel (panel/common.js ACCENTS)
 ACCENTS: Final = ("ha", "sky", "ocean", "teal", "indigo", "pink", "orange", "red", "green", "graphite")
@@ -63,11 +77,14 @@ CODE_HASH_ITERATIONS: Final = 120_000
 # Schutz gegen Durchprobieren: nach so vielen falschen Codes ist die Eingabe gesperrt
 CODE_MAX_ATTEMPTS: Final = 5
 CODE_LOCKOUT_SECONDS: Final = 60
+# Sperre nach falschen Codes steigt mit jeder weiteren Sperre (1.87.0, Entscheid des Nutzers 2026-11-24): 60 s, 2, 4, 8, 15 Minuten. Ein richtiger
+# Code setzt zurück. Zähler und Sperre stehen im gespeicherten Zustand (überstehen Neuladen und Neustart).
+CODE_LOCKOUT_STEPS: Final = (CODE_LOCKOUT_SECONDS, 120, 240, 480, 900)
 
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 295  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 296  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -120,6 +137,9 @@ CONF_PER_MODE_SENSORS: Final = "per_mode_sensors"
 CONF_SENSOR_MODES: Final = "sensor_modes"
 OPT_ARM_ON_CLOSE: Final = "arm_on_close"  # Schliessen während der Ausgangsverzögerung schaltet sofort scharf
 OPT_OFFLINE_ALARM: Final = "offline_alarm"  # nicht erreichbar im scharfen Zustand löst aus
+# Muss beim Scharfschalten erreichbar sein (1.87.0, Entscheid des Nutzers 2026-11-24, Code-Review M4): ein nicht erreichbarer Sensor verhindert dann
+# das Scharfschalten wie ein offener (mit "Umgehen" nicht: er wird überwacht, sobald er sich meldet). Voreingestellt für Tür, Fenster, Bewegung.
+OPT_REACHABLE: Final = "reachable"
 # Löst im scharfen Zustand erst aus, wenn ein zweiter Sensor innerhalb des Zeitfensters anspricht (gegen Fehlalarm
 # durch Haustiere, Sonnenlicht). Nie voreingestellt: im Zweifel alarmieren (0.5.0)
 OPT_CONFIRM: Final = "confirm"
@@ -127,6 +147,20 @@ OPT_CONFIRM: Final = "confirm"
 # Für Sensoren, die oft ohne Einbruch ansprechen (Haustier, Sonnenlicht, Batterie zur Neige). Nie voreingestellt.
 OPT_REPORT_ONLY: Final = "report_only"
 REPORT_THROTTLE: Final = 60  # höchstens eine Meldung pro Sensor und Minute
+# Weiterer Sensor im Zustand "Alarm" (1.87.0, Code-Review H2): Protokoll und Meldung höchstens einmal je Sensor in dieser Zeit (Sekunden)
+ALARM_AGAIN_THROTTLE: Final = 300
+# Meldung "Sensor im scharfen Zustand nicht erreichbar" (1.87.0, Code-Review M6): je Sensor höchstens einmal in dieser Zeit (Sekunden); das
+# Protokoll bleibt vollständig. Ein flatternder Sensor löste bis 1.86.x bei jedem Abriss eine kritische Meldung aus.
+OFFLINE_NOTIFY_GAP: Final = 600
+# Ein Sensor, der im überwachten Zustand zu war, ausfiel und offen zurückkommt, zählt als Öffnen (1.87.0, Entscheid des Nutzers 2026-11-24), wenn er
+# nach dieser Zeit (Sekunden) noch offen ist: manche Geräte melden beim Wiederverbinden kurz einen falschen Zustand
+RETURN_CONFIRM: Final = 2
+# Zustand der Sensoren beim Neuladen einer Anlage (1.87.0, Code-Review M1): was sich zwischen Entladen und Laden geändert hat, wertet die neue
+# Instanz aus. Älter als diese Zeit (Sekunden): verworfen.
+DATA_SENSOR_HANDOVER: Final = f"{DOMAIN}_sensor_handover"
+# Ablage des Zustands je Anlage, über das Neuladen hinweg dieselbe (1.87.0, controller.state_store)
+DATA_STATE_STORES: Final = f"{DOMAIN}_state_stores"
+SENSOR_HANDOVER_MAX_AGE: Final = 120
 # Eigene Eingangsverzögerung eines Sensors in Sekunden (1.1.0): ein Wert, kein Schalter, darum nicht in SENSOR_OPTIONS.
 # Fehlt er, gilt die Eingangsverzögerung der Anlage für den Modus.
 OPT_ENTRY_DELAY: Final = "entry_delay"
@@ -134,7 +168,7 @@ OPT_ENTRY_DELAY: Final = "entry_delay"
 # aber keine Voreinstellung der Sensorart, darum nicht in SENSOR_OPTIONS. Wirkt nur in Modi, in deren Zone ein immer aktiver Sensor
 # steht. An: dort gelten allein Regel und Aktionen des Modus. Aus: "Immer aktiv" gilt zusätzlich (sofort Alarm, beide Abläufe).
 OPT_ALWAYS_OFF: Final = "always_off"
-SENSOR_OPTIONS: Final = (OPT_ALWAYS, OPT_OPEN_OK, OPT_BYPASS, OPT_ARM_ON_CLOSE, OPT_OFFLINE_ALARM, OPT_CONFIRM, OPT_REPORT_ONLY)
+SENSOR_OPTIONS: Final = (OPT_ALWAYS, OPT_OPEN_OK, OPT_REACHABLE, OPT_BYPASS, OPT_ARM_ON_CLOSE, OPT_OFFLINE_ALARM, OPT_CONFIRM, OPT_REPORT_ONLY)
 CONF_CONFIRM_WINDOW: Final = "confirm_window"
 # Einstellungen je Modus (0.10.0): Schlüssel "<name>_<modus>" (entry_delay_away …), "always" für Alarme durch immer aktive Sensoren
 # bei deaktivierter Anlage (nur Alarmdauer). Fehlt der Wert, gilt der alte gemeinsame Schlüssel ohne Modus, dann die Grundeinstellung.
@@ -162,9 +196,9 @@ DEVICE_CLASS_TYPE: Final = {
 }
 # Vorschlag aus dem Mockup 0.3.0 (angelehnt an Alarmo; Eingangsverzögerung bewusst nie voreingestellt)
 DEFAULT_PRESETS: Final = {
-    TYPE_DOOR: [OPT_ARM_ON_CLOSE],
-    TYPE_WINDOW: [],
-    TYPE_MOTION: [OPT_OPEN_OK],
+    TYPE_DOOR: [OPT_REACHABLE, OPT_ARM_ON_CLOSE],
+    TYPE_WINDOW: [OPT_REACHABLE],
+    TYPE_MOTION: [OPT_OPEN_OK, OPT_REACHABLE],
     TYPE_ENVIRONMENT: [OPT_ALWAYS],
     TYPE_TAMPER: [OPT_OFFLINE_ALARM],
     TYPE_OTHER: [],
@@ -188,6 +222,8 @@ DATA_SETTINGS_LOCK: Final = f"{DOMAIN}_settings_lock"
 NOTIFY_TYPES: Final = {
     "triggered": "alarm", "pending": "alarm", "armed": "alarm", "disarmed": "alarm", "arm_failed": "alarm",
     "sensor_offline": "alarm", "sensor_report": "alarm",
+    # 1.87.0 (Code-Review H2 und M2): weiterer Sensor im Zustand "Alarm", Sperre nach falschen Codes
+    "alarm_again": "alarm", "code_locked": "alarm",
     "battery_low": "maintenance", "sensor_unavailable": "maintenance",
     # Selbsttest (1.65.0): eine Meldung je neuem Befund, wie Batterie und Ausfall (selftest.py)
     "selftest": "maintenance",
@@ -198,7 +234,7 @@ NOTIFY_TYPES: Final = {
 # Standard je Art: (an, kritisch). Im Zweifel melden: Alarm und Ausfall eines Sensors im scharfen Zustand sind kritisch.
 NOTIFY_TYPE_DEFAULTS: Final = {
     "triggered": (True, True), "pending": (False, False), "armed": (False, False), "disarmed": (False, False),
-    "arm_failed": (True, False), "sensor_offline": (True, True), "sensor_report": (True, True),
+    "arm_failed": (True, False), "sensor_offline": (True, True), "sensor_report": (True, True), "alarm_again": (True, True), "code_locked": (True, False),
     "battery_low": (True, False), "sensor_unavailable": (True, False), "selftest": (True, False), "healthcheck": (True, False),
 }
 # Meldungsarten, die nur im scharfen Zustand vorkommen und je Modus eigene Werte haben können (0.29.0): Stiller Alarm, Eingangsverzögerung,

@@ -8,6 +8,7 @@ Alle Einzelheiten zu Alarmageddon. Der schnelle Einstieg (Idee, Installation, Ru
 
 - [Die Oberfläche](#die-oberfläche): Einrichtungsassistent, Übersicht, Sensoransicht, Sensoren und Zonen, Alarmaktionen, Benachrichtigungen, Selbsttest, HealthCheck, Überwachung, Alarm, Protokoll, Dashboard-Karten
 - [Sicherheitsmechanismen](#sicherheitsmechanismen) und ihre Grenzen
+- [Warum ohne Automationen](#warum-ohne-automationen): was eine eigene Integration anders macht als ein Bündel von Automationen
 - [Apple HomeKit](#apple-homekit)
 - [Entitäten](#entitäten)
 - [Gut zu wissen](#gut-zu-wissen): Ablauf eines Alarms, Zahlen und Grenzen, Optionen pro Sensor, Aktionen, Routinen, Backup, für Entwickler
@@ -46,9 +47,13 @@ Ein Tipp auf einen Sensor zeigt, was er getan hat: je Sensorart eine eigene Graf
 
 ### Sensoren und Zonen
 
-Eine Tabelle für Sensoren und Zonen: ankreuzen, wohin ein Sensor gehört, oder über mehrere Kästchen ziehen. Jede Sensorart hat sinnvolle Voreinstellungen (ein Rauchmelder ist immer aktiv, ein Bewegungsmelder darf beim Scharfschalten noch Bewegung melden), jeder Sensor kann eigene Werte haben, und der Schalter "Einstellungen pro Modus" bringt einen Reiter je Modus für alle, die mehr wollen. Der runde Stift am Ende einer Zeile öffnet die Einstellungen des Sensors; am Computer entfernt der runde Papierkorb daneben den Sensor. "Sensoren hinzufügen" zeigt jeden Sensor von Home Assistant, den Alarmageddon erkennt und der noch nicht in der Tabelle steht. Über der Tabelle und in diesem Fenster grenzen Filter die Liste ein: Türen und Fenster, Bewegung, Wasser und, bei eingeschalteter Überwachung, Temperatur, Luftfeuchtigkeit, Helligkeit und Luftqualität; "Weitere" nimmt alles Übrige (Rauch, Gas, Hitze, Erschütterung, Sabotage, Geräusch, Glasbruch und Ähnliches, Luftdruck). Es erscheinen nur die Filter, zu denen es Sensoren gibt.
+Eine Tabelle für Sensoren und Zonen: ankreuzen, wohin ein Sensor gehört, oder über mehrere Kästchen ziehen. Jede Sensorart hat sinnvolle Voreinstellungen (ein Rauchmelder ist immer aktiv, ein Bewegungsmelder darf beim Scharfschalten noch Bewegung melden, Türen, Fenster und Bewegungsmelder müssen beim Scharfschalten erreichbar sein), jeder Sensor kann eigene Werte haben, und der Schalter "Einstellungen pro Modus" bringt einen Reiter je Modus für alle, die mehr wollen. Der runde Stift am Ende einer Zeile öffnet die Einstellungen des Sensors; am Computer entfernt der runde Papierkorb daneben den Sensor. "Sensoren hinzufügen" zeigt jeden Sensor von Home Assistant, den Alarmageddon erkennt und der noch nicht in der Tabelle steht. Über der Tabelle und in diesem Fenster grenzen Filter die Liste ein: Türen und Fenster, Bewegung, Wasser und, bei eingeschalteter Überwachung, Temperatur, Luftfeuchtigkeit, Helligkeit und Luftqualität; "Weitere" nimmt alles Übrige (Rauch, Gas, Hitze, Erschütterung, Sabotage, Geräusch, Glasbruch und Ähnliches, Luftdruck). Es erscheinen nur die Filter, zu denen es Sensoren gibt.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sensors-de.png" alt="Sensoren und Zonen" width="100%"></p>
+
+Seit 1.87.0 lesen sich die Einstellungen eines Sensors (und die Voreinstellungen je Sensorart) für jeden Sensor gleich: **"Muss beim Scharfschalten geschlossen sein"** (Türen, Fenster und weitere Sensoren; bei Bewegungsmeldern gibt es sie nicht, ein Melder darf Bewegung melden, während du gehst), **"Muss beim Scharfschalten erreichbar sein"** (standardmässig an für Türen, Fenster und Bewegungsmelder) und **"Beim Scharfschalten umgehen"**. Ein Sensor, der offen ist oder nicht antwortet und geschlossen oder erreichbar sein muss, verhindert das Scharfschalten; mit "Beim Scharfschalten umgehen" nicht, und ein nicht erreichbarer Sensor wird überwacht, sobald er sich wieder meldet. Bestehende Installationen haben "Muss beim Scharfschalten erreichbar sein" für Türen, Fenster und Bewegungsmelder mit dem Update einmal bekommen; wer es danach ausschaltet, für den bleibt es aus.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sensor-options-de.png" alt="Einstellungen der Haustür: Muss beim Scharfschalten geschlossen sein, Muss beim Scharfschalten erreichbar sein, Beim Scharfschalten umgehen und die übrigen Optionen" width="100%"></p>
 
 ### Alarmaktionen
 
@@ -75,9 +80,13 @@ Auf derselben Seite stehen die Meldungen des Ablaufs als feste Elemente an ihrem
 
 ### Benachrichtigungen
 
-Die Standard-Empfänger wählst du getrennt für Alarme und für Wartungsmeldungen, und jede Meldung kann sie mit eigenen Empfängern überschreiben. Darunter folgen die Kapitel "Störungsmeldungen" (Sensor im scharfen Zustand nicht erreichbar, Scharfschalten nicht möglich) und "Wartungsmeldungen" (Batterie schwach, Sensor nicht erreichbar, Selbsttest, HealthCheck-Dienst antwortet nicht). Seit 1.69.0 ist jede Meldung eine Karte wie die festen Meldungen im Reiter Aktionen: Schalter, Symbol in der Farbe ihres Kapitels (Störungsmeldungen rot, Wartungsmeldungen orange, ausgeschaltet grau), Titel und eine Kurzfassung (an wen, kritisch, "bleibt in Home Assistant stehen" und die eigenen Einstellungen, zum Beispiel "unter 20 % · nach 3 Prüfungen"), Play (Testmeldung mit den gespeicherten Einstellungen; gesperrt, solange Änderungen offen sind oder die Meldung aus ist) und Stift. Am Computer stehen die Karten in zwei Spalten, auf dem Handy in einer.
+Die Standard-Empfänger wählst du getrennt für Alarme und für Wartungsmeldungen, und jede Meldung kann sie mit eigenen Empfängern überschreiben. Darunter folgen die Kapitel "Störungsmeldungen" (Sensor im scharfen Zustand nicht erreichbar, Scharfschalten nicht möglich, weiterer Sensor während eines Alarms, Codes nach Fehleingaben gesperrt) und "Wartungsmeldungen" (Batterie schwach, Sensor nicht erreichbar, Selbsttest, HealthCheck-Dienst antwortet nicht). Seit 1.69.0 ist jede Meldung eine Karte wie die festen Meldungen im Reiter Aktionen: Schalter, Symbol in der Farbe ihres Kapitels (Störungsmeldungen rot, Wartungsmeldungen orange, ausgeschaltet grau), Titel und eine Kurzfassung (an wen, kritisch, "bleibt in Home Assistant stehen" und die eigenen Einstellungen, zum Beispiel "unter 20 % · nach 3 Prüfungen"), Play (Testmeldung mit den gespeicherten Einstellungen; gesperrt, solange Änderungen offen sind oder die Meldung aus ist) und Stift. Am Computer stehen die Karten in zwei Spalten, auf dem Handy in einer.
 
 Der Stift öffnet das Fenster der Meldung, mit denselben Abschnitten für jede Meldung: "Meldung senden" (ein oder aus), Empfänger (Standard: die Standard-Empfänger ihres Kapitels; wer andere wählt, gibt der Meldung eigene Empfänger, "Zurück zum Standard" entfernt sie), Zustellung (Kritisch, ertönt auch im Stumm-Modus, mit eigener Lautstärke; "Zusätzlich als Benachrichtigung in Home Assistant stehen lassen") und, wo die Meldung welche hat, ihre eigenen Einstellungen. Zahlen sind einheitlich: Beschriftung links, Feld und Einheit rechts in einer Flucht, der Hinweis darunter. "Batterie schwach" hat "Schwach unter … %" und "Meldung nach … Prüfungen" (die Batterie muss so viele Prüfungen hintereinander unter der Schwelle liegen; die Wartung prüft alle 15 Minuten); "Sensor nicht erreichbar" hat "Nicht erreichbar nach … Minuten"; "HealthCheck-Dienst antwortet nicht" hat "Meldung nach … Fehlversuchen" (1 bis 10 hintereinander, Standard 2; es zählt jeder automatische Aufruf, nie der Testknopf) und "Melden, wenn er wieder antwortet" (Standard an: einmal, beim ersten Aufruf, der wieder klappt; dieselben Empfänger, nie kritisch, ersetzt die Meldung "antwortet nicht"). Ihre Texte sind fest und enthalten nie die URL; ein Tipp darauf öffnet die Liste der HealthCheck-Dienste. Ein gescheitertes Lebenszeichen geht nicht über die Meldung "Selbsttest" hinaus; es bleibt ein Problem des Selbsttests, dessen Abstand unter Konfiguration › Anlage › HealthCheck steht. "Übernehmen" überträgt die Änderungen auf die Seite, gespeichert werden sie wie überall mit "Speichern" unten; bis dahin zeigt die Karte "Noch nicht gespeichert" mit dem orangen Punkt. "Abbrechen", X und Escape fragen, bevor sie Änderungen im Fenster verwerfen.
+
+**Seit 1.87.0:** "Sensor im scharfen Zustand nicht erreichbar" geht je Sensor höchstens alle 10 Minuten hinaus (ein Sensor mit schwachem Funk, der immer wieder abreisst, klingelt nicht mehr jedes Mal; das Protokoll hält jeden Abriss fest). "Weiterer Sensor während eines Alarms" (standardmässig an und kritisch) meldet einen Sensor, der anspricht, während die Anlage noch im Alarm steht, höchstens einmal je Sensor in 5 Minuten. "Codes nach Fehleingaben gesperrt" (standardmässig an, nicht kritisch) meldet eine Sperre nach fünf falschen Codes mit ihrer Dauer; sie enthält nie einen Code. "Scharfschalten nicht möglich" nennt auch Sensoren, die nicht antworten ("Nicht erreichbar: …").
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/notifications-de.png" alt="Störungsmeldungen als Karten: Sensor im scharfen Zustand nicht erreichbar, Scharfschalten nicht möglich, weiterer Sensor während eines Alarms, Codes nach Fehleingaben gesperrt" width="100%"></p>
 
 Mit eingeschalteten "Einstellungen pro Modus" bekommt "Sensor im scharfen Zustand nicht erreichbar" eigene Werte je Modus (Reiter der Modi; Karte und Fenster nennen den Modus, ein eigener Wert zeigt "Zurück zum Grundwert"). Die Meldungen "Scharf geschaltet", "Deaktiviert", "Eingangsverzögerung" und "Stiller Alarm" stehen im Reiter Aktionen, an ihrem Punkt im Ablauf jeder Anlage. "Scharfschalten nicht möglich" trägt zwei Knöpfe, jeder mit seinem Schalter im Fenster: "Erneut versuchen" schaltet denselben Modus noch einmal scharf, "Trotzdem scharf schalten" schaltet scharf, obwohl Sensoren offen sind, und übergeht sie bis zum Deaktivieren. Sie gelten eine Stunde, nur solange die Anlage deaktiviert ist und nur vom Handy eines Empfängers dieser Meldung.
 
@@ -138,6 +147,12 @@ Ein Alarm ist nicht zu übersehen: ein rotes Band mit dem Sensor, der ausgelöst
 
 **Roter Kreis nach einem Alarm (seit 1.82.0):** nach einem echten Alarm (einem, den das Protokoll aufzeichnet) erscheint im Kopf neben dem Stift ein roter Kreis mit Alarmzeichen, rundherum derselbe Komet mit demselben Aufblitzen wie beim Zauberstab (ohne Stab). Mit dem Knopf des Assistenten sind beide zu sehen, und die Kometen laufen genau gleichzeitig. Er gehört zur ganzen Anlage und bleibt, bis ihn jemand antippt (Protokoll › Alarme öffnet sich mit diesem Alarm aufgeklappt) oder den Alarm im Protokoll von Hand öffnet. Im aufgeklappten Alarm wechselt der Knopf "Als ungelesen markieren" / "Als gelesen markieren" den Zustand; ungelesene Alarme bringen den Kreis als Erinnerung zurück und tragen einen langsam pulsierenden roten Punkt vor dem Titel.
 
+**Weiterer Sensor während des Alarms, Nachalarm (seit 1.87.0):** Die Anlage bleibt im Alarm, bis jemand quittiert oder deaktiviert. Spricht in dieser Zeit ein weiterer Sensor an (der Einbrecher geht ins nächste Zimmer), hält das Protokoll es fest, und die Meldung "Weiterer Sensor während eines Alarms" geht hinaus. Unter Konfiguration › Anlage › "Nach einem Alarm" lässt sich der **"Nachalarm"** einschalten: Sind die Alarmaktionen durchgelaufen, startet ein weiterer Sensor sie erneut (Sirene, Töne, Meldungen), höchstens so oft je Alarm, wie du einstellst (1 bis 10, Standard 3; der Schalter ist standardmässig aus). Laufen die Aktionen noch (Sirene an, ein Ton "bis zum Deaktivieren"), startet nichts doppelt. Geräte kehren beim Deaktivieren in den Zustand vor dem ersten Alarm zurück.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/after-alarm-de.png" alt="Konfiguration › Anlage: das Kapitel Nach einem Alarm mit eingeschaltetem Nachalarm und höchstens 3 Mal" width="100%"></p>
+
+**Quittieren und sofort ein neuer Alarm (seit 1.87.0):** Löst gleich nach dem Quittieren wieder ein Sensor aus, gehen die Geräte an den neuen Alarm über, statt zurückgestellt zu werden: Die Sirene geht dazwischen nicht aus, und das Deaktivieren danach stellt alles auf den Stand vor dem ersten Alarm zurück. Dasselbe gilt für einen Voralarm auf dem Lautsprecher, der danach den Alarmton spielt.
+
 ### Protokoll und Zeitachse des Alarms
 
 Jeder Alarm wird vom ersten Auslösen bis zum Quittieren aufgezeichnet: welcher Sensor wann angesprochen hat, welche Schritte liefen, welche Meldungen hinausgingen. Alle anderen Ereignisse (scharf, deaktiviert, Routinen, Sensorausfälle) stehen im zweiten Reiter, mit Filter nach Zeitraum und CSV-Export. Beides bleibt ein Jahr; einen einzelnen Alarm kannst du löschen.
@@ -177,7 +192,8 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Diese Mech
 | --- | --- |
 | Im Zweifel alarmieren | Eine Eingangsverzögerung, die während eines Neustarts von Home Assistant abgelaufen ist, wird zum Alarm, mit Alarmaktionen, Meldung und Aufzeichnung. Während Eingangsverzögerung und Alarm wird Scharfschalten abgelehnt: nur Deaktivieren führt heraus |
 | Sicher beim Neustart | Zustand, Verzögerungen und ein laufender Alarm gehen nach einem Neustart weiter; die Alarmaktionen setzen beim erreichten Schritt fort oder beginnen von vorn, wenn kein Ablauf abgelegt war. Jeder Wechsel des Zustands wird sofort geschrieben, damit auch nach einem Absturz oder Stromausfall der letzte Stand gilt |
-| Codes | 4 bis 8 Ziffern, nur als Hash mit Salz gespeichert, nie angezeigt, nie in einem Backup oder im Log. Fünf falsche Codes sperren die Anlage für eine Minute, auch für den richtigen Code; gleichzeitige Versuche werden einzeln nacheinander geprüft |
+| Codes | 4 bis 8 Ziffern, nur als Hash mit Salz gespeichert, nie angezeigt, nie in einem Backup, im Log oder in der Diagnose. Fünf falsche Codes sperren die Codes für eine Minute, auch für den richtigen Code; jede weitere Sperre dauert länger (2, 4, 8, dann 15 Minuten), bis ein richtiger Code kommt. Zähler und Sperre überstehen Speichern und Neustart, jeder falsche Code steht im Protokoll (nie der Code selbst), eine Sperre kommt als Push-Meldung. Gleichzeitige Versuche werden einzeln nacheinander geprüft |
+| Moduswechsel im scharfen Zustand | Der Wechsel zwischen "Anwesend", "Abwesend" und "Nacht" im scharfen Zustand oder während der Ausgangsverzögerung verlangt den Code, auch wenn das Scharfschalten aus "Deaktiviert" ohne Code geht: ein Wechsel kann Bewegungsmelder aus der Überwachung nehmen. Routinen und die Knöpfe der Meldung "Scharfschalten nicht möglich", die ein Administrator eingerichtet hat, brauchen keinen Code |
 | Nur Administratoren | Das Seitenpanel und jeder seiner Befehle verlangen Administratorrechte. Die Dashboard-Karten nutzen nur Entitäten und Dienste, mit den Codes, die Home Assistant prüft |
 | Knöpfe in der Alarmmeldung | "Deaktivieren" und "Alarmton stumm" sind standardmässig aus, "Quittieren" ist an. Sie wirken nur, solange der Alarm läuft, und nur vom Handy eines konfigurierten Alarm-Empfängers |
 | Nichts hält die Sirene auf | Ein Gerät, das nicht antwortet, wird nach 10 Sekunden übergangen, auf eine Push-Meldung wird nie gewartet, und ein scheiternder Schritt, ein scheiterndes Protokoll, eine scheiternde Aufzeichnung oder Meldung stoppt den Rest nie |
@@ -185,8 +201,15 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Diese Mech
 | Du bestimmst, wie lange die Sirene läuft | Im Code steht keine feste Dauer. Du stellst sie im Ablauf ein ("Warten" zwischen Ein und Aus oder eine Dauer beim Ton, bis zu einer Stunde je Schritt). Sie gilt genau und zählt ab dem ersten Start, auch über einen Neustart hinweg |
 | Selbsttest | Prüft regelmässig, ob alles, was die Anlagen brauchen, da und erreichbar ist, und hält fest, was im Betrieb scheiterte; er liest nur und hält nie einen Alarm auf |
 | HealthCheck | Lebenszeichen an einen Dienst draussen: Fällt Home Assistant aus oder verliert es das Internet, meldet sich der Dienst; Probleme des Selbsttests kommen dort ebenfalls an. Ein Lebenszeichen wartet höchstens 10 Sekunden und hält nie etwas auf |
-| Sensoren, die ausfallen | Ein Sensor, der im scharfen Zustand nicht mehr erreichbar ist, wird sofort gemeldet oder löst mit der Option "Ausfall gilt als Alarm" den Alarm aus. Schwache Batterien werden gemeldet, bevor sie leer sind |
-| Getestet | Über 1600 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen, eine ältere und eine aktuelle), rund 8700 Prüfungen der Oberfläche auf Computer und Handy und eine Mutationsprobe, die jede von 410 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert |
+| Sensoren, die ausfallen | Ein Sensor, der im scharfen Zustand nicht mehr erreichbar ist, wird gemeldet (je Sensor höchstens alle 10 Minuten) oder löst mit der Option "Ausfall gilt als Alarm" den Alarm aus. Ein Sensor, der zu war, während der Überwachung ausfällt und offen zurückkommt, gilt nach 2 Sekunden als geöffnet (Funkstörung, Sabotage); nur kurz offen beim Wiederverbinden zählt nicht. Schwache Batterien werden gemeldet, bevor sie leer sind |
+| Muss beim Scharfschalten erreichbar sein | Ein Tür-, Fenster- oder Bewegungssensor, der beim Scharfschalten nicht antwortet, verhindert das Scharfschalten wie ein offener und wird in der Meldung und bei "Bereit für" genannt. Einstellbar je Sensorart und je Sensor; mit "Beim Scharfschalten umgehen" schaltet die Anlage scharf, der Sensor wird überwacht, sobald er sich meldet |
+| Weiterer Sensor während eines Alarms | Im Protokoll und als Push-Meldung; mit "Nachalarm" laufen die Alarmaktionen erneut, wenn sie vorbei sind, höchstens so oft wie eingestellt |
+| Quittieren und neuer Alarm | Das Ende des alten Alarms schaltet Sirene und Lautsprecher des neuen nicht mehr ab: Geräte des neuen Alarms gehen an ihn über, und der neue Alarm wartet bis zu 3 Sekunden auf ein Gerät, das gerade zurückgestellt wird. Deaktivieren stellt alles auf den Stand vor dem ersten Alarm zurück |
+| Speichern im scharfen Zustand | Jedes Speichern lädt die Anlage neu. Ein Sensor, der in diesem Moment öffnet, schliesst oder ausfällt, wird danach wie eine Änderung live ausgewertet, nie vergessen |
+| Ton "bis zum Deaktivieren" nach einem Neustart | Ein Ton, der bis zum Deaktivieren läuft, startet nach einem Neustart mitten im Alarm wieder, genau einmal |
+| Verzögerungen nach einem Neustart | Eine verbleibende Eingangs- oder Ausgangsverzögerung ist nie länger als eingestellt, auch wenn die Uhr beim Start falsch ging (Rechner ohne Echtzeituhr nach einem Stromausfall) |
+| Diagnose | Der Download der Diagnose unter Einstellungen › Geräte & Dienste enthält Einstellungen und Zustand der Anlage, nie Code, Hash oder Salz |
+| Getestet | Über 1700 automatische Tests gegen ein echtes Home Assistant (in zwei Versionen, eine ältere und eine aktuelle), rund 9500 Prüfungen der Oberfläche auf Computer und Handy und eine Mutationsprobe, die jede von 491 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert |
 
 ### Grenzen
 
@@ -196,11 +219,32 @@ Alarmageddon ist keine zertifizierte Alarmanlage. Bitte beachte:
 - Wie lange eine Sirene laufen darf, ist von Ort zu Ort verschieden geregelt. Kläre, was bei dir gilt, und stelle die Dauer in den Alarmaktionen ein; am sichersten ist eine Sirene mit eigener Zeitbegrenzung.
 - Ein Ton "bis zum Deaktivieren" und eine Sirene ohne Schritt "aus" laufen, bis jemand deaktiviert. Das wählst du im Ablauf.
 
+## Warum ohne Automationen
+
+Viele Alarmanlagen in Home Assistant bestehen aus der Integration "Manual Alarm Control Panel" (`manual`) und einem Bündel von Automationen: eine je Sensor oder Gruppe, eine für die Sirene, eine für die Meldungen, eine fürs Deaktivieren. Das ist flexibel, und für viele Häuser reicht es. Alarmageddon geht bewusst den anderen Weg: Alles, was eine Alarmanlage tun muss, steckt in einer Integration, die nur dafür gebaut und getestet ist. Was das ändert:
+
+| Situation | Typisches Bündel von Automationen | Alarmageddon |
+| --- | --- | --- |
+| Zwei Sensoren sprechen fast gleichzeitig an, oder ein zweiter, während die erste Automation noch läuft | Hängt vom Modus jeder Automation ab: "single" ignoriert den zweiten Auslöser und schreibt nur "Already running" ins Log, "restart" bricht den ersten Lauf ab, "queued" verzögert den zweiten; jede Automation entscheidet für sich | Ein Automat wertet jede Änderung der Reihe nach aus. Ein zweiter Sensor während eines Alarms wird gemeldet und startet mit "Nachalarm" die Alarmaktionen erneut |
+| Home Assistant startet mitten in einem Alarm oder einer Eingangsverzögerung neu | Laufende Automationen sind samt Verzögerungen und Wartezeiten nach dem Neustart weg; "Sirene aus nach 3 Minuten" oder der Rest der Eingangsverzögerung muss mit Helfern nachgebaut werden | Zustand, verbleibende Verzögerungen und der Schritt, den die Alarmaktionen erreicht hatten, werden sofort geschrieben; nach dem Neustart laufen die Aktionen bei diesem Schritt weiter, Dauern zählen ab ihrem ersten Start, und eine abgelaufene Eingangsverzögerung wird zum Alarm |
+| Ein Gerät antwortet nicht (Cloud, WLAN, eine hängende Integration) | Ein Dienstaufruf in einer Automation wartet, bis das Gerät antwortet, ohne Zeitgrenze; ein Fehler bricht die Automation ab, ausser der Schritt hat `continue_on_error`. Sirene und Meldung dahinter warten mit | Jeder Aufruf eines Geräts ist auf 10 Sekunden begrenzt, ein scheiternder Schritt stoppt den Rest nie, und ein Wächter sorgt dafür, dass der Ablauf beginnt und weitergeht |
+| Nach dem Alarm soll alles wie vorher sein | Jedes Gerät selbst merken und zurückstellen (zum Beispiel mit spontan erstellten Szenen) | Jedes Gerät des Ablaufs merkt sich seinen Zustand vor dem Alarm und kehrt beim Deaktivieren dorthin zurück, auch nach einem Neustart |
+| Ein Sensor fällt im scharfen Zustand aus dem Funk, oder er antwortet beim Scharfschalten nicht | Braucht eigene Auslöser auf "nicht verfügbar" und "unbekannt"; leicht vergessen | Im scharfen Zustand gemeldet oder mit "Ausfall gilt als Alarm" ein Alarm; zu, ausgefallen und offen zurück gilt als geöffnet; "Muss beim Scharfschalten erreichbar sein" verhindert das Scharfschalten mit einem Sensor, der nicht antwortet |
+| Codes | Oft ein gemeinsamer Code in der Konfiguration; Sperre und Protokoll muss man selbst bauen | Ein Code pro Person, nur als Hash mit Salz gespeichert; eine Sperre nach fünf falschen Codes, die bis 15 Minuten wächst, jeder falsche Code im Protokoll, eine Push-Meldung bei einer Sperre; ein Moduswechsel im scharfen Zustand verlangt den Code |
+| Knöpfe in der Push-Meldung | Jeder Knopf braucht eine Automation, die prüft, wer gedrückt hat und ob der Alarm noch läuft | Eingebaut: Die Knöpfe wirken nur vom Handy eines Empfängers und nur, solange sie Sinn ergeben ("Deaktivieren" nur während des Alarms und standardmässig aus) |
+| Etwas wird umbenannt oder gelöscht | Die Automation scheitert erst, wenn sie läuft, oft im Alarm; man erfährt es aus ihrer Ablaufverfolgung | Der Selbsttest prüft Geräte, Lautsprecher, Aktionen und Empfänger regelmässig und nach jedem Speichern und markiert jedes Problem an der Aktion, die es betrifft |
+| Die Konfiguration ändern | Eine geänderte Automation gilt sofort, auch halb fertige Änderungen | Änderungen sind ein Entwurf, den die Integration vor dem Speichern prüft; den Modus, in dem die Anlage scharf ist, kann man nicht abschalten |
+| Nachweis, dass es funktioniert | Meist einmal von Hand ausprobiert | Über 1700 automatische Tests gegen ein echtes Home Assistant in zwei Versionen, Tests der Oberfläche auf Computer und Handy und eine Mutationsprobe, die jede von 491 Schutzmassnahmen ausbaut und verlangt, dass ein Test scheitert |
+
+**Was Automationen weiterhin besser können.** Sie können alles, was Home Assistant kann, mit Vorlagen und Bedingungen beliebiger Tiefe, und du behältst sie in deinem eigenen YAML. Darauf musst du nicht verzichten: Jede Anlage ist eine gewöhnliche `alarm_control_panel`-Entität mit Entitäten "Bereit zum Scharfschalten" und Zonen, Automationen können auf ihren Zustand reagieren, und der Schritt "Eigene Aktion" im Ablauf ruft jeden Dienst und jedes Skript auf. Alarmageddon übernimmt nur, was eine Alarmanlage nicht falsch machen darf.
+
+**Was es nicht ändert.** Fällt Home Assistant selbst, der Strom, das Netzwerk oder der Funk-Koordinator aus, gibt es keinen Alarm, mit Automationen wie ohne (siehe [Grenzen](#grenzen)); ein HealthCheck-Dienst meldet es wenigstens.
+
 ## Apple HomeKit
 
 1. Die Alarm-Entität in die HomeKit Bridge von Home Assistant aufnehmen (Domäne `alarm_control_panel` oder die Entität einschliessen).
 2. Apple Home zeigt "Aus" und die eingeschalteten Modi.
-3. Mit Code: HomeKit fragt nicht danach. Trage ihn in der Konfiguration der HomeKit Bridge ein (`entity_config` → `code`) oder als Standardcode in den Einstellungen der Entität.
+3. Mit Code: HomeKit fragt nicht danach. Trage ihn in der Konfiguration der HomeKit Bridge ein (`entity_config` → `code`) oder als Standardcode in den Einstellungen der Entität. Seit 1.87.0 verlangt auch der Wechsel zwischen Modi im scharfen Zustand den Code; ist er dort eingetragen, wechselt Apple Home wie bisher.
 
 ## Entitäten
 
@@ -208,7 +252,7 @@ Alarmageddon ist keine zertifizierte Alarmanlage. Bitte beachte:
 | --- | --- |
 | `alarm_control_panel.<name>` | Die Anlage. Attribute: `arm_mode`, `triggered_by`, `bypassed_sensors`, `deadline`, `changed_by`, `armed_at`, `armed_by`, `state_since` (seit wann sie in ihrem Zustand ist; übersteht einen Neustart) |
 | `binary_sensor.<name>_zone_<modus>` | An, wenn ein Sensor der Zone dieses Modus offen ist |
-| "Bereit zum Scharfschalten" je Modus | An, wenn kein offener Sensor das Scharfschalten in diesem Modus verhindert. Attribut: `blocking_sensors` |
+| "Bereit zum Scharfschalten" je Modus | An, wenn kein offener Sensor und kein nicht erreichbarer Sensor mit "Muss beim Scharfschalten erreichbar sein" das Scharfschalten in diesem Modus verhindert. Attribute: `blocking_sensors` (offen), `unreachable_sensors` (nicht erreichbar, seit 1.87.0) |
 | `sensor.<name>_status` | Zahl der offenen Probleme: Alarm, nicht erreichbare Sensoren, schwache Batterien, Probleme des Selbsttests. Attribute: `alarm`, `offline`, `low_battery`, `battery_threshold`, `selftest`, `selftest_last` |
 | `binary_sensor.<name>_selbsttest` | Selbsttest (Problem, Diagnose): ein, solange der Selbsttest etwas gefunden hat, das diese Anlage betrifft, vor der ersten Prüfung unbekannt. Attribute: `last_check`, `count`, `problems` (die ersten 20, nur Art und ID) |
 
@@ -224,11 +268,13 @@ Details für alle, die es genau wissen wollen.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/flow-de.svg" alt="Zustände einer Anlage" width="100%"></p>
 
-- Nur ein echter Wechsel von zu auf offen löst aus. Ein Sensor, der aus "nicht verfügbar" offen zurückkommt, löst nicht aus.
+- Nur ein echter Wechsel von zu auf offen löst aus. Ein Sensor, der aus "nicht verfügbar" offen zurückkommt, löst nicht aus, mit einer Ausnahme (seit 1.87.0): War er zu, fiel er aus, während die Anlage ihn überwachte, und kommt er offen zurück, gilt er nach 2 Sekunden als geöffnet (Funkstörung oder Sabotage); schliesst er innerhalb dieser 2 Sekunden wieder, geschieht nichts.
+- Ein Sensor, der öffnet, während die Anlage neu lädt (jedes Speichern im Panel), wird gleich nach dem Neuladen ausgewertet, wie eine Änderung live.
 - Ein Sensor mit Eingangsverzögerung (zum Beispiel die Haustür) startet die Eingangsverzögerung; jeder andere Sensor löst sofort aus. Ein Eingangssensor kann eine eigene Verzögerung haben (Sensor-Optionen), sonst gilt die der Anlage. Ein zweiter Eingangssensor verlängert die Verzögerung nicht.
 - Sensoren mit "Immer aktiv" (Rauch, Wasser, Gas) lösen in jedem Zustand aus, auch deaktiviert.
 - Der Alarm bleibt, bis jemand deaktiviert. Wie lange Sirene, Licht und Ton laufen, steht in den Alarmaktionen.
-- Offene Sensoren verhindern das Scharfschalten, ausser sie dürfen offen sein oder werden bis zum nächsten Deaktivieren umgangen.
+- Offene Sensoren verhindern das Scharfschalten, ausser sie dürfen offen sein oder werden bis zum nächsten Deaktivieren umgangen. Nicht erreichbare Sensoren mit "Muss beim Scharfschalten erreichbar sein" verhindern es ebenso (seit 1.87.0).
+- Während der Alarm läuft, wird ein weiterer Sensor gemeldet; mit "Nachalarm" startet er die Alarmaktionen erneut, wenn sie vorbei sind.
 
 ### Zahlen und Grenzen
 
@@ -237,7 +283,10 @@ Details für alle, die es genau wissen wollen.
 | Ausgangsverzögerung | Standard 60 s für "Abwesend", keine für "Anwesend" und "Nacht"; bis 3600 s je Modus |
 | Eingangsverzögerung | Standard 30 s, auf Wunsch je Modus und je Sensor |
 | Bestätigungsfenster für den zweiten Sensor | Standard 60 s |
-| Falsche Codes | Fünf, dann 60 s gesperrt |
+| Falsche Codes | Fünf, dann 60 s gesperrt; jede weitere Sperre 2, 4, 8, dann 15 Minuten, bis ein richtiger Code kommt |
+| Zu, nicht erreichbar, wieder offen | Gilt nach 2 s als geöffnet |
+| Weiterer Sensor während eines Alarms | Meldung je Sensor höchstens einmal in 5 Minuten; Nachalarm standardmässig aus, 1 bis 10 Mal je Alarm (Standard 3) |
+| Sensor im scharfen Zustand nicht erreichbar | Meldung je Sensor höchstens einmal in 10 Minuten (das Protokoll hält jeden Abriss fest) |
 | Ablage der Codes | PBKDF2-SHA256 mit 120 000 Runden und einem Salz je Code |
 | Gerät antwortet nicht | Nächster Schritt nach 10 s |
 | Erster Schritt nach dem Auslösen | Höchstens 8 s (Wächter) |
@@ -251,7 +300,8 @@ Details für alle, die es genau wissen wollen.
 ### Optionen pro Sensor
 
 - **Immer aktiv:** lässt sich als Ganzes abschalten (Konfiguration › Anlage). Löst in jedem Zustand aus, scharf wie deaktiviert, und zwar sofort (Rauch, Wasser, Gas), mit den Optionen aus dem Reiter "Immer aktiv". Steht der Sensor zugleich in der Zone eines Modus, zählt nur dieser Modus, solange die Anlage darin scharf ist (seine Einstellungen und seine Aktionen); mit ausgeschaltetem Schalter "Scharf in <Modus>: nur <Modus> zählt" gilt "Immer aktiv" zusätzlich: der Sensor löst sofort aus, und beide Abläufe der Alarmaktionen laufen. Bei deaktivierter Anlage und in Modi, die den Sensor nicht enthalten, laufen die Aktionen von "Immer aktiv".
-- **Darf beim Scharfschalten offen sein:** ein offener Sensor verhindert das Scharfschalten nicht und löst aus, nachdem er geschlossen und wieder geöffnet wurde.
+- **Muss beim Scharfschalten geschlossen sein** (gespeichert als Gegenteil, "darf beim Scharfschalten offen sein"): ein offener Sensor verhindert das Scharfschalten. Ausgeschaltet verhindert er es nicht und löst aus, nachdem er geschlossen und wieder geöffnet wurde. Bei Bewegungsmeldern steht die Option nicht da: sie dürfen beim Scharfschalten Bewegung melden.
+- **Muss beim Scharfschalten erreichbar sein (seit 1.87.0):** ein Sensor, der nicht antwortet (nicht verfügbar, unbekannt, fehlt), verhindert das Scharfschalten wie ein offener. Standardmässig an für Türen, Fenster und Bewegungsmelder. Mit "Beim Scharfschalten umgehen" oder ausgeschaltet geht das Scharfschalten, und der Sensor wird überwacht, sobald er sich meldet.
 - **Beim Scharfschalten umgehen:** ein offener Sensor wird bis zum nächsten Deaktivieren ignoriert.
 - **Scharf, sobald geschlossen:** wird dieser Sensor in der Ausgangsverzögerung geschlossen (die Haustür hinter dir), ist die Anlage sofort scharf, statt das Ende der Verzögerung abzuwarten.
 - **Ausfall gilt als Alarm:** ein nicht erreichbarer Sensor löst im scharfen Zustand den Alarm aus.

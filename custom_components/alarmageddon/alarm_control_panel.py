@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-import voluptuous as vol
-
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
@@ -15,7 +13,6 @@ from homeassistant.components.alarm_control_panel import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 
@@ -32,13 +29,13 @@ class AlarmRestoreData(ExtraStoredData):
         return self.data
 
 
+# Keine Abfrage, Zustand kommt vom Automaten: Aktualisierungen ohne Grenze (Quality Scale "parallel-updates", 1.87.0)
+PARALLEL_UPDATES = 0
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+    # Der Dienst "acknowledge" steht seit 1.87.0 in async_setup (__init__.py, Quality Scale "action-setup")
     async_add_entities([AlarmageddonAlarm(entry, entry.runtime_data.controller)])
-    # Quittieren für jeden Nutzer (Dashboard-Karte): ein Entitätsdienst, den HA nur für diese Entitäten annimmt. Das Panel braucht
-    # Administratorrechte, dieser Dienst nicht; ob ein Code nötig ist, bestimmt der Administrator (Einstellung der Anlage).
-    entity_platform.async_get_current_platform().async_register_entity_service(
-        "acknowledge", {vol.Optional("code"): cv.string}, "async_acknowledge_alarm"
-    )
 
 
 class AlarmageddonAlarm(AlarmageddonEntity, AlarmControlPanelEntity, RestoreEntity):

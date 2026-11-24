@@ -193,7 +193,7 @@ for (const lang of ["de", "en"]) {
       // Alle anderen Optionen im Blatt, für den gewählten Modus
       if (!mobile) {
         await s.tap(`tr[data-row="${bypassEnt}"] td:first-child .ag-nm`);
-        check(`${tag}: Blatt zeigt alle Optionen (auch "Umgehen" und, bei Immer aktiv in der Zone, "Scharf: nur der Modus zählt") für den gewählten Modus`, await s.waitFor(`const sd=r.querySelector('.ag-side'); return sd.querySelectorAll('[data-sen="mopt"][data-mode="away"]').length === 7 && !!sd.querySelector('[data-key="bypass"]') && !sd.querySelector('[data-key="always"]:not(.ag-chip)') && !!sd.querySelector('[data-key="always_off"]') && !sd.querySelector('.ag-chip')`));
+        check(`${tag}: Blatt zeigt alle Optionen (auch "Umgehen", seit 1.87.0 "Muss erreichbar sein" und, bei Immer aktiv in der Zone, "Scharf: nur der Modus zählt") für den gewählten Modus`, await s.waitFor(`const sd=r.querySelector('.ag-side'); return sd.querySelectorAll('[data-sen="mopt"][data-mode="away"]').length === 8 && !!sd.querySelector('[data-key="bypass"]') && !sd.querySelector('[data-key="always"]:not(.ag-chip)') && !!sd.querySelector('[data-key="always_off"]') && !sd.querySelector('.ag-chip')`));
         check(`${tag}: Schalter "nur der Modus zählt" ist standardmässig an`, await s.ev(`const b=r.querySelector('.ag-side [data-sen="mopt"][data-key="always_off"]'); return b.getAttribute('aria-checked') === 'true'`));
         await s.tap('.ag-side [data-sen="mopt"][data-key="always_off"][data-mode="away"]');
         check(`${tag}: Schalter aus setzt den Wert nur für diesen Modus ("Immer aktiv" gilt dort zusätzlich)`, await s.waitFor(`const d=r.host.sensors.draft; return d.modeOpts.away?.["${bypassEnt}"]?.always_off === false && !d.opts["${bypassEnt}"]?.always_off`));
@@ -204,7 +204,7 @@ for (const lang of ["de", "en"]) {
         // Reiter "Immer aktiv": eigene Einstellungen, Spalte hervorgehoben, im Blatt alle Optionen einschliesslich "Immer aktiv"
         await s.tap('[data-sen="mt:always"]');
         await s.tap(`tr[data-row="${bypassEnt}"] td:first-child .ag-nm`);
-        check(`${tag}: Reiter "Immer aktiv": Spalte hervorgehoben, Blatt mit den 6 Optionen ("Immer aktiv" selbst steht in der Tabelle)`, await s.waitFor(`const sd=r.querySelector('.ag-side'); return r.querySelectorAll('.ag-gbody th.cur').length === 1 && r.querySelector('.ag-gbody th.cur').textContent.match(/Immer aktiv|Always active/) !== null && sd.querySelectorAll('[data-sen="mopt"][data-mode="always"]').length === 6`));
+        check(`${tag}: Reiter "Immer aktiv": Spalte hervorgehoben, Blatt mit den 7 Optionen ("Immer aktiv" selbst steht in der Tabelle; seit 1.87.0 dazu "Muss erreichbar sein")`, await s.waitFor(`const sd=r.querySelector('.ag-side'); return r.querySelectorAll('.ag-gbody th.cur').length === 1 && r.querySelector('.ag-gbody th.cur').textContent.match(/Immer aktiv|Always active/) !== null && sd.querySelectorAll('[data-sen="mopt"][data-mode="always"]').length === 7`));
         check(`${tag}: Blatt "Immer aktiv" zeigt Banner`, await s.waitFor(`return !!r.querySelector('.ag-side .ag-pmbanner')`));
         await s.tap('.ag-side [data-sen="close-detail"]');
       }

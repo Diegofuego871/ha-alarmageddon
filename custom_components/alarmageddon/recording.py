@@ -197,7 +197,8 @@ class AlarmRecorder:
     @callback
     def _on_event(self, kind: str, data: dict[str, Any]) -> None:
         """Ereignisse ohne Zustandswechsel (Sensor ausgefallen, nicht bestätigt) gehören in einen laufenden Alarm."""
-        if self.current is not None and kind in ("sensor_offline", "sensor_report", "unconfirmed", "silenced", "acknowledged"):
+        # 1.87.0: weiterer Sensor im Alarm, Nachalarm, Sensor nach Ausfall offen zurück
+        if self.current is not None and kind in ("sensor_offline", "sensor_report", "unconfirmed", "silenced", "acknowledged", "sensor_again", "realarm", "sensor_back_open"):
             if kind == "acknowledged":
                 self._ack_by = data.get("by") or ""
             self._add({"kind": kind, **data})

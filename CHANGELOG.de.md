@@ -7,6 +7,45 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.87.0] - 2026-11-24
+
+Ergebnis eines vollständigen Code-Reviews der Alarmlogik (2026-11-24). Jeder Befund wurde zuerst mit einem Test gegen 1.86.2 nachgestellt; die Tests sichern jetzt die Korrekturen.
+
+**Bitte beachten, zwei Änderungen im Verhalten:** Ein Tür-, Fenster- oder Bewegungssensor, der nicht antwortet, verhindert jetzt das Scharfschalten (wer das nicht will, schaltet "Muss beim Scharfschalten erreichbar sein" für einen Sensor oder eine Sensorart aus), und der Wechsel zwischen Modi im scharfen Zustand verlangt den Code (Apple Home: Code in der Konfiguration der HomeKit Bridge eintragen).
+
+### Hinzugefügt
+
+- **"Muss beim Scharfschalten erreichbar sein":** eine neue Option je Sensor und je Sensorart. Ein Sensor, der beim Scharfschalten nicht antwortet (nicht verfügbar, unbekannt, fehlt), verhindert das Scharfschalten wie ein offener; mit "Beim Scharfschalten umgehen" schaltet die Anlage scharf und überwacht den Sensor, sobald er sich meldet. Standardmässig an für Türen, Fenster und Bewegungsmelder; bestehende Installationen bekommen sie mit diesem Update einmal (Voreinstellungen und alte Backups), wer sie danach ausschaltet, für den bleibt sie aus. Die Meldung "Scharfschalten nicht möglich", der Fehler im Panel, "Bereit für" in der Übersicht, die Dashboard-Karte und der Einrichtungsassistent nennen die nicht erreichbaren Sensoren; die Entitäten "Bereit zum Scharfschalten" gehen aus und tragen das neue Attribut `unreachable_sensors`.
+- **Weiterer Sensor während eines Alarms:** Steht die Anlage noch im Alarm, hält das Protokoll einen weiteren Sensor fest, und die neue Meldung "Weiterer Sensor während eines Alarms" geht hinaus (standardmässig an und kritisch, je Sensor höchstens einmal in 5 Minuten). Bisher blieb das ohne Spur.
+- **Nachalarm:** unter Konfiguration › Anlage › "Nach einem Alarm". Sind die Alarmaktionen durchgelaufen, startet ein weiterer Sensor sie erneut, höchstens 1 bis 10 Mal je Alarm (Standard 3). Standardmässig aus. Deaktivieren stellt die Geräte auf den Stand vor dem ersten Alarm zurück. Teil des Backups.
+- **Falsche Codes im Protokoll und eine Meldung bei einer Sperre:** Jeder falsche Code wird festgehalten (nie der Code selbst), und die neue Meldung "Codes nach Fehleingaben gesperrt" (standardmässig an, nicht kritisch) meldet eine Sperre mit ihrer Dauer.
+- **Diagnose:** Die Diagnose von Home Assistant (Einstellungen › Geräte & Dienste › Alarmageddon, Menü der Anlage) enthält Einstellungen und Zustand der Anlage, ohne Codes, Hashes oder Salz.
+
+### Geändert
+
+- **Optionen der Sensoren lesen sich für jeden Sensor gleich:** "Darf beim Scharfschalten offen sein" steht jetzt als Gegenteil da, "Muss beim Scharfschalten geschlossen sein" (gespeichert wie bisher). Bewegungsmelder zeigen sie nicht mehr: sie dürfen Bewegung melden, während du gehst. Zusammen mit "Muss beim Scharfschalten erreichbar sein" und "Beim Scharfschalten umgehen" in den Einstellungen jedes Sensors und in den Voreinstellungen je Sensorart.
+- **Die Sperre nach falschen Codes wächst:** Fünf falsche Codes sperren die Codes für 1 Minute, jede weitere Sperre für 2, 4, 8 und dann 15 Minuten, bis ein richtiger Code kommt. Zähler und Sperre überstehen jetzt das Speichern im Panel und einen Neustart.
+- **Moduswechsel im scharfen Zustand verlangt den Code:** Der Wechsel zwischen "Anwesend", "Abwesend" und "Nacht" im scharfen Zustand oder während der Ausgangsverzögerung braucht den Code, auch wenn das Scharfschalten aus "Deaktiviert" ohne Code geht (ein Wechsel kann Bewegungsmelder aus der Überwachung nehmen). Routinen und die Knöpfe der Meldung "Scharfschalten nicht möglich" brauchen keinen Code. Mit einem Code in der Konfiguration der HomeKit Bridge wechselt Apple Home wie bisher.
+- **Weniger Meldungen eines flatternden Sensors:** "Sensor im scharfen Zustand nicht erreichbar" geht je Sensor höchstens alle 10 Minuten hinaus; das Protokoll hält weiterhin jeden Abriss fest.
+- Der Hinweis zu "Quittieren verlangt den Code" sagt jetzt, dass er für die Dashboard-Karten und die Aktion `alarmageddon.acknowledge` gilt und Administratoren im Panel ohne Code quittieren.
+- Der Dienst "Quittieren" wird beim Start der Integration angemeldet, nicht mit der Alarm-Entität (Quality Scale von Home Assistant "action-setup"); die Plattformen setzen `PARALLEL_UPDATES` ("parallel-updates"). Die eigene Ablage des Zustands wird mit einem Abgleich auf die Platte geschrieben.
+
+### Behoben
+
+- **Quittieren und sofort ein neuer Alarm:** Löste gleich nach dem Quittieren wieder ein Sensor aus, konnte das Ende des alten Alarms die Sirene des neuen abschalten, oder das Deaktivieren danach liess die Sirene an. Die Geräte gehen jetzt an den neuen Alarm über: die Sirene bleibt an, und Deaktivieren stellt alles auf den Stand vor dem ersten Alarm zurück.
+- **Voralarm und Alarmton auf demselben Lautsprecher:** Bei einem trägen Lautsprecher konnte das Zurückstellen nach dem Voralarm der Eingangsverzögerung erst ankommen, als der Alarmton schon lief (Alarmton gestoppt oder mit der Lautstärke von vorher). Der Lautsprecher geht jetzt an den Alarm über.
+- **Zu, nicht erreichbar, wieder offen:** Ein Sensor, der zu war, während der Überwachung ausfiel und offen zurückkam (Funkstörung, Sabotage), zählte nie. Er gilt jetzt nach 2 Sekunden als geöffnet; nur kurz offen beim Wiederverbinden zählt nicht. Ein Sensor, der vor dem Scharfschalten ausfiel und offen zurückkommt, steht im Protokoll.
+- **Ein Sensor, der beim Speichern öffnete, ging verloren:** Jedes Speichern im Panel lädt die Anlage neu; ein Sensor, der in diesem Moment öffnet, schliesst oder ausfällt, wird jetzt gleich nach dem Neuladen ausgewertet.
+- **Ton "bis zum Deaktivieren" nach einem Neustart:** Nach einem Neustart von Home Assistant mitten im Alarm startete ein Ton, der bis zum Deaktivieren läuft, nicht wieder, wenn der Ablauf schon weiter war. Er startet jetzt wieder, genau einmal.
+- **Verzögerungen nach einem Neustart:** Eine verbleibende Eingangs- oder Ausgangsverzögerung konnte länger sein als eingestellt, wenn die Uhr beim Start falsch ging (Rechner ohne Echtzeituhr nach einem Stromausfall). Sie ist jetzt auf die eingestellte Verzögerung begrenzt.
+- **"Bereit zum Scharfschalten" folgte nur offenen Sensoren:** Ein Sensor, der nicht mehr erreichbar war, änderte die Entität nicht, bis er öffnete oder schloss.
+
+### Sicherheit
+
+- Die Sperre nach falschen Codes wächst bis 15 Minuten, übersteht Speichern und Neustart, und jeder falsche Code steht im Protokoll; eine Sperre kommt als Push-Meldung.
+- Der Wechsel des Modus im scharfen Zustand verlangt den Code.
+- Die Diagnose enthält nie Codes, Hashes oder Salz (geprüft vom Test, der jede Antwort und Ablage der Integration auf Geheimnisse prüft).
+
 ## [1.86.2] - 2026-11-23
 
 ### Behoben
@@ -2305,6 +2344,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.87.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.87.0
 [1.86.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.2
 [1.86.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.1
 [1.86.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.0

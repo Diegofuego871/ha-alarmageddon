@@ -167,11 +167,12 @@
 
   // Entitäten-Registry für das Panel (hass.entities); der Nachbau braucht keine Einträge
   const entities = {};
-  window.__presets = { door: ["arm_on_close"], window: [], motion: ["open_ok"], environment: ["always"], tamper: ["offline_alarm"], other: [] };
+  // Wie der Server nach dem Update auf 1.87.0: "Muss beim Scharfschalten erreichbar sein" für Tür, Fenster und Bewegung
+  window.__presets = { door: ["reachable", "arm_on_close"], window: ["reachable"], motion: ["open_ok", "reachable"], environment: ["always"], tamper: ["offline_alarm"], other: [] };
   const T = (enabled, critical) => ({ enabled, critical, volume: 0.8 });
   window.__notify = { alarm_targets: ["notify.mobile_app_diego"], maintenance_targets: [], disarm_action: false, open_action: true, silence_action: false, battery_threshold: 20, battery_checks: 3, offline_minutes: 60, selftest_minutes: 360, selftest_minutes_armed: 60,
     types: { triggered: T(true, true), pending: T(false, false), armed: T(false, false), disarmed: T(false, false), arm_failed: T(true, false), sensor_offline: T(true, true),
-      sensor_report: T(true, true), battery_low: T(true, false), sensor_unavailable: T(true, false), selftest: T(true, false), healthcheck: T(true, false) },
+      sensor_report: T(true, true), alarm_again: T(true, true), code_locked: T(true, false), battery_low: T(true, false), sensor_unavailable: T(true, false), selftest: T(true, false), healthcheck: T(true, false) },
     // HealthCheck-Dienst antwortet nicht (seit 1.69.0 eine Wartungsmeldung wie der Selbsttest) wie der Server (const.py DEFAULT_NOTIFY)
     healthcheck_fails: 2, healthcheck_up: true };
   // ?mtargets=1: Empfänger der Wartungsmeldungen vorbelegt (Testknöpfe des Assistenten, 1.71.0)
@@ -825,7 +826,7 @@
         return { targets: msg.group === "alarm" ? window.__notify.alarm_targets : window.__notify.maintenance_targets };
       }
       (window.__testNotify ||= []).push(msg.kind);
-      const alarm = ["triggered", "pending", "armed", "disarmed", "arm_failed", "sensor_offline", "sensor_report"].includes(msg.kind);
+      const alarm = ["triggered", "pending", "armed", "disarmed", "arm_failed", "sensor_offline", "sensor_report", "alarm_again", "code_locked"].includes(msg.kind);
       return { targets: alarm ? window.__notify.alarm_targets : window.__notify.maintenance_targets };
     }
     if (msg.type === "alarmageddon/save_presets") {
@@ -1004,6 +1005,12 @@
       if (typeof msg.always_enabled === "boolean") sys.always_enabled = msg.always_enabled;
       if (typeof msg.monitor_enabled === "boolean") sys.monitor_enabled = msg.monitor_enabled;
       if (msg.accent) sys.accent = msg.accent;
+      // Nachalarm (1.87.0) wie der Server: Schalter und Anzahl 1 bis 10
+      if (typeof msg.realarm_enabled === "boolean") sys.realarm_enabled = msg.realarm_enabled;
+      if (msg.realarm_count !== undefined) {
+        if (!Number.isInteger(msg.realarm_count) || msg.realarm_count < 1 || msg.realarm_count > 10) throw err("invalid_format", "realarm_count");
+        sys.realarm_count = msg.realarm_count;
+      }
       if (typeof msg.code_ack_required === "boolean") {
         if (msg.code_ack_required && !sys.has_code) throw err("code_missing");
         sys.code_ack_required = msg.code_ack_required;

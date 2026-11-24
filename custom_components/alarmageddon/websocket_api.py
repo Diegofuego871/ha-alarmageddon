@@ -32,6 +32,10 @@ from . import backup, custom_sounds, last_change, reception
 from .code import hash_code, match_code
 from .systems import async_create_system, new_system_name
 from .const import (
+    CONF_REALARM_COUNT,
+    CONF_REALARM_ENABLED,
+    REALARM_COUNT_RANGE,
+    realarm_count,
     BATTERY_CHECKS_RANGE,
     BATTERY_THRESHOLD_RANGE,
     AUTO_BACKUP_DAYS,
@@ -389,6 +393,8 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "always_enabled": ctl.always_enabled,
                 "routines": entry.options.get(CONF_ROUTINES) or [],
                 "monitor_enabled": ctl.monitor_enabled,
+                "realarm_enabled": bool(entry.options.get(CONF_REALARM_ENABLED, False)),
+                "realarm_count": realarm_count(entry.options),
                 "accent": entry.options.get(CONF_ACCENT, "ha"),
                 "monitors": entry.options.get(CONF_MONITORS) or [],
                 # Regeln, die gerade ausserhalb ihrer Grenzen sind: id -> seit wann und welcher Sensor
@@ -783,6 +789,9 @@ async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) 
         vol.Optional("night_enabled"): bool,
         vol.Optional("always_enabled"): bool,
         vol.Optional("monitor_enabled"): bool,
+        # Nachalarm (1.87.0, Entscheid des Nutzers 2026-11-24)
+        vol.Optional("realarm_enabled"): bool,
+        vol.Optional("realarm_count"): vol.All(vol.Coerce(int), vol.Range(min=REALARM_COUNT_RANGE[0], max=REALARM_COUNT_RANGE[1])),
         vol.Optional("accent"): vol.In(ACCENTS),
         vol.Optional("home_enabled"): bool,
         vol.Optional("away_enabled"): bool,
@@ -819,6 +828,10 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
         options[CONF_ALWAYS_ENABLED] = msg["always_enabled"]
     if "monitor_enabled" in msg:
         options[CONF_MONITOR_ENABLED] = msg["monitor_enabled"]
+    if "realarm_enabled" in msg:
+        options[CONF_REALARM_ENABLED] = msg["realarm_enabled"]
+    if "realarm_count" in msg:
+        options[CONF_REALARM_COUNT] = msg["realarm_count"]
     if "accent" in msg:
         options[CONF_ACCENT] = msg["accent"]
     if "code_ack_required" in msg:

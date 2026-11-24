@@ -28,6 +28,9 @@ from .entity import AlarmageddonEntity
 GONE = (STATE_UNAVAILABLE, STATE_UNKNOWN)
 
 
+# Keine Abfrage, die Werte kommen vom Automaten und von Home Assistant (Quality Scale "parallel-updates", 1.87.0)
+PARALLEL_UPDATES = 0
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     async_add_entities([StatusSensor(entry, entry.runtime_data.controller)])
 

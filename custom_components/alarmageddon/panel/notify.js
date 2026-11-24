@@ -13,7 +13,8 @@ const GROUPS = {
   // Seit 1.62.0 ohne "Stiller Alarm", "Eingangsverzögerung", "Scharf geschaltet" und "Deaktiviert": sie stehen als feste Elemente im Reiter
   // Aktionen (je Anlage und Modus). Ihre früheren gemeinsamen Werte bleiben im Entwurf unberührt erhalten (der Server nimmt sie, solange
   // eine Anlage nichts Eigenes gespeichert hat).
-  alarm: [["sensor_offline", "alert"], ["arm_failed", "doorOpen"]],
+  // 1.87.0 (Code-Review): weiterer Sensor während eines Alarms, Codes nach Fehleingaben gesperrt
+  alarm: [["sensor_offline", "alert"], ["arm_failed", "doorOpen"], ["alarm_again", "bell"], ["code_locked", "key"]],
   // Selbsttest (1.65.0): eigene Meldungsart, einzeln ein- und auszuschalten wie die anderen. HealthCheck-Dienst antwortet nicht (seit 1.69.0, Wunsch
   // des Nutzers 2026-11-19, 22:16/22:17): wie der Selbsttest, dazu die Zahl der Fehlversuche und "Melden, wenn er wieder antwortet"
   maintenance: [["battery_low", "battery"], ["sensor_unavailable", "offline"], ["selftest", "stethoscope"], ["healthcheck", "heartPulse"]],

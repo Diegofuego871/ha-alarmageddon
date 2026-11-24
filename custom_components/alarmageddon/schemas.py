@@ -17,6 +17,9 @@ from .const import (
     CONF_ALWAYS_ENABLED,
     CONF_HOME_ENABLED,
     CONF_MONITOR_ENABLED,
+    CONF_REALARM_COUNT,
+    CONF_REALARM_ENABLED,
+    REALARM_COUNT_RANGE,
     CONF_ACCENT,
     ACCENTS,
     CONF_MONITOR_SENSORS,
@@ -561,6 +564,9 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_ROUTINES): ROUTINES,
         vol.Optional(CONF_MONITORS): MONITORS,
         vol.Optional(CONF_MONITOR_ENABLED): bool,
+        # Nachalarm (1.87.0)
+        vol.Optional(CONF_REALARM_ENABLED): bool,
+        vol.Optional(CONF_REALARM_COUNT): vol.All(vol.Coerce(int), vol.Range(min=REALARM_COUNT_RANGE[0], max=REALARM_COUNT_RANGE[1])),
         vol.Optional(CONF_ACCENT): vol.In(ACCENTS),
         vol.Optional(CONF_MONITOR_SENSORS): _measure_sensors,
         vol.Optional("disarm_ends_alarm"): bool,  # nur aus Backups von 1.78.0 (die Einstellung entfiel in 1.79.0): wird beim Einlesen verworfen

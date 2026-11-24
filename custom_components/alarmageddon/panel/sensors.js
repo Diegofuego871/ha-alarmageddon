@@ -353,7 +353,7 @@ export class SensorsUi {
     const mode = this.activeMode();
     const active = [
       ...(this.draft.entrySensors.has(r.id) ? [this._t("optEntryShort")] : []),
-      ...OPTIONS.filter((o) => this.eff(r.id, o.key, mode)).map((o) => this._t(o.short)),
+      ...OPTIONS.filter((o) => o.short && this.eff(r.id, o.key, mode) && !o.notFor?.includes(r.info.type)).map((o) => this._t(o.short)),
     ];
     const sub = r.info.missing ? this._t("missing") : [this._t(label), ...active].join(" · ");
     const b = h._battery(r.id);
@@ -493,7 +493,8 @@ export class SensorsUi {
     const showOff = alwaysOn && mode !== "always" && (mode ? d.zones[mode]?.has(id) : this.inActive(id));
     const optRow = (o) => {
       const title = o.label ?? this._t(o.name); // der Schalter "nur der Modus zählt" bringt Name und Erklärung fertig mit
-      const on = this.eff(id, o.key, mode);
+      // "invert" (1.87.0): der Schalter zeigt das Gegenteil des gespeicherten Werts ("Muss geschlossen sein" = nicht "darf offen sein")
+      const on = o.invert ? !this.eff(id, o.key, mode) : this.eff(id, o.key, mode);
       const own = this.own(id, o.key, mode);
       // Im Reiter eines Modus: Herkunft ist "eigener Wert für den Modus" oder der Wert für alle Modi; sonst wie bisher die Voreinstellung der Art
       const origin = mode
@@ -507,7 +508,7 @@ export class SensorsUi {
         <button class="ag-toggle ${on ? "on" : ""}" data-sen="${mode ? "mopt" : "opt"}" ${mode ? `data-mode="${mode}"` : ""} data-ent="${esc(id)}" data-key="${o.key}" role="switch" aria-checked="${on}" aria-label="${esc(`${r.name}: ${title}`)}"></button></div>`;
     };
     // "Immer aktiv" ist eine Pille bei den Modi, darum keine eigene Zeile mehr in der Liste der Optionen
-    const opts = OPTIONS.filter((o) => o.key !== "always").map(optRow).join("");
+    const opts = OPTIONS.filter((o) => o.key !== "always" && !o.notFor?.includes(info.type || "other")).map(optRow).join("");
     // Schalter "Scharf in <Modus>: nur <Modus> zählt" (Standard an): nur für einen Sensor, der "Immer aktiv" ist und in der Zone steht.
     // Name und Erklärung nennen den Modus und sagen je Stellung, was dann gilt (Einstellungen und Aktionen).
     let offBlock = "";
@@ -754,7 +755,9 @@ export class SensorsUi {
     const p = this.presetDraft;
     const rows = TYPES.map(([kind, icon, label]) => `<tr><td><div class="ag-nm"><span class="ag-av">${ic(icon, 18)}</span>${esc(this._t(label))}</div></td>
       ${OPTIONS.map((o) => {
-        const on = (p[kind] || []).includes(o.key);
+        // Gilt nicht für diese Art (Bewegungsmelder: "Muss geschlossen sein"): kein Kästchen, die Voreinstellung bleibt, wie sie ist
+        if (o.notFor?.includes(kind)) return `<td class="z"><span class="ag-t2" aria-hidden="true">–</span></td>`;
+        const on = o.invert ? !(p[kind] || []).includes(o.key) : (p[kind] || []).includes(o.key);
         return `<td class="z"><button class="ag-box ${on ? "on" : ""}" data-sen="preset" data-kind="${kind}" data-key="${o.key}" role="checkbox" aria-checked="${on}" aria-label="${esc(`${this._t(label)}: ${this._t(o.name)}`)}">${on ? ic("check", 18) : ""}</button></td>`;
       }).join("")}</tr>`).join("");
     const own = this.host._systems().reduce((n, s) => n + Object.keys(s.sensor_options || {}).length, 0);

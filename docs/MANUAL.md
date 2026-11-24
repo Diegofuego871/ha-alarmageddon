@@ -8,6 +8,7 @@ All the details about Alarmageddon. The quick start (idea, installation, tour) i
 
 - [The interface](#the-interface): setup assistant, overview, sensor view, sensors and zones, alarm actions, notifications, self-test, HealthCheck, monitoring, alarm, log, dashboard cards
 - [Safety mechanisms](#safety-mechanisms) and their limits
+- [Why without automations](#why-without-automations): what a dedicated integration does differently from a set of automations
 - [Apple HomeKit](#apple-homekit)
 - [Entities](#entities)
 - [Good to know](#good-to-know): how an alarm runs, numbers and limits, options per sensor, actions, routines, backup, for developers
@@ -46,9 +47,13 @@ A tap on a sensor shows what it did: a chart of its own for each kind of sensor 
 
 ### Sensors and zones
 
-One table for sensors and zones: tick where a sensor belongs, or drag across several boxes. Every sensor type has sensible defaults (a smoke detector is always active, a motion sensor may still report motion when arming), each sensor can have its own values, and the switch "Settings per mode" adds a tab per mode for those who want more. The round pencil at the end of a row opens the settings of the sensor; on the computer the round bin next to it removes the sensor. "Add sensors" lists every sensor of Home Assistant that Alarmageddon recognises and that is not in the table yet. Above the table and in that window, filters narrow the list down: doors and windows, motion, water and, with monitoring on, temperature, humidity, brightness and air quality; "Other" holds everything else (smoke, gas, heat, vibration, tamper, sound, glass break and the like, air pressure). Only the filters for which there are sensors appear.
+One table for sensors and zones: tick where a sensor belongs, or drag across several boxes. Every sensor type has sensible defaults (a smoke detector is always active, a motion sensor may still report motion when arming, doors, windows and motion sensors must be reachable when arming), each sensor can have its own values, and the switch "Settings per mode" adds a tab per mode for those who want more. The round pencil at the end of a row opens the settings of the sensor; on the computer the round bin next to it removes the sensor. "Add sensors" lists every sensor of Home Assistant that Alarmageddon recognises and that is not in the table yet. Above the table and in that window, filters narrow the list down: doors and windows, motion, water and, with monitoring on, temperature, humidity, brightness and air quality; "Other" holds everything else (smoke, gas, heat, vibration, tamper, sound, glass break and the like, air pressure). Only the filters for which there are sensors appear.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sensors-en.png" alt="Sensors and zones" width="100%"></p>
+
+Since 1.87.0 the settings of a sensor (and the presets per sensor type) read the same way for every sensor: **"Must be closed when arming"** (doors, windows and other sensors; for motion sensors it does not exist, a motion sensor may report motion while you leave), **"Must be reachable when arming"** (on by default for doors, windows and motion sensors) and **"Bypass when arming"**. A sensor that is open or does not answer and has to be closed or reachable prevents arming; with "Bypass when arming" it does not, and an unreachable sensor is watched again as soon as it responds. Existing installations got "Must be reachable when arming" for doors, windows and motion sensors once with the update; switching it off afterwards stays off.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/sensor-options-en.png" alt="Settings of the front door: Must be closed when arming, Must be reachable when arming, Bypass when arming and the other options" width="100%"></p>
 
 ### Alarm actions
 
@@ -75,9 +80,13 @@ On the same page the messages of the flow sit as fixed elements at their point: 
 
 ### Notifications
 
-The standard recipients are chosen separately for alarms and for maintenance messages, and every message can override them with its own recipients. Below follow the chapters "Fault messages" (sensor unreachable while armed, arming not possible) and "Maintenance messages" (low battery, sensor unreachable, self-test, HealthCheck service not answering). Since 1.69.0 every message is a card like the fixed messages in the Actions tab: switch, symbol in the colour of its chapter (fault messages red, maintenance messages orange, switched off grey), title and a short summary (to whom, critical, "stays in Home Assistant" and the own settings, for example "below 20 % · after 3 checks"), play (test message with the saved settings; disabled while there are unsaved changes or the message is off) and pencil. On the computer the cards stand in two columns, on the phone in one.
+The standard recipients are chosen separately for alarms and for maintenance messages, and every message can override them with its own recipients. Below follow the chapters "Fault messages" (sensor unreachable while armed, arming not possible, another sensor during an alarm, codes locked after wrong entries) and "Maintenance messages" (low battery, sensor unreachable, self-test, HealthCheck service not answering). Since 1.69.0 every message is a card like the fixed messages in the Actions tab: switch, symbol in the colour of its chapter (fault messages red, maintenance messages orange, switched off grey), title and a short summary (to whom, critical, "stays in Home Assistant" and the own settings, for example "below 20 % · after 3 checks"), play (test message with the saved settings; disabled while there are unsaved changes or the message is off) and pencil. On the computer the cards stand in two columns, on the phone in one.
 
 The pencil opens the window of the message, with the same sections for every message: "Send the message" (on or off), recipients (default: the standard recipients of its chapter; choosing others gives the message its own recipients, "Back to the default" removes them), delivery (critical, which sounds in silent mode, with its own volume; "Also keep as a notification in Home Assistant") and, where the message has them, its own settings. Numbers are uniform: label on the left, field and unit on the right in one line, the hint below. "Low battery" has "Low below … %" and "Message after … checks" (the battery must be below the threshold at that many checks in a row; maintenance checks every 15 minutes); "Sensor unreachable" has "Unreachable after … minutes"; "HealthCheck service not answering" has "Message after … failed attempts" (1 to 10 in a row, default 2; every automatic call counts, never the test button) and "Message when it answers again" (on by default: once, at the first call that works again; same recipients, never critical, it replaces the message "not answering"). Its texts are fixed and never contain the URL; a tap opens the list of the HealthCheck services. A failed life sign does not go out via the message "Self-test"; it stays a problem of the self-test, whose interval is under Configuration › Alarm system › HealthCheck. "Apply" takes the changes over to the page, they are saved with "Save" at the bottom as everywhere; until then the card shows "Not saved yet" with the orange dot. "Cancel", X and Escape ask before they discard changes made in the window.
+
+**Since 1.87.0:** "Sensor unreachable while armed" goes out at most once per sensor every 10 minutes (a sensor with a weak radio link that drops out again and again no longer rings every time; the log still records every dropout). "Another sensor during an alarm" (on and critical by default) reports a sensor that responds while the alarm system is still in the alarm state, at most once per sensor every 5 minutes. "Codes locked after wrong entries" (on by default, not critical) reports a lockout after five wrong codes with its duration; it never contains a code. "Arming not possible" also names sensors that do not answer ("Not reachable: …").
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/notifications-en.png" alt="Fault messages as cards: sensor unreachable while armed, arming not possible, another sensor during an alarm, codes locked after wrong entries" width="100%"></p>
 
 With "Settings per mode" switched on, "Sensor unreachable while armed" gets its own values per mode (tabs of the modes; the card and the window name the mode, an own value shows "Back to the basic value"). The messages "Armed", "Disarmed", "Entry delay" and "Silent alarm" are in the Actions tab, at their point in the flow of every alarm system. "Arming not possible" carries two buttons, each with its switch in the window: "Try again" arms the same mode once more, "Arm anyway" arms although sensors are open and bypasses them until you disarm. They work for one hour, only while the system is disarmed and only from the phone of a recipient of that message.
 
@@ -136,6 +145,12 @@ An alarm cannot be overlooked: a red band with the sensor that triggered and the
 
 **Red circle after an alarm (since 1.82.0):** after a real alarm (one the log records) a red circle with an alarm sign appears in the header next to the pencil, with the same comet and flash as the wizard wand around it (without the wand). With the wizard button both are visible and the comets run at exactly the same time. It belongs to the whole alarm system and stays until someone taps it (log › Alarms opens with that alarm unfolded) or opens the alarm in the log by hand. In the opened alarm the button "Mark as unread" / "Mark as read" switches the state; unread alarms bring the circle back as a reminder and carry a slowly pulsing red dot before their title.
 
+**Another sensor during the alarm, re-alarm (since 1.87.0):** the alarm system stays in the alarm state until someone acknowledges or disarms. If another sensor responds in that time (the burglar moves on to the next room), the log records it and the message "Another sensor during an alarm" goes out. Under Configuration › Alarm system › "After an alarm" you can switch on **"Re-alarm"**: once the alarm actions have run through, another sensor starts them again (siren, sounds, messages), at most as many times per alarm as you set (1 to 10, default 3; the switch is off by default). While the actions are still running (siren on, a sound "until disarmed"), nothing starts twice. Devices return to the state they had before the first alarm when you disarm.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/after-alarm-en.png" alt="Configuration › Alarm system: the chapter After an alarm with Re-alarm switched on and at most 3 times" width="100%"></p>
+
+**Acknowledge and a new alarm at once (since 1.87.0):** if a sensor triggers again right after acknowledging, the devices of the new alarm are handed over instead of being switched back: the siren does not go off in between, and disarming afterwards returns everything to the state before the first alarm. The same applies to a pre-alarm on the speaker that then plays the alarm sound.
+
 ### Log and alarm timeline
 
 Every alarm is recorded from the first trigger until someone acknowledges it: which sensor responded when, which steps ran, which notifications went out. All other events (armed, disarmed, routines, sensor failures) are on the second tab, with a filter by period and a CSV export. Both are kept for a year; you can delete a single alarm.
@@ -175,7 +190,8 @@ An alarm system has to work when something else does not. These mechanisms are b
 | --- | --- |
 | When in doubt, alarm | An entry delay that ran out while Home Assistant restarted becomes an alarm, with alarm actions, notification and recording. During an entry delay or an alarm, arming is refused: only disarming leads out |
 | Safe on restart | State, delays and a running alarm continue after a restart; the alarm actions go on at the step they had reached, or start from the beginning when no run was stored. Every change of state is written at once, so the last state also holds after a crash or a power loss |
-| Codes | 4 to 8 digits, stored only as a salted hash, never shown, never in a backup or a log. Five wrong codes lock the alarm system for one minute, also for the right code; simultaneous attempts are checked strictly one after the other |
+| Codes | 4 to 8 digits, stored only as a salted hash, never shown, never in a backup, a log or the diagnostics. Five wrong codes lock the codes for one minute, also for the right code; every further lockout lasts longer (2, 4, 8, then 15 minutes) until a right code is entered. Counter and lockout survive saving and restarting, every wrong code is in the log (never the code itself), a lockout is reported by push. Simultaneous attempts are checked strictly one after the other |
+| Mode change while armed | Switching between "Home", "Away" and "Night" while armed or during the exit delay asks for the code, also when arming from "disarmed" works without one: a mode change can take motion sensors out of the watch. Routines and the buttons of the message "Arming not possible", which an administrator set up, need no code |
 | Administrators only | The side panel and every one of its commands need administrator rights. The dashboard cards use only entities and services, with the codes Home Assistant checks |
 | Buttons in the alarm notification | "Disarm" and "Silence alarm sound" are off by default, "Acknowledge" is on. They only work while the alarm is running and only from the phone of a configured alarm recipient |
 | Nothing holds up the siren | A device that does not answer is skipped after 10 seconds, a push notification is never waited for, and a failing step, log, recording or notification never stops the rest |
@@ -183,8 +199,15 @@ An alarm system has to work when something else does not. These mechanisms are b
 | You decide how long the siren sounds | There is no fixed duration in the code. You set it in the flow ("wait" between on and off, or a duration for a sound, up to an hour per step). It is kept exactly and counts from the first start, also across a restart |
 | Self-test | Checks regularly whether everything the alarm systems use is there and reachable, and records what failed during operation; it only reads and never holds up an alarm |
 | HealthCheck | Life signs to an external service: if Home Assistant fails or loses the internet, the service alerts you; problems of the self-test are reported there too. A life sign waits at most 10 seconds and never holds anything up |
-| Sensors that fail | A sensor that becomes unreachable while armed is reported at once, or triggers the alarm with the option "failure counts as alarm". Low batteries are reported before they are empty |
-| Tested | More than 1,600 automated tests against a real Home Assistant (in two versions, an older and a current one), about 8,700 checks of the interface on computer and phone, and a mutation check that removes each of 410 safeguards and requires a test to fail |
+| Sensors that fail | A sensor that becomes unreachable while armed is reported (at most once every 10 minutes per sensor), or triggers the alarm with the option "failure counts as alarm". A sensor that was closed, becomes unreachable while it is watched and comes back open counts as opened after 2 seconds (radio interference, tampering); open only for a moment when it reconnects does not count. Low batteries are reported before they are empty |
+| Must be reachable when arming | A door, window or motion sensor that does not answer when arming prevents arming, like an open one, and is named in the message and in "Ready for". Adjustable per sensor type and per sensor; "Bypass when arming" lets the system arm, the sensor is watched as soon as it responds |
+| Another sensor during an alarm | Reported in the log and by push; with "Re-alarm" the alarm actions run again once they are over, at most as often as set |
+| Acknowledge and a new alarm | The end of the old alarm no longer switches off the siren or the speaker of the new one: devices of the new alarm are handed over, and the new alarm waits up to 3 seconds for a device that is still being switched back. Disarming returns everything to the state before the first alarm |
+| Saving while armed | Every save reloads the alarm system. A sensor that opens, closes or drops out in that moment is evaluated afterwards like a live change, never lost |
+| Sound "until disarmed" after a restart | A sound that runs until disarming starts again after a restart in the middle of an alarm, exactly once |
+| Delays after a restart | A remaining entry or exit delay is never longer than set, even if the clock was wrong at the start (a computer without a real-time clock after a power loss) |
+| Diagnostics | The diagnostics download under Settings › Devices & services contains the settings and the state of the alarm system, never a code, hash or salt |
+| Tested | More than 1,700 automated tests against a real Home Assistant (in two versions, an older and a current one), about 9,500 checks of the interface on computer and phone, and a mutation check that removes each of 491 safeguards and requires a test to fail |
 
 ### Limits
 
@@ -194,11 +217,32 @@ Alarmageddon is not a certified alarm system. Please keep in mind:
 - How long a siren may sound is regulated differently from place to place. Check what applies to you and set the duration in the alarm actions; a siren with its own time limit is the safest choice.
 - A sound "until disarmed" and a siren without an "off" step run until someone disarms. That is your choice in the flow.
 
+## Why without automations
+
+Many alarm systems in Home Assistant are built from the integration "Manual Alarm Control Panel" (`manual`) and a set of automations: one per sensor or group, one for the siren, one for the notifications, one for disarming. That is flexible, and for many homes it is enough. Alarmageddon takes the other route on purpose: everything an alarm system has to do is in one integration that was built and tested only for this. What that changes:
+
+| Situation | Typical set of automations | Alarmageddon |
+| --- | --- | --- |
+| Two sensors respond almost at the same moment, or a second one while the first automation is still running | Depends on the mode of each automation: "single" ignores the second trigger and only writes "Already running" to the log, "restart" cancels the first run, "queued" delays the second; each automation decides on its own | One state machine evaluates every change in order. A second sensor during an alarm is reported, and with "Re-alarm" it starts the alarm actions again |
+| Home Assistant restarts in the middle of an alarm or an entry delay | Running automations with their delays and waits are gone after the restart; "siren off after 3 minutes" or the rest of the entry delay must be rebuilt with helpers | State, remaining delays and the step the alarm actions had reached are written at once; after the restart the actions continue at that step, durations count from their first start, and an entry delay that ran out becomes an alarm |
+| A device does not answer (cloud, Wi-Fi, a stuck integration) | A service call in an automation waits until the device answers, without a time limit; an error stops the automation unless the step has `continue_on_error`. Siren and notification behind it wait too | Every device call is limited to 10 seconds, a failing step never stops the rest, and a watchdog makes sure the flow starts and goes on |
+| After the alarm everything should be as before | Store and restore each device yourself (for example with scenes created on the fly) | Every device of the flow remembers its state before the alarm and returns to it when you disarm, also after a restart |
+| A sensor drops off the radio while armed, or does not answer when arming | Needs its own triggers on "unavailable" and "unknown"; easy to forget | Reported while armed, or an alarm with "Failure counts as alarm"; closed, dropped out and back open counts as opened; "Must be reachable when arming" prevents arming with a sensor that does not answer |
+| Codes | Often one shared code in the configuration; lockout and log have to be built | A code per person, stored only as a salted hash; a lockout after five wrong codes that grows to 15 minutes, every wrong code in the log, a push notification on a lockout; a mode change while armed asks for the code |
+| Buttons in the push notification | Each button needs an automation that checks who pressed it and whether the alarm is still running | Built in: the buttons only work from the phone of a recipient and only while they make sense ("Disarm" only during the alarm and off by default) |
+| Something is renamed or deleted | The automation fails only when it runs, often during the alarm; you find out from its trace | The self-test checks devices, speakers, actions and recipients regularly and after every save, and marks each problem on the action it affects |
+| Changing the configuration | An edited automation applies at once, half-finished changes included | Changes are a draft that the integration checks before saving; the mode the alarm system is armed in cannot be switched off |
+| Proof that it works | Usually tried out by hand, once | More than 1,700 automated tests against a real Home Assistant in two versions, interface tests on computer and phone, and a mutation check that removes each of 491 safeguards and requires a test to fail |
+
+**What automations still do better.** They can do anything Home Assistant can do, with templates and conditions of any depth, and you keep them in your own YAML. You do not have to give that up: every alarm system is an ordinary `alarm_control_panel` entity with "Ready to arm" and zone entities, automations can react to its state, and the step "Own action" in the flow calls any service or script. Alarmageddon only takes over what an alarm system must not get wrong.
+
+**What it does not change.** If Home Assistant itself, the power, the network or the radio coordinator fails, there is no alarm, with automations or without (see [Limits](#limits)); a HealthCheck service at least tells you.
+
 ## Apple HomeKit
 
 1. Add the alarm entity to the HomeKit Bridge of Home Assistant (include the domain `alarm_control_panel` or the entity).
 2. Apple Home shows "Off" and the modes that are switched on.
-3. With a code: HomeKit does not ask for it. Set it in the HomeKit Bridge configuration (`entity_config` → `code`) or as default code in the entity settings.
+3. With a code: HomeKit does not ask for it. Set it in the HomeKit Bridge configuration (`entity_config` → `code`) or as default code in the entity settings. Since 1.87.0 switching between modes while armed needs the code as well; with the code set there, Apple Home switches as before.
 
 ## Entities
 
@@ -206,7 +250,7 @@ Alarmageddon is not a certified alarm system. Please keep in mind:
 | --- | --- |
 | `alarm_control_panel.<name>` | The alarm system. Attributes: `arm_mode`, `triggered_by`, `bypassed_sensors`, `deadline`, `changed_by`, `armed_at`, `armed_by`, `state_since` (since when it is in its state; survives a restart) |
 | `binary_sensor.<name>_zone_<mode>` | On when a sensor of the zone of this mode is open |
-| "Ready to arm" per mode | On when no open sensor blocks arming in this mode. Attribute: `blocking_sensors` |
+| "Ready to arm" per mode | On when no open sensor and no unreachable sensor with "Must be reachable when arming" blocks arming in this mode. Attributes: `blocking_sensors` (open), `unreachable_sensors` (not reachable, since 1.87.0) |
 | `sensor.<name>_status` | Number of open problems: alarm, unreachable sensors, weak batteries, problems of the self-test. Attributes: `alarm`, `offline`, `low_battery`, `battery_threshold`, `selftest`, `selftest_last` |
 | `binary_sensor.<name>_self_test` | Self-test (problem, diagnostic): on while the self-test has found something that affects this alarm system, unknown before the first check. Attributes: `last_check`, `count`, `problems` (the first 20, only kind and ID) |
 
@@ -222,11 +266,13 @@ Details for those who want to know exactly.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/img/flow-en.svg" alt="States of an alarm system" width="100%"></p>
 
-- Only a real change from closed to open triggers. A sensor that comes back from "unavailable" as open does not.
+- Only a real change from closed to open triggers. A sensor that comes back from "unavailable" as open does not, with one exception (since 1.87.0): if it was closed, dropped out while the alarm system watched it and comes back open, it counts as opened after 2 seconds (radio interference or tampering); if it closes again within these 2 seconds, nothing happens.
+- A sensor that opens while the alarm system reloads (every save in the panel) is evaluated right after the reload, like a live change.
 - A sensor with entry delay (for example the front door) starts the entry delay; every other sensor triggers at once. An entry sensor can have its own delay (sensor options), otherwise the delay of the system applies. A second entry sensor does not extend the delay.
 - Sensors set to "always active" (smoke, water, gas) trigger in every state, also when disarmed.
 - The alarm lasts until someone disarms. How long siren, light and sound run is set in the alarm actions.
-- Open sensors block arming, unless they may be open or are bypassed until the next disarming.
+- Open sensors block arming, unless they may be open or are bypassed until the next disarming. Unreachable sensors with "Must be reachable when arming" block arming too (since 1.87.0).
+- While the alarm is running, another sensor is reported; with "Re-alarm" it starts the alarm actions again once they are over.
 
 ### Numbers and limits
 
@@ -235,7 +281,10 @@ Details for those who want to know exactly.
 | Exit delay | Default 60 s for "Away", none for "Home" and "Night"; up to 3600 s per mode |
 | Entry delay | Default 30 s, per mode and per sensor if you like |
 | Confirmation window for the second sensor | Default 60 s |
-| Wrong codes | Five, then locked for 60 s |
+| Wrong codes | Five, then locked for 60 s; each further lockout 2, 4, 8, then 15 minutes, until a right code is entered |
+| Closed, unreachable, open again | Counts as opened after 2 s |
+| Another sensor during an alarm | Message at most once per sensor in 5 minutes; re-alarm off by default, 1 to 10 times per alarm (default 3) |
+| Sensor unreachable while armed | Message at most once per sensor in 10 minutes (the log records every dropout) |
 | Code storage | PBKDF2-SHA256 with 120,000 rounds and a salt per code |
 | Device does not answer | Next step after 10 s |
 | First step after the alarm triggers | 8 s at most (watchdog) |
@@ -249,7 +298,8 @@ Details for those who want to know exactly.
 ### Options per sensor
 
 - **Always active:** can be switched off as a whole (Configuration › System). Triggers in every state, armed or disarmed, at once (smoke, water, gas), with the options of the tab "Always active". If the sensor is also in the zone of a mode, only that mode counts while the alarm system is armed in it (its settings and its actions); with the switch "Armed in <mode>: only <mode> counts" off, "Always active" applies as well: the sensor triggers at once and both flows of alarm actions run. When disarmed, and in modes that do not contain the sensor, the actions of "Always active" run.
-- **May be open when arming:** an open sensor does not block arming and triggers after it was closed and opened again.
+- **Must be closed when arming** (stored as its opposite, "may be open when arming"): an open sensor blocks arming. Switched off, it does not block arming and triggers after it was closed and opened again. For motion sensors the option is not shown: they may report motion when arming.
+- **Must be reachable when arming (since 1.87.0):** a sensor that does not answer (unavailable, unknown, missing) blocks arming, like an open one. On by default for doors, windows and motion sensors. With "Bypass when arming" or switched off, arming works and the sensor is watched as soon as it responds.
 - **Bypass when arming:** an open sensor is ignored until the next disarming.
 - **Arm as soon as closed:** closing this sensor during the exit delay (the front door behind you) arms at once instead of waiting for the delay to end.
 - **Failure counts as alarm:** an unreachable sensor triggers the alarm while armed.

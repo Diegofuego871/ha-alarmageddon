@@ -18,6 +18,8 @@ const stOk = (f) => Number.isInteger(stMinutes(f)) && stMinutes(f) >= ST_MIN[0] 
 const TINT = { codes: "ag-tint ag-tint-codes on", sounds: "ag-tint ag-tint-sounds on", backup: "ag-tint ag-tint-backup on" };
 const DEFAULTS = { exit_delay: 0, entry_delay: 30, confirm_window: 60 };
 const WINDOW = [5, 600];
+// Nachalarm (1.87.0): Höchstzahl je Alarm, wie const.REALARM_COUNT_RANGE
+const REALARM = [1, 10];
 const ALL_MODES = ["home", "away", "night"];
 const MODE_HINT = { home: "sysModeHomeHint", away: "sysModeAwayHint", night: "sysModeNightHint" };
 // Vorlesetext der Zahlenfelder: der Titel ihrer Zeile (1.63.0, Code-Review; vorher der Schlüssel wie "exit_delay")
@@ -119,6 +121,9 @@ export class SystemUi {
       routines: normRoutines(s.routines),
       always: s.always_enabled !== false, // "Immer aktiv" als Ganzes (Standard an)
       monitor: s.monitor_enabled === true, // "Überwachung" als Ganzes (Standard aus)
+      // Nachalarm (1.87.0, Entscheid des Nutzers 2026-11-24): Standard aus, höchstens 3 je Alarm (1 bis 10)
+      realarm: s.realarm_enabled === true,
+      realarmCount: Number.isInteger(s.realarm_count) ? s.realarm_count : 3,
       accent: s.accent || "ha", // Akzentfarbe der Anlage (1.75.0)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
       auto: this.autoOf(this.host._data?.auto_backup),
@@ -161,6 +166,7 @@ export class SystemUi {
     for (const m of ALL_MODES) if (a.modes[m] !== d.modes[m]) n += 1;
     if (a.always !== d.always) n += 1;
     if (a.monitor !== d.monitor) n += 1;
+    if (a.realarm !== d.realarm || (d.realarm && a.realarmCount !== d.realarmCount)) n += 1;
     if (a.accent !== d.accent) n += 1;
     if (a.ackCode !== d.ackCode) n += 1;
     if (JSON.stringify(a.auto) !== JSON.stringify(d.auto)) n += 1;
@@ -182,6 +188,7 @@ export class SystemUi {
       check(`${scope}.confirm_window`, v.confirm_window, WINDOW);
     }
     if (!ALL_MODES.some((m) => d.modes[m])) bad.push("modes");
+    if (d.realarm) check("realarm", d.realarmCount, REALARM);
     if (!Number.isInteger(d.auto.keep) || d.auto.keep < 1 || d.auto.keep > 50) bad.push("auto.keep");
     if (!stOk(d.stOff)) bad.push("st.off");
     if (!stOk(d.stOn)) bad.push("st.on");
@@ -225,7 +232,11 @@ export class SystemUi {
     const perMode = chapter(this._t("chapPerMode"), `<div class="ag-pmgroup ${d.perMode ? "on" : ""}">${switchRow}${scopeLine}
         <div class="ag-subh">${esc(this._t("chapTimes"))}</div>${card(timesRows)}
         <div class="ag-subh">${esc(this._t("chapBehaviour"))}</div>${card(behaviourRows)}</div>`);
-    const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + perMode
+    // Nach einem Alarm (1.87.0): Nachalarm, wenn die Anlage im Alarm bleibt und ein weiterer Sensor auslöst. Die Meldung dazu ("Weiterer Sensor während
+    // eines Alarms") steht unter Benachrichtigungen; hier nur, ob die Alarmaktionen erneut laufen
+    const realarmRows = modeRow('data-sys="realarm"', d.realarm, "refresh", this._t("sysRealarm"), this._t(d.realarm ? "sysRealarmOn" : "sysRealarmHint"))
+      + (d.realarm ? row("sysRealarmCount", "sysRealarmCountHint", `<span class="ag-num ${bad.has("realarm") ? "bad" : ""}"><input type="number" min="${REALARM[0]}" max="${REALARM[1]}" step="1" inputmode="numeric" data-sys="realarm-count" value="${esc(d.realarmCount)}" aria-label="${esc(this._t("sysRealarmCount"))}"><span class="ag-t2">${esc(this._t("sysRealarmTimes"))}</span></span>`) : "");
+    const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + chapter(this._t("chapAfterAlarm"), card(realarmRows), this._t("chapAfterAlarmHint")) + perMode
       + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._healthHtml(d, bad) + this._backupHtml() + this._accentHtml(d) + this._wizardHtml() + this._deleteHtml();
     // Beim Tippen nie neu aufbauen (Cursor bliebe nicht stehen), nur bei Schaltern und Auswahl
     h._setHtml(form, html);
@@ -1088,8 +1099,10 @@ export class SystemUi {
       const mode_settings = Object.fromEntries(ALL_MODES.map((m) => [m, { ...d.per[m] }]));
       const saved = await h._hass.callWS({ type: "alarmageddon/save_system", entry_id: s.entry_id, mode_settings, per_mode_settings: d.perMode,
         home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, routines: d.routines,
+        realarm_enabled: d.realarm, ...(d.realarm ? { realarm_count: d.realarmCount } : {}),
         ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}) });
-      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code) });
+      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code),
+        realarm_enabled: d.realarm, ...(d.realarm ? { realarm_count: d.realarmCount } : {}) });
       // Abstand des Selbsttests (1.65.0): nur dieser Wert der Benachrichtigungen, alles andere bleibt, wie es ist
       const stBase = this.base(s);
       const [off, on] = [stMinutes(d.stOff), stMinutes(d.stOn)];
@@ -1291,6 +1304,10 @@ export class SystemUi {
       d.monitor = !d.monitor;
       this.saveState = null;
       this.render();
+    } else if (act === "realarm") {
+      d.realarm = !d.realarm;
+      this.saveState = null;
+      this.render();
     } else if (act === "mode") {
       d.modes[el.dataset.mode] = !d.modes[el.dataset.mode];
       this.saveState = null;
@@ -1463,6 +1480,14 @@ export class SystemUi {
       return true;
     }
     if (el.dataset.sys?.startsWith("rt-")) return this.rt.onInput(el);
+    if (el.dataset.sys === "realarm-count") {
+      const d = this.ensureDraft();
+      d.realarmCount = el.value === "" ? NaN : Number(el.value);
+      this.saveState = null;
+      el.closest(".ag-num")?.classList.toggle("bad", !Number.isInteger(d.realarmCount) || d.realarmCount < REALARM[0] || d.realarmCount > REALARM[1]);
+      this.renderFoot();
+      return true;
+    }
     if (el.dataset.sys !== "num") return false;
     const d = this.ensureDraft();
     const v = el.value === "" ? NaN : Number(el.value);

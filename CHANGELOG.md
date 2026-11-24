@@ -7,6 +7,45 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.87.0] - 2026-11-24
+
+Result of a full code review of the alarm logic (2026-11-24). Every finding was first reproduced by a test against 1.86.2; the tests now guard the fixes.
+
+**Please note two changes of behaviour:** a door, window or motion sensor that does not answer now prevents arming (switch "Must be reachable when arming" off for a sensor or a sensor type if you do not want that), and switching between modes while armed asks for the code (Apple Home: set the code in the HomeKit Bridge configuration).
+
+### Added
+
+- **"Must be reachable when arming":** a new option per sensor and per sensor type. A sensor that does not answer when arming (unavailable, unknown, missing) prevents arming like an open one; with "Bypass when arming" the alarm system arms and watches the sensor as soon as it responds. On by default for doors, windows and motion sensors; existing installations get it once with this update (presets and old backups), switching it off afterwards stays off. The message "Arming not possible", the error in the panel, "Ready for" in the overview, the dashboard card and the setup assistant name the sensors that are not reachable; the entities "Ready to arm" turn off and carry the new attribute `unreachable_sensors`.
+- **Another sensor during an alarm:** while the alarm system is still in the alarm state, another sensor is recorded in the log and reported by the new message "Another sensor during an alarm" (on and critical by default, at most once per sensor every 5 minutes). Until now it left no trace.
+- **Re-alarm:** under Configuration › Alarm system › "After an alarm". Once the alarm actions have run through, another sensor starts them again, at most 1 to 10 times per alarm (default 3). Off by default. Disarming returns the devices to their state before the first alarm. Part of the backup.
+- **Wrong codes in the log and a message on a lockout:** every wrong code is recorded (never the code itself), and the new message "Codes locked after wrong entries" (on by default, not critical) reports a lockout with its duration.
+- **Diagnostics:** the diagnostics of Home Assistant (Settings › Devices & services › Alarmageddon, menu of the alarm system, "Download diagnostics") contain the settings and the state of the alarm system, without codes, hashes or salts.
+
+### Changed
+
+- **Sensor options read the same way for every sensor:** "May be open when arming" is now shown as its opposite, "Must be closed when arming" (stored as before). Motion sensors no longer show it: they may report motion while you leave. Together with "Must be reachable when arming" and "Bypass when arming" in the settings of each sensor and in the presets per sensor type.
+- **Lockout after wrong codes grows:** five wrong codes lock the codes for 1 minute, every further lockout for 2, 4, 8 and then 15 minutes, until a right code is entered. Counter and lockout now survive saving in the panel and a restart.
+- **Mode change while armed asks for the code:** switching between "Home", "Away" and "Night" while armed or during the exit delay needs the code, also when arming from "disarmed" works without one (a mode change can take motion sensors out of the watch). Routines and the buttons of the message "Arming not possible" need no code. With a code in the HomeKit Bridge configuration, Apple Home switches as before.
+- **Fewer messages from a flapping sensor:** "Sensor unreachable while armed" goes out at most once per sensor every 10 minutes; the log still records every dropout.
+- The hint of "Acknowledging asks for the code" now says that it applies to the dashboard cards and the action `alarmageddon.acknowledge`, and that administrators acknowledge in the panel without a code.
+- The service "Acknowledge" is registered when the integration starts, not with the alarm entity (Home Assistant Quality Scale "action-setup"); the platforms set `PARALLEL_UPDATES` ("parallel-updates"). The own store of the state is written with a flush to disk.
+
+### Fixed
+
+- **Acknowledge and a new alarm at once:** if a sensor triggered right after acknowledging, the end of the old alarm could switch off the siren of the new one, or disarming afterwards left the siren on. The devices of the new alarm are now handed over: the siren stays on, and disarming returns everything to the state before the first alarm.
+- **Pre-alarm and alarm sound on the same speaker:** with a slow speaker, putting the speaker back after the pre-alarm of the entry delay could arrive after the alarm sound had started (alarm sound stopped or at the volume from before). The speaker is now handed over to the alarm.
+- **Closed, unreachable, open again:** a sensor that was closed, dropped out while it was watched and came back open (radio interference, tampering) was never counted. It now counts as opened after 2 seconds; open only for a moment when it reconnects does not count. A sensor that dropped out before arming and comes back open is recorded in the log.
+- **A sensor that opened while saving was lost:** every save in the panel reloads the alarm system; a sensor that opened, closed or dropped out in that moment is now evaluated right after the reload.
+- **Sound "until disarmed" after a restart:** after a restart of Home Assistant in the middle of an alarm, a sound that runs until disarming did not start again if the flow was already further. It now starts again, exactly once.
+- **Delays after a restart:** a remaining entry or exit delay could be longer than set if the clock was wrong at the start (a computer without a real-time clock after a power loss). It is now limited to the set delay.
+- **"Ready to arm" followed only open sensors:** a sensor that became unreachable did not change the entity until it opened or closed.
+
+### Security
+
+- Lockout after wrong codes grows up to 15 minutes, survives saving and restarting, and every wrong code is logged; a lockout is reported by push.
+- Switching the mode while armed needs the code.
+- The diagnostics never contain codes, hashes or salts (covered by the test that checks every answer and store of the integration for secrets).
+
 ## [1.86.2] - 2026-11-23
 
 ### Fixed
@@ -2305,6 +2344,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.87.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.87.0
 [1.86.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.2
 [1.86.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.1
 [1.86.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.0

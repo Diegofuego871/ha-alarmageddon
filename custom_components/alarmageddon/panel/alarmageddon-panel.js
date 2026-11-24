@@ -988,6 +988,11 @@ class AlarmageddonPanel extends HTMLElement {
     return this._members(s, mode).filter((id) => this._state(id)?.state === "on" && !this._optionOf(s, id, "open_ok", mode) && !this._optionOf(s, id, "bypass", mode));
   }
 
+  // Wie controller.blocking_unreachable (1.87.0): nicht erreichbare Sensoren mit "Muss beim Scharfschalten erreichbar sein" und ohne "Umgehen"
+  _unreachable(s, mode) {
+    return this._members(s, mode).filter((id) => { const st = this._state(id)?.state; return (st === undefined || GONE.has(st)) && this._optionOf(s, id, "reachable", mode) && !this._optionOf(s, id, "bypass", mode); });
+  }
+
   // Wirksamer Wert einer Sensor-Option wie controller.option(): eigener Wert des Modus (nur mit Schalter), eigener Wert des
   // Sensors, sonst die Voreinstellung seiner Sensorart. "Immer aktiv" hängt an keinem Modus (Bereich "always").
   _optionOf(s, id, key, mode = null) {
@@ -1032,10 +1037,13 @@ class AlarmageddonPanel extends HTMLElement {
     let ready = "";
     let blockers = "";
     if (state === "disarmed") {
-      const per = s.modes.map((m) => [m, this._blocking(s, m)]);
-      ready = `<div class="ag-ready"><span class="ag-t2">${esc(this._t("readyFor"))}</span>${per.map(([m, b]) => `<span class="ag-rchip ${b.length ? "no" : "ok"}">${ic(b.length ? "alert" : "check", 14)}${esc(this._t(MODE_KEY[m]))}</span>`).join("")}</div>`;
+      // Offen oder (seit 1.87.0) nicht erreichbar mit "Muss beim Scharfschalten erreichbar sein": beides verhindert das Scharfschalten
+      const per = s.modes.map((m) => [m, this._blocking(s, m), this._unreachable(s, m)]);
+      ready = `<div class="ag-ready"><span class="ag-t2">${esc(this._t("readyFor"))}</span>${per.map(([m, b, g]) => `<span class="ag-rchip ${b.length || g.length ? "no" : "ok"}">${ic(b.length || g.length ? "alert" : "check", 14)}${esc(this._t(MODE_KEY[m]))}</span>`).join("")}</div>`;
+      const row = (id, key) => `<div class="ag-row"><span class="ag-mini warn">${ic((DC[this._sensor(id).device_class] || ["sensor"])[0], 16)}</span><span class="ag-grow">${esc(this._t(key, { name: this._name(id) }))}</span></div>`;
       const open = [...new Set(per.flatMap(([, b]) => b))];
-      blockers = open.map((id) => `<div class="ag-row"><span class="ag-mini warn">${ic((DC[this._sensor(id).device_class] || ["sensor"])[0], 16)}</span><span class="ag-grow">${esc(this._t("isOpen", { name: this._name(id) }))}</span></div>`).join("");
+      const gone = [...new Set(per.flatMap(([, , g]) => g))];
+      blockers = open.map((id) => row(id, "isOpen")).join("") + gone.map((id) => row(id, "isUnreachable")).join("");
     }
     // Scharf: schwacher roter Verlauf von unten wie bei den Karten der Sensoren; je Modus dunkler (Anwesend hell, Nacht mittel, Abwesend dunkel). Deaktiviert: grün
     // Alarm: dieselbe rote Kachel wie "scharf", am kräftigsten (vorher verlor die Kachel im Alarm ihr Rot)
@@ -1102,7 +1110,19 @@ class AlarmageddonPanel extends HTMLElement {
       text = this._t("evRoutineSkipped", { routine: e.routine || "?", why });
     }
     else if (e.kind === "monitor_out" || e.kind === "monitor_ok") text = this._t(e.kind === "monitor_out" ? "evMonitorOut" : "evMonitorOk", { rule: e.monitor || "?" });
-    else if (e.kind === "arm_failed") text = this._t("evArmFailed", { mode, sensors: (e.sensors || []).map((x) => this._name(x)).join(", ") });
+    else if (e.kind === "arm_failed") {
+      // Nicht erreichbare Sensoren (1.87.0) in einem eigenen Satz
+      const parts = [];
+      if ((e.sensors || []).length || !(e.unreachable || []).length) parts.push(this._t("evArmFailed", { mode, sensors: (e.sensors || []).map((x) => this._name(x)).join(", ") }));
+      if ((e.unreachable || []).length) parts.push(this._t("evArmFailedUnreachable", { mode, sensors: e.unreachable.map((x) => this._name(x)).join(", ") }));
+      text = parts.join(" ");
+    }
+    // 1.87.0 (Code-Review): weiterer Sensor im Alarm, Nachalarm, Sensor nach Ausfall offen, falsche Codes und Sperre
+    else if (e.kind === "sensor_again") text = this._t("evAgain", { sensor });
+    else if (e.kind === "realarm") text = this._t("evRealarm", { n: e.count ?? 1 });
+    else if (e.kind === "sensor_back_open") text = this._t(e.alarm ? "evBackOpenAlarm" : "evBackOpen", { sensor });
+    else if (e.kind === "code_failed") text = this._t("evCodeFailed", { n: e.attempts ?? 1 });
+    else if (e.kind === "code_locked") text = this._t("evCodeLocked", { minutes: Math.max(1, Math.round((e.seconds || 60) / 60)) });
     else if (ARMED[e.state]) text = this._t("evArmed", { mode });
     else if (e.state === "arming") text = this._t("evArming", { mode });
     else if (e.state === "disarmed") text = this._t("evDisarmed");
@@ -1769,7 +1789,8 @@ class AlarmageddonPanel extends HTMLElement {
     } catch (err) {
       const key = err?.code;
       // Ohne Code versucht: erst jetzt fragen (ein Standardcode in HA braucht keine Eingabe)
-      if (!code && (key === "invalid_code" || key === "code_arm_required")) {
+      // Wechsel des Modus einer scharfen Anlage verlangt den Code (1.87.0): "code_mode_change"
+      if (!code && (key === "invalid_code" || key === "code_arm_required" || key === "code_mode_change")) {
         this._openCode(s, mode);
         return;
       }
@@ -1801,6 +1822,12 @@ class AlarmageddonPanel extends HTMLElement {
       case "open_sensors": {
         const open = this._blocking(s, mode).map((id) => this._name(id));
         return this._t("errOpenSensors", { sensors: open.join(", ") || "?" });
+      }
+      case "code_mode_change": return this._t("errCodeModeChange");
+      case "sensors_not_ready": {
+        const gone = this._unreachable(s, mode).map((id) => this._name(id));
+        const open = this._blocking(s, mode).map((id) => this._name(id));
+        return this._t(open.length ? "errNotReadyOpen" : "errNotReady", { sensors: gone.join(", ") || "?", open: open.join(", ") });
       }
       default: return this._t("errGeneric", { message: errText(err) });
     }

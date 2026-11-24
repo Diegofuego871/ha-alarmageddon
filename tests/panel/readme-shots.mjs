@@ -227,6 +227,29 @@ for (const lang of ["en", "de"]) {
     await click('#ag-hclist [data-hc-row="a1b2c3d4e5f6"] [data-hc="log"]')(ctx);
     await ctx.page.waitForTimeout(900);
   } });
+  // Einstellungen eines Sensors (1.87.0): "Muss beim Scharfschalten geschlossen sein", "Muss beim Scharfschalten erreichbar sein", "Umgehen" (Handbuch)
+  await shot(lang, "sensor-options", { tab: "config", height: 900, prepare: async ({ page, frame }) => {
+    await click('[data-sub="sensors"]')({ frame });
+    await page.waitForTimeout(600);
+    await click('[data-sen="detail"][data-ent="binary_sensor.haustuer"]')({ frame });
+    await page.waitForTimeout(600);
+  } });
+  // Störungsmeldungen (1.87.0): mit "Weiterer Sensor während eines Alarms" und "Codes nach Fehleingaben gesperrt" (Handbuch)
+  await shot(lang, "notifications", { tab: "config", height: 900, prepare: async ({ page, frame }) => {
+    await click('[data-sub="notify"]')({ frame });
+    await page.waitForTimeout(800);
+    await toElement(frame, ".ag-chap:has(.ag-ntk)", 0, 18);
+  } });
+  // Kapitel "Nach einem Alarm" (1.87.0) mit eingeschaltetem Nachalarm (Handbuch)
+  await shot(lang, "after-alarm", { tab: "config", height: 640, prepare: async ({ page, frame }) => {
+    // Gespeichert eingeschaltet (nicht als Entwurf: sonst zeigte das Bild "Noch nicht gespeichert")
+    await page.evaluate(() => { for (const s of window.__systems) { s.realarm_enabled = true; s.realarm_count = 3; } });
+    await frame.evaluate(() => document.querySelector("alarmageddon-panel")._fetch());
+    await page.waitForTimeout(400);
+    await click('[data-sub="system"]')({ frame });
+    await page.waitForTimeout(800);
+    await toElement(frame, '.ag-chap:has([data-sys="realarm"])', 0, 18);
+  } });
   // Alarm auf dem Handy: rotes Band, Kachel mit Auslöser und "scharf seit … von …" (1.11.0)
   await shot(lang, "alarm", { mobile: true, prepare: async ({ page }) => {
     await page.evaluate(() => window.__setState("alarm_control_panel.haus", "triggered", { arm_mode: "away", changed_by: "Marco", armed_by: "Marco", armed_at: new Date(Date.now() - 95 * 60e3).toISOString(), triggered_by: "binary_sensor.haustuer", deadline: null }));

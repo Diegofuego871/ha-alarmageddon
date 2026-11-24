@@ -13,6 +13,7 @@ Alarm und nicht zu "scharf".
 from __future__ import annotations
 
 import asyncio
+import time
 from uuid import uuid4
 
 from collections.abc import Callable
@@ -26,7 +27,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers.event import async_track_point_in_utc_time, async_track_state_change_event
+from homeassistant.helpers.event import async_call_later, async_track_point_in_utc_time, async_track_state_change_event
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
@@ -34,7 +35,13 @@ from .code import match_code
 from .devices import display_name
 from .last_change import is_real_change
 from .const import (
+    ALARM_AGAIN_THROTTLE,
     ARM_ON_CLOSE_SETTLE,
+    CODE_LOCKOUT_STEPS,
+    DATA_SENSOR_HANDOVER,
+    OPT_REACHABLE,
+    RETURN_CONFIRM,
+    SENSOR_HANDOVER_MAX_AGE,
     CONF_WORKFLOWS,
     WORKFLOW_ALWAYS,
     CONF_CONFIRM_WINDOW,
@@ -56,7 +63,6 @@ from .const import (
     OPT_REPORT_ONLY,
     REPORT_THROTTLE,
     OPT_OPEN_OK,
-    CODE_LOCKOUT_SECONDS,
     CODE_MAX_ATTEMPTS,
     CONF_CODE_ACK_REQUIRED,
     CONF_CODE_ARM_REQUIRED,
@@ -75,6 +81,7 @@ from .const import (
     CONF_ZONE_PREFIX,
     DEFAULT_ENTRY_DELAY,
     DEFAULT_EXIT_DELAY,
+    DATA_STATE_STORES,
     DOMAIN,
     STATE_STORE_KEY,
     MODE_AWAY,
@@ -118,6 +125,20 @@ def _as_time(value: Any) -> datetime | None:
 
 def _as_text(value: Any) -> str | None:
     return value if isinstance(value, str) and value else None
+
+
+def state_store(hass: HomeAssistant, entry_id: str) -> Store[dict[str, Any]]:
+    """
+    Eine Ablage des Zustands je Anlage für die ganze Laufzeit von Home Assistant (1.87.0). Beim Neuladen (jedes Speichern im Panel) liest
+    die neue Instanz so aus derselben Ablage, die einen eben noch ausstehenden Schreibvorgang der alten kennt (Store liefert dann diesen
+    Stand). Mit je einer eigenen Ablage las die neue Instanz die Datei, bevor die alte geschrieben hatte: eine eben ausgelöste Sperre nach
+    falschen Codes war nach dem Neuladen vergessen.
+    """
+    stores: dict[str, Store[dict[str, Any]]] = hass.data.setdefault(DATA_STATE_STORES, {})
+    if (store := stores.get(entry_id)) is None:
+        # Mit fsync (1.87.0, Code-Review N3): genau diese Ablage soll einen Stromausfall überstehen; selten geschrieben (nur bei Wechseln)
+        store = stores[entry_id] = Store(hass, 1, f"{STATE_STORE_KEY}.{entry_id}", atomic_writes=True)
+    return store
 
 
 def _error(key: str, **placeholders: str) -> ServiceValidationError:
@@ -172,7 +193,8 @@ class AlarmController:
         self._code_lock = asyncio.Lock()
         # Eigene Ablage des Zustands (1.58.0, siehe _save_state): Home Assistant schreibt den Zustand von Entitäten nur alle 15 Minuten
         # und beim sauberen Beenden; nach einem Absturz oder Stromausfall käme sonst ein bis zu 15 Minuten alter Zustand zurück.
-        self._state_store: Store[dict[str, Any]] = Store(hass, 1, f"{STATE_STORE_KEY}.{entry.entry_id}")
+        # Eine Ablage je Anlage über das Neuladen hinweg (state_store)
+        self._state_store: Store[dict[str, Any]] = state_store(hass, entry.entry_id)
         # Die Eingangsverzögerung ist während des Neustarts abgelaufen: der Alarm beginnt, sobald alle Teile zuhören (async_finish_restore)
         self._alarm_after_restore = False
         # Sensoren mit "braucht Bestätigung", die angesprochen haben, und wann (Zwei-Sensor-Bestätigung)
@@ -182,6 +204,15 @@ class AlarmController:
         # Eigene Werte der Sensoren, gemerkt je Stand der Optionen (siehe sensor_overrides)
         self._overrides: dict[str, dict[str, bool]] = {}
         self._overrides_for: Any = None
+        # Gedächtnis je Sensor (1.87.0, Code-Review H1): letzter gültiger Zustand (on/off) und Sensoren, die zu waren und ausfielen, während die
+        # Anlage sie überwachte ("zone": scharf in ihrem Modus, "always": immer aktiv). Kommt ein solcher offen zurück, zählt das als Öffnen.
+        self._last_valid: dict[str, str] = {}
+        self._gone: dict[str, str] = {}
+        self._return_checks: dict[str, CALLBACK_TYPE] = {}
+        # Weiterer Sensor im Zustand "Alarm" (1.87.0, Code-Review H2): wann je Sensor zuletzt gemeldet
+        self._last_again: dict[str, datetime] = {}
+        # Sperren nach falschen Codes seit dem letzten richtigen (1.87.0, Code-Review M2): bestimmt die Dauer der nächsten Sperre
+        self._lockouts = 0
 
     # ----- Einstellungen (immer frisch aus den Optionen) -----
 
@@ -437,8 +468,19 @@ class AlarmController:
         """Offene Sensoren, die das Scharfschalten verhindern (weder "darf offen sein" noch "umgehen")."""
         return [e for e in self.bypassable_sensors(mode) if not self.option(e, OPT_BYPASS, mode)]
 
+    def unreachable_sensors(self, mode: str) -> list[str]:
+        """Sensoren der Zone, die nicht erreichbar sind (nicht verfügbar, unbekannt) oder fehlen (1.87.0)."""
+        return [e for e in self.zone(mode) if (s := self.hass.states.get(e)) is None or s.state in GONE]
+
+    def blocking_unreachable(self, mode: str) -> list[str]:
+        """
+        Nicht erreichbare Sensoren, die das Scharfschalten verhindern (1.87.0, Entscheid des Nutzers, Code-Review M4): "Muss beim Scharfschalten
+        erreichbar sein" und nicht "Umgehen". Mit "Umgehen" verhindert er nichts und wird überwacht, sobald er sich meldet (nie übergangen).
+        """
+        return [e for e in self.unreachable_sensors(mode) if self.option(e, OPT_REACHABLE, mode) and not self.option(e, OPT_BYPASS, mode)]
+
     def ready(self, mode: str) -> bool:
-        return not self.blocking_sensors(mode)
+        return not self.blocking_sensors(mode) and not self.blocking_unreachable(mode)
 
     @callback
     def add_event_listener(self, listener: Callable[[str, dict[str, Any]], None]) -> CALLBACK_TYPE:
@@ -482,6 +524,9 @@ class AlarmController:
     @callback
     def async_start(self) -> None:
         sensors = sorted(self.all_sensors())
+        for entity in sensors:
+            if (state := self.hass.states.get(entity)) is not None and state.state in (STATE_ON, STATE_OFF):
+                self._last_valid[entity] = state.state
         if sensors:
             self._unsub_sensors = async_track_state_change_event(self.hass, sensors, self._on_sensor)
 
@@ -491,6 +536,23 @@ class AlarmController:
             self._unsub_sensors()
             self._unsub_sensors = None
         self._cancel_timer()
+        for unsub in self._return_checks.values():
+            unsub()
+        self._return_checks.clear()
+        self._hand_over_sensors()
+
+    @callback
+    def _hand_over_sensors(self) -> None:
+        """
+        Zustand der Sensoren für die nächste Instanz ablegen (1.87.0, Code-Review M1): beim Neuladen (jedes Speichern im Panel) hört kurz niemand
+        zu; was sich in dieser Zeit ändert, wertet die neue Instanz in async_finish_restore aus. Nie ein Fehler.
+        """
+        try:
+            states = {e: s.state for e in self.all_sensors() if (s := self.hass.states.get(e)) is not None}
+            self.hass.data.setdefault(DATA_SENSOR_HANDOVER, {})[self.entry.entry_id] = {
+                "at": time.monotonic(), "states": states, "last_valid": dict(self._last_valid), "gone": dict(self._gone)}
+        except Exception:  # noqa: BLE001 - Zusatz: ohne Übergabe gilt das Verhalten bis 1.86.x
+            _LOGGER.exception("%s: handing over the sensor states failed", self.entry.title)
 
     @callback
     def add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
@@ -634,11 +696,29 @@ class AlarmController:
                 self.settings.note_change(entity, new.last_changed.isoformat())
         except Exception:  # noqa: BLE001 - die Anzeige hält den Alarm nie auf
             _LOGGER.exception("%s: recording the sensor change of %s failed, the alarm logic still runs", self.entry.title, entity)
+        self._observe(entity, old.state, new.state)
+
+    @callback
+    def _observe(self, entity: str, old_state: str | None, new_state: str | None) -> None:
+        """Ein Wechsel eines Sensors, live (`_on_sensor`) oder nach dem Neuladen nachgereicht (`_apply_handover`)."""
         # Nur ein echter Wechsel von "zu" auf "offen" zählt. "nicht verfügbar" -> "offen" kommt nach jedem
-        # Neustart und jeder Neuverbindung vor und wäre ein Fehlalarm.
-        went_on = old.state == STATE_OFF and new.state == STATE_ON
-        went_off = old.state == STATE_ON and new.state == STATE_OFF
-        went_away = old.state in (STATE_ON, STATE_OFF) and new.state in GONE
+        # Neustart und jeder Neuverbindung vor und wäre ein Fehlalarm. Ausnahme (1.87.0): ein Sensor, der zu war und ausfiel, während die
+        # Anlage ihn überwachte, und offen zurückkommt (Funkstörung, Sabotage) zählt nach RETURN_CONFIRM als Öffnen (_return_confirmed).
+        went_on = old_state == STATE_OFF and new_state == STATE_ON
+        went_off = old_state == STATE_ON and new_state == STATE_OFF
+        went_away = old_state in (STATE_ON, STATE_OFF) and new_state in GONE
+        try:
+            self._remember(entity, old_state, new_state, went_away)
+        except Exception:  # noqa: BLE001 - das Gedächtnis ist Zusatz: die Auswertung läuft in jedem Fall
+            _LOGGER.exception("%s: remembering the state of %s failed", self.entry.title, entity)
+        self._evaluate(entity, went_on, went_off, went_away)
+
+    @callback
+    def _evaluate(self, entity: str, went_on: bool, went_off: bool, went_away: bool) -> None:
+        """Auswertung eines Wechsels für Alarm, Verzögerung, Meldung."""
+        if went_on and self.state == AlarmControlPanelState.TRIGGERED:
+            self._again(entity)
+            return
 
         # Immer aktiv (Rauch, Wasser): löst sofort aus, bei deaktivierter Anlage und in jedem Modus, dessen Zone den Sensor nicht
         # enthält. Seine Optionen stehen im Bereich "Immer aktiv" (Modus None). Steht er in der Zone des scharfen Modus, zählt
@@ -707,6 +787,85 @@ class AlarmController:
         self._emit("sensor_report", sensor=entity, scope=scope)
 
     @callback
+    def _again(self, entity: str) -> None:
+        """
+        Weiterer Sensor im Zustand "Alarm" (1.87.0, Code-Review H2): bis 1.86.x blieb das ohne Spur. Er zählt wie ein Auslöser (Sensor der Zone des
+        Modus, nicht umgangen, kein "Stiller Alarm", oder immer aktiv) und meldet höchstens einmal je Sensor in ALARM_AGAIN_THROTTLE. Was daraus
+        folgt (Meldung, Nachalarm), entscheiden die Zuhörer. Nie ein neuer Zustandswechsel: die Anlage ist schon im Alarm.
+        """
+        mode = self.mode
+        zone = mode is not None and entity in self.zone(mode) and entity not in self.bypassed and not self.option(entity, OPT_REPORT_ONLY, mode)
+        always = self.is_always(entity) and not self.always_ignored(entity) and not self.option(entity, OPT_REPORT_ONLY, None)
+        if not zone and not always:
+            return
+        now = dt_util.utcnow()
+        last = self._last_again.get(entity)
+        if last and (now - last).total_seconds() < ALARM_AGAIN_THROTTLE:
+            return
+        self._last_again[entity] = now
+        self._emit("sensor_again", sensor=entity)
+
+    def _watch_reason(self, entity: str) -> str | None:
+        """Überwacht die Anlage diesen Sensor gerade? "always" (immer aktiv), "zone" (scharf im Modus, dessen Zone ihn enthält) oder None."""
+        if self.is_always(entity) and not self.always_ignored(entity):
+            return "always"
+        if self.state in WATCHING and self.mode and entity in self.zone(self.mode) and entity not in self.bypassed:
+            return "zone"
+        return None
+
+    @callback
+    def _remember(self, entity: str, old_state: str | None, new_state: str | None, went_away: bool) -> None:
+        if went_away:
+            if old_state == STATE_OFF and (reason := self._watch_reason(entity)):
+                self._gone[entity] = reason
+            return
+        if new_state not in (STATE_ON, STATE_OFF):
+            return
+        reason = self._gone.pop(entity, None) if old_state in GONE or old_state is None else None
+        if reason and new_state == STATE_ON:
+            # Zu, ausgefallen, offen zurück: nach kurzer Bestätigung wie ein Öffnen (Entscheid des Nutzers 2026-11-24)
+            if (unsub := self._return_checks.pop(entity, None)) is not None:
+                unsub()
+            self._return_checks[entity] = async_call_later(self.hass, RETURN_CONFIRM, partial(self._return_confirmed, entity, reason))
+        elif new_state == STATE_ON and old_state in GONE and self._watch_reason(entity) == "zone":
+            # Der Ausfall begann, bevor die Anlage ihn überwachte (zum Beispiel mit "Trotzdem scharf schalten"): kein Alarm, aber ein Eintrag im
+            # Protokoll, denn ein offener Sensor ist im scharfen Zustand ein blinder Fleck
+            self._emit("sensor_back_open", sensor=entity, alarm=False)
+        self._last_valid[entity] = new_state
+
+    @callback
+    def _return_confirmed(self, entity: str, reason: str, _now: Any = None) -> None:
+        self._return_checks.pop(entity, None)
+        state = self.hass.states.get(entity)
+        if state is None or state.state != STATE_ON:
+            return  # wieder zu oder erneut ausgefallen: kein Öffnen
+        if reason == "zone" and self._watch_reason(entity) != "zone":
+            return  # inzwischen deaktiviert oder umgangen
+        self._emit("sensor_back_open", sensor=entity, alarm=True)
+        self._evaluate(entity, True, False, False)
+
+    @callback
+    def _apply_handover(self) -> None:
+        """
+        Nach dem Neuladen (1.87.0, Code-Review M1): Wechsel der Sensoren, die zwischen Entladen und Laden geschahen, wie live auswerten. Bis 1.86.x
+        ging ein Öffnen in dieser Zeit verloren. Nach einem Neustart von Home Assistant gibt es keine Übergabe: dann gilt das Verhalten wie bisher.
+        """
+        item = self.hass.data.get(DATA_SENSOR_HANDOVER, {}).pop(self.entry.entry_id, None)
+        if not isinstance(item, dict) or time.monotonic() - float(item.get("at", 0)) > SENSOR_HANDOVER_MAX_AGE:
+            return
+        watched = self.all_sensors()
+        self._gone.update({e: r for e, r in (item.get("gone") or {}).items() if e in watched})
+        for entity, value in (item.get("last_valid") or {}).items():
+            if entity in watched and entity not in self._last_valid:
+                self._last_valid[entity] = value
+        before = item.get("states") or {}
+        for entity in sorted(watched):
+            state = self.hass.states.get(entity)
+            if entity not in before or state is None or state.state == before[entity]:
+                continue
+            self._observe(entity, before[entity], state.state)
+
+    @callback
     def _confirmed(self, entity: str) -> bool:
         """
         Zwei-Sensor-Bestätigung: Ein Sensor mit dieser Option löst nur aus,
@@ -765,13 +924,23 @@ class AlarmController:
         candidates = self._candidates()
         index = await self.hass.async_add_executor_job(match_code, str(code), [c for c, _ in candidates]) if code else None
         if index is None:
+            # Fehlversuche sind sichtbar (1.87.0, Code-Review M2): im Protokoll, im Log, bei einer Sperre als Meldung. Nie der eingegebene Code.
             self._failed_codes += 1
+            self._emit("code_failed", attempts=self._failed_codes)
             if self._failed_codes >= CODE_MAX_ATTEMPTS:
+                seconds = CODE_LOCKOUT_STEPS[min(self._lockouts, len(CODE_LOCKOUT_STEPS) - 1)]
+                self._lockouts += 1
                 self._failed_codes = 0
-                self._locked_until = now + timedelta(seconds=CODE_LOCKOUT_SECONDS)
+                self._locked_until = now + timedelta(seconds=seconds)
+                _LOGGER.warning("%s: %d wrong codes in a row; codes are locked for %d seconds", self.entry.title, CODE_MAX_ATTEMPTS, seconds)
+                self._emit("code_locked", seconds=seconds)
+            self._save_state()  # Zähler und Sperre überstehen Neuladen und Neustart
             raise _error("invalid_code")
-        self._failed_codes = 0
-        self._locked_until = None
+        if self._failed_codes or self._lockouts or self._locked_until:
+            self._failed_codes = 0
+            self._lockouts = 0
+            self._locked_until = None
+            self._save_state()
         return candidates[index][1]
 
     # ----- Befehle -----
@@ -784,16 +953,26 @@ class AlarmController:
             raise _error("mode_not_enabled", mode=mode)
         if self.state in (AlarmControlPanelState.PENDING, AlarmControlPanelState.TRIGGERED):
             raise _error("disarm_first")
-        if self.code_arm_required and not skip_code:
+        # Wechsel des Modus einer scharfen (oder scharf werdenden) Anlage verlangt den Code (1.87.0, Entscheid des Nutzers, Code-Review M3): er kann
+        # den Schutz schwächen (Bewegungsmelder aus der Überwachung) und startet eine Ausgangsverzögerung, in der die Zone nicht überwacht wird
+        armed = self.state == AlarmControlPanelState.ARMING or self.state in STATE_MODE
+        if self.has_code and armed and not skip_code and not code:
+            raise _error("code_mode_change")
+        if (self.code_arm_required or (self.has_code and armed)) and not skip_code:
             changed_by = await self._async_check_code(code) or changed_by
             # Die Code-Prüfung läuft im Executor: löst währenddessen ein Sensor aus, darf das Scharfschalten die laufende
             # Eingangsverzögerung oder den Alarm nicht still beenden (Sicherheitsregel: im Zweifel alarmieren)
             if self.state in (AlarmControlPanelState.PENDING, AlarmControlPanelState.TRIGGERED):
                 raise _error("disarm_first")
-        # Offen und nicht erlaubt: mit der Option "Umgehen" bis zum Deaktivieren übergangen, sonst verhindert der Sensor das Scharfschalten
+        # Offen und nicht erlaubt: mit der Option "Umgehen" bis zum Deaktivieren übergangen, sonst verhindert der Sensor das Scharfschalten. Nicht
+        # erreichbar mit "Muss erreichbar sein" (1.87.0): verhindert ebenso, ausser mit "Umgehen" (dann überwacht, sobald er sich meldet)
         open_now = [] if force else self.blocking_sensors(mode)
-        if open_now:
-            self._emit("arm_failed", mode=mode, sensors=list(open_now))
+        offline_now = [] if force else self.blocking_unreachable(mode)
+        if open_now or offline_now:
+            self._emit("arm_failed", mode=mode, sensors=list(open_now), unreachable=list(offline_now))
+            if offline_now:
+                raise _error("sensors_not_ready", unreachable=", ".join(self._name(e) for e in offline_now),
+                             open=", ".join(self._name(e) for e in open_now) or "-")
             raise _error("open_sensors", sensors=", ".join(self._name(e) for e in open_now))
         bypassed = {e for e in self.bypassable_sensors(mode)}
         self._cancel_timer()
@@ -826,6 +1005,10 @@ class AlarmController:
         self.triggered_by = None
         self.alarm_flows = []
         self.changed_by = changed_by
+        # Was in der Zone ausgefallen war, gilt nach dem Deaktivieren nicht mehr als "zu, ausgefallen" (die Bewohner öffnen jetzt Fenster)
+        self._gone = {e: r for e, r in self._gone.items() if r == "always"}
+        for entity in [e for e in self._return_checks if e not in self._gone]:
+            self._return_checks.pop(entity)()
         self._set(AlarmControlPanelState.DISARMED)
 
     async def async_acknowledge(self, code: str | None, changed_by: str | None = None) -> None:
@@ -882,6 +1065,10 @@ class AlarmController:
             "armed_by": self.armed_by,
             "state_since": self.state_since.isoformat() if self.state_since else None,
             "alarm_flows": list(self.alarm_flows),
+            # Code-Sperre (1.87.0, Code-Review M2): bis 1.86.x begann sie nach jedem Neuladen von vorn
+            "code_failed": self._failed_codes,
+            "code_lockouts": self._lockouts,
+            "code_locked_until": self._locked_until.isoformat() if self._locked_until else None,
         }
 
     @callback
@@ -914,11 +1101,14 @@ class AlarmController:
         abgelaufen, beginnt der Alarm erst hier: beim Wiederherstellen in der Entität hört noch niemand zu, der Alarm stünde sonst nur im
         Zustand, ohne Sirene, ohne Meldung und ohne Aufzeichnung (so war es bis 1.57.0).
         """
-        if not self._alarm_after_restore:
-            return
-        self._alarm_after_restore = False
-        if self.state == AlarmControlPanelState.PENDING:
-            self._go_triggered()
+        if self._alarm_after_restore:
+            self._alarm_after_restore = False
+            if self.state == AlarmControlPanelState.PENDING:
+                self._go_triggered()
+        try:
+            self._apply_handover()
+        except Exception:  # noqa: BLE001 - Zusatz: die Anlage läuft in jedem Fall
+            _LOGGER.exception("%s: applying the sensor changes during the reload failed", self.entry.title)
 
     def _restore(self, last_state: str | None, data: dict[str, Any] | None) -> None:
         data = data or {}
@@ -942,6 +1132,21 @@ class AlarmController:
         valid = {*self.modes, WORKFLOW_ALWAYS}
         self.alarm_flows = [f for f in flows if isinstance(f, str) and f in valid] if isinstance(flows, list) else []
         self._alarm_after_restore = False
+        failed, lockouts = data.get("code_failed"), data.get("code_lockouts")
+        self._failed_codes = failed if isinstance(failed, int) and not isinstance(failed, bool) and 0 <= failed < CODE_MAX_ATTEMPTS else 0
+        self._lockouts = lockouts if isinstance(lockouts, int) and not isinstance(lockouts, bool) and 0 <= lockouts <= 100 else 0
+        locked = _as_time(data.get("code_locked_until"))
+        # Nie länger als die längste Sperre (eine falsche Uhr beim Start verlängert sie nicht beliebig)
+        self._locked_until = min(locked, now + timedelta(seconds=CODE_LOCKOUT_STEPS[-1])) if locked and locked > now else None
+        # Restzeit einer Verzögerung nie länger als eingestellt (1.87.0, Code-Review M5): ging die Uhr beim Start nach (Rechner ohne Echtzeituhr,
+        # Zeitabgleich noch nicht erfolgt), wäre die Verzögerung sonst um die Abweichung länger
+        if remaining is not None and mode:
+            if last_state == AlarmControlPanelState.PENDING:
+                cap = max(self.sensor_entry_delay(self.triggered_by, mode) if self.triggered_by else 0, self.longest_entry_delay(mode), self.entry_delay_for(mode))
+                remaining = min(remaining, float(cap))
+            elif last_state == AlarmControlPanelState.ARMING:
+                remaining = min(remaining, float(self.exit_delay(mode)))
+            deadline = now + timedelta(seconds=max(0.0, remaining))
 
         if last_state in STATE_MODE and mode:
             self._go_armed()
