@@ -87,6 +87,8 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "add_code": {"entry_id": "ENTRY", "name": "Anna", "code": "2468"},
     "update_code": {"entry_id": "ENTRY", "code_id": "x", "name": "Anna", "code": "2468"},
     "remove_code": {"entry_id": "ENTRY", "code_id": "x"},
+    "set_main_code": {"entry_id": "ENTRY", "code": "8642"},
+    "remove_main_code": {"entry_id": "ENTRY"},
     "rename_sound": {"sound_id": "custom_000000000000", "name": "Neuer Name"},
     "delete_sound": {"sound_id": "custom_000000000000"},
     "selftest_run": {},
@@ -230,10 +232,17 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
     assert state(hass) == AlarmControlPanelState.TRIGGERED
     assert (await ws(client, type=f"{DOMAIN}/arm", entry_id=entry.entry_id, mode="off", code=main))["success"]
     await settle(hass)
+    # Hauptcode im Panel ändern (1.89.0): die Antwort nennt weder den Code noch Hash oder Salz, der neue Hash steht in keiner Antwort und Ablage
+    new_main = "92748163"
+    set_main = await ws(client, type=f"{DOMAIN}/set_main_code", entry_id=entry.entry_id, code=new_main)
+    assert set_main["success"]
+    await settle(hass)
+    assert entry.options["code_hash"] != code_hash, "der Hauptcode muss geändert sein"
 
     personal_entry, bert_entry = entry.options["codes"]
-    secrets = [main, personal, wrong, renewed, "61839402", code_hash, salt, personal_entry["hash"], personal_entry["salt"], bert_entry["hash"], bert_entry["salt"]]
-    answers = {"update_code": updated}
+    secrets = [main, personal, wrong, renewed, "61839402", code_hash, salt, personal_entry["hash"], personal_entry["salt"], bert_entry["hash"], bert_entry["salt"],
+               new_main, entry.options["code_hash"], entry.options["code_salt"]]
+    answers = {"update_code": updated, "set_main_code": set_main}
     for command in ("data", "log", "export", "backups", "monitor_entities", "sensor_candidates"):
         answers[command] = (await ws(client, type=f"{DOMAIN}/{command}"))["result"]
     created = (await ws(client, type=f"{DOMAIN}/backup_create", name="vor dem Umbau"))["result"]
@@ -277,7 +286,7 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
         for secret in secrets:
             assert secret not in text, f"Geheimnis in {name}"
     # Der Klartext steht auch nicht in den Optionen (nur Hash und Salz)
-    assert all(c not in json.dumps(dict(entry.options), default=str) for c in (main, personal, renewed))
+    assert all(c not in json.dumps(dict(entry.options), default=str) for c in (main, personal, renewed, new_main))
     own_log = "\n".join(r.getMessage() for r in caplog.records if r.name.startswith("custom_components.alarmageddon"))
     for secret in secrets:
         assert secret not in own_log

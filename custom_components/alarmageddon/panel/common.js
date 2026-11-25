@@ -281,14 +281,25 @@ export const OPTIONS = [
   // gespeicherten Werts (invert), gespeichert bleibt "open_ok". Bei Bewegungsmeldern nicht angezeigt (notFor): ein Melder darf beim Scharfschalten
   // ausgelöst sein, ihr Wert bleibt die Voreinstellung. Der Kurztext in der Tabelle erscheint wie bisher, wenn der Sensor offen sein darf.
   { key: "open_ok", invert: true, notFor: ["motion"], icon: "door", name: "optMustClose", hint: "optMustCloseHint", short: "optOpenOkShort" },
+  // Seit 1.89.0 (Entscheid des Nutzers 2026-11-25) nur für offene Sensoren: wirkt nur, solange "Muss beim Scharfschalten geschlossen sein" an ist
+  // (under: der Schalter erscheint eingerückt darunter und nur dann; der Server liest "Umgehen" nur für Sensoren, die nicht offen sein dürfen).
+  // Bei Bewegungsmeldern gibt es "Muss geschlossen sein" nicht, also auch kein "Umgehen"
+  { key: "bypass", under: "open_ok", notFor: ["motion"], icon: "shieldOff", name: "optBypass", hint: "optBypassHint", short: "optBypassShort" },
   // Muss beim Scharfschalten erreichbar sein (1.87.0, Code-Review M4): ohne Kurztext in der Tabelle (bei fast allen Sensoren an)
   { key: "reachable", icon: "signal", name: "optReachable", hint: "optReachableHint", short: null },
-  { key: "bypass", icon: "shieldOff", name: "optBypass", hint: "optBypassHint", short: "optBypassShort" },
   { key: "arm_on_close", icon: "lockClosed", name: "optArmOnClose", hint: "optArmOnCloseHint", short: "optArmOnCloseShort" },
   { key: "offline_alarm", icon: "offline", name: "optOffline", hint: "optOfflineHint", short: "optOfflineShort" },
   { key: "confirm", icon: "groups", name: "optConfirm", hint: "optConfirmHint", short: "optConfirmShort" },
   { key: "report_only", icon: "bell", name: "optReport", hint: "optReportHint", short: "optReportShort" },
 ];
+// Erscheint die Option für einen Sensor dieser Art? `eff(key)` liefert den wirksamen gespeicherten Wert. Eine Option mit `under` erscheint nur,
+// solange der übergeordnete Schalter an ist (wie er angezeigt wird: bei "invert" das Gegenteil des gespeicherten Werts)
+export const optionShown = (o, type, eff) => {
+  if (o.notFor?.includes(type || "other")) return false;
+  if (!o.under) return true;
+  const parent = OPTIONS.find((x) => x.key === o.under);
+  return parent ? optionShown(parent, type, eff) && (parent.invert ? !eff(parent.key) : Boolean(eff(parent.key))) : true;
+};
 export const TYPES = [
   ["door", "door", "typeDoor"], ["window", "window", "typeWindow"], ["motion", "motion", "typeMotion"],
   ["environment", "smoke", "typeEnvironment"], ["tamper", "alert", "typeTamper"], ["other", "sensor", "typeOther"],

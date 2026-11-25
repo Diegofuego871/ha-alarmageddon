@@ -1,6 +1,7 @@
 // Konfiguration › Anlage: Modi, Verzögerungen, Verhalten bei offenen Sensoren, Zeitplan (Entwurf mit "Speichern");
-// dazu Codes pro Person und Sicherung (sofort).
-// Dieselben Schlüssel wie der Optionsdialog von HA (WebSocket alarmageddon/save_system). Der Code bleibt im Optionsdialog.
+// dazu Codes pro Person, Hauptcode und Sicherung (sofort).
+// Dieselben Schlüssel wie der Optionsdialog von HA (WebSocket alarmageddon/save_system). Seit 1.89.0 (Wunsch des Nutzers 2026-11-25) steht alles aus
+// dem Optionsdialog auch hier, auch der Hauptcode (set_main_code, remove_main_code; sofort, nie Teil des Entwurfs).
 
 const V = new URL(import.meta.url).search;
 const { ic, esc, MODE_KEY, MODE_ICON, errText, chapter, iconTitle, matchQuery, searchField, accentGrid, accentColor, accentPreview, ACC_PV } = await import(`./common.js${V}`);
@@ -20,12 +21,18 @@ const DEFAULTS = { exit_delay: 0, entry_delay: 30, confirm_window: 60 };
 const WINDOW = [5, 600];
 // Nachalarm (1.87.0): Höchstzahl je Alarm, wie const.REALARM_COUNT_RANGE
 const REALARM = [1, 10];
+// Nachalarm pro Modus (1.89.0): je Auslöser des Alarms, wie const.WORKFLOW_TRIGGERS ("Immer aktiv" mit eigenem Reiter, Entscheid des Nutzers)
+const RA_SCOPES = ["home", "away", "night", "always"];
+const raOk = (n) => Number.isInteger(n) && n >= REALARM[0] && n <= REALARM[1];
 const ALL_MODES = ["home", "away", "night"];
 const MODE_HINT = { home: "sysModeHomeHint", away: "sysModeAwayHint", night: "sysModeNightHint" };
 // Vorlesetext der Zahlenfelder: der Titel ihrer Zeile (1.63.0, Code-Review; vorher der Schlüssel wie "exit_delay")
 const NUM_LABEL = { exit_delay: "sysExitDelay", entry_delay: "sysEntryDelay", confirm_window: "sysConfirm" };
 // Höchstzahl der Codes pro Person (wie MAX_CODES im Server, const.py)
 const MAX_CODES = 20;
+// Schalter zum Code im Entwurf (Scharfschalten, Quittieren, Moduswechsel): es gibt sie nur mit einem Code. Als ein Text geschrieben: einzeln in
+// Anführungszeichen hielte tests/test_translations.py den Schlüssel des Moduswechsels für einen Text des Panels
+const CODE_KEYS = "armCode ackCode modeCode".split(" ");
 
 // Linien auf dem Tastenfeld (1 2 3 / 4 5 6 / 7 8 9 / 0 unter der 8): Zeilen, Spalten, Diagonalen, je in beide Richtungen
 const KEYPAD_LINES = ["123", "456", "789", "147", "258", "369", "159", "357", "2580", "580"].flatMap((l) => [l, [...l].reverse().join("")]);
@@ -124,7 +131,14 @@ export class SystemUi {
       // Nachalarm (1.87.0, Entscheid des Nutzers 2026-11-24): Standard aus, höchstens 3 je Alarm (1 bis 10)
       realarm: s.realarm_enabled === true,
       realarmCount: Number.isInteger(s.realarm_count) ? s.realarm_count : 3,
+      // Nachalarm pro Modus (1.89.0, Wunsch des Nutzers 2026-11-25): Schalter wie bei den Zeiten, Standard aus; je Auslöser an/aus und Höchstzahl
+      raPer: s.realarm_per_mode === true,
+      ra: Object.fromEntries(RA_SCOPES.map((k) => {
+        const own = s.realarm_scopes?.[k];
+        return [k, { on: own ? own.enabled === true : s.realarm_enabled === true, count: Number.isInteger(own?.count) ? own.count : Number.isInteger(s.realarm_count) ? s.realarm_count : 3 }];
+      })),
       accent: s.accent || "ha", // Akzentfarbe der Anlage (1.75.0)
+      armCode: Boolean(s.code_arm_required) && Boolean(s.has_code), // Scharfschalten verlangt den Code (im Panel seit 1.89.0, nur mit einem Code)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
       modeCode: s.code_mode_required !== false && Boolean(s.has_code), // Moduswechsel verlangt den Code (1.88.0, Standard an, nur mit einem Code)
       auto: this.autoOf(this.host._data?.auto_backup),
@@ -138,8 +152,21 @@ export class SystemUi {
   ensureDraft() {
     const s = this.system;
     if (!s) return null;
-    if (!this.draft || this.draft.entry !== s.entry_id) this.draft = this.base(s);
+    if (!this.draft || this.draft.entry !== s.entry_id) {
+      this.draft = this.base(s);
+      this.draft.codeBase = Object.fromEntries(CODE_KEYS.map((k) => [k, this.draft[k]]));
+    } else this._followCodes(this.draft, s);
     return this.draft;
+  }
+
+  // Die Schalter zum Code folgen dem Server, solange sie im Entwurf unverändert sind (1.89.0): ein Code kommt dazu oder fällt weg (sofort gespeichert,
+  // nie Teil des Entwurfs), und ohne Code setzt der Server "Scharfschalten" und "Quittieren verlangt den Code" zurück. Ohne Code gibt es die Schalter
+  // nicht; dann gilt immer der Stand des Servers (eine verborgene Änderung bliebe sonst als "1 Änderung" stehen).
+  _followCodes(d, s) {
+    const b = this.base(s);
+    const was = d.codeBase || {};
+    for (const k of CODE_KEYS) if (!s.has_code || d[k] === was[k]) d[k] = b[k];
+    d.codeBase = Object.fromEntries(CODE_KEYS.map((k) => [k, b[k]]));
   }
 
   reset() {
@@ -152,12 +179,26 @@ export class SystemUi {
     const s = this.system;
     if (!s || !this.draft || this.draft.entry !== s.entry_id) return [];
     const a = this.base(s);
-    return ALL_MODES.filter((m) => Object.keys(a.per[m]).some((k) => a.per[m][k] !== this.draft.per[m][k])).map((m) => ["data-scope", m]);
+    const d = this.draft;
+    return [...ALL_MODES.filter((m) => Object.keys(a.per[m]).some((k) => a.per[m][k] !== d.per[m][k])).map((m) => ["data-scope", m]),
+      // Reiter des Nachalarms (1.89.0)
+      ...(d.raPer ? RA_SCOPES.filter((k) => this._raChanged(a.ra[k], d.ra[k])).map((k) => ["data-scope", `ra:${k}`]) : [])];
+  }
+
+  // Nachalarm eines Auslösers geändert? Die Höchstzahl zählt nur, wenn er an ist (wie beim gemeinsamen)
+  _raChanged(a, d) {
+    return a.on !== d.on || (d.on && a.count !== d.count);
+  }
+
+  // Reiter des Nachalarms (1.89.0): die eingeschalteten Modi und "Immer aktiv", wenn es eingeschaltet ist
+  _raScopes(d) {
+    return [...ALL_MODES.filter((m) => d.modes[m]), ...(d.always ? ["always"] : [])];
   }
 
   dirtyCount() {
     const s = this.system;
     if (!s || !this.draft || this.draft.entry !== s.entry_id) return 0;
+    this._followCodes(this.draft, s);
     const a = this.base(s);
     const d = this.draft;
     let n = 0;
@@ -167,10 +208,12 @@ export class SystemUi {
     for (const m of ALL_MODES) if (a.modes[m] !== d.modes[m]) n += 1;
     if (a.always !== d.always) n += 1;
     if (a.monitor !== d.monitor) n += 1;
-    if (a.realarm !== d.realarm || (d.realarm && a.realarmCount !== d.realarmCount)) n += 1;
+    if (a.raPer !== d.raPer) n += 1;
+    // Je Reiter mit Änderungen zählt einmal (wie bei den Zeiten); ohne den Schalter der gemeinsame Nachalarm
+    if (d.raPer) for (const k of this._raScopes(d)) n += this._raChanged(a.ra[k], d.ra[k]) ? 1 : 0;
+    else if (a.realarm !== d.realarm || (d.realarm && a.realarmCount !== d.realarmCount)) n += 1;
     if (a.accent !== d.accent) n += 1;
-    if (a.ackCode !== d.ackCode) n += 1;
-    if (a.modeCode !== d.modeCode) n += 1;
+    for (const k of CODE_KEYS) if (a[k] !== d[k]) n += 1;
     if (JSON.stringify(a.auto) !== JSON.stringify(d.auto)) n += 1;
     // Zählt der Abstand, nicht die Einheit (6 Stunden und 360 Minuten sind dasselbe)
     for (const k of ["stOff", "stOn"]) if (!Object.is(stMinutes(a[k]), stMinutes(d[k]))) n += 1;
@@ -190,7 +233,8 @@ export class SystemUi {
       check(`${scope}.confirm_window`, v.confirm_window, WINDOW);
     }
     if (!ALL_MODES.some((m) => d.modes[m])) bad.push("modes");
-    if (d.realarm) check("realarm", d.realarmCount, REALARM);
+    if (d.raPer) for (const k of this._raScopes(d)) { if (d.ra[k].on) check(`realarm.${k}`, d.ra[k].count, REALARM); }
+    else if (d.realarm) check("realarm", d.realarmCount, REALARM);
     if (!Number.isInteger(d.auto.keep) || d.auto.keep < 1 || d.auto.keep > 50) bad.push("auto.keep");
     if (!stOk(d.stOff)) bad.push("st.off");
     if (!stOk(d.stOn)) bad.push("st.on");
@@ -236,9 +280,22 @@ export class SystemUi {
         <div class="ag-subh">${esc(this._t("chapBehaviour"))}</div>${card(behaviourRows)}</div>`);
     // Nach einem Alarm (1.87.0): Nachalarm, wenn die Anlage im Alarm bleibt und ein weiterer Sensor auslöst. Die Meldung dazu ("Weiterer Sensor während
     // eines Alarms") steht unter Benachrichtigungen; hier nur, ob die Alarmaktionen erneut laufen
-    const realarmRows = modeRow('data-sys="realarm"', d.realarm, "refresh", this._t("sysRealarm"), this._t(d.realarm ? "sysRealarmOn" : "sysRealarmHint"))
-      + (d.realarm ? row("sysRealarmCount", "sysRealarmCountHint", `<span class="ag-num ${bad.has("realarm") ? "bad" : ""}"><input type="number" min="${REALARM[0]}" max="${REALARM[1]}" step="1" inputmode="numeric" data-sys="realarm-count" value="${esc(d.realarmCount)}" aria-label="${esc(this._t("sysRealarmCount"))}"><span class="ag-t2">${esc(this._t("sysRealarmTimes"))}</span></span>`) : "");
-    const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + chapter(this._t("chapAfterAlarm"), card(realarmRows), this._t("chapAfterAlarmHint")) + perMode
+    // Seit 1.89.0 (Wunsch des Nutzers 2026-11-25) mit eigenem Schalter "Einstellungen pro Modus" wie bei den Zeiten (Standard aus): an, gilt je Reiter (Modi
+    // und "Immer aktiv") ein eigener Nachalarm, mit dem orangen Punkt am Reiter bei Änderungen
+    const raScopes = this._raScopes(d);
+    if (!raScopes.includes(this.raScope)) this.raScope = raScopes.includes("away") ? "away" : raScopes[0] || "away";
+    const raLabel = (k) => this._t(k === "always" ? "wfAlways" : MODE_KEY[k]);
+    const raIcon = (k) => (k === "always" ? "flash" : MODE_ICON[k]);
+    const ra = d.raPer ? d.ra[this.raScope] : { on: d.realarm, count: d.realarmCount };
+    const raBad = bad.has(d.raPer ? `realarm.${this.raScope}` : "realarm");
+    const raSeg = d.raPer ? h._segHtml("sys-rascope", raScopes.map((k) => [`ra:${k}`, raLabel(k), raIcon(k)]), `ra:${this.raScope}`, "data-scope", "small ag-modeseg") : "";
+    const raSwitch = `<div class="ag-pmbar"><div class="ag-pmsw"><button class="ag-toggle ${d.raPer ? "on" : ""}" data-sys="ra-permode" role="switch" aria-checked="${d.raPer}" aria-label="${esc(this._t("sysPerMode"))}"></button>
+      <div class="ag-settx"><b>${esc(this._t("sysPerMode"))}</b><small>${esc(this._t(d.raPer ? "raPerModeOn" : "raPerModeHint"))}</small></div></div>${raSeg}</div>`;
+    const raLine = d.raPer ? `<div class="ag-pmscope">${ic(raIcon(this.raScope), 18)}${esc(this.raScope === "always" ? this._t("raScopeAlways") : this._t("pmScope", { mode: raLabel(this.raScope) }))}</div>` : "";
+    const realarmRows = modeRow('data-sys="realarm"', ra.on, "refresh", this._t("sysRealarm"), this._t(ra.on ? "sysRealarmOn" : "sysRealarmHint"))
+      + (ra.on ? row("sysRealarmCount", "sysRealarmCountHint", `<span class="ag-num ${raBad ? "bad" : ""}"><input type="number" min="${REALARM[0]}" max="${REALARM[1]}" step="1" inputmode="numeric" data-sys="realarm-count" value="${esc(Number.isFinite(ra.count) ? ra.count : "")}" aria-label="${esc(this._t("sysRealarmCount"))}"><span class="ag-t2">${esc(this._t("sysRealarmTimes"))}</span></span>`) : "");
+    const afterAlarm = chapter(this._t("chapAfterAlarm"), `<div class="ag-pmgroup ag-ragroup ${d.raPer ? "on" : ""}">${raSwitch}${raLine}${card(realarmRows)}</div>`, this._t("chapAfterAlarmHint"));
+    const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + afterAlarm + perMode
       + this.rt.html(modes) + this._codesHtml(d) + this._customSoundsHtml() + this._healthHtml(d, bad) + this._backupHtml() + this._accentHtml(d) + this._wizardHtml() + this._deleteHtml();
     // Beim Tippen nie neu aufbauen (Cursor bliebe nicht stehen), nur bei Schaltern und Auswahl
     h._setHtml(form, html);
@@ -251,21 +308,42 @@ export class SystemUi {
 
   // ----- Codes pro Person (sofort gespeichert, nicht Teil des Entwurfs: ein Code soll nie im Panel liegen bleiben) -----
 
-  // Seit 1.63.0 (Wunsch des Nutzers) steht auf der Seite nur die Zusammenfassung mit dem Knopf zum Fenster, dazu Hauptcode und "Quittieren
-  // verlangt den Code". Die Liste, "Code hinzufügen", Bearbeiten und Entfernen stehen im Fenster (wie Routinen und eigene Töne).
+  // Seit 1.63.0 (Wunsch des Nutzers) steht auf der Seite nur die Zusammenfassung mit dem Knopf zum Fenster, dazu der Hauptcode und die Schalter zum
+  // Code. Die Liste, "Code hinzufügen", Bearbeiten und Entfernen stehen im Fenster (wie Routinen und eigene Töne).
+  // Seit 1.89.0 (Wunsch des Nutzers 2026-11-25: alles aus dem Optionsdialog im Panel, im selben Stil, ohne unnötigen Platz): den Hauptcode festlegen,
+  // ändern und entfernen direkt in seiner Zeile (Knöpfe in Kreisen wie in der Tabelle der Codes). Die Schalter nur mit einem Code (ohne Code wirkt
+  // keiner; die Zeile des Hauptcodes sagt das), "Moduswechsel verlangt den Code" nur, solange "Scharfschalten verlangt den Code" aus ist (an verlangt
+  // auch der Wechsel des Modus den Code, der Schalter hätte keine Wirkung).
   _codesHtml(d) {
     const s = this.system;
+    const t = (k, v) => this._t(k, v);
     const n = (s.codes || []).length;
-    const summary = n ? this._t(n === 1 ? "codesSummaryOne" : "codesSummary", { count: n }) : this._t("codesNone");
+    const has = Boolean(s.has_code);
+    const summary = n ? t(n === 1 ? "codesSummaryOne" : "codesSummary", { count: n }) : t("codesNone");
     // Wie Routinen und eigene Töne (1.64.0, Wunsch des Nutzers): links "Code hinzufügen" (öffnet gleich das Formular), rechts "Codes anzeigen"
     // mit eigenem Symbol (Schlüssel)
-    return chapter(this._t("sysCodes"), `<div class="ag-card ag-setlist ag-codes">
+    return chapter(t("sysCodes"), `<div class="ag-card ag-setlist ag-codes">
       <div class="ag-setrow ag-rtsum ag-codesum"><span class="ag-oav ag-tint ag-tint-codes ${n ? "on" : ""}">${ic("hand", 20)}</span><div class="ag-settx"><b>${esc(summary)}</b></div>
-        <div class="ag-btnrow"><button class="ag-btn" data-sys="code-add-page" ${n >= MAX_CODES ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("codeAdd"))}</button>
-          <button class="ag-btn" data-sys="code-open">${ic("key", 18)}${esc(this._t("codesShow"))}</button></div></div>
-      <div class="ag-coderow"><span class="ag-oav">${ic("lockClosed", 20)}</span><span class="ag-grow"><b>${esc(this._t("sysCodeMain"))}</b><small class="ag-t2">${esc(this._t(s.main_code ? "sysCodeMainSet" : "sysCodeMainNone"))}</small></span>
-        <button class="ag-btn" data-sys="code">${ic("cog", 18)}${esc(this._t("sysCodeOpen"))}</button></div>
-      ${this._ackRow(d, Boolean(s.has_code))}${this._modeCodeRow(d, Boolean(s.has_code))}</div>`, this._t("sysCodesHint"));
+        <div class="ag-btnrow"><button class="ag-btn" data-sys="code-add-page" ${n >= MAX_CODES ? "disabled" : ""}>${ic("plus", 18)}${esc(t("codeAdd"))}</button>
+          <button class="ag-btn" data-sys="code-open">${ic("key", 18)}${esc(t("codesShow"))}</button></div></div>
+      ${this.mainRowHtml(s)}${has ? this.codeSwitchesHtml(d) : ""}</div>`, t("sysCodesHint"));
+  }
+
+  // Zeile des Hauptcodes (1.89.0): auch im Einrichtungsassistenten (Schritt "Code"), dort wie hier mit Festlegen, Ändern und Entfernen
+  mainRowHtml(s = this.system) {
+    const t = (k, v) => this._t(k, v);
+    const has = Boolean(s.has_code);
+    const round = (act, icon, label) => `<button class="ag-iconbtn" data-sys="${act}" title="${esc(label)}" aria-label="${esc(label)}">${ic(icon, 18)}</button>`;
+    const mainBtns = s.main_code ? `<div class="ag-wf-btns ag-codebtns">${round("main-edit", "pencil", t("mainChange"))}${round("main-del", "trash", t("mainRemove"))}</div>`
+      : `<button class="ag-btn" data-sys="main-set">${ic("plus", 18)}${esc(t("mainSet"))}</button>`;
+    const mainText = s.main_code ? t("sysCodeMainSet") : has ? t("sysCodeMainNone") : t("sysCodeNoneAll");
+    return `<div class="ag-coderow ag-mainrow"><span class="ag-oav">${ic("lockClosed", 20)}</span><span class="ag-grow"><b>${esc(t("sysCodeMain"))}</b><small class="ag-t2">${esc(mainText)}</small></span>
+        ${mainBtns}</div>`;
+  }
+
+  // Die Schalter zum Code (nur mit einem Code): Scharfschalten, Moduswechsel (nur solange Scharfschalten aus ist), Quittieren; auch im Assistenten
+  codeSwitchesHtml(d) {
+    return this._armCodeRow(d) + (d.armCode ? "" : this._modeCodeRow(d)) + this._ackRow(d);
   }
 
   _codeListDlg() {
@@ -340,20 +418,26 @@ export class SystemUi {
     if (again && top) again.scrollTop = top;
   }
 
-  // Quittieren verlangt den Code (1.34.0): gilt für den Dienst, den die Dashboard-Karten nutzen; das Panel selbst ist nur für
-  // Administratoren und fragt nie nach einem Code zum Quittieren. Ohne Code gesperrt.
-  _ackRow(d, hasCode) {
-    const on = Boolean(d?.ackCode) && hasCode;
-    return `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("sysAckCode"))}</b><small>${esc(this._t(hasCode ? "sysAckCodeHint" : "sysAckCodeNone"))}</small></div>
-      <button class="ag-toggle ${on ? "on" : ""}" data-sys="ackcode" role="switch" aria-checked="${on}" aria-label="${esc(this._t("sysAckCode"))}" ${hasCode ? "" : "disabled"}></button></div>`;
+  // Ein Schalter zum Code (nur mit einem Code auf der Seite): Titel, Beschreibung, Schalter wie die übrigen Einstellungen
+  _codeSwitch(act, on, title, hint) {
+    return `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(hint))}</small></div>
+      <button class="ag-toggle ${on ? "on" : ""}" data-sys="${act}" role="switch" aria-checked="${on}" aria-label="${esc(this._t(title))}"></button></div>`;
   }
 
-  // Moduswechsel verlangt den Code (1.87.0 immer, Schalter seit 1.88.0, Standard an): im scharfen Zustand und in der Ausgangsverzögerung. Ohne Code
-  // gesperrt wie "Quittieren verlangt den Code"
-  _modeCodeRow(d, hasCode) {
-    const on = Boolean(d?.modeCode) && hasCode;
-    return `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("sysModeCode"))}</b><small>${esc(this._t(hasCode ? "sysModeCodeHint" : "sysAckCodeNone"))}</small></div>
-      <button class="ag-toggle ${on ? "on" : ""}" data-sys="modecode" role="switch" aria-checked="${on}" aria-label="${esc(this._t("sysModeCode"))}" ${hasCode ? "" : "disabled"}></button></div>`;
+  // Scharfschalten verlangt den Code (bis 1.88.0 nur im Optionsdialog, seit 1.89.0 auch hier): gilt überall, auch für den Wechsel des Modus
+  _armCodeRow(d) {
+    return this._codeSwitch("armcode", Boolean(d?.armCode), "sysArmCode", "sysArmCodeHint");
+  }
+
+  // Moduswechsel verlangt den Code (1.87.0 immer, Schalter seit 1.88.0, Standard an): im scharfen Zustand und in der Ausgangsverzögerung
+  _modeCodeRow(d) {
+    return this._codeSwitch("modecode", Boolean(d?.modeCode), "sysModeCode", "sysModeCodeHint");
+  }
+
+  // Quittieren verlangt den Code (1.34.0): gilt für den Dienst, den die Dashboard-Karten nutzen; das Panel selbst ist nur für
+  // Administratoren und fragt nie nach einem Code zum Quittieren
+  _ackRow(d) {
+    return this._codeSwitch("ackcode", Boolean(d?.ackCode), "sysAckCode", "sysAckCodeHint");
   }
 
   // Eigene Töne (1.39.0, Fenster seit 1.56.0): gelten für alle Anlagen und alle Arten von Tönen; sofort gespeichert, nicht Teil des Entwurfs.
@@ -941,29 +1025,52 @@ export class SystemUi {
     const options = users.filter((u) => !taken.has(u.id)).map((u) => `<option value="${esc(u.id)}" ${u.id === own ? "selected" : ""}>${esc(u.name)}</option>`).join("");
     // Seit 1.73.0 (Wunsch des Nutzers): jedes Feld ist ein Kapitel (fetter Titel mit Strich davor, wie bei "Routine hinzufügen"); der Titel ersetzt die
     // kleine Beschriftung, das Feld trägt sie als aria-label. Der Einrichtungsassistent öffnet dasselbe Fenster und übernimmt es damit.
-    const secret = (key, label) => `<span class="ag-pwfld"><input class="ag-input" id="ag-cf-${key}" type="password" inputmode="numeric" autocomplete="new-password" data-sys="cf" data-key="${key}" data-secret maxlength="8" aria-label="${esc(label)}">
-          <button type="button" class="ag-iconbtn ag-pweye" data-sys="code-eye" aria-pressed="false" aria-label="${esc(this._t("codeShow"))}" title="${esc(this._t("codeShow"))}">${ic("eye", 18)}</button></span>`;
     const dlg = this._codeDlg(true);
     const userBody = `<select class="ag-input" data-sys="cf" data-key="user_id" data-init="${esc(own)}" aria-label="${esc(this._t("codeUser"))}">
         <option value="">${esc(this._t("codeUserNone"))}</option>${gone}${options}</select>`;
     const nameBody = `<input class="ag-input" data-sys="cf" data-key="name" maxlength="40" autocomplete="off" value="${esc(c?.name || mine?.name || "")}" data-init="${esc(c?.name || "")}" aria-label="${esc(this._t("codeName"))}">`;
-    const codeBody = `<div class="ag-fld">${secret("code", this._t("codeValue"))}${secret("code2", this._t("codeRepeat"))}</div>`;
     dlg.innerHTML = `<div class="ag-dlg-body ag-codeform">${iconTitle("hand", TINT.codes, this._t(c ? "codeEdit" : "codeAdd"))}
       ${chapter(this._t("codeUser"), userBody, this._t("codeUserHint"))}
       ${chapter(this._t("codeName"), nameBody)}
-      ${chapter(this._t("codeValue"), codeBody, c ? this._t("codeKeepHint") : "")}
-      <div class="ag-codewarn" hidden aria-live="polite">${ic("alert", 18)}<span></span></div>
-      <div class="ag-dlg-err" aria-live="polite"></div>
-      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="code-close">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-sys="code-save" data-id="${esc(c?.id || "")}">${ic("check", 18)}${esc(this._t("save"))}</button></div></div>`;
+      ${chapter(this._t("codeValue"), this._codeFields(), c ? this._t("codeKeepHint") : "")}
+      ${this._codeFormEnd(`data-id="${esc(c?.id || "")}"`)}`;
     dlg.showModal();
     this._focusName(dlg);
   }
 
-  // Der Fokus geht gleich ins Feld "Name", damit man lostippen kann, aber das Fenster scrollt dabei nicht (Wunsch des Nutzers 2026-11-21: auf dem iPhone
-  // verschwand der Titel). `preventScroll` hält das Scrollen des Fokus an; öffnet die Tastatur trotzdem eine Verschiebung, steht das Fenster in den ersten
-  // Sekunden wieder oben, solange das Feld dabei über der Tastatur bleibt (sonst bleibt es, wie es ist, das Feld geht vor).
-  _focusName(dlg) {
-    const name = dlg.querySelector('[data-key="name"]');
+  // Zwei Felder für den Code (Code und Wiederholung), je mit Auge; dasselbe in den Formularen der Codes pro Person und des Hauptcodes
+  _codeFields() {
+    const secret = (key, label) => `<span class="ag-pwfld"><input class="ag-input" id="ag-cf-${key}" type="password" inputmode="numeric" autocomplete="new-password" data-sys="cf" data-key="${key}" data-secret maxlength="8" aria-label="${esc(label)}">
+          <button type="button" class="ag-iconbtn ag-pweye" data-sys="code-eye" aria-pressed="false" aria-label="${esc(this._t("codeShow"))}" title="${esc(this._t("codeShow"))}">${ic("eye", 18)}</button></span>`;
+    return `<div class="ag-fld">${secret("code", this._t("codeValue"))}${secret("code2", this._t("codeRepeat"))}</div>`;
+  }
+
+  // Warnung, Fehler und Knöpfe am Ende der Formulare der Codes; `attrs` kommt an den Knopf "Speichern"
+  _codeFormEnd(attrs) {
+    return `<div class="ag-codewarn" hidden aria-live="polite">${ic("alert", 18)}<span></span></div>
+      <div class="ag-dlg-err" aria-live="polite"></div>
+      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="code-close">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-sys="code-save" ${attrs}>${ic("check", 18)}${esc(this._t("save"))}</button></div></div>`;
+  }
+
+  // Hauptcode festlegen oder ändern (1.89.0): dasselbe Fenster wie ein Code pro Person, nur mit den beiden Codefeldern. Der bisherige Hauptcode ist
+  // nirgends bekannt und wird nicht verlangt (wie im Optionsdialog von Home Assistant; das Panel ist nur für Administratoren).
+  openMainForm() {
+    const s = this.system;
+    if (!s) return;
+    const dlg = this._codeDlg(true);
+    dlg.innerHTML = `<div class="ag-dlg-body ag-codeform">${iconTitle("lockClosed", TINT.codes, this._t(s.main_code ? "mainChange" : "mainSet"))}
+      ${chapter(this._t("codeValue"), this._codeFields(), this._t(s.main_code ? "mainFormHintChange" : "mainFormHint"))}
+      ${this._codeFormEnd('data-main="1"')}`;
+    dlg.showModal();
+    this._focusName(dlg, "code");
+  }
+
+  // Der Fokus geht gleich ins erste Feld ("Name", beim Hauptcode der Code), damit man lostippen kann, aber das Fenster scrollt dabei nicht (Wunsch des
+  // Nutzers 2026-11-21: auf dem iPhone verschwand der Titel). `preventScroll` hält das Scrollen des Fokus an; öffnet die Tastatur trotzdem eine
+  // Verschiebung, steht das Fenster in den ersten Sekunden wieder oben, solange das Feld dabei über der Tastatur bleibt (sonst bleibt es, wie es ist,
+  // das Feld geht vor).
+  _focusName(dlg, key = "name") {
+    const name = dlg.querySelector(`[data-key="${key}"]`);
     if (!name) return;
     name.focus({ preventScroll: true });
     const top = () => {
@@ -1015,7 +1122,75 @@ export class SystemUi {
   }
 
   saveCode() {
-    return this._sendOnce("code-save", this._codeDlg()?.querySelector('[data-sys="code-save"]'), () => this._saveCode());
+    const button = this._codeDlg()?.querySelector('[data-sys="code-save"]');
+    return this._sendOnce("code-save", button, () => (button?.dataset.main ? this._saveMain() : this._saveCode()));
+  }
+
+  // Hauptcode speichern (1.89.0): dieselben Prüfungen wie ein Code pro Person; der Server prüft noch einmal und lehnt einen Code ab, den eine Person hat
+  async _saveMain() {
+    const dlg = this._codeDlg();
+    const val = (k) => dlg.querySelector(`[data-key="${k}"]`).value;
+    const code = val("code");
+    if (!/^\d{4,8}$/.test(code)) return this._codeError(this._t("errInvalidCodeFormat"));
+    if (code !== val("code2")) return this._codeError(this._t("codeMismatch"));
+    const entryId = this.system.entry_id;
+    try {
+      const res = await this.host._hass.callWS({ type: "alarmageddon/set_main_code", entry_id: entryId, code });
+      const sys = this.host._system(entryId);
+      if (sys) Object.assign(sys, { main_code: true, has_code: true });
+      dlg.close();
+      this.host._toast(this._t("saved"));
+      this.render();
+      this._afterMain(res, entryId);
+    } catch (err) {
+      this._codeError(this._codeErrText(err, true));
+    }
+  }
+
+  // Hauptcode entfernen (1.89.0): Rückfrage; bleibt danach kein Code, sagt sie, dass die Anlage dann nie mehr einen Code verlangt
+  openRemoveMain() {
+    const s = this.system;
+    if (!s?.main_code) return;
+    const last = !(s.codes || []).length;
+    const dlg = this._codeDlg(false);
+    dlg.innerHTML = `<div class="ag-dlg-body"><h3>${esc(this._t("mainRemoveTitle"))}</h3><div class="ag-t2">${esc(this._t(last ? "mainRemoveLast" : "mainRemoveText"))}</div>
+      <div class="ag-dlg-err" aria-live="polite"></div>
+      <div class="ag-dlg-btns"><button class="ag-btn" data-sys="code-close">${esc(this._t("cancel"))}</button><button class="ag-btn danger" data-sys="main-remove">${ic("trash", 18)}${esc(this._t("remove"))}</button></div></div>`;
+    dlg.showModal();
+  }
+
+  removeMain() {
+    return this._sendOnce("main-remove", this._codeDlg()?.querySelector('[data-sys="main-remove"]'), () => this._removeMain());
+  }
+
+  async _removeMain() {
+    const entryId = this.system.entry_id;
+    try {
+      const res = await this.host._hass.callWS({ type: "alarmageddon/remove_main_code", entry_id: entryId });
+      const sys = this.host._system(entryId);
+      if (sys) {
+        sys.main_code = false;
+        this._afterCodeGone(sys);
+      }
+      this._codeDlg().close();
+      this.render();
+      this._afterMain(res, entryId);
+    } catch (err) {
+      this._codeError(this._codeErrText(err, true));
+    }
+  }
+
+  // Home Assistant lädt die Anlage nach jeder Änderung am Hauptcode neu: bis die neue Kennung da ist, wie nach "Speichern"
+  _afterMain(res, entryId) {
+    if (res?.reload !== false) this.host._reloadWait(entryId);
+    else this.host._fetch();
+  }
+
+  // Nach dem Entfernen eines Codes: bleibt keiner, verlangt die Anlage nichts mehr (wie der Server: "Scharfschalten" und "Quittieren verlangt den
+  // Code" gehen aus). Die Abfrage danach bestätigt den Stand des Servers.
+  _afterCodeGone(sys) {
+    sys.has_code = Boolean(sys.main_code) || (sys.codes || []).length > 0;
+    if (!sys.has_code) Object.assign(sys, { code_arm_required: false, code_ack_required: false });
   }
 
   async _saveCode() {
@@ -1058,6 +1233,7 @@ export class SystemUi {
     try {
       await this.host._hass.callWS({ type: "alarmageddon/remove_code", entry_id: this.system.entry_id, code_id: id });
       this.system.codes = (this.system.codes || []).filter((c) => c.id !== id);
+      this._afterCodeGone(this.system);
       this._codeDlg().close();
       this.render();
       this.host._fetch();
@@ -1066,8 +1242,8 @@ export class SystemUi {
     }
   }
 
-  _codeErrText(err) {
-    const key = { invalid_code_format: "errInvalidCodeFormat", name_taken: "errNameTaken", code_taken: "errCodeTaken", user_taken: "errUserTaken", too_many: "errTooMany" }[err?.code];
+  _codeErrText(err, main = false) {
+    const key = { invalid_code_format: "errInvalidCodeFormat", name_taken: "errNameTaken", code_taken: main ? "errMainTaken" : "errCodeTaken", user_taken: "errUserTaken", too_many: "errTooMany" }[err?.code];
     return key ? this._t(key) : this._t("errGeneric", { message: errText(err) });
   }
 
@@ -1086,6 +1262,7 @@ export class SystemUi {
       const first = badKeys[0];
       const text = first === "modes" ? this._t("sysModesNone")
         : first === "auto.keep" ? this._t("invalidCount", { min: 1, max: 50 })
+        : first.startsWith("realarm") ? this._t("invalidCount", { min: REALARM[0], max: REALARM[1] })
         : first === "st.off" || first === "st.on" ? this._t("stEveryInvalid")
         : first.endsWith(".confirm_window") ? this._t("invalidNumber", { min: 5, max: 600 }) : this._t("invalidNumber", { min: 0, max: MAX });
       status = `<span class="ag-err">${esc(text)}</span>`;
@@ -1107,15 +1284,20 @@ export class SystemUi {
       const modes = ALL_MODES.filter((m) => d.modes[m]);
       // Alle Modi (auch abgeschaltete behalten ihre Werte)
       const mode_settings = Object.fromEntries(ALL_MODES.map((m) => [m, { ...d.per[m] }]));
+      const codes = { code_arm_required: d.armCode, code_ack_required: d.ackCode, code_mode_required: d.modeCode };
+      // Nachalarm pro Modus (1.89.0): alle Auslöser; eine ungültige Höchstzahl eines ausgeschalteten bleibt beim gespeicherten Wert (sie gilt ja nicht)
+      const raBase = this.base(s).ra;
+      const realarm_scopes = Object.fromEntries(RA_SCOPES.map((k) => [k, { enabled: d.ra[k].on, count: raOk(d.ra[k].count) ? d.ra[k].count : raBase[k].count }]));
       const saved = await h._hass.callWS({ type: "alarmageddon/save_system", entry_id: s.entry_id, mode_settings, per_mode_settings: d.perMode,
         home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, routines: d.routines,
-        realarm_enabled: d.realarm, ...(d.realarm ? { realarm_count: d.realarmCount } : {}),
-        ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}),
-        // Nur mit einem Code: ohne Code bleibt der gespeicherte Wert (Standard an) und gilt, sobald ein Code dazukommt
-        ...(s.has_code ? { code_mode_required: d.modeCode } : {}) });
-      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code),
-        ...(s.has_code ? { code_mode_required: d.modeCode } : {}),
-        realarm_enabled: d.realarm, ...(d.realarm ? { realarm_count: d.realarmCount } : {}) });
+        realarm_enabled: d.realarm, ...(d.realarm ? { realarm_count: d.realarmCount } : {}), realarm_per_mode: d.raPer, ...(d.raPer ? { realarm_scopes } : {}),
+        // Die Schalter zum Code nur mit einem Code: ohne Code lehnt der Server "an" ab, und "Moduswechsel" behält seinen gespeicherten Wert
+        // (Standard an), der gilt, sobald ein Code dazukommt
+        ...(s.has_code ? codes : {}) });
+      Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, modes, routines: JSON.parse(JSON.stringify(d.routines)),
+        ...(s.has_code ? codes : {}),
+        realarm_enabled: d.realarm, ...(d.realarm ? { realarm_count: d.realarmCount } : {}), realarm_per_mode: d.raPer,
+        ...(d.raPer ? { realarm_scopes: { ...(s.realarm_scopes || {}), ...realarm_scopes } } : {}) });
       // Abstand des Selbsttests (1.65.0): nur dieser Wert der Benachrichtigungen, alles andere bleibt, wie es ist
       const stBase = this.base(s);
       const [off, on] = [stMinutes(d.stOff), stMinutes(d.stOn)];
@@ -1138,7 +1320,7 @@ export class SystemUi {
       if (saved?.reload !== false) h._reloadWait();
       else h._fetch();
     } catch (err) {
-      const known = { no_mode: "errNoMode", mode_active: "errModeActive", invalid_routines: "rtSaveInvalid" }[err?.code];
+      const known = { no_mode: "errNoMode", mode_active: "errModeActive", invalid_routines: "rtSaveInvalid", code_missing: "errCodeMissing" }[err?.code];
       this.saveState = known ? this._t(known) : this._t("saveFailed", { message: errText(err) });
     } finally {
       this.saving = false;
@@ -1147,6 +1329,12 @@ export class SystemUi {
   }
 
   onClick(el) {
+    // Reiter des Nachalarms (1.89.0): nur die Ansicht wechselt
+    if (el?.dataset.scope?.startsWith("ra:")) {
+      this.raScope = el.dataset.scope.slice(3);
+      this.render();
+      return true;
+    }
     // Modus der Einstellungen wählen: nur die Ansicht wechselt, der Entwurf bleibt
     if (el?.dataset.scope) {
       this.scope = el.dataset.scope;
@@ -1275,6 +1463,12 @@ export class SystemUi {
       }
       this.saveState = null;
       this.render();
+    } else if (act === "armcode") {
+      d.armCode = !d.armCode;
+      // An: "Moduswechsel verlangt den Code" verschwindet (ohne Wirkung); eine Änderung daran bleibt nicht verborgen im Entwurf stehen
+      if (d.armCode) d.modeCode = this.base().modeCode;
+      this.saveState = null;
+      this.render();
     } else if (act === "ackcode") {
       d.ackCode = !d.ackCode;
       this.saveState = null;
@@ -1321,8 +1515,17 @@ export class SystemUi {
       d.monitor = !d.monitor;
       this.saveState = null;
       this.render();
+    } else if (act === "ra-permode") {
+      // Wie bei den Zeiten: an, beginnt jeder Reiter mit dem gemeinsamen Nachalarm; aus, gilt der des ersten Reiters für alle
+      d.raPer = !d.raPer;
+      const first = this._raScopes(d)[0] || "away";
+      if (d.raPer) for (const k of RA_SCOPES) d.ra[k] = { on: d.realarm, count: d.realarmCount };
+      else ({ on: d.realarm, count: d.realarmCount } = d.ra[first]);
+      this.saveState = null;
+      this.render();
     } else if (act === "realarm") {
-      d.realarm = !d.realarm;
+      if (d.raPer) d.ra[this.raScope].on = !d.ra[this.raScope].on;
+      else d.realarm = !d.realarm;
       this.saveState = null;
       this.render();
     } else if (act === "mode") {
@@ -1334,8 +1537,12 @@ export class SystemUi {
       this.render();
     } else if (act === "save") {
       this.save();
-    } else if (act === "code") {
-      this.host._navigate("/config/integrations/integration/alarmageddon");
+    } else if (act === "main-set" || act === "main-edit") {
+      this.openMainForm();
+    } else if (act === "main-del") {
+      this.openRemoveMain();
+    } else if (act === "main-remove") {
+      this.removeMain();
     } else if (act === "bk-create") {
       this.openCreateBackup();
     } else if (act === "bk-download") {
@@ -1499,9 +1706,11 @@ export class SystemUi {
     if (el.dataset.sys?.startsWith("rt-")) return this.rt.onInput(el);
     if (el.dataset.sys === "realarm-count") {
       const d = this.ensureDraft();
-      d.realarmCount = el.value === "" ? NaN : Number(el.value);
+      const v = el.value === "" ? NaN : Number(el.value);
+      if (d.raPer) d.ra[this.raScope].count = v;
+      else d.realarmCount = v;
       this.saveState = null;
-      el.closest(".ag-num")?.classList.toggle("bad", !Number.isInteger(d.realarmCount) || d.realarmCount < REALARM[0] || d.realarmCount > REALARM[1]);
+      el.closest(".ag-num")?.classList.toggle("bad", !raOk(v));
       this.renderFoot();
       return true;
     }

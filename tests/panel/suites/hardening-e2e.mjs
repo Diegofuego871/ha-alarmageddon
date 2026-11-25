@@ -61,10 +61,11 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="save"]');
     await s.waitFor(`return r.querySelector('${ack}').getAttribute('aria-checked') === 'false' && r.querySelector('[data-sys="save"]').disabled`);
 
-    // ----- Moduswechsel verlangt den Code (1.88.0): gleich gebaut, Standard an (auch ohne gespeicherten Wert), nur mit einem Code -----
+    // ----- Moduswechsel verlangt den Code (1.88.0): gleich gebaut, Standard an (auch ohne gespeicherten Wert), nur mit einem Code. Seit 1.89.0 zwischen
+    // "Scharfschalten verlangt den Code" und "Quittieren verlangt den Code" -----
     const modeCode = '[data-sys="modecode"]';
-    check(`${tag}: Schalter "Moduswechsel verlangt den Code" steht unter "Quittieren verlangt den Code", an und frei`, await s.ev(`const b=r.querySelector('${modeCode}'); const a=r.querySelector('${ack}');
-      return !!b && !b.disabled && b.getAttribute('aria-checked') === 'true' && !!b.closest('.ag-codes') && a.getBoundingClientRect().top < b.getBoundingClientRect().top`));
+    check(`${tag}: Schalter "Moduswechsel verlangt den Code" steht zwischen "Scharfschalten" und "Quittieren verlangt den Code", an und frei`, await s.ev(`const b=r.querySelector('${modeCode}'); const a=r.querySelector('${ack}'); const arm=r.querySelector('[data-sys="armcode"]');
+      return !!b && !b.disabled && b.getAttribute('aria-checked') === 'true' && !!b.closest('.ag-codes') && arm.getBoundingClientRect().top < b.getBoundingClientRect().top && b.getBoundingClientRect().top < a.getBoundingClientRect().top`));
     await s.tap(modeCode);
     check(`${tag}: Schalter aus zählt als Änderung`, await s.waitFor(`return r.querySelector('${modeCode}').getAttribute('aria-checked') === 'false' && !r.querySelector('[data-sys="save"]').disabled`));
     await s.tap('[data-sys="save"]');

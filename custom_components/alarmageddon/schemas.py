@@ -19,6 +19,8 @@ from .const import (
     CONF_HOME_ENABLED,
     CONF_MONITOR_ENABLED,
     CONF_REALARM_COUNT,
+    CONF_REALARM_PER_MODE,
+    CONF_REALARM_SCOPES,
     CONF_REALARM_ENABLED,
     REALARM_COUNT_RANGE,
     CONF_ACCENT,
@@ -543,6 +545,17 @@ def strict_map(key: Any, value: Any) -> Any:
     return check
 
 
+def _realarm_record(value: Any) -> dict[str, Any]:
+    """Nachalarm eines Auslösers (1.89.0): genau "enabled" (Wahrheitswert) und "count" (1 bis 10); alles andere lehnt das Ganze ab."""
+    if not isinstance(value, dict) or set(value) != {"enabled", "count"} or not isinstance(value["enabled"], bool) or isinstance(value["count"], bool):
+        raise vol.Invalid("expected enabled and count")
+    count = vol.All(vol.Coerce(int), vol.Range(min=REALARM_COUNT_RANGE[0], max=REALARM_COUNT_RANGE[1]))(value["count"])
+    return {"enabled": value["enabled"], "count": count}
+
+
+# Nachalarm pro Modus (1.89.0): je Auslöser des Alarms (Modi und "Immer aktiv")
+REALARM_SCOPES = strict_map(vol.In(WORKFLOW_TRIGGERS), _realarm_record)
+
 # Optionen einer Anlage aus einer Sicherung. Codes gehören nie dazu (siehe backup.py). Wörterbücher darunter immer mit strict_map.
 SYSTEM_OPTIONS_SCHEMA = vol.Schema(
     {
@@ -568,6 +581,8 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         # Nachalarm (1.87.0)
         vol.Optional(CONF_REALARM_ENABLED): bool,
         vol.Optional(CONF_REALARM_COUNT): vol.All(vol.Coerce(int), vol.Range(min=REALARM_COUNT_RANGE[0], max=REALARM_COUNT_RANGE[1])),
+        vol.Optional(CONF_REALARM_PER_MODE): bool,
+        vol.Optional(CONF_REALARM_SCOPES): REALARM_SCOPES,
         vol.Optional(CONF_ACCENT): vol.In(ACCENTS),
         vol.Optional(CONF_MONITOR_SENSORS): _measure_sensors,
         vol.Optional("disarm_ends_alarm"): bool,  # nur aus Backups von 1.78.0 (die Einstellung entfiel in 1.79.0): wird beim Einlesen verworfen

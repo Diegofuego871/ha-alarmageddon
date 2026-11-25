@@ -227,7 +227,8 @@ for (const lang of ["en", "de"]) {
     await click('#ag-hclist [data-hc-row="a1b2c3d4e5f6"] [data-hc="log"]')(ctx);
     await ctx.page.waitForTimeout(900);
   } });
-  // Einstellungen eines Sensors (1.87.0): "Muss beim Scharfschalten geschlossen sein", "Muss beim Scharfschalten erreichbar sein", "Umgehen" (Handbuch)
+  // Einstellungen eines Sensors (1.87.0): "Muss beim Scharfschalten geschlossen sein" (seit 1.89.0 mit "Umgehen" eingerückt darunter), "Muss beim
+  // Scharfschalten erreichbar sein" (Handbuch)
   await shot(lang, "sensor-options", { tab: "config", height: 900, prepare: async ({ page, frame }) => {
     await click('[data-sub="sensors"]')({ frame });
     await page.waitForTimeout(600);
@@ -240,10 +241,15 @@ for (const lang of ["en", "de"]) {
     await page.waitForTimeout(800);
     await toElement(frame, ".ag-chap:has(.ag-ntk)", 0, 18);
   } });
-  // Kapitel "Nach einem Alarm" (1.87.0) mit eingeschaltetem Nachalarm (Handbuch)
-  await shot(lang, "after-alarm", { tab: "config", height: 640, prepare: async ({ page, frame }) => {
+  // Kapitel "Nach einem Alarm" (1.87.0) mit eingeschaltetem Nachalarm (Handbuch); seit 1.89.0 mit "Einstellungen pro Modus" und den Reitern
+  await shot(lang, "after-alarm", { tab: "config", height: 800, prepare: async ({ page, frame }) => {
     // Gespeichert eingeschaltet (nicht als Entwurf: sonst zeigte das Bild "Noch nicht gespeichert")
-    await page.evaluate(() => { for (const s of window.__systems) { s.realarm_enabled = true; s.realarm_count = 3; } });
+    await page.evaluate(() => {
+      for (const s of window.__systems) {
+        Object.assign(s, { realarm_enabled: true, realarm_count: 3, realarm_per_mode: true,
+          realarm_scopes: { home: { enabled: true, count: 3 }, away: { enabled: true, count: 3 }, night: { enabled: false, count: 3 }, always: { enabled: true, count: 2 } } });
+      }
+    });
     await frame.evaluate(() => document.querySelector("alarmageddon-panel")._fetch());
     await page.waitForTimeout(400);
     await click('[data-sub="system"]')({ frame });
@@ -267,6 +273,11 @@ for (const lang of ["en", "de"]) {
   const page = await ctx.newPage();
   await page.goto(`http://127.0.0.1:${PORT}/card-sim.html?lang=${lang}&theme=light&status=warn`);
   await page.waitForFunction(() => window.__ready);
+  // Seit 1.89.0 stimmig: die Statuskarte nennt "Fenster Bad" nicht erreichbar, also ist die Anlage dafür nicht bereit (Fenster: "Muss beim
+  // Scharfschalten erreichbar sein", seit 1.87.0). Bis 1.88.0 zeigte das Bild "Bereit für" mit zwei Häkchen daneben
+  await page.evaluate(() => {
+    for (const m of ["home", "away"]) window.__setState(`binary_sensor.wohnung_ready_to_arm_${m}`, "off", { blocking_sensors: [], unreachable_sensors: ["binary_sensor.fenster_bad"] });
+  });
   await page.waitForTimeout(500);
   await (await page.$("#dash")).screenshot({ path: `${out}cards-${lang}.png` });
   console.log(`cards-${lang}.png`);

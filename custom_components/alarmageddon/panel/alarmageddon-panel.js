@@ -551,6 +551,32 @@ class AlarmageddonPanel extends HTMLElement {
     return result;
   }
 
+  // Einrichtungsassistent am Computer als Fenster (1.89.0, Wünsche des Nutzers 2026-11-25): deckt das ganze Panel ab, vom Panel ist dahinter nichts zu
+  // sehen; auf grossen Bildschirmen wie das Panel mittig (dieselbe Breite, höchstens 1680 px). Das Fenster hat einen eigenen Scrollbereich; solange es
+  // offen ist, ist dieser der Inhalt (_content), in den der Assistent wie bisher zeichnet. Der Inhalt des Panels dahinter ist leer und "inert": nichts
+  // darin lässt sich mit der Tastatur erreichen, und kein Element steht doppelt im Dokument (dieselben Schalter und Felder wie im Assistenten).
+  // Nach dem Schliessen zeichnet _render ihn neu.
+  _wizardPopup(on) {
+    const root = this._root.querySelector(".ag-root");
+    const pop = root?.querySelector(":scope > .ag-wzpop");
+    if (on && !pop) {
+      root.insertAdjacentHTML("beforeend", `<div class="ag-wzpop" role="dialog" aria-modal="true" aria-label="${esc(this._t("wzTitle"))}"><div class="ag-content ag-wzc"></div></div>`);
+      this._mainContent = this._content;
+      this._lastHtml.delete(this._mainContent);
+      this._mainContent.innerHTML = "";
+      this._mainContent.inert = true;
+      this._content = root.querySelector(":scope > .ag-wzpop > .ag-content");
+      this._scrollKey = null;
+      if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => this._stickySync()).observe(this._content);
+    } else if (!on && pop) {
+      pop.remove();
+      this._content = this._mainContent || root.querySelector(":scope > .ag-content");
+      this._content.inert = false;
+      this._mainContent = null;
+      this._scrollKey = null;
+    }
+  }
+
   _segHtml(name, items, current, attr = "data-act", cls = "") {
     return `<div class="ag-seg ${cls}" role="tablist" data-seg="${name}">${items
       .map(([key, label, icon]) => `<button role="tab" ${attr}="${key}" class="${current === key ? "on" : ""}" aria-selected="${current === key}">${icon ? ic(icon, 20) : ""}<span>${esc(label)}</span></button>`)
@@ -567,6 +593,8 @@ class AlarmageddonPanel extends HTMLElement {
   _render() {
     if (!this._content) return;
     this._applyAccent();
+    // Am Computer als Fenster über dem Panel (1.89.0); auf dem Handy wie bisher an Stelle des Inhalts
+    this._wizardPopup(this.wizard.active && !this.hasAttribute("narrow"));
     // Einrichtungsassistent (1.69.0): eigenes Gerüst statt Kopf und Reitern; die eingebetteten Ansichten zeichnen in seinen Platz (_view)
     this._content.classList.toggle("ag-wzc", this.wizard.active);
     if (this.wizard.active) {
@@ -635,7 +663,7 @@ class AlarmageddonPanel extends HTMLElement {
     cfg?.classList.toggle("has-edit", anyEdit);
     // Reiter der Modi auf der offenen Seite: Punkt genau dort, wo etwas ungespeichert ist
     // Nur die Reiterleisten der Modi (die Unterreiter sind oben schon gesetzt und dürfen hier nicht wieder gelöscht werden)
-    const modeTabs = '[data-seg="sen-mode"] > button, [data-seg="wf-trigger"] > button, [data-seg="nt-mode"] > button, [data-seg="sys-scope"] > button';
+    const modeTabs = '[data-seg="sen-mode"] > button, [data-seg="wf-trigger"] > button, [data-seg="nt-mode"] > button, [data-seg="sys-scope"] > button, [data-seg="sys-rascope"] > button';
     for (const el of this._view?.querySelectorAll(modeTabs) || []) el.classList.toggle("has-edit", marks.some((sel) => el.matches(sel)));
   }
 
@@ -875,8 +903,10 @@ class AlarmageddonPanel extends HTMLElement {
       });
       el.appendChild(btn);
     }
-    // Die feste Fusszeile der Seite (Speichern, Auswahlen) darf die Meldung und ihren Knopf nicht verdecken: die Meldung steht darüber
-    const foot = this._view?.querySelector(".ag-foot");
+    // Die feste Fusszeile der Seite (Speichern, Auswahlen) darf die Meldung und ihren Knopf nicht verdecken: die Meldung steht darüber.
+    // Im Einrichtungsassistenten ist es seine Fusszeile (Zurück, Weiter); die der eingebetteten Ansicht ist dort ausgeblendet (Höhe 0)
+    const foot = [this.wizard?.active ? this._content?.querySelector(".ag-wz-foot") : null, this._view?.querySelector(".ag-foot")]
+      .find((x) => x && x.getBoundingClientRect().height > 0);
     if (foot) el.style.bottom = `${Math.ceil(foot.getBoundingClientRect().height) + 16}px`;
     this._root.querySelector(".ag-root").appendChild(el);
     this._toastTimer = setTimeout(() => el.remove(), action ? 10000 : 5000);
@@ -988,9 +1018,10 @@ class AlarmageddonPanel extends HTMLElement {
     return this._members(s, mode).filter((id) => this._state(id)?.state === "on" && !this._optionOf(s, id, "open_ok", mode) && !this._optionOf(s, id, "bypass", mode));
   }
 
-  // Wie controller.blocking_unreachable (1.87.0): nicht erreichbare Sensoren mit "Muss beim Scharfschalten erreichbar sein" und ohne "Umgehen"
+  // Wie controller.blocking_unreachable (1.87.0): nicht erreichbare Sensoren mit "Muss beim Scharfschalten erreichbar sein"; seit 1.89.0 auch mit
+  // "Umgehen" (gilt nur für offene Sensoren, Entscheid des Nutzers 2026-11-25)
   _unreachable(s, mode) {
-    return this._members(s, mode).filter((id) => { const st = this._state(id)?.state; return (st === undefined || GONE.has(st)) && this._optionOf(s, id, "reachable", mode) && !this._optionOf(s, id, "bypass", mode); });
+    return this._members(s, mode).filter((id) => { const st = this._state(id)?.state; return (st === undefined || GONE.has(st)) && this._optionOf(s, id, "reachable", mode); });
   }
 
   // Wirksamer Wert einer Sensor-Option wie controller.option(): eigener Wert des Modus (nur mit Schalter), eigener Wert des
@@ -1883,7 +1914,11 @@ class AlarmageddonPanel extends HTMLElement {
       this.wizard.embedded(); // im Assistenten folgen die Schalter des Eingangs (Handy) der Zuordnung
       return;
     }
-    if (this._tab === "config" && this._sub === "system" && this.systemUi.onClick(ev.target.closest("[data-sys], [data-scope]"))) return;
+    if (this._tab === "config" && this._sub === "system" && this.systemUi.onClick(ev.target.closest("[data-sys], [data-scope]"))) {
+      // Im Assistenten (Schritt "Code", 1.89.0) zeichnet die Seite Anlage nicht selbst: der Schritt folgt dem Entwurf
+      if (this.wizard.active) this.wizard.render();
+      return;
+    }
     if (this._tab === "config" && this._sub === "actions" && this.actions.onClick(ev.target.closest("[data-wf], [data-trigger]"))) return;
     if (this._tab === "config" && this._sub === "notify" && this.notify.onClick(ev.target.closest("[data-nt]"))) return;
     if (this._tab === "log" && this.log.onClick(ev.target.closest("[data-log]"))) return;

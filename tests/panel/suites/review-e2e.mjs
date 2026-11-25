@@ -41,13 +41,14 @@ for (const lang of ["de", "en"]) {
       await refetch();
       check(`${tag}: ohne Schalter gelten die Werte je Modus nicht`, JSON.stringify(await ready()) === "[false,false]", JSON.stringify(await ready()));
       // 1.87.0: nicht erreichbar mit "Muss beim Scharfschalten erreichbar sein" (Voreinstellung der Sensorart Tür) verhindert wie offen und wird
-      // genannt; mit "Umgehen" oder ohne die Option nicht (wie controller.blocking_unreachable)
+      // genannt; ohne die Option nicht (wie controller.blocking_unreachable). Seit 1.89.0 (Entscheid des Nutzers 2026-11-25) hilft "Umgehen" dabei
+      // nicht mehr: es gilt nur für offene Sensoren
       await s.sim(`window.__setState("${GARAGE}", "unavailable")`);
       await refetch();
       check(`${tag}: nicht erreichbares Garagentor verhindert beide Modi und wird genannt`, JSON.stringify(await ready()) === "[false,false]" && (await card()).includes(t.gone) && !(await card()).includes(t.open), await card());
       await s.sim(`window.__systems[1].sensor_options = { "${GARAGE}": { bypass: true } }`);
       await refetch();
-      check(`${tag}: nicht erreichbar mit "Umgehen": bereit`, JSON.stringify(await ready()) === "[true,true]" && !(await card()).includes(t.gone), await card());
+      check(`${tag}: nicht erreichbar mit "Umgehen": nicht bereit, genannt (seit 1.89.0 entscheidet allein "Muss erreichbar sein")`, JSON.stringify(await ready()) === "[false,false]" && (await card()).includes(t.gone), await card());
       await s.sim(`window.__systems[1].sensor_options = { "${GARAGE}": { reachable: false } }`);
       await refetch();
       check(`${tag}: nicht erreichbar ohne "Muss erreichbar sein": bereit`, JSON.stringify(await ready()) === "[true,true]", JSON.stringify(await ready()));

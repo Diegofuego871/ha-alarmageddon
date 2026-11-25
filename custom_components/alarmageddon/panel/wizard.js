@@ -252,6 +252,8 @@ export class WizardUi {
   async _saveStep(step) {
     const h = this.host;
     if (step === "modes") return this._save(h.systemUi);
+    // Schalter zum Code (1.89.0): Teil des Entwurfs der Seite Anlage
+    if (step === "code") return this._save(h.systemUi);
     if (step === "sensors") return this._save(h.sensors);
     if (step === "zones") return (await this._save(h.sensors)) && this._save(h.systemUi);
     if (step === "notify") return this._save(h.notify);
@@ -617,16 +619,21 @@ export class WizardUi {
     return Boolean((s?.codes || []).length || s?.main_code);
   }
 
+  // Seit 1.89.0 (Wunsch des Nutzers 2026-11-25: alle Einstellungen zum Code auch im Assistenten): Codes pro Person, der Hauptcode (festlegen, ändern,
+  // entfernen) und mit einem Code die Schalter, wann er verlangt wird. Zeile und Schalter sind dieselben wie unter Konfiguration › Anlage (SystemUi);
+  // die Schalter gehören zum Entwurf der Seite Anlage und werden mit "Weiter" gespeichert (_saveStep), Codes sofort wie dort.
   _codeHtml() {
+    const h = this.host;
     const s = this.system;
     const codes = s?.codes || [];
     const names = codes.map((c) => c.name).join(", ");
-    const title = codes.length ? this._t("wzCodeSome", { names }) : s?.main_code ? this._t("wzCodeMain") : this._t("wzCodeNone");
-    const main = codes.length && s?.main_code ? `<small>${esc(this._t("wzCodeMainToo"))}</small>` : "";
-    return `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum"><span class="ag-oav ag-tint ag-tint-codes ${this._hasCode(s) ? "on" : ""}">${ic("hand", 20)}</span>
-        <div class="ag-settx"><b>${esc(title)}</b>${main}</div>
-        <div class="ag-btnrow"><button class="ag-btn ${this._hasCode(s) ? "" : "primary"}" data-wz="code-add">${ic("plus", 18)}${esc(this._t("codeAdd"))}</button></div></div></div>
-      ${this._info("check", esc(this._t("wzCodeHash")), "ok")}${this._info("hand", this._t("wzCodeMore"))}`;
+    const title = codes.length ? this._t("wzCodeSome", { names }) : this._t("wzCodePersonNone");
+    const card = `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum ag-codesum"><span class="ag-oav ag-tint ag-tint-codes ${codes.length ? "on" : ""}">${ic("hand", 20)}</span>
+        <div class="ag-settx"><b>${esc(title)}</b></div>
+        <div class="ag-btnrow"><button class="ag-btn ${this._hasCode(s) ? "" : "primary"}" data-wz="code-add">${ic("plus", 18)}${esc(this._t("codeAdd"))}</button></div></div>
+      ${s ? h.systemUi.mainRowHtml(s) : ""}</div>`;
+    const switches = s?.has_code ? this._chap(this._t("wzCodeWhen"), `<div class="ag-card ag-setlist ag-codes">${h.systemUi.codeSwitchesHtml(h.systemUi.ensureDraft())}</div>`) : "";
+    return `${card}${switches}${this._info("check", esc(this._t("wzCodeHash")), "ok")}${this._info("hand", this._t("wzCodeMore"))}`;
   }
 
   _notifyHtml() {

@@ -28,14 +28,38 @@ CONF_REALARM_ENABLED: Final = "realarm_enabled"
 CONF_REALARM_COUNT: Final = "realarm_count"
 REALARM_COUNT_DEFAULT: Final = 3
 REALARM_COUNT_RANGE: Final = (1, 10)
+# Nachalarm pro Modus (1.89.0, Wunsch des Nutzers 2026-11-25): Schalter "Einstellungen pro Modus" wie bei den Zeiten, Standard aus. An: je Auslöser des
+# Alarms (Anwesend, Abwesend, Nacht, "Immer aktiv", Entscheid des Nutzers: eigener Reiter wie bei den Aktionen) ein eigener Nachalarm
+# {"enabled": bool, "count": int}; fehlt einer, gilt der gemeinsame
+CONF_REALARM_PER_MODE: Final = "realarm_per_mode"
+CONF_REALARM_SCOPES: Final = "realarm_scopes"
+
+
+def _realarm_number(value: Any) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        return REALARM_COUNT_DEFAULT
+    return max(REALARM_COUNT_RANGE[0], min(REALARM_COUNT_RANGE[1], value))
 
 
 def realarm_count(options: Any) -> int:
     """Höchstzahl der Nachalarme je Alarm aus den Optionen einer Anlage, immer im erlaubten Bereich (auch bei einem beschädigten Wert)."""
-    value = options.get(CONF_REALARM_COUNT, REALARM_COUNT_DEFAULT) if hasattr(options, "get") else REALARM_COUNT_DEFAULT
-    if not isinstance(value, int) or isinstance(value, bool):
-        return REALARM_COUNT_DEFAULT
-    return max(REALARM_COUNT_RANGE[0], min(REALARM_COUNT_RANGE[1], value))
+    return _realarm_number(options.get(CONF_REALARM_COUNT, REALARM_COUNT_DEFAULT) if hasattr(options, "get") else REALARM_COUNT_DEFAULT)
+
+
+def realarm_scope(options: Any, scope: str) -> tuple[bool, int]:
+    """Eigener Nachalarm eines Auslösers (an, Höchstzahl); fehlt er oder ist er beschädigt, der gemeinsame."""
+    scopes = options.get(CONF_REALARM_SCOPES) if hasattr(options, "get") else None
+    own = scopes.get(scope) if isinstance(scopes, dict) else None
+    if isinstance(own, dict):
+        return own.get("enabled") is True, _realarm_number(own.get("count", REALARM_COUNT_DEFAULT))
+    return bool(options.get(CONF_REALARM_ENABLED, False)) if hasattr(options, "get") else False, realarm_count(options)
+
+
+def realarm_for(options: Any, trigger: str | None) -> tuple[bool, int]:
+    """Wirksamer Nachalarm für den Auslöser eines Alarms: mit "Einstellungen pro Modus" der eigene, sonst der gemeinsame."""
+    if hasattr(options, "get") and options.get(CONF_REALARM_PER_MODE) is True and trigger:
+        return realarm_scope(options, trigger)
+    return bool(options.get(CONF_REALARM_ENABLED, False)) if hasattr(options, "get") else False, realarm_count(options)
 CONF_ACCENT: Final = "accent"  # Akzentfarbe der Anlage im Panel (1.75.0, Wunsch des Nutzers 2026-11-21)
 # Auswahl wie im Device Panel; "ha" folgt der Farbe des Home-Assistant-Themes. Die Werte (Farben) stehen im Panel (panel/common.js ACCENTS)
 ACCENTS: Final = ("ha", "sky", "ocean", "teal", "indigo", "pink", "orange", "red", "green", "graphite")
@@ -87,7 +111,7 @@ CODE_LOCKOUT_STEPS: Final = (CODE_LOCKOUT_SECONDS, 120, 240, 480, 900)
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 297  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 298  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"

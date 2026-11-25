@@ -3,7 +3,7 @@
 // Änderungen sind ein Entwurf mit "Abbrechen" und "Speichern" (Regel aus ha-device-panel).
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur, DC, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText, sensorKind, sensorFilters } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, DC, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText, sensorKind, sensorFilters, optionShown } = await import(`./common.js${V}`);
 const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
@@ -353,7 +353,7 @@ export class SensorsUi {
     const mode = this.activeMode();
     const active = [
       ...(this.draft.entrySensors.has(r.id) ? [this._t("optEntryShort")] : []),
-      ...OPTIONS.filter((o) => o.short && this.eff(r.id, o.key, mode) && !o.notFor?.includes(r.info.type)).map((o) => this._t(o.short)),
+      ...OPTIONS.filter((o) => o.short && this.eff(r.id, o.key, mode) && optionShown(o, r.info.type, (k) => this.eff(r.id, k, mode))).map((o) => this._t(o.short)),
     ];
     const sub = r.info.missing ? this._t("missing") : [this._t(label), ...active].join(" · ");
     const b = h._battery(r.id);
@@ -504,11 +504,12 @@ export class SensorsUi {
         : (own
           ? `<button class="ag-origin own" data-sen="reset-opt" data-ent="${esc(id)}" data-key="${o.key}">${ic("undo", 14)} ${esc(this._t("originOwn"))} · ${esc(this._t("resetToPreset"))}</button>`
           : `<span class="ag-origin">${esc(o.key === "always_off" ? this._t("originDefaultOn") : this._t("originPreset", { type: typeLabel }))}</span>`);
-      return `<div class="ag-orow"><span class="ag-oav ${on ? "on" : ""}">${ic(o.icon, 20)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(o.text ?? this._t(o.hint))}</small>${origin}</div>
+      // Abhängiger Schalter (under, 1.89.0): eingerückt unter dem übergeordneten, erscheint nur, solange dieser an ist
+      return `<div class="ag-orow ${o.under ? "ag-osub" : ""}"><span class="ag-oav ${on ? "on" : ""}">${ic(o.icon, 20)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(o.text ?? this._t(o.hint))}</small>${origin}</div>
         <button class="ag-toggle ${on ? "on" : ""}" data-sen="${mode ? "mopt" : "opt"}" ${mode ? `data-mode="${mode}"` : ""} data-ent="${esc(id)}" data-key="${o.key}" role="switch" aria-checked="${on}" aria-label="${esc(`${r.name}: ${title}`)}"></button></div>`;
     };
     // "Immer aktiv" ist eine Pille bei den Modi, darum keine eigene Zeile mehr in der Liste der Optionen
-    const opts = OPTIONS.filter((o) => o.key !== "always" && !o.notFor?.includes(info.type || "other")).map(optRow).join("");
+    const opts = OPTIONS.filter((o) => o.key !== "always" && optionShown(o, info.type, (k) => this.eff(id, k, mode))).map(optRow).join("");
     // Schalter "Scharf in <Modus>: nur <Modus> zählt" (Standard an): nur für einen Sensor, der "Immer aktiv" ist und in der Zone steht.
     // Name und Erklärung nennen den Modus und sagen je Stellung, was dann gilt (Einstellungen und Aktionen).
     let offBlock = "";
@@ -756,7 +757,8 @@ export class SensorsUi {
     const rows = TYPES.map(([kind, icon, label]) => `<tr><td><div class="ag-nm"><span class="ag-av">${ic(icon, 18)}</span>${esc(this._t(label))}</div></td>
       ${OPTIONS.map((o) => {
         // Gilt nicht für diese Art (Bewegungsmelder: "Muss geschlossen sein"): kein Kästchen, die Voreinstellung bleibt, wie sie ist
-        if (o.notFor?.includes(kind)) return `<td class="z"><span class="ag-t2" aria-hidden="true">–</span></td>`;
+        // Seit 1.89.0 ebenso ein abhängiger Schalter, dessen übergeordneter für diese Art aus ist ("Umgehen" ohne "Muss geschlossen sein")
+        if (!optionShown(o, kind, (k) => (p[kind] || []).includes(k))) return `<td class="z"><span class="ag-t2" aria-hidden="true">–</span></td>`;
         const on = o.invert ? !(p[kind] || []).includes(o.key) : (p[kind] || []).includes(o.key);
         return `<td class="z"><button class="ag-box ${on ? "on" : ""}" data-sen="preset" data-kind="${kind}" data-key="${o.key}" role="checkbox" aria-checked="${on}" aria-label="${esc(`${this._t(label)}: ${this._t(o.name)}`)}">${on ? ic("check", 18) : ""}</button></td>`;
       }).join("")}</tr>`).join("");

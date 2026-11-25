@@ -994,7 +994,26 @@
       sys.codes = sys.codes.filter((c) => c.id !== msg.code_id);
       delete sys.pcodes[msg.code_id];
       sys.has_code = sys.main_code || sys.codes.length > 0;
+      // Wie der Server: ohne Code entfallen "Scharfschalten" und "Quittieren verlangt den Code"
+      if (!sys.has_code) Object.assign(sys, { code_arm_required: false, code_ack_required: false });
       return { ok: true };
+    }
+    // Hauptcode im Panel (1.89.0), wie der Server: 4 bis 8 Ziffern, nie der Code einer Person; Entfernen ohne Code: not_found
+    if (msg.type === "alarmageddon/set_main_code") {
+      const code = String(msg.code || "").trim();
+      if (!/^\d{4,8}$/.test(code)) throw err("invalid_code_format");
+      if (Object.values(sys.pcodes).includes(code)) throw err("code_taken");
+      Object.assign(sys, { code, main_code: true, has_code: true });
+      window.__mainCode = code;
+      reloadNow();
+      return { ok: true, reload: true };
+    }
+    if (msg.type === "alarmageddon/remove_main_code") {
+      if (!sys.main_code) throw err("not_found");
+      Object.assign(sys, { code: null, main_code: false, has_code: sys.codes.length > 0 });
+      if (!sys.has_code) Object.assign(sys, { code_arm_required: false, code_ack_required: false });
+      reloadNow();
+      return { ok: true, reload: true };
     }
     if (msg.type === "alarmageddon/save_system") {
       for (const [scope, vals] of Object.entries(msg.mode_settings || {})) {
@@ -1011,6 +1030,17 @@
         if (!Number.isInteger(msg.realarm_count) || msg.realarm_count < 1 || msg.realarm_count > 10) throw err("invalid_format", "realarm_count");
         sys.realarm_count = msg.realarm_count;
       }
+      // Nachalarm pro Modus (1.89.0) wie der Server: Schalter, je Auslöser genau "enabled" und "count" (1 bis 10), genannte ersetzen, übrige bleiben
+      if (msg.realarm_per_mode !== undefined) {
+        if (typeof msg.realarm_per_mode !== "boolean") throw err("invalid_format", "realarm_per_mode");
+        sys.realarm_per_mode = msg.realarm_per_mode;
+      }
+      if (msg.realarm_scopes !== undefined) {
+        const okRec = (v) => v && typeof v === "object" && Object.keys(v).sort().join() === "count,enabled" && typeof v.enabled === "boolean" && Number.isInteger(v.count) && v.count >= 1 && v.count <= 10;
+        if (!msg.realarm_scopes || typeof msg.realarm_scopes !== "object" || Object.entries(msg.realarm_scopes).some(([k, v]) => !["home", "away", "night", "always"].includes(k) || !okRec(v))) throw err("invalid_format", "realarm_scopes");
+        sys.realarm_scopes = { ...(sys.realarm_scopes || {}), ...JSON.parse(JSON.stringify(msg.realarm_scopes)) };
+        window.__realarmSaves = (window.__realarmSaves || 0) + 1;
+      }
       // Moduswechsel verlangt den Code (1.88.0): ohne Code ohne Wirkung, gespeichert wird er trotzdem
       if (msg.code_mode_required !== undefined) {
         if (typeof msg.code_mode_required !== "boolean") throw err("invalid_format", "code_mode_required");
@@ -1020,6 +1050,12 @@
         if (msg.code_ack_required && !sys.has_code) throw err("code_missing");
         sys.code_ack_required = msg.code_ack_required;
         window.__ackRequired = msg.code_ack_required;
+      }
+      // Scharfschalten verlangt den Code (im Panel seit 1.89.0): wie Quittieren, an nur mit einem Code
+      if (msg.code_arm_required !== undefined) {
+        if (typeof msg.code_arm_required !== "boolean") throw err("invalid_format", "code_arm_required");
+        if (msg.code_arm_required && !sys.has_code) throw err("code_missing");
+        sys.code_arm_required = msg.code_arm_required;
       }
       // Wie der Server: Vorgaben werden ergänzt und die Schlüssel stehen in anderer Reihenfolge (Schema-Vorgaben kommen zuletzt)
       if (msg.routines) sys.routines = JSON.parse(JSON.stringify(msg.routines)).map((r) => { const { trigger, ...rest } = r; return { ...rest, enabled: r.enabled ?? true, unsafe: r.unsafe ?? false, armed_modes: r.armed_modes ?? [], trigger }; });

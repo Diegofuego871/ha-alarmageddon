@@ -45,8 +45,7 @@ from .const import (
     CONF_WORKFLOWS_ARMED,
     CONF_WORKFLOWS_DISARMED,
     CONF_WORKFLOWS_REPORT,
-    CONF_REALARM_ENABLED,
-    realarm_count,
+    realarm_for,
     WORKFLOW_ALWAYS,
     CONF_WORKFLOWS_ARMING,
     CONF_WORKFLOWS_ENTRY,
@@ -576,12 +575,16 @@ class WorkflowRunner:
         noch (Sirene, "bis deaktiviert"), geschieht nichts: der Alarm ist ja noch hörbar. Zusatz: ein Fehler hier steht nur im Log.
         """
         try:
-            if not self.entry.options.get(CONF_REALARM_ENABLED) or self._ctl.state != AlarmControlPanelState.TRIGGERED:
-                return
-            if self._realarms >= realarm_count(self.entry.options) or not self._alarm_done():
+            if self._ctl.state != AlarmControlPanelState.TRIGGERED:
                 return
             plan = self._plan or list(self._ctl.alarm_plan())
+            if not plan:
+                return
             trigger = plan[0]
+            # Seit 1.89.0 je Auslöser des Alarms (Modus oder "Immer aktiv"), wenn "Einstellungen pro Modus" an ist
+            enabled, limit = realarm_for(self.entry.options, trigger)
+            if not enabled or self._realarms >= limit or not self._alarm_done():
+                return
             if not self.steps(trigger):
                 return
             self._realarms += 1

@@ -308,7 +308,8 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-addval .ag-copy { margin: -8px 0; } /* die Zeile bleibt so hoch wie der Text: das Fenster springt beim Tippen nicht */
 .ag-addhint { display: flex; align-items: flex-start; gap: 8px; }
 .ag-addhint .ag-ic { flex: none; margin-top: 2px; }
-.ag-toast { display: flex; align-items: center; gap: 14px; position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: max-content; max-width: calc(100% - 32px); background: #323232; color: #fff; padding: 12px 18px; border-radius: 12px; box-shadow: var(--ag-shadow); z-index: 10; font-size: 14px; }
+/* z-index 50: auch über dem Fenster des Einrichtungsassistenten (.ag-wzpop, 40), sonst blieben seine Meldungen (Testmeldung) verdeckt */
+.ag-toast { display: flex; align-items: center; gap: 14px; position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: max-content; max-width: calc(100% - 32px); background: #323232; color: #fff; padding: 12px 18px; border-radius: 12px; box-shadow: var(--ag-shadow); z-index: 50; font-size: 14px; }
 .ag-toast-act { flex: none; padding: 4px 4px; border: 0; background: none; color: #8ecbff; font: inherit; font-weight: 600; cursor: pointer; text-transform: none; }
 .ag-toast-act:hover { text-decoration: underline; }
 .ag-root { position: relative; display: flex; flex-direction: column; height: 100%; }
@@ -402,9 +403,12 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
    rutschen nicht nach links), das Blatt steht daneben; erst auf schmaleren Fenstern wird die Tabelle schmaler */
 .ag-sen-layout { display: grid; grid-template-columns: minmax(0, 1180px); gap: 16px; align-items: start; }
 .ag-sen-layout.open { grid-template-columns: minmax(0, 1180px) minmax(420px, 1fr); }
-.ag-sen-layout.open > .ag-side { justify-self: end; width: 420px; max-width: 100%; }
+.ag-sen-layout.open > .ag-side { justify-self: end; align-self: stretch; width: 420px; max-width: 100%; }
 .ag-side:empty { display: none; }
-/* Das Blatt neben der Tabelle klebt, ist aber nie höher als der sichtbare Bereich: Kopf steht fest, die Optionen scrollen darin (1.26.0) */
+/* Das Blatt neben der Tabelle klebt, ist aber nie höher als der sichtbare Bereich: Kopf steht fest, die Optionen scrollen darin (1.26.0).
+   Kleben kann es nur innerhalb von .ag-side: die Spalte reicht darum über die ganze Höhe der Tabelle (align-self: stretch oben). Bis 1.88.0 war sie
+   nur so hoch wie das Blatt, das Blatt scrollte mit der Liste weg und die Optionen eines Sensors weit unten waren nicht zu sehen (Meldung des
+   Nutzers 2026-11-25) */
 .ag-sheet { position: sticky; top: var(--ag-th-top, 0px); overflow: hidden; display: flex; flex-direction: column; max-height: calc(var(--ag-ch, 100vh) - var(--ag-th-top, 0px) - 96px); }
 .ag-sheet > .ag-side-body { overflow: auto; min-height: 0; overscroll-behavior: contain; }
 .ag-sheet > .ag-side-head { flex: none; }
@@ -414,6 +418,10 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-zline { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 10px; }
 .ag-orow { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--ag-divider); }
 .ag-orow:last-child { border-bottom: 0; }
+/* Abhängiger Schalter (1.89.0, "Umgehen" unter "Muss beim Scharfschalten geschlossen sein"): eingerückt und ohne Linie dazwischen, er gehört
+   zum Schalter darüber und erscheint nur, solange dieser an ist */
+.ag-orow:has(+ .ag-osub) { border-bottom: 0; padding-bottom: 4px; }
+.ag-orow.ag-osub { padding-left: 30px; padding-top: 4px; } /* Innenabstand statt Rand: die Linie darunter reicht über die ganze Breite */
 .ag-orow .ag-toggle { margin: 6px 0 0; }
 .ag-oav { width: var(--ag-tile); height: var(--ag-tile); border-radius: 11px; background: var(--ag-subtle); color: var(--ag-text2); display: grid; place-items: center; flex: none; }
 .ag-oav.on { background: var(--ag-primary-soft); color: var(--ag-primary); }
@@ -724,7 +732,7 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 /* Ladeanzeige wie in Device Panel (loader.js): der Inhalt bleibt gedimmt, drei Punkte in der Farbe --ld liegen darüber */
 .ag-ldwrap > .ag-content { opacity: .28; pointer-events: none; user-select: none; }
 .ag-ldblur > .ag-content { opacity: .7; filter: blur(3px); transition: filter .15s ease; }
-.ag-ld { position: absolute; left: 50%; top: 40%; width: 72px; height: 72px; margin: -36px 0 0 -36px; pointer-events: none; z-index: 20; }
+.ag-ld { position: absolute; left: 50%; top: 40%; width: 72px; height: 72px; margin: -36px 0 0 -36px; pointer-events: none; z-index: 60; } /* über dem Fenster des Assistenten (1.89.0) */
 .ag-ld s { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--ld, var(--ag-primary)); box-shadow: 0 0 12px color-mix(in srgb, var(--ld, var(--ag-primary)) 55%, transparent); }
 .ag-ld s:nth-child(1) { left: 55px; top: 29px; }
 .ag-ld s:nth-child(2) { left: 17px; top: 51px; }
@@ -781,6 +789,10 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 .ag-coderow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--ag-divider); }
 .ag-coderow small { display: block; font-size: 12.5px; }
 .ag-codesum + .ag-coderow { border-top: 0; } /* die Zeile darüber trägt den Strich schon (sonst doppelt) */
+/* Hauptcode (1.89.0): auf dem Handy steht "Hauptcode festlegen" unter Symbol und Text über die ganze Breite (wie "Code hinzufügen"); die Kreise zum Ändern
+   und Entfernen bleiben neben "Festgelegt" */
+.ag-mainrow { flex-wrap: wrap; row-gap: 12px; }
+:host([narrow]) .ag-mainrow > .ag-btn { flex: 1 1 100%; justify-content: center; }
 .ag-schrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--ag-divider); }
 .ag-schrow .ag-time { width: 140px; }
 .ag-days { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -1862,6 +1874,13 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
    Gerüst in .ag-content (dem einzigen Scrollbereich), Schrittliste und Fusszeile kleben. Die eingebetteten Ansichten der Reiter (Zuordnung,
    Alarmaktionen, Überwachung) zeichnen in .ag-wz-slot; ihre Unterreiter, Fusszeilen und Werkzeuge, die hier nichts zu suchen haben, sind aus. */
 .ag-content.ag-wzc, :host([narrow]) .ag-content.ag-wzc { padding: 0; gap: 0; } /* auch auf dem Handy: sonst klebt die Fusszeile 24 px über dem Rand */
+/* Am Computer als Fenster (1.89.0, Wünsche des Nutzers 2026-11-25): deckt das ganze Panel ab, vom Panel dahinter ist nichts zu sehen (Hintergrund
+   deckend). Breite wie der Inhalt des Panels: bis 1680 px die ganze Breite, auf grossen Bildschirmen höchstens 1680 px und mittig, daneben nur der
+   Hintergrund und eine Linie am Rand des Fensters. Das Fenster ist der Scrollbereich (_content): Schrittliste und Fusszeile kleben darin */
+.ag-wzpop { position: absolute; inset: 0; z-index: 40; display: flex; box-sizing: border-box; padding: 0 max(0px, calc((100vw - 1680px) / 2)); background: var(--ag-bg); }
+.ag-wzpop > .ag-content.ag-wzc { flex: 1; min-width: 0; background: var(--ag-bg); }
+@media (min-width: 1681px) { .ag-wzpop > .ag-content.ag-wzc { border-inline: 1px solid var(--ag-divider); box-shadow: 0 0 48px rgba(0, 0, 0, .12); } }
+.ag-ldwrap > .ag-wzpop > .ag-content { opacity: .28; pointer-events: none; user-select: none; }
 .ag-wz { display: flex; flex: none; min-height: 100%; align-items: stretch; } /* flex: none: wächst mit dem Inhalt, sonst klebt die Schrittliste nicht */
 .ag-wz-side { position: sticky; top: 0; align-self: flex-start; width: 290px; flex: none; height: 100vh; overflow: auto; display: flex; flex-direction: column; gap: 18px;
   padding: 22px 16px 18px; background: var(--ag-card); border-right: 1px solid var(--ag-divider); }

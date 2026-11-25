@@ -1,6 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/brand/logo.svg" alt="Alarmageddon" width="110"></p>
-
-# Alarmageddon
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/brand/readme-logo.svg" alt="Alarmageddon" width="260"></p>
 
 <p align="center">
 <a href="https://github.com/Diegofuego871/ha-alarmageddon/releases/latest"><img src="https://img.shields.io/github/v/release/Diegofuego871/ha-alarmageddon?style=flat-square&label=Version" alt="Version"></a>
@@ -58,7 +56,7 @@ Automationen bleiben möglich: Jede Anlage ist eine gewöhnliche `alarm_control_
 
 1. **Installieren:** HACS → drei Punkte → "Benutzerdefinierte Repositories" → `https://github.com/Diegofuego871/ha-alarmageddon`, Typ "Integration". "Alarmageddon" installieren und Home Assistant neu starten.
 2. **Anlage hinzufügen:** Einstellungen → Geräte & Dienste → "Integration hinzufügen" → "Alarmageddon". Name vergeben und, wenn du willst, einen Code. Weitere Anlagen lassen sich auch im Panel hinzufügen ("Anlage hinzufügen").
-3. **Einrichten:** "Alarmageddon" in der Seitenleiste öffnen (nur Administratoren). Der Einrichtungsassistent startet von selbst und geht Modi, Sensoren, Eingang und Verzögerungen, einen Code, Meldungen und Alarmaktionen durch; jeder Schritt wird mit "Weiter" gespeichert. Danach findest du alles unter Konfiguration; Routinen, Codes pro Person, eigene Töne, HealthCheck und Backup stehen unter Konfiguration › Anlage. Mit "Testmeldung senden" und dem Abspielknopf eines Schritts probierst du alles ohne Alarm aus.
+3. **Einrichten:** "Alarmageddon" in der Seitenleiste öffnen (nur Administratoren). Der Einrichtungsassistent startet von selbst und geht Modi, Sensoren, Eingang und Verzögerungen, einen Code, Meldungen und Alarmaktionen durch; jeder Schritt wird mit "Weiter" gespeichert. Danach findest du alles unter Konfiguration; Routinen, Hauptcode und Codes pro Person, eigene Töne, HealthCheck und Backup stehen unter Konfiguration › Anlage. Mit "Testmeldung senden" und dem Abspielknopf eines Schritts probierst du alles ohne Alarm aus.
 
 ## Rundgang
 
@@ -116,10 +114,10 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Das ist ei
 
 - **Neustart und Absturz:** Jeder Wechsel des Zustands wird sofort geschrieben. Eine Eingangsverzögerung, die während eines Neustarts abläuft, wird zum Alarm; ein laufender Alarm geht weiter.
 - **Nichts hält die Sirene auf:** Ein Gerät, das nicht antwortet, wird nach 10 Sekunden übergangen; ein scheiternder Schritt stoppt den Rest nie; ein Wächter startet den Ablauf selbst, wenn er ausbleibt.
-- **Codes:** nur als Hash mit Salz gespeichert, nie angezeigt, nie in einem Backup. Fünf falsche Codes sperren die Codes für eine Minute, jede weitere Sperre länger (bis 15 Minuten); die Sperre übersteht Speichern und Neustart, jeder falsche Code steht im Protokoll, und eine Sperre kommt als Push-Meldung. Auch der Wechsel zwischen Modi im scharfen Zustand verlangt den Code (je Anlage abschaltbar).
+- **Codes:** nur als Hash mit Salz gespeichert, nie angezeigt, nie in einem Backup. Fünf falsche Codes sperren die Codes für eine Minute, jede weitere Sperre länger (bis 15 Minuten); die Sperre übersteht Speichern und Neustart, jeder falsche Code steht im Protokoll, und eine Sperre kommt als Push-Meldung. Auch der Wechsel zwischen Modi im scharfen Zustand verlangt den Code (je Anlage abschaltbar). Hauptcode, Codes pro Person und alle Schalter zum Code stellst du im Panel ein.
 - **Nur Administratoren** erreichen das Panel und seine Befehle. Knöpfe in Push-Meldungen wirken nur vom Handy eines Empfängers.
-- **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet, wird gemeldet (höchstens alle 10 Minuten je Sensor) oder zählt auf Wunsch als Alarm. Ein Sensor, der zu war, ausfällt und offen zurückkommt, gilt als geöffnet (nach 2 Sekunden). Türen, Fenster und Bewegungsmelder müssen beim Scharfschalten erreichbar sein (einstellbar je Sensorart und je Sensor).
-- **Während eines Alarms:** Ein weiterer Sensor wird gemeldet; mit "Nachalarm" laufen die Alarmaktionen erneut, wenn sie vorbei sind (standardmässig aus, höchstens 1 bis 10 Mal). Quittieren und sofort ein neuer Alarm schalten die Sirene des neuen Alarms nicht mehr ab.
+- **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet (auch einer, der schon während der Ausgangsverzögerung ausfiel), wird gemeldet (höchstens alle 10 Minuten je Sensor) oder zählt auf Wunsch als Alarm. Ein Sensor, der zu war, ausfällt und offen zurückkommt, gilt als geöffnet (nach 2 Sekunden). Türen, Fenster und Bewegungsmelder müssen beim Scharfschalten erreichbar sein (einstellbar je Sensorart und je Sensor).
+- **Während eines Alarms:** Ein weiterer Sensor wird gemeldet; mit "Nachalarm" laufen die Alarmaktionen erneut, wenn sie vorbei sind (standardmässig aus, höchstens 1 bis 10 Mal, auf Wunsch je Modus). Quittieren und sofort ein neuer Alarm schalten die Sirene des neuen Alarms nicht mehr ab.
 - **Speichern im scharfen Zustand:** Jedes Speichern lädt die Anlage neu; ein Sensor, der in diesem Moment öffnet oder ausfällt, wird danach ausgewertet, nie vergessen.
 - **Selbsttest:** prüft regelmässig, ob alles, was der Alarm braucht, da und erreichbar ist, und hält fest, was scheiterte; er liest nur und hält nie einen Alarm auf.
 - **HealthCheck:** Lebenszeichen an einen Dienst draussen melden ein verstummtes Home Assistant. Die Ping-URL steht ganz nur im Panel und im Backup, nie im Log oder in einer Meldung; ein Lebenszeichen wartet höchstens 10 Sekunden.

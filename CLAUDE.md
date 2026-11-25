@@ -424,11 +424,32 @@ Umsetzung:
   "zu" unter Überwachung. **"Muss beim Scharfschalten erreichbar sein" (M4):** Option `reachable` (Voreinstellung Tür, Fenster, Bewegung; einmalige
   Migration über `presets_reachable` in Einstellungen und Backups, danach entscheidet der Nutzer); `open_ok` wird im Panel umgekehrt als "Muss
   geschlossen sein" gezeigt (`invert`), bei Bewegung nicht (`notFor`). Panel (`_unreachable`), Karte (`unreachable_sensors`) und Server
-  (`blocking_unreachable`) rechnen gleich. **Weiterer Sensor im Alarm (H2):** immer Protokoll und Meldung (`alarm_again`, gedrosselt); Nachalarm nur
+  (`blocking_unreachable`) rechnen gleich. **"Umgehen" (`bypass`) gilt seit 1.89.0 nur für offene Sensoren** (Frage und Entscheid des Nutzers
+  2026-11-25, "Strenger werden", ohne Umstellung des Bestands): über nicht erreichbare Sensoren entscheidet allein `reachable`; im Panel steht
+  "Umgehen" eingerückt unter "Muss geschlossen sein" und nur, solange dieser an ist (`OPTIONS[].under`, `common.optionShown`, Klasse `.ag-osub`;
+  Voreinstellungen "–"). Ein Schalter, der nur mit einem anderen wirkt, bekommt `under` statt eigener Logik. Tests `tests/test_bypass_open_only.py`,
+  Suiten `bypass-e2e.mjs`, `review-e2e.mjs`. **Weiterer Sensor im Alarm (H2):** immer Protokoll und Meldung (`alarm_again`, gedrosselt); Nachalarm nur
   mit `realarm_enabled`, nur wenn die Aktionen durch sind, höchstens `realarm_count`, Zustand "vorher" bleibt der vor dem ersten Alarm. **Codes (M2,
   M3):** Sperre wächst nach `CODE_LOCKOUT_STEPS`, steht in der eigenen Ablage (eine `Store` je Anlage für die Laufzeit von HA, `controller.state_store`;
   nie eine zweite Instanz derselben Ablage anlegen, sonst liest das Neuladen einen alten Stand); Moduswechsel im scharfen Zustand und in der
   Ausgangsverzögerung verlangt den Code (`code_mode_change`), ausser `skip_code`; seit 1.88.0 je Anlage abschaltbar (`code_mode_required`, Standard an, nur `False` schaltet ab, Tests `tests/test_mode_code.py`). **Nie signierte Ton-URLs einbauen** (Entscheid M7 "Nie umsetzen").
+- Alles aus dem Optionsdialog auch im Panel (seit 1.89.0, Wunsch des Nutzers 2026-11-25): jede Einstellung, die der Optionsdialog von HA kennt, hat
+  auch einen Platz im Panel, im Stil der übrigen Seite und ohne unnötigen Platz (Schalter, die ohne eine sichere Voraussetzung nichts bewirken,
+  erscheinen erst mit ihr). Hauptcode über `set_main_code`/`remove_main_code` (nur Administratoren, unter `_codes_lock`, nie gleich wie ein Code pro
+  Person, Optionen erst nach dem Hashen lesen; Entfernen des letzten Codes setzt `code_arm_required` und `code_ack_required` zurück). Die Schalter zum
+  Code im Entwurf (`system.js CODE_KEYS`) folgen dem Server, solange sie unverändert sind (`_followCodes`). Tests `tests/test_main_code_panel.py`,
+  Suite `maincode-e2e.mjs`, Zeilen "Hauptcode im Panel" in `scripts/mutation_check.py`.
+- Nachalarm pro Modus (seit 1.89.0, Wunsch des Nutzers 2026-11-25): Schalter `realarm_per_mode` wie bei den Zeiten (Standard aus, nur `True` schaltet
+  ein); an, gilt `realarm_scopes[auslöser]` des laufenden Alarms (`const.realarm_for`, Auslöser = `plan[0]`, "Immer aktiv" = `always`), fehlt er, der
+  gemeinsame Wert. Beschädigte Werte bleiben im Bereich 1 bis 10, der Alarm läuft immer weiter. Panel, Backup und `save_system` prüfen streng
+  (`schemas.REALARM_SCOPES`). Ein neuer Auslöser ergänzt `WORKFLOW_TRIGGERS`, `RA_SCOPES` (Panel) und die Tests `tests/test_realarm_per_mode.py`.
+- Ausfall in der Ausgangsverzögerung (seit 1.89.0): ein Sensor der Zone, der in der Ausgangsverzögerung ausfällt und beim Scharfwerden nicht zurück
+  ist, wird gemeldet wie ein Ausfall im scharfen Zustand (mit "Ausfall gilt als Alarm" der Alarm); zu → ausgefallen → offen nach dem Scharfwerden ist
+  ein Öffnen. Nie still scharf werden. Tests `tests/test_exit_delay_offline.py`, Zeilen "Ausgangsverzögerung" in `scripts/mutation_check.py`.
+- Einrichtungsassistent am Computer (seit 1.89.0, Wünsche des Nutzers 2026-11-25): ein Fenster über dem ganzen Panel (`_wizardPopup`, `.ag-wzpop`),
+  deckend, **vom Panel ist dahinter nichts zu sehen**; Breite wie der Inhalt des Panels (höchstens 1680 px, mittig). Der Inhalt des Panels ist
+  solange leer und `inert`. Alles, was über dem Panel erscheinen muss (Meldungen `.ag-toast`, Ladeanzeige `.ag-ld`), braucht einen z-index über 40;
+  Dialoge (`<dialog>`) liegen ohnehin darüber. Auf dem Handy bleibt der Assistent im Inhalt. Suite `wizard-e2e.mjs`.
 - Jede Änderung am Zustandsautomaten oder an der Szenario-Engine braucht
   Tests für: Deaktivieren während Verzögerung, Neustart während Alarm,
   Sensor fällt im scharfen Zustand aus.
@@ -612,7 +633,8 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
 3. CHANGELOG-Eintrag in `CHANGELOG.md` und `CHANGELOG.de.md` inkl.
    Link-Fussnote.
 4. README und Handbuch (`docs/MANUAL*.md`) EN und DE nachführen, bei jeder Lieferung (Vorgabe des Nutzers, 2026-11-11). Hat sich die Oberfläche sichtbar
-   geändert, auch die Bilder neu erzeugen: `node tests/panel/readme-shots.mjs`, danach `python scripts/optimize_images.py`.
+   geändert, auch die Bilder neu erzeugen: `node tests/panel/readme-shots.mjs`, danach `python scripts/optimize_images.py` (nennt je Bild Verfahren
+   und Abweichung; seit 1.89.0 verliert kein Bild mehr Farben). Danach jedes Bild einzeln ansehen, nicht nur Stichproben (Vorgabe des Nutzers).
 5. Sicherung und Wiederherstellung prüfen: Alles, was der Nutzer eingestellt
    hat (Zonen, Szenarien, Überwachung, Einstellungen pro Gerät), gehört in
    die Sicherung, mit Prüfung des Werts und Test. Laufzeitdaten nicht.

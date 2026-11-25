@@ -7,6 +7,39 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.89.0] - 2026-11-25
+
+Alles, was der Optionsdialog von Home Assistant einstellt, geht jetzt auch im Panel. Der Nachalarm lässt sich pro Modus einstellen, ein Sensor, der während der Ausgangsverzögerung ausfällt, wird nicht mehr still übergangen, und "Beim Scharfschalten umgehen" gilt nur noch für offene Sensoren.
+
+### Hinzugefügt
+
+- **Hauptcode im Panel:** unter Konfiguration › Anlage, Kapitel "Codes pro Person", lässt sich der Hauptcode festlegen, ändern und entfernen. Ohne Hauptcode steht in seiner Zeile "Hauptcode festlegen", mit Hauptcode zwei runde Knöpfe zum Ändern und Entfernen (wie in der Tabelle der Codes). Das Fenster ist dasselbe wie bei "Code hinzufügen", nur mit den beiden Codefeldern (Auge, Warnung bei einfachen Codes). Dieselben Regeln wie im Optionsdialog: 4 bis 8 Ziffern, nie derselbe Code wie ein Code pro Person; der bisherige Hauptcode muss nicht angegeben werden. Gespeichert wird sofort und nur als Hash; nie angezeigt, nie im Log, nie in einer Antwort an das Panel. Entfernen fragt nach und sagt, wenn danach kein Code mehr bleibt; dann gehen "Scharfschalten" und "Quittieren verlangt den Code" aus (wie beim Entfernen des letzten Codes pro Person).
+- **"Scharfschalten verlangt den Code" im Panel:** der Schalter steht jetzt auch im Kapitel "Codes pro Person" (Teil des Entwurfs der Seite). Er gilt überall, auch im Panel, und auch für den Wechsel des Modus.
+- **Nachalarm pro Modus:** im Kapitel "Nach einem Alarm" gibt der Schalter "Einstellungen pro Modus" (wie bei den Zeiten, standardmässig aus) den eingeschalteten Modi und "Immer aktiv" je einen Reiter mit eigenem Nachalarm (an oder aus, höchstens 1 bis 10 Mal). Es gilt der Wert des Auslösers des laufenden Alarms; ein Alarm eines Sensors "Immer aktiv" nimmt "Immer aktiv". Aus: ein Nachalarm für alle, wie bisher. Gespeichert mit "Speichern" der Seite, im Backup (streng geprüft: nur die vier Auslöser, nur an/aus und 1 bis 10).
+- **Alle Einstellungen zum Code im Einrichtungsassistenten:** der Schritt "Code" hat auch die Zeile des Hauptcodes (festlegen, ändern, entfernen) und, sobald es einen Code gibt, die Schalter "Scharfschalten", "Moduswechsel" und "Quittieren verlangt den Code" ("Weiter" speichert sie).
+
+### Geändert
+
+- **Kapitel "Codes pro Person" kompakter:** die Schalter zum Code ("Scharfschalten", "Moduswechsel" und "Quittieren verlangt den Code") erscheinen nur mit einem Code; ohne Code sagt eine Zeile, dass die Anlage nie einen Code verlangt (bisher drei gesperrte Schalter). "Moduswechsel verlangt den Code" erscheint nur, solange "Scharfschalten verlangt den Code" aus ist: ist es an, verlangt jeder Wechsel ohnehin den Code, der Schalter hätte keine Wirkung.
+- Der Knopf "Optionen öffnen" beim Hauptcode entfällt. Der Optionsdialog von Home Assistant bleibt und stellt dasselbe ein.
+- Kommt ein Code dazu oder fällt der letzte weg, folgen die Schalter dem Stand der Anlage, ohne als ungespeicherte Änderung stehen zu bleiben.
+- **Einrichtungsassistent am Computer als Fenster:** er deckt das ganze Panel ab, vom Panel ist dahinter nichts zu sehen; auf einem breiten Bildschirm steht er wie das Panel in der Mitte (höchstens 1680 Pixel breit). Auf dem Handy füllt er den Bildschirm wie bisher. Meldungen des Panels (zum Beispiel ein Fehler beim Speichern) erscheinen über ihm und über seiner Fusszeile.
+- Der Hinweis der Meldung "Scharfschalten nicht möglich" nennt auch nicht erreichbare Sensoren (seit 1.87.0 verhindern auch sie das Scharfschalten).
+- **"Beim Scharfschalten umgehen" nur für offene Sensoren:** bisher liess es auch einen nicht erreichbaren Sensor trotz "Muss beim Scharfschalten erreichbar sein" durch, genau wie das Ausschalten davon, dasselbe also an zwei Stellen. Jetzt entscheidet über nicht erreichbare Sensoren allein "Muss beim Scharfschalten erreichbar sein", "Umgehen" nur über offene. **Strenger als bisher:** ein Sensor mit "Umgehen" und "Muss beim Scharfschalten erreichbar sein" verhindert jetzt das Scharfschalten, wenn er nicht antwortet (die Meldung "Scharfschalten nicht möglich" bietet "Trotzdem scharf schalten"); umgestellt wird nichts. In den Einstellungen eines Sensors steht der Schalter eingerückt direkt unter "Muss beim Scharfschalten geschlossen sein" und erscheint nur, solange dieser an ist (sonst wirkt er nicht: ein Sensor, der offen sein darf, bleibt überwacht); Bewegungsmelder haben ihn nicht mehr. In den Voreinstellungen steht "–", wo er nicht wirkt. Panel, Karte und die Entität "Bereit zum Scharfschalten" rechnen gleich.
+- **Logo der README:** "Alarmageddon" in einer Zeile direkt unter dem Schild, im Orange des Schilds; der Schriftzug ist als Pfade gezeichnet, GitHub zeigt ihn nicht mehr in einer Ersatzschrift. Die Überschrift "Alarmageddon" unter dem Logo entfällt (das Logo trägt den Namen).
+
+### Behoben
+
+- **Sensor fällt während der Ausgangsverzögerung aus:** bisher wurde die Anlage still scharf: keine Meldung, kein Eintrag, und kam der Sensor danach offen zurück, nur ein Eintrag im Protokoll, kein Alarm. Jetzt wird ein Sensor des Modus, der während der Ausgangsverzögerung ausfällt und beim Scharfwerden noch nicht zurück ist, gemeldet wie ein Ausfall im scharfen Zustand (Meldung "Sensor im scharfen Zustand nicht erreichbar"; mit "Ausfall gilt als Alarm" der Alarm). War er zu, als er ausfiel, und kommt er nach dem Scharfwerden offen zurück, gilt er nach 2 Sekunden als geöffnet (Alarm). Ein Sensor, der noch während der Ausgangsverzögerung zurückkommt, ändert nichts; Sensoren, die schon vor dem Scharfschalten nicht erreichbar waren (erlaubt oder "Trotzdem scharf schalten"), werden nicht erneut gemeldet; Deaktivieren oder ein neuer Versuch während der Ausgangsverzögerung vergisst die Ausfälle.
+- **Einstellungen eines Sensors am Computer scrollten mit der Liste weg:** das Blatt neben der Tabelle sollte stehen bleiben, seine Spalte war aber nur so hoch wie das Blatt selbst; die Einstellungen eines Sensors weit unten in der Liste waren darum nicht zu sehen. Jetzt bleibt es beim Scrollen der Liste neben dem Tabellenkopf stehen, und seine Einstellungen scrollen für sich.
+- Eine ungültige Zahl der Nachalarme nannte den Bereich "0 bis 3600" statt "1 bis 10".
+- Der Einrichtungsassistent (Schritt "Sensoren") nannte "Darf offen sein" als Beispiel einer Einstellung je Sensor; seit 1.87.0 heisst sie "Muss beim Scharfschalten geschlossen sein".
+- Bilder der README und des Handbuchs: kleine Farbflächen konnten beim Verkleinern grau werden (der grüne Punkt "Alles in Ordnung" der HealthCheck-Dienste). Das Skript nimmt jetzt je Bild das Verfahren mit der kleinsten Abweichung und lässt ein Bild verlustfrei, wenn jedes sichtbar abweicht; alle Bilder sind neu erzeugt.
+
+### Sicherheit
+
+- Die neuen Befehle `set_main_code` und `remove_main_code` sind nur für Administratoren, arbeiten unter derselben Sperre wie die Codes pro Person (ein gleichzeitig angelegter gleicher Code pro Person kommt nicht durch) und geben nie Code, Hash oder Salz zurück. Geprüft vom Test, der jede Antwort und Ablage der Integration auf Geheimnisse prüft, und von neuen Zeilen der Mutationsprobe.
+
 ## [1.88.0] - 2026-11-24
 
 ### Hinzugefügt
@@ -2357,6 +2390,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.89.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.89.0
 [1.88.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.88.0
 [1.86.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.2
 [1.86.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.1

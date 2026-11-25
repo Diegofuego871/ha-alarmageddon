@@ -75,6 +75,22 @@ for (const lang of ["de", "en"]) {
         await s.page.waitForTimeout(250);
         const cover = await s.ev("const sticky=[...r.querySelectorAll('.ag-stk')]; const th=r.querySelector('.ag-table th.z'); const t=th.getBoundingClientRect(); const side=r.querySelector('.ag-sheet').getBoundingClientRect(); const at=(x, y) => r.elementFromPoint(x, y); const mid=at(t.left + t.width / 2, t.top + 3); const sideTop=at(side.left + 40, side.top + 3); return { thTopHit: !!mid && (mid === th || th.contains(mid)), sideHit: !!sideTop && r.querySelector('.ag-sheet').contains(sideTop), overlap: Math.max(...sticky.map((e) => Math.round(e.getBoundingClientRect().bottom - t.top))) }");
         check(`${tag}: Tabellenkopf und Blatt oben nicht abgeschnitten (ohne Scrollen)`, cover.thTopHit && cover.sideHit && cover.overlap <= 1, JSON.stringify(cover));
+        // 1.89.0 (Meldung des Nutzers 2026-11-25): das Blatt scrollte mit der Liste weg, die Optionen eines Sensors weit unten waren nicht zu sehen.
+        // Jetzt bleibt es beim Scrollen der Liste neben dem Tabellenkopf stehen, ganz sichtbar, und seine Optionen scrollen für sich
+        await s.page.setViewportSize({ width: 1700, height: 760 });
+        await s.page.waitForTimeout(250);
+        await s.ev("const c=r.querySelector('.ag-content'); c.scrollTop = c.scrollHeight; return 1");
+        await s.page.waitForTimeout(250);
+        const stay = await s.ev(`const c=r.querySelector('.ag-content'); const sh=r.querySelector('.ag-sheet'); const b=sh.getBoundingClientRect(); const th=r.querySelector('.ag-table th.z').getBoundingClientRect();
+          const head=sh.querySelector('.ag-side-head').getBoundingClientRect(); const foot=r.querySelector('.ag-foot').getBoundingClientRect(); const body=sh.querySelector('.ag-side-body');
+          const hit=r.elementFromPoint(head.left + 40, head.top + head.height / 2); const scrolled=c.scrollTop;
+          body.scrollTop = body.scrollHeight; const last=body.querySelector('[data-sen="remove"]').getBoundingClientRect(); const bb=body.getBoundingClientRect();
+          return { scrolled, top: Math.round(b.top - th.top), headHit: !!hit && sh.contains(hit), aboveFoot: b.bottom <= foot.top + 1, own: body.scrollHeight > body.clientHeight + 10,
+            lastSeen: last.bottom <= bb.bottom + 1 && last.top >= bb.top - 1, pageStill: c.scrollTop === scrolled }`);
+        check(`${tag}: Liste ganz nach unten gescrollt: das Blatt steht neben dem Tabellenkopf, Kopf sichtbar, über der Fusszeile; seine Optionen scrollen für sich bis ans Ende (Knopf "Sensor entfernen" ganz sichtbar)`,
+          stay.scrolled > 100 && Math.abs(stay.top) <= 1 && stay.headHit && stay.aboveFoot && stay.own && stay.lastSeen && stay.pageStill, JSON.stringify(stay));
+        await s.ev("r.querySelector('.ag-content').scrollTop = 0; return 1");
+        await s.page.setViewportSize({ width: 1700, height: 900 });
         await s.tap('[data-sen="close-detail"]').catch(() => {});
         await s.page.setViewportSize({ width: 1400, height: 520 });
         // Fest stehende Teile überlappen nicht: jeder beginnt dort, wo der vorige endet; der Tabellenkopf liegt unter der Werkzeugleiste

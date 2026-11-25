@@ -8,6 +8,8 @@ const DIALOGS = [
   { name: "Anlage hinzufügen", open: "r.host._openAdd(); return 1", id: "ag-add", title: { de: "Name", en: "Name" } },
   { name: "Anlage umbenennen", open: "r.host._openRename(); return 1", id: "ag-rename", title: { de: "Name", en: "Name" } },
   { name: "Anlage löschen", open: "r.host._openDelete(); return 1", id: "ag-delete", title: { de: "Bestätigung", en: "Confirmation" } },
+  // 1.89.0: Hauptcode festlegen oder ändern, wie "Code hinzufügen"
+  { name: "Hauptcode ändern", open: "r.host.systemUi.openMainForm(); return 1", id: "ag-codes", title: { de: "Code (4 bis 8 Ziffern)", en: "Code (4 to 8 digits)" } },
 ];
 
 const browser = await launch();

@@ -1,5 +1,5 @@
 // 1.63.0 (Wunsch des Nutzers, 2026-11-17): "Codes pro Person" im Fenster. Die Seite zeigt nur die Zusammenfassung mit "Codes anzeigen", den
-// Hauptcode und "Quittieren verlangt den Code". Im Fenster: klebender Kopf mit Suche, Tabelle Name, Benutzer, Bearbeiten, Entfernen (seit 1.66.1
+// Hauptcode und die Schalter zum Code (Hauptcode und Schalter prüft maincode-e2e). Im Fenster: klebender Kopf mit Suche, Tabelle Name, Benutzer, Bearbeiten, Entfernen (seit 1.66.1
 // ohne Spalte "Code", die nur einen Platzhalter zeigte: gespeichert ist ein Hash; Knöpfe rund wie überall); sortierbar nach Name und Benutzer; "Code hinzufügen" in der Fusszeile. Bearbeiten
 // öffnet dasselbe Fenster wie Hinzufügen, Name und Benutzer stehen drin, die Codefelder sind leer (leer = bisheriger Code). Das Auge blendet nur
 // den getippten Code ein. Warnung bei einfachen Codes (rot, fett, Achtung-Zeichen), Speichern bleibt möglich. Je Sprache, Desktop und Handy,
@@ -39,7 +39,8 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   const page = await s.ev(`const c=r.querySelector('[data-sys="code-open"]').closest('.ag-chap'); return { summary: c.querySelector('.ag-codesum b').innerText.trim(), add: !!r.querySelector('.ag-content [data-sys="code-add"]'),
     addPage: c.querySelector('.ag-codesum .ag-btnrow > .ag-btn:first-child')?.dataset.sys === 'code-add-page' && c.querySelector('.ag-codesum .ag-btnrow > .ag-btn:last-child')?.dataset.sys === 'code-open',
     addText: c.querySelector('[data-sys="code-add-page"]')?.innerText.trim(),
-    rows: c.querySelectorAll('.ag-coderow').length, main: !!c.querySelector('[data-sys="code"]'), ack: !!c.querySelector('[data-sys="ackcode"]'), hint: c.querySelector(':scope > .ag-chap-h')?.innerText.trim() === r.host._t('sysCodesHint'),
+    rows: c.querySelectorAll('.ag-coderow').length, main: !!c.querySelector('.ag-mainrow [data-sys="main-edit"]') && !!c.querySelector('.ag-mainrow [data-sys="main-del"]') && !c.querySelector('[data-sys="code"]'),
+    ack: !!c.querySelector('[data-sys="ackcode"]') && !!c.querySelector('[data-sys="armcode"]') && !!c.querySelector('[data-sys="modecode"]'), hint: c.querySelector(':scope > .ag-chap-h')?.innerText.trim() === r.host._t('sysCodesHint'),
     noName: !c.innerText.includes('Anna'), noCode: !c.innerText.includes('2468') }`);
   check(`${tag}: Seite: Zusammenfassung "${t.one}", links "${t.add}", rechts "Codes anzeigen", keine Liste`, page.summary === t.one && !page.add && page.addPage && page.addText === t.add && page.noName && page.noCode, JSON.stringify(page));
   // "Code hinzufügen" auf der Seite öffnet dasselbe Formular wie im Fenster, ohne das Fenster der Liste
@@ -47,7 +48,7 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   check(`${tag}: Seite: "${t.add}" öffnet das Formular "${t.add}" direkt (ohne die Liste)`, await s.waitFor(`const d=r.getElementById('ag-codes'); return d.open && d.querySelector('h3')?.innerText.trim() === ${JSON.stringify(t.add)} && !!d.querySelector('[data-sys="code-save"]') && !r.getElementById('ag-codelist').open`));
   await s.tap('#ag-codes [data-sys="code-close"]');
   await s.waitFor("return !r.getElementById('ag-codes').open");
-  check(`${tag}: Seite: Hauptcode und "Quittieren verlangt den Code" bleiben, der Hinweis steht über der Karte`, page.rows === 1 && page.main && page.ack && page.hint, JSON.stringify(page));
+  check(`${tag}: Seite: Hauptcode (Ändern, Entfernen, seit 1.89.0 ohne "Optionen öffnen") und die drei Schalter zum Code bleiben, der Hinweis steht über der Karte`, page.rows === 1 && page.main && page.ack && page.hint, JSON.stringify(page));
 
   // Zeile mit der Zusammenfassung wie bei Routinen und Tönen: Text in einer Zeile, der Knopf überdeckt ihn nie (Handy: darunter, Desktop: daneben)
   const row = await s.ev(`const row=r.querySelector('.ag-codesum'); const card=row.closest('.ag-card').getBoundingClientRect(); const b=row.querySelector('.ag-settx b').getBoundingClientRect();

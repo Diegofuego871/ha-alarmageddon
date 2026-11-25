@@ -368,8 +368,9 @@ async def test_unreachable_window_prevents_arming(hass: HomeAssistant, hass_ws_c
     assert pushes and "Not reachable" in pushes[-1].data["message"] and "fenster" in pushes[-1].data["message"]
 
 
-@pytest.mark.parametrize("own", [{"reachable": False}, {"bypass": True}], ids=["abgewaehlt", "umgehen"])
-async def test_unreachable_window_arms_without_the_option_or_with_bypass(hass: HomeAssistant, own: dict[str, bool]) -> None:
+# Bis 1.88.0 auch mit "Umgehen" (Fall "umgehen"); seit 1.89.0 entscheidet allein "Muss erreichbar sein" (tests/test_bypass_open_only.py)
+@pytest.mark.parametrize("own", [{"reachable": False}], ids=["abgewaehlt"])
+async def test_unreachable_window_arms_without_the_option(hass: HomeAssistant, own: dict[str, bool]) -> None:
     _classes(hass)
     await setup_alarm(hass, exit_delay_away=0, sensor_options={WINDOW: own})
     await _set(hass, WINDOW, "unavailable")

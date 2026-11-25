@@ -210,6 +210,9 @@ class AlarmController:
         self._last_valid: dict[str, str] = {}
         self._gone: dict[str, str] = {}
         self._return_checks: dict[str, CALLBACK_TYPE] = {}
+        # Sensoren der Zone, die während der Ausgangsverzögerung ausfielen (1.89.0, Entscheid des Nutzers 2026-11-25): sie zählen, als wäre die
+        # Anlage schon scharf gewesen, und werden gemeldet, sobald sie scharf ist (_offline_after_arming)
+        self._arming_gone: set[str] = set()
         # Weiterer Sensor im Zustand "Alarm" (1.87.0, Code-Review H2): wann je Sensor zuletzt gemeldet
         self._last_again: dict[str, datetime] = {}
         # Sperren nach falschen Codes seit dem letzten richtigen (1.87.0, Code-Review M2): bestimmt die Dauer der nächsten Sperre
@@ -484,9 +487,11 @@ class AlarmController:
     def blocking_unreachable(self, mode: str) -> list[str]:
         """
         Nicht erreichbare Sensoren, die das Scharfschalten verhindern (1.87.0, Entscheid des Nutzers, Code-Review M4): "Muss beim Scharfschalten
-        erreichbar sein" und nicht "Umgehen". Mit "Umgehen" verhindert er nichts und wird überwacht, sobald er sich meldet (nie übergangen).
+        erreichbar sein". Das allein entscheidet (seit 1.89.0, Entscheid des Nutzers 2026-11-25): bis 1.88.0 liess auch "Umgehen" einen nicht
+        erreichbaren Sensor durch, dasselbe wie "Muss erreichbar sein" aus, also doppelt und verwirrend. "Umgehen" gilt nur für offene Sensoren
+        (blocking_sensors). Wer nicht erreichbar scharf geschaltet wurde, wird überwacht, sobald er sich meldet.
         """
-        return [e for e in self.unreachable_sensors(mode) if self.option(e, OPT_REACHABLE, mode) and not self.option(e, OPT_BYPASS, mode)]
+        return [e for e in self.unreachable_sensors(mode) if self.option(e, OPT_REACHABLE, mode)]
 
     def ready(self, mode: str) -> bool:
         return not self.blocking_sensors(mode) and not self.blocking_unreachable(mode)
@@ -559,7 +564,8 @@ class AlarmController:
         try:
             states = {e: s.state for e in self.all_sensors() if (s := self.hass.states.get(e)) is not None}
             self.hass.data.setdefault(DATA_SENSOR_HANDOVER, {})[self.entry.entry_id] = {
-                "at": time.monotonic(), "states": states, "last_valid": dict(self._last_valid), "gone": dict(self._gone)}
+                "at": time.monotonic(), "states": states, "last_valid": dict(self._last_valid), "gone": dict(self._gone),
+                "arming_gone": sorted(self._arming_gone)}
         except Exception:  # noqa: BLE001 - Zusatz: ohne Übergabe gilt das Verhalten bis 1.86.x
             _LOGGER.exception("%s: handing over the sensor states failed", self.entry.title)
 
@@ -662,6 +668,7 @@ class AlarmController:
 
     @callback
     def _go_armed(self, _now: Any = None) -> None:
+        from_arming = self.state == AlarmControlPanelState.ARMING
         self._timer_spent(_now)
         self.deadline = None
         self._arming_deadline = None
@@ -676,6 +683,31 @@ class AlarmController:
             self.armed_at = dt_util.utcnow()
             self.armed_by = self.changed_by
         self._set(ARMED_STATE[self.mode])
+        if from_arming:
+            self._offline_after_arming()
+
+    @callback
+    def _offline_after_arming(self) -> None:
+        """
+        Ende der Ausgangsverzögerung (1.89.0, Entscheid des Nutzers 2026-11-25): ein Sensor der Zone, der während der Verzögerung ausfiel und noch
+        nicht zurück ist, gilt wie ein Ausfall im scharfen Zustand: Meldung "Sensor im scharfen Zustand nicht erreichbar" und mit "Bei Ausfall
+        Alarm" ein Alarm. Bis 1.88.0 wurde die Anlage still scharf, ohne Meldung und ohne Eintrag. Alle Sensoren werden gemeldet, ausgelöst wird
+        einmal, mit dem ersten.
+        """
+        gone, self._arming_gone = self._arming_gone, set()
+        if self.mode is None:
+            return
+        zone = self.zone(self.mode)
+        still = sorted(e for e in gone if e in zone and e not in self.bypassed and ((s := self.hass.states.get(e)) is None or s.state in GONE))
+        alarm = None
+        for entity in still:
+            self._emit("sensor_offline", sensor=entity)
+            if alarm is None and self.option(entity, OPT_OFFLINE_ALARM, self.mode):
+                alarm = entity
+        if alarm is not None:
+            self.triggered_by = alarm
+            self.alarm_flows = self._flows_for(alarm, by_always=False)
+            self._go_triggered()
 
     @callback
     def _go_triggered(self, _now: Any = None) -> None:
@@ -742,6 +774,8 @@ class AlarmController:
             self._report(entity, WORKFLOW_ALWAYS)
 
         if self.state == AlarmControlPanelState.ARMING and self.mode and entity in self.zone(self.mode):
+            if went_away and entity not in self.bypassed:
+                self._arming_gone.add(entity)
             self._on_arming_change(entity, went_on, went_off)
             return
 
@@ -822,15 +856,27 @@ class AlarmController:
             return "zone"
         return None
 
+    def _arming_watch(self, entity: str) -> str | None:
+        """
+        Während der Ausgangsverzögerung (1.89.0): ein Sensor der Zone des kommenden Modus zählt beim Ausfall, als wäre die Anlage schon scharf.
+        Kommt er offen zurück, nachdem sie scharf ist, ist das nach RETURN_CONFIRM ein Öffnen (bis 1.88.0 nur ein Eintrag im Protokoll).
+        """
+        if self.state == AlarmControlPanelState.ARMING and self.mode and entity in self.zone(self.mode) and entity not in self.bypassed:
+            return "zone"
+        return None
+
     @callback
     def _remember(self, entity: str, old_state: str | None, new_state: str | None, went_away: bool) -> None:
         if went_away:
-            if old_state == STATE_OFF and (reason := self._watch_reason(entity)):
+            if old_state == STATE_OFF and (reason := self._watch_reason(entity) or self._arming_watch(entity)):
                 self._gone[entity] = reason
             return
         if new_state not in (STATE_ON, STATE_OFF):
             return
         reason = self._gone.pop(entity, None) if old_state in GONE or old_state is None else None
+        # Zurück während der Ausgangsverzögerung (1.89.0): offen ist dann gewöhnlich (wer geht, öffnet die Tür), kein Öffnen nach RETURN_CONFIRM
+        if reason == "zone" and self._watch_reason(entity) != "zone":
+            reason = None
         if reason and new_state == STATE_ON:
             # Zu, ausgefallen, offen zurück: nach kurzer Bestätigung wie ein Öffnen (Entscheid des Nutzers 2026-11-24)
             if (unsub := self._return_checks.pop(entity, None)) is not None:
@@ -864,6 +910,8 @@ class AlarmController:
             return
         watched = self.all_sensors()
         self._gone.update({e: r for e, r in (item.get("gone") or {}).items() if e in watched})
+        if self.state == AlarmControlPanelState.ARMING:
+            self._arming_gone |= {e for e in item.get("arming_gone") or [] if e in watched}
         for entity, value in (item.get("last_valid") or {}).items():
             if entity in watched and entity not in self._last_valid:
                 self._last_valid[entity] = value
@@ -976,7 +1024,7 @@ class AlarmController:
             if self.state in (AlarmControlPanelState.PENDING, AlarmControlPanelState.TRIGGERED):
                 raise _error("disarm_first")
         # Offen und nicht erlaubt: mit der Option "Umgehen" bis zum Deaktivieren übergangen, sonst verhindert der Sensor das Scharfschalten. Nicht
-        # erreichbar mit "Muss erreichbar sein" (1.87.0): verhindert ebenso, ausser mit "Umgehen" (dann überwacht, sobald er sich meldet)
+        # erreichbar mit "Muss erreichbar sein" (1.87.0): verhindert ebenso, seit 1.89.0 auch mit "Umgehen" (das gilt nur für offene Sensoren)
         open_now = [] if force else self.blocking_sensors(mode)
         offline_now = [] if force else self.blocking_unreachable(mode)
         if open_now or offline_now:
@@ -990,6 +1038,8 @@ class AlarmController:
         self.mode = mode
         self._arming_deadline = None
         self._unconfirmed.clear()
+        # Was vor diesem Versuch ausfiel, hat die Prüfung oben gesehen (oder "Trotzdem scharf schalten" hat es übergangen)
+        self._arming_gone.clear()
         self.bypassed = bypassed
         self.triggered_by = None
         self.alarm_flows = []

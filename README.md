@@ -1,6 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/brand/logo.svg" alt="Alarmageddon" width="110"></p>
-
-# Alarmageddon
+<p align="center"><img src="https://raw.githubusercontent.com/Diegofuego871/ha-alarmageddon/main/docs/brand/readme-logo.svg" alt="Alarmageddon" width="260"></p>
 
 <p align="center">
 <a href="https://github.com/Diegofuego871/ha-alarmageddon/releases/latest"><img src="https://img.shields.io/github/v/release/Diegofuego871/ha-alarmageddon?style=flat-square&label=version" alt="Version"></a>
@@ -58,7 +56,7 @@ Automations stay possible: each alarm system is an ordinary `alarm_control_panel
 
 1. **Install:** HACS → three dots → "Custom repositories" → `https://github.com/Diegofuego871/ha-alarmageddon`, type "Integration". Install "Alarmageddon" and restart Home Assistant.
 2. **Add an alarm system:** Settings → Devices & services → "Add integration" → "Alarmageddon". Give it a name and, if you like, a code. More alarm systems can also be added in the panel ("Add alarm system").
-3. **Set it up:** open "Alarmageddon" in the sidebar (administrators only). The setup assistant starts by itself and goes through modes, sensors, entry and delays, a code, notifications and alarm actions; every step is saved with "Next". Afterwards everything is under Configuration; routines, codes per person, your own sounds, HealthCheck and backup are under Configuration › Alarm system. "Send test message" and the play button of a step let you try everything without an alarm.
+3. **Set it up:** open "Alarmageddon" in the sidebar (administrators only). The setup assistant starts by itself and goes through modes, sensors, entry and delays, a code, notifications and alarm actions; every step is saved with "Next". Afterwards everything is under Configuration; routines, the main code and codes per person, your own sounds, HealthCheck and backup are under Configuration › Alarm system. "Send test message" and the play button of a step let you try everything without an alarm.
 
 ## A tour
 
@@ -116,10 +114,10 @@ An alarm system has to work when something else does not. This is built in and c
 
 - **Restart and crash:** every change of state is written at once. An entry delay that runs out during a restart becomes an alarm; a running alarm continues.
 - **Nothing holds up the siren:** a device that does not answer is skipped after 10 seconds; a failing step never stops the rest; a watchdog starts the flow itself if it fails to begin.
-- **Codes:** stored only as a salted hash, never shown, never in a backup. Five wrong codes lock the codes for one minute, each further lockout for longer (up to 15 minutes); the lockout survives saving and restarting, every wrong code is in the log, and a lockout is reported by push. Switching between modes while armed asks for the code too (can be switched off per alarm system).
+- **Codes:** stored only as a salted hash, never shown, never in a backup. Five wrong codes lock the codes for one minute, each further lockout for longer (up to 15 minutes); the lockout survives saving and restarting, every wrong code is in the log, and a lockout is reported by push. Switching between modes while armed asks for the code too (can be switched off per alarm system). The main code, the codes per person and every switch for the code are set in the panel.
 - **Administrators only** reach the panel and its commands. Buttons in push notifications only work from the phone of a recipient.
-- **Failures:** a sensor that stops answering while armed is reported (at most every 10 minutes per sensor), or counts as an alarm if you like. A sensor that was closed, drops out and comes back open counts as opened (after 2 seconds). Doors, windows and motion sensors must be reachable when arming (adjustable per sensor type and per sensor).
-- **During an alarm:** another sensor is reported; with "Re-alarm" the alarm actions run again once they are over (off by default, at most 1 to 10 times). Acknowledging and an immediate new alarm no longer switch off the siren of the new alarm.
+- **Failures:** a sensor that stops answering while armed (also one that dropped out during the exit delay) is reported (at most every 10 minutes per sensor), or counts as an alarm if you like. A sensor that was closed, drops out and comes back open counts as opened (after 2 seconds). Doors, windows and motion sensors must be reachable when arming (adjustable per sensor type and per sensor).
+- **During an alarm:** another sensor is reported; with "Re-alarm" the alarm actions run again once they are over (off by default, at most 1 to 10 times, optionally per mode). Acknowledging and an immediate new alarm no longer switch off the siren of the new alarm.
 - **Saving while armed:** every save reloads the alarm system; a sensor that opens or drops out in that moment is evaluated afterwards, never lost.
 - **Self-test:** checks regularly whether everything the alarm uses is there and reachable, and records what failed; it only reads and never holds up an alarm.
 - **HealthCheck:** life signs to a service outside report a silent Home Assistant. The ping URL appears in full only in the panel and in backups, never in the log or a notification; a life sign waits at most 10 seconds.

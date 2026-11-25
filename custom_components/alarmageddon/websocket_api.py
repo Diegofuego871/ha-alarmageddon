@@ -34,8 +34,11 @@ from .systems import async_create_system, new_system_name
 from .const import (
     CONF_REALARM_COUNT,
     CONF_REALARM_ENABLED,
+    CONF_REALARM_PER_MODE,
+    CONF_REALARM_SCOPES,
     REALARM_COUNT_RANGE,
     realarm_count,
+    realarm_scope,
     BATTERY_CHECKS_RANGE,
     BATTERY_THRESHOLD_RANGE,
     AUTO_BACKUP_DAYS,
@@ -124,7 +127,7 @@ from .const import (
 from .devices import battery_of, device_field, device_sensors, display_name, free_entity_id, main_device, system_device
 from .monitor import check_monitors, number
 from .routines import LEAF_STATES, check_routines
-from .schemas import step_list, END_NOTIFY_SCHEMA, EVENT_NOTICE_SCHEMA, valid_event_notify, valid_report_step, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
+from .schemas import step_list, REALARM_SCOPES, END_NOTIFY_SCHEMA, EVENT_NOTICE_SCHEMA, valid_event_notify, valid_report_step, NOTIFY_TARGETS, MONITOR_STEP, MONITORS, ROUTINES, SENSOR_VALUES, SECONDS as _SECONDS, valid_after_step, valid_armed_step, valid_arming_step, valid_disarmed_step, valid_end, valid_entry_step, valid_step
 from .sensor_history import BATTERY_HOURS, STATE_HOURS, async_battery_forecasts, async_get_stats, async_measure_history, async_numeric_history, async_state_history
 from .healthcheck import async_get_healthcheck
 from .selftest import async_get_selftest
@@ -181,6 +184,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_add_code)
     websocket_api.async_register_command(hass, ws_update_code)
     websocket_api.async_register_command(hass, ws_remove_code)
+    websocket_api.async_register_command(hass, ws_set_main_code)
+    websocket_api.async_register_command(hass, ws_remove_main_code)
     websocket_api.async_register_command(hass, ws_rename_sound)
     websocket_api.async_register_command(hass, ws_delete_sound)
     websocket_api.async_register_command(hass, ws_selftest_run)
@@ -396,6 +401,10 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "monitor_enabled": ctl.monitor_enabled,
                 "realarm_enabled": bool(entry.options.get(CONF_REALARM_ENABLED, False)),
                 "realarm_count": realarm_count(entry.options),
+                # Nachalarm pro Modus (1.89.0): Schalter und je Auslöser der wirksame Wert (fehlt ein eigener, der gemeinsame; sonst hielte das Panel den
+                # gespeicherten Stand für geändert)
+                "realarm_per_mode": entry.options.get(CONF_REALARM_PER_MODE) is True,
+                "realarm_scopes": {scope: dict(zip(("enabled", "count"), realarm_scope(entry.options, scope))) for scope in WORKFLOW_TRIGGERS},
                 "accent": entry.options.get(CONF_ACCENT, "ha"),
                 "monitors": entry.options.get(CONF_MONITORS) or [],
                 # Regeln, die gerade ausserhalb ihrer Grenzen sind: id -> seit wann und welcher Sensor
@@ -795,12 +804,17 @@ async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) 
         # Nachalarm (1.87.0, Entscheid des Nutzers 2026-11-24)
         vol.Optional("realarm_enabled"): bool,
         vol.Optional("realarm_count"): vol.All(vol.Coerce(int), vol.Range(min=REALARM_COUNT_RANGE[0], max=REALARM_COUNT_RANGE[1])),
+        # Nachalarm pro Modus (1.89.0, Wunsch des Nutzers 2026-11-25): Schalter und je Auslöser (Modi, "Immer aktiv") an/aus und Höchstzahl
+        vol.Optional("realarm_per_mode"): bool,
+        vol.Optional("realarm_scopes"): REALARM_SCOPES,
         vol.Optional("accent"): vol.In(ACCENTS),
         vol.Optional("home_enabled"): bool,
         vol.Optional("away_enabled"): bool,
         vol.Optional("routines"): ROUTINES,
         vol.Optional("open_sensors"): vol.In(OPEN_SENSOR_MODES),
         vol.Optional("confirm_window"): vol.All(vol.Coerce(int), vol.Range(min=5, max=MAX_CONFIRM_WINDOW)),
+        # "Scharfschalten verlangt den Code" (seit 1.89.0 auch im Panel, Wunsch des Nutzers 2026-11-25: alles aus dem Optionsdialog im Panel)
+        vol.Optional("code_arm_required"): bool,
         vol.Optional("code_ack_required"): bool,
         vol.Optional("code_mode_required"): bool,
     }
@@ -808,7 +822,10 @@ async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) 
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
-    """Verzögerungen und Verhalten einer Anlage (dieselben Schlüssel wie der Optionsdialog). Code bleibt im Optionsdialog."""
+    """
+    Verzögerungen und Verhalten einer Anlage (dieselben Schlüssel wie der Optionsdialog). Den Hauptcode selbst setzen und entfernen eigene Befehle
+    (set_main_code, remove_main_code), sofort und nie als Teil des Entwurfs.
+    """
     if (entry := _entry(hass, connection, msg)) is None:
         return
     options = dict(entry.options)
@@ -836,14 +853,21 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
         options[CONF_REALARM_ENABLED] = msg["realarm_enabled"]
     if "realarm_count" in msg:
         options[CONF_REALARM_COUNT] = msg["realarm_count"]
+    if "realarm_per_mode" in msg:
+        options[CONF_REALARM_PER_MODE] = msg["realarm_per_mode"]
+    if "realarm_scopes" in msg:
+        # Je Auslöser ersetzen, die übrigen bleiben (auch die eines abgeschalteten Modus)
+        own = entry.options.get(CONF_REALARM_SCOPES)
+        options[CONF_REALARM_SCOPES] = {**(dict(own) if isinstance(own, dict) else {}), **msg["realarm_scopes"]}
     if "accent" in msg:
         options[CONF_ACCENT] = msg["accent"]
-    if "code_ack_required" in msg:
-        # Ohne Code gibt es nichts zu verlangen
-        if msg["code_ack_required"] and not entry.runtime_data.controller.has_code:
-            connection.send_error(msg["id"], "code_missing", "Add a code first")
-            return
-        options[CONF_CODE_ACK_REQUIRED] = msg["code_ack_required"]
+    for key, conf in (("code_arm_required", CONF_CODE_ARM_REQUIRED), ("code_ack_required", CONF_CODE_ACK_REQUIRED)):
+        if key in msg:
+            # Ohne Code gibt es nichts zu verlangen (wie der Optionsdialog: "code_missing")
+            if msg[key] and not entry.runtime_data.controller.has_code:
+                connection.send_error(msg["id"], "code_missing", "Add a code first")
+                return
+            options[conf] = msg[key]
     if "code_mode_required" in msg:
         # Ohne Code ohne Wirkung; gespeichert wird er trotzdem, damit er gilt, sobald ein Code dazukommt (Standard an)
         options[CONF_CODE_MODE_REQUIRED] = msg["code_mode_required"]
@@ -1528,6 +1552,56 @@ async def ws_remove_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -
         changed = hass.config_entries.async_update_entry(entry, options=options)
     # "reload": lädt die Anlage neu? Home Assistant lädt nur neu, wenn sich die Optionen wirklich geändert haben. Ohne diese Angabe
     # wartete das Panel mit der Ladeanzeige 25 Sekunden auf eine neue Kennung, die nie kam.
+    connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/set_main_code", vol.Required("entry_id"): str, vol.Required("code"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_set_main_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Hauptcode festlegen oder ändern (1.89.0, Wunsch des Nutzers 2026-11-25: alles aus dem Optionsdialog auch im Panel). Dieselben Regeln wie dort:
+    4 bis 8 Ziffern, nie derselbe Code wie ein persönlicher. Der Code kommt nur hier herein und wird sofort als Hash gespeichert; nie geloggt, nie
+    zurückgegeben. Der bisherige Hauptcode muss nicht angegeben werden (wie im Optionsdialog und bei den Codes pro Person: das Panel ist nur für
+    Administratoren).
+    """
+    if (entry := _entry(hass, connection, msg)) is None:
+        return
+    code = msg["code"].strip()
+    if not re.fullmatch(CODE_PATTERN, code):
+        connection.send_error(msg["id"], "invalid_code_format", "4 to 8 digits")
+        return
+    # Unter derselben Sperre wie die Codes pro Person: sonst legte ein gleichzeitiges add_code denselben Code als persönlichen an
+    async with _codes_lock(hass, entry.entry_id):
+        personal = [(c["hash"], c["salt"]) for c in _stored_codes(entry)]
+        if personal and await hass.async_add_executor_job(match_code, code, personal) is not None:
+            connection.send_error(msg["id"], "code_taken", "Code already used")
+            return
+        code_hash, salt = await hass.async_add_executor_job(hash_code, code)
+        # Die Optionen erst nach dem Warten lesen: was in der Zwischenzeit gespeichert wurde (zum Beispiel save_system), bleibt erhalten
+        changed = hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_CODE_HASH: code_hash, CONF_CODE_SALT: salt})
+    connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/remove_main_code", vol.Required("entry_id"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_remove_main_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Hauptcode entfernen (1.89.0). Wie remove_code: ist danach kein Code mehr da, entfallen "Scharfschalten verlangt den Code" und "Quittieren
+    verlangt den Code" (der Optionsdialog verlangt dafür, die Schalter vorher selbst auszuschalten; das Panel fragt vorher nach und nennt die Folge).
+    """
+    if (entry := _entry(hass, connection, msg)) is None:
+        return
+    async with _codes_lock(hass, entry.entry_id):
+        if not entry.options.get(CONF_CODE_HASH):
+            connection.send_error(msg["id"], "not_found", "No main code")
+            return
+        options = {k: v for k, v in entry.options.items() if k not in (CONF_CODE_HASH, CONF_CODE_SALT)}
+        if not _stored_codes(entry):
+            # Kein Code mehr: nichts mehr zu verlangen
+            options.update({CONF_CODE_ARM_REQUIRED: False, CONF_CODE_ACK_REQUIRED: False})
+        changed = hass.config_entries.async_update_entry(entry, options=options)
     connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
 
 

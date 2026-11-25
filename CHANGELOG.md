@@ -7,6 +7,39 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.89.0] - 2026-11-25
+
+Everything the options dialog of Home Assistant sets can now also be set in the panel. The re-alarm can be set per mode, a sensor that drops out during the exit delay is no longer passed over in silence, and "Bypass when arming" applies only to open sensors.
+
+### Added
+
+- **Main code in the panel:** under Configuration › Alarm system, chapter "Codes per person", the main code can be set, changed and removed. Without a main code its row shows "Set main code", with a main code two round buttons to change and remove it (like in the table of codes). The window is the same as for "Add code", with only the two code fields (eye, warning for simple codes). The same rules as in the options dialog: 4 to 8 digits, never the same code as a code per person; the current main code is not needed. It is saved at once and only as a hash; never shown, never in the log, never in an answer to the panel. Removing asks first and says when no code remains afterwards; then "Arming" and "Acknowledging asks for the code" switch off (as when removing the last code per person).
+- **"Arming asks for the code" in the panel:** the switch is now also in the chapter "Codes per person" (part of the draft of the page). It applies everywhere, also in the panel, and also to switching modes.
+- **Re-alarm per mode:** in the chapter "After an alarm" the switch "Settings per mode" (like for the times, off by default) gives the enabled modes and "Always active" their own tab, each with its own re-alarm (on or off, at most 1 to 10 times). The value of the trigger of the running alarm applies; an alarm of an "Always active" sensor takes "Always active". Off: one re-alarm for all, as until now. Saved with "Save" of the page, part of the backup (checked strictly: only the four triggers, only on/off and 1 to 10).
+- **All code settings in the setup assistant:** the step "Code" also has the row of the main code (set, change, remove) and, as soon as there is a code, the switches "Arming", "Switching modes" and "Acknowledging asks for the code" ("Next" saves them).
+
+### Changed
+
+- **Chapter "Codes per person" more compact:** the switches for the code ("Arming", "Switching modes" and "Acknowledging asks for the code") appear only with a code; without a code one line says that the alarm system never asks for a code (until now three locked switches). "Switching modes asks for the code" appears only while "Arming asks for the code" is off: otherwise every switch asks for the code anyway, and the switch would have no effect.
+- The button "Open options" next to the main code is gone. The options dialog of Home Assistant stays and sets the same.
+- When a code is added or the last one removed, the switches follow the state of the alarm system instead of staying as an unsaved change.
+- **Setup assistant as a window on the computer:** it covers the whole panel, nothing of the panel shows behind it; on a wide screen it is centered like the panel (at most 1680 pixels wide). On the phone it fills the screen as before. Messages of the panel (for example an error while saving) appear above it and above its footer.
+- The hint of the message "Arming not possible" names unreachable sensors too (since 1.87.0 they block arming as well).
+- **"Bypass when arming" only for open sensors:** until now it also let an unreachable sensor arm despite "Must be reachable when arming", exactly the same as switching that off, so the same thing was set in two places. Now "Must be reachable when arming" alone decides about unreachable sensors, "Bypass" only about open ones. **Stricter than before:** a sensor with both "Bypass" and "Must be reachable when arming" now prevents arming when it does not answer (the message "Arming not possible" offers "Arm anyway"); nothing is converted. In the settings of a sensor the switch is indented directly under "Must be closed when arming" and appears only while that is on (otherwise it has no effect: a sensor that may be open stays watched); motion sensors no longer have it. In the presets it shows "–" where it has no effect. Panel, card and the entity "Ready to arm" calculate the same.
+- **Logo of the README:** "Alarmageddon" in one line directly under the shield, in the orange of the shield; the lettering is drawn as paths, so GitHub no longer shows it in a fallback font. The heading "Alarmageddon" below the logo is gone (the logo carries the name).
+
+### Fixed
+
+- **Sensor drops out during the exit delay:** until now the alarm system became armed silently: no message, no log entry, and if the sensor came back open afterwards, only a log entry, no alarm. Now a sensor of the mode that drops out during the exit delay and is not back when the alarm system becomes armed is reported like a failure while armed (message "Sensor unreachable while armed"; with "Failure counts as alarm" the alarm). If it was closed when it dropped out and comes back open after arming, it counts as opened after 2 seconds (alarm). A sensor that comes back during the exit delay changes nothing; sensors that were already unreachable before arming (allowed or "Arm anyway") are not reported again; disarming or a new attempt during the exit delay forgets the dropouts.
+- **Settings of a sensor on the computer scrolled away with the list:** the sheet beside the table was meant to stay put, but its column was only as high as the sheet itself, so the settings of a sensor far down the list were out of view. Now it stays beside the table header while the list scrolls, and its settings scroll on their own.
+- An invalid number of re-alarms showed the range "0 to 3600" instead of "1 to 10".
+- The setup assistant (step "Sensors") named "may be open" as an example of a setting per sensor; since 1.87.0 it is called "Must be closed when arming".
+- Pictures of the README and the manual: small areas of colour could turn grey when the pictures were made smaller (the green dot "All in order" of the HealthCheck services). The script now picks the method with the smallest deviation for every picture and keeps a picture lossless when every method deviates visibly; all pictures were made again.
+
+### Security
+
+- The new commands `set_main_code` and `remove_main_code` are for administrators only, work under the same lock as the codes per person (an identical code per person added at the same time does not get through) and never return a code, hash or salt. Checked by the test that searches every answer and store of the integration for secrets, and by new lines of the mutation check.
+
 ## [1.88.0] - 2026-11-24
 
 ### Added
@@ -2357,6 +2390,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.89.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.89.0
 [1.88.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.88.0
 [1.86.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.2
 [1.86.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.1
