@@ -10,6 +10,7 @@ const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 // Zeiträume des Protokolls; "day" = ein gewählter Tag, "span" = von … bis (je ganze Tage)
 const RANGES = ["all", "3h", "24h", "today", "yesterday", "7d", "30d", "day", "span"];
 const HOURS = { "3h": 3, "24h": 24, "7d": 168, "30d": 720 };
+const DEFAULT_RANGE = "7d";
 const pad = (n) => String(n).padStart(2, "0");
 const dayStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const stamp = (d) => `${dayStr(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
@@ -33,9 +34,12 @@ export class LogUi {
     this.expandFirst = false; // Tipp auf die Alarmmeldung: der neueste Alarm ist aufgeklappt, auch wenn er schon beendet ist
     this.seq = 0;
     this.error = null;
-    // Filter (Zeitraum und Anlage), der Zeitraum bleibt pro Browser gemerkt
-    const saved = host._loadPref("logRange", "all");
-    this.range = RANGES.includes(saved) ? saved : "all";
+    // Filter (Zeitraum und Anlage), der Zeitraum bleibt pro Browser gemerkt. Seit 1.91.0 (Wunsch des Nutzers 2026-11-25) ohne gemerkte Wahl "Letzte 7
+    // Tage" (bis 1.90.0 "Alle"); wer einmal einen Zeitraum gewählt hat, behält ihn
+    const saved = host._loadPref("logRange", DEFAULT_RANGE);
+    this.range = RANGES.includes(saved) ? saved : DEFAULT_RANGE;
+    // Alarm, der beim nächsten Zeichnen zu sehen sein muss (Tipp auf den roten Kreis oder die Alarmmeldung): seine Kennung oder "newest"
+    this.reveal = null;
     const today = dayStr(new Date());
     this.from = host._loadPref("logFrom", today);
     this.to = host._loadPref("logTo", today);
@@ -124,6 +128,21 @@ export class LogUi {
     const [lo, hi] = this.window();
     const ms = new Date(t).getTime();
     return (lo === null || ms >= lo) && (hi === null || ms < hi);
+  }
+
+  // Ein Alarm, den der rote Kreis oder die Alarmmeldung öffnet, liegt vielleicht vor dem gewählten Zeitraum (seit 1.91.0 standardmässig 7 Tage): dann
+  // zeigt die Liste diesmal "Alle", ohne die gemerkte Wahl zu ändern (beim nächsten Öffnen des Panels gilt sie wieder). Nie ein Alarm, den man
+  // antippt und dann nicht findet.
+  _applyReveal() {
+    const want = this.reveal;
+    if (!want || !this.systems) return;
+    this.reveal = null;
+    const all = this._sys().flatMap((s) => s.recordings || []).sort((a, b) => String(b.start).localeCompare(String(a.start)));
+    const target = want === "newest" ? all[0] : all.find((r) => String(r.id) === String(want));
+    if (!target) return;
+    const [lo, hi] = this.window();
+    const inside = (hi === null || new Date(target.start).getTime() < hi) && (lo === null || new Date(target.end || Date.now()).getTime() >= lo);
+    if (!inside) this.range = "all";
   }
 
   incidents() {
@@ -330,6 +349,7 @@ export class LogUi {
   }
 
   html() {
+    this._applyReveal(); // vor den Feldern: die Auswahl zeigt den Zeitraum, der gilt
     // Aufbau wie in der Konfiguration (1.13.3): unter den Hauptreitern steht an derselben Stelle die zweite Zeile mit den Reitern dieses
     // Bereichs (hier "Alarme" und "Alle Ereignisse"), erst darunter Zeitraum und Anlage. Dieselben Klassen wie dort (.ag-cfg, .ag-subs).
     return `<div class="ag-cfg ag-head ag-log-panes ${this.host.hasAttribute("narrow") ? "narrow" : ""}">${this._panesHtml()}</div><div class="ag-tools ag-log-tools"><div class="ag-log-fields">${this._toolsHtml()}</div></div><div class="ag-log-body">${this.systems ? this._body() : ""}</div>
@@ -383,6 +403,7 @@ export class LogUi {
     // Zwei Reiter (1.13.0): "Alarme" und "Alle Ereignisse". Zu sehen ist nur der gewählte: mit einem Jahr Aufbewahrung wären beide
     // Listen untereinander endlos, und die Ereignisse rutschten mit jedem Alarm weiter nach unten. Zeitraum und Anlage gelten für
     // beide. Beide Listen stehen im Dokument (die nicht gewählte ist ausgeblendet): so bleiben aufgeklappte Alarme und Filter beim Wechsel.
+    this._applyReveal();
     const more = (kind, rest) => (rest > 0 ? `<button class="ag-btn ag-log-more" data-log="more" data-kind="${kind}">${esc(this._t("logShowMore", { count: Math.min(rest, kind === "alarms" ? SHOWN_ALARMS : SHOWN) }))}</button>` : "");
     const incidents = this.incidents();
     const initial = this._initialOpen(incidents);
@@ -425,6 +446,13 @@ export class LogUi {
   render() {
     const view = this.host._view?.querySelector(".ag-log-body");
     if (!view || this.host._tab !== "log") return;
+    // Wechselt der Zeitraum, weil ein Alarm zu sehen sein muss, folgen Auswahl und Text des Zeitraums (sonst wird nur die Liste neu gezeichnet)
+    const before = this.range;
+    this._applyReveal();
+    if (this.range !== before) {
+      const fields = this.host._view?.querySelector(".ag-log-fields");
+      if (fields) this.host._setHtml(fields, this._toolsHtml());
+    }
     this.host._setHtml(view, this._body());
     const panes = this.host._view?.querySelector(".ag-log-panes");
     if (panes) {

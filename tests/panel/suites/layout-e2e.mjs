@@ -311,17 +311,22 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: Abbrechen mit Änderung fragt ebenfalls`, await s.waitFor("return r.getElementById('ag-confirm').open"));
       await s.tap('#ag-confirm [data-c="yes"]');
       check(`${tag}: nach "Verwerfen" zu, nichts gespeichert`, await s.waitFor("return !r.getElementById('ag-presets').open && !r.getElementById('ag-confirm').open") && !(await s.sim("return window.__calls.some((c) => c.type === 'alarmageddon/save_presets')")));
-      // Auf alle Sensoren anwenden
+      // Auf Sensoren anwenden (seit 1.91.0 ein Knopf mit eigenem Fenster statt des Schalters "Auf alle Sensoren anwenden"; Suite presetapply-e2e):
+      // im Nachbau weichen die Terrassentür (Ausfall gilt als Alarm) und, seit dem Speichern oben, der Wert von Fenster Bad für "Immer aktiv" ab
+      // (eigener Wert je Modus, bleibt gespeichert, auch wenn "Einstellungen pro Modus" aus ist); der Rauchmelder nicht (eigener Wert = Voreinstellung)
       await s.tap('[data-sen="presets"]');
       await s.waitFor("return r.getElementById('ag-presets').open");
-      await s.tap('#ag-presets [data-sen="preset-all"]');
-      check(`${tag}: Schalter "Auf alle Sensoren anwenden" mit Warnung`, await s.waitFor("const d=r.getElementById('ag-presets'); return d.querySelector('[data-sen=\"preset-all\"]').classList.contains('on') && d.querySelector('.ag-presetall .ag-warntext') !== null"));
+      check(`${tag}: kein Schalter mehr, Knopf "Sensoren wählen (2)"`, await s.waitFor("const d=r.getElementById('ag-presets'); return !d.querySelector('[data-sen=\"preset-all\"]') && /\\(2\\)/.test(d.querySelector('[data-sen=\"papply-open\"]')?.innerText || '')"));
+      await s.tap('#ag-presets [data-sen="papply-open"]');
+      await s.waitFor("return r.getElementById('ag-papply').open");
+      await s.tap('#ag-papply [data-sen="papply-ok"]');
+      await s.waitFor("return !r.getElementById('ag-papply').open");
       await s.tap('#ag-presets [data-sen="presets-save"]');
       await s.waitFor("return !r.getElementById('ag-presets').open");
       const sent = await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_presets').at(-1)");
-      check(`${tag}: reset_sensors gesendet`, Array.isArray(sent?.reset_sensors) && sent.reset_sensors.includes("door") && sent.reset_sensors.includes("motion"), JSON.stringify(sent));
-      const left = await s.sim("return window.__systems.reduce((n, x) => n + Object.keys(x.sensor_options || {}).length, 0)");
-      check(`${tag}: eigene Werte der Sensoren gelöscht`, left === 0, String(left));
+      check(`${tag}: Terrassentür und Fenster Bad der Anlage Haus gesendet, keine Sensorarten`, JSON.stringify(sent?.reset_entities) === JSON.stringify({ e_haus: ["binary_sensor.terrassentuer", "binary_sensor.fenster_bad"] }) && !sent?.reset_sensors, JSON.stringify(sent));
+      const left = await s.sim("const H=window.__systems[0]; return { own: Object.keys(H.sensor_options || {}).join(), modes: JSON.stringify(H.sensor_modes || {}) }");
+      check(`${tag}: eigene Werte von Terrassentür und Fenster Bad gelöscht (auch je Modus), der Rauchmelder behält seinen`, left.own === "binary_sensor.rauchmelder_flur" && !left.modes.includes("fenster_bad"), JSON.stringify(left));
       check(`${tag}: keine Browserfehler`, s.errors.length === 0, s.errors.join(" | "));
       await s.ctx.close();
     }

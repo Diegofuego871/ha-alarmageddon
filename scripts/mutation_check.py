@@ -1324,6 +1324,18 @@ MUTATIONS = [
     ("Code-Review 1.87.0: die Diagnose enthält Code, Hash oder Salz", "diagnostics.py",
      'TO_REDACT = {CONF_CODE_HASH, CONF_CODE_SALT, CONF_CODES, "hash", "salt", "code"}\n', "TO_REDACT: set[str] = set()\n",
      "tests/test_review_1_87.py tests/test_security.py -k 'diagnostics_never or never_leave_the_server'"),
+    # ----- Voreinstellungen gezielt anwenden (1.91.0, Wunsch des Nutzers 2026-11-25): gewählte Sensoren je Anlage -----
+    ("Voreinstellungen gezielt: eine unbekannte oder nicht geladene Anlage wird angenommen", "websocket_api.py",
+     "    if any(entry_id not in loaded for entry_id in chosen):", "    if False:", "tests/test_presets_apply.py -k unloaded"),
+    ("Voreinstellungen gezielt: alle Sensoren der Anlage statt der gewählten", "websocket_api.py",
+     "if e in listed or (kinds and sensor_type(hass, e) in kinds)]", "if listed or (kinds and sensor_type(hass, e) in kinds)]",
+     "tests/test_presets_apply.py -k only_the_chosen"),
+    ("Voreinstellungen gezielt: die gewählten Sensoren werden nicht zurückgesetzt", "websocket_api.py",
+     "if e in listed or (kinds and sensor_type(hass, e) in kinds)]", "if (kinds and sensor_type(hass, e) in kinds)]",
+     "tests/test_presets_apply.py -k \"only_the_chosen or reloads_once\""),
+    ("Voreinstellungen gezielt: derselbe Sensor in einer anderen Anlage wird mit zurückgesetzt", "websocket_api.py",
+     "            listed = chosen.get(entry.entry_id, set())\n", "            listed = set().union(*chosen.values())\n",
+     "tests/test_presets_apply.py -k only_the_chosen"),
     # ----- Hauptcode abgeschafft (1.90.0, Entscheid des Nutzers 2026-11-25): einmal in einen Code pro Person übertragen -----
     ("Hauptcode abgeschafft: ein bestehender Hauptcode wird beim Laden nicht übertragen (gilt nicht mehr, die Anlage schaltet ohne Code)", "__init__.py",
      "    _migrate_main_code(hass, entry)\n", "", "tests/test_main_code_migration.py -k 'becomes or switches_stay'"),

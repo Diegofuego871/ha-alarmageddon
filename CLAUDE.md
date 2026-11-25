@@ -572,11 +572,29 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   Unterzeilen mit eigenem Symbol (`.ag-osub` im Sensor, `.ag-rtsub` in der Routine) beginnen mit dem Symbol unter dem Schalter der Zeile darüber.
   "Einstellungen pro Modus" trägt auf jeder Seite `perModeIcon` ("tune", blau wenn an). Eine Unteroption (wie "Höchstens" beim Nachalarm) ist
   `.ag-setrow.ag-rowsub`: ohne Symbol und ohne Strich dazwischen, bündig mit dem Text der Zeile darüber. Suite `icons-e2e.mjs` (Lage je Zeile auf
-  allen vier Seiten); eine neue Zeilenart mit Symbol kommt dort dazu.
+  allen vier Seiten); eine neue Zeilenart mit Symbol kommt dort dazu. **Auch im Einrichtungsassistenten** (seit 1.91.0, Wunsch des
+  Nutzers 2026-11-25: "überall das gleiche Icon", "in dem gleichen Stil, mit den gleichen Icons"): jede Zeile seiner Karten beginnt mit
+  `rowIcon`; Meldungen nehmen Symbol und Farbe aus `notify.js` (`NOTIFY_ICON`, `NOTIFY_TONE`, Kachel `.ag-ntone`), nie eine eigene Tabelle; das Schloss
+  der Alarmmeldung steht an der Stelle des Schalters (`.ag-wz-lock`). Suite `wzicons-e2e.mjs`; eine neue Zeile im Assistenten kommt dort dazu.
 - **Fenster mit Listen am Computer (seit 1.90.0, Wünsche des Nutzers 2026-11-25):** "Voreinstellungen je Sensorart" ist so breit wie der Inhalt des
   Panels dahinter (`sensors.js _fitPresets`, bündig, folgt der Fenstergrösse); "Sensoren hinzufügen" ist immer gleich hoch (`#ag-pick`: Höhe
   `min(92vh, 900px)`, nur die Liste `.ag-pick-list` scrollt), damit Suche und Knöpfe nie springen. Auf dem Handy bleiben beide Vollbild. Suite
   `icons-e2e.mjs`.
+- **Voreinstellungen auf Sensoren anwenden (seit 1.91.0, Wunsch des Nutzers 2026-11-25, Mockup `voreinstellungen-anwenden-v1`, Variante A):**
+  nie wieder ein Schalter, der eigene Werte vieler Sensoren löscht, ohne zu zeigen, was sich ändert. Das Fenster `#ag-papply` nennt nur echte
+  Abweichungen (`sensors.js applyDiffs`, gegen die Voreinstellungen im Fenster, auch ungespeicherte; gemeinsam und je Modus; ohne `notFor`, Anzeige
+  mit `invert`), je mit "bisher → neu" und dem, was bleibt (eigene Eingangsverzögerung); alle vorgewählt, je Sensor und je Art wählbar, Suche und
+  dieselben Pillen wie die Sensortabelle. Gelöscht wird erst mit "Speichern" der Voreinstellungen, nur bei den gewählten Sensoren je Anlage
+  (`reset_entities`; der Server prüft Anlagen und Kennungen vor jeder Änderung). Solange die Seite Sensoren ungespeicherte Änderungen hat, ist der
+  Knopf gesperrt. Eine neue Option in `OPTIONS` erscheint dort von selbst; eine neue Angabe, die wie `entry_delay` bleiben soll, ergänzt `keep` im
+  Server (`ws_save_presets`) und im Panel (`_dropOwn`, `applyDiffs`). Suite `presetapply-e2e.mjs`, Tests `tests/test_presets_apply.py`.
+- **Entwürfe und Daten des Servers (seit 1.91.0):** nach jedem Abruf (`_fetch`) fällt ein Entwurf weg, der gegen die bisherigen oder die neuen
+  Daten unverändert ist; nur eine echte Änderung des Nutzers bleibt. Nie nur gegen die neuen Daten prüfen: eine Änderung des Servers (Zurücksetzen,
+  anderes Gerät) stünde sonst als ungespeicherte Änderung da und würde zurückgeschrieben. Eine neue Seite mit Entwurf kommt in die Liste in `_fetch`
+  und in die Suite `extchange-e2e.mjs`.
+- **Zeitraum des Protokolls (seit 1.91.0, Wunsch des Nutzers 2026-11-25):** ohne gemerkte Wahl "Letzte 7 Tage" (`log.js DEFAULT_RANGE`), eine Wahl
+  bleibt je Browser (`logRange`). Ein Alarm, den der rote Kreis oder der Link einer Meldung öffnet, ist immer zu sehen (`reveal`, `_applyReveal`:
+  einmal "Alles", ohne die Wahl zu ändern). Suite `logrange-e2e.mjs`.
 - **Sensorkarten gleich hoch (Vorgabe des Nutzers, 2026-11-13):** Alle Karten der Übersicht sind immer gleich hoch, im Raster und auf
   dem Handy. Der Name hat immer Platz für drei Zeilen (danach "…", voll im Tooltip), die übrigen Zeilen haben feste Höhen, fehlende
   Angaben stehen als "–" da. Eine neue Zeile oder Angabe auf der Karte bekommt eine feste Höhe; `tests/panel/suites/cardheight-e2e.mjs`

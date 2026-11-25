@@ -835,6 +835,23 @@
       if (msg.reset_sensors) for (const sys of window.__systems) for (const id of Object.keys(sys.sensor_options || {})) {
         if (msg.reset_sensors.includes(SENSORS[id]?.type || "other")) { delete sys.sensor_options[id]; reset += 1; }
       }
+      // 1.91.0: gezielt gewählte Sensoren je Anlage, wie der Server (eigene Eingangsverzögerung und "Immer aktiv ignorieren" bleiben). Eine unbekannte
+      // Anlage lehnt den ganzen Aufruf ab, bevor sich etwas ändert
+      if (msg.reset_entities) {
+        if (Object.keys(msg.reset_entities).some((id) => !window.__systems.some((x) => x.entry_id === id))) throw { code: "not_found", message: "Unknown alarm system" };
+        (window.__resetCalls ||= []).push(JSON.parse(JSON.stringify(msg.reset_entities)));
+        const keep = (o) => Object.fromEntries(Object.entries(o || {}).filter(([k]) => k === "entry_delay" || k === "always_off"));
+        for (const [entryId, ids] of Object.entries(msg.reset_entities)) {
+          const sys = window.__systems.find((x) => x.entry_id === entryId);
+          for (const id of ids) {
+            let hit = false;
+            const tidy = (map) => { if (!map?.[id]) return; hit = true; const rest = keep(map[id]); if (Object.keys(rest).length) map[id] = rest; else delete map[id]; };
+            tidy(sys.sensor_options);
+            for (const m of Object.keys(sys.sensor_modes || {})) tidy(sys.sensor_modes[m]);
+            reset += hit ? 1 : 0;
+          }
+        }
+      }
       return { presets: window.__presets, reset };
     }
     // 1.31.0: Anlage hinzufügen (Vorschau rechnet wie der Server: Umlaute vereinfacht, belegte IDs bekommen "_2")

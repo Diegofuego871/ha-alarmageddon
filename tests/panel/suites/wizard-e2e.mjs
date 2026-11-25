@@ -271,7 +271,8 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Empfänger der Wartung hinzugefügt (Kapsel), Warnung weg`, await s.waitFor("const g=r.querySelector('.ag-recip[data-group=\"maintenance_targets\"]'); return g.querySelector('.ag-rpill')?.innerText.includes('partnerin') && !g.querySelector('.ag-warntext')"));
     await s.tap('[data-wz="kind"][data-kind="battery_low"]');
     check(`${tag}: "Batterie schwach" aus`, await s.waitFor("return !r.querySelector('[data-wz=\"kind\"][data-kind=\"battery_low\"]').classList.contains('on')"));
-    check(`${tag}: Schalter links, Text rechts`, await s.ev("return [...r.querySelectorAll('[data-wz=\"kind\"]')].every((b) => b.getBoundingClientRect().right <= b.closest('.ag-mt-head').querySelector('.ag-settx').getBoundingClientRect().left)"));
+    // Seit 1.91.0 Zeilen wie überall ([Symbol][Schalter][Text], Suite wzicons-e2e)
+    check(`${tag}: Schalter links, Text rechts`, await s.ev("return [...r.querySelectorAll('[data-wz=\"kind\"]')].every((b) => b.getBoundingClientRect().right <= b.closest('.ag-setrow').querySelector('.ag-settx').getBoundingClientRect().left)"));
     // Die Testmeldung speichert die Auswahl still selbst; der Hinweis sagt nichts vom Speichern (Bildschirmfoto des Nutzers 2026-11-20, 08:27:
     // "(speichert diesen Schritt zuerst)" las sich wie eine Aufforderung; Wunsch 08:49: gar nichts von Speichern, wir kümmern uns darum)
     const testHint = await s.ev("return r.querySelector('[data-wz=\"nt-test\"]').closest('.ag-setrow').querySelector('small').textContent");

@@ -3,7 +3,7 @@
 // Änderungen sind ein Entwurf mit "Abbrechen" und "Speichern" (Regel aus ha-device-panel).
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur, DC, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText, sensorKind, sensorFilters, optionShown, perModeIcon } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, DC, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText, sensorKind, sensorFilters, optionShown, perModeIcon, matchQuery, searchField } = await import(`./common.js${V}`);
 const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
@@ -762,12 +762,9 @@ export class SensorsUi {
         const on = o.invert ? !(p[kind] || []).includes(o.key) : (p[kind] || []).includes(o.key);
         return `<td class="z"><button class="ag-box ${on ? "on" : ""}" data-sen="preset" data-kind="${kind}" data-key="${o.key}" role="checkbox" aria-checked="${on}" aria-label="${esc(`${this._t(label)}: ${this._t(o.name)}`)}">${on ? ic("check", 18) : ""}</button></td>`;
       }).join("")}</tr>`).join("");
-    const own = this.host._systems().reduce((n, s) => n + Object.keys(s.sensor_options || {}).length, 0);
     return `<div class="ag-dlg-body"><h3>${esc(this._t("presetsTitle"))}</h3><div class="ag-t2">${esc(this._t("presetsText"))}</div>
       <div class="ag-table-wrap"><table class="ag-table ag-ptable"><tr><th>${esc(this._t("colType"))}</th>${OPTIONS.map((o) => `<th class="z">${esc(this._t(o.name))}</th>`).join("")}</tr>${rows}</table></div>
-      <div class="ag-t2 ag-small">${own ? esc(this._t("presetsOwnCount", { count: own })) : ""}</div>
-      <div class="ag-ef-row ag-presetall"><div class="ag-settx"><b>${esc(this._t("presetsApplyAll"))}</b><small class="${this.presetOverride ? "ag-warntext" : ""}">${this.presetOverride ? `${ic("alert", 14)} ` : ""}${esc(this._t("presetsApplyAllHint", { count: own }))}</small></div>
-        <button class="ag-toggle ${this.presetOverride ? "on" : ""}" data-sen="preset-all" role="switch" aria-checked="${Boolean(this.presetOverride)}" aria-label="${esc(this._t("presetsApplyAll"))}"></button></div>
+      ${this._applyRowHtml()}
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sen="presets-restore" style="margin-right:auto">${esc(this._t("presetsRestore"))}</button>
         <button class="ag-btn" data-sen="presets-cancel">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-sen="presets-save">${esc(this._t("save"))}</button></div></div>`;
@@ -775,7 +772,7 @@ export class SensorsUi {
 
   openPresets() {
     this.presetDraft = JSON.parse(JSON.stringify(this.presets));
-    this.presetOverride = false;
+    this.applySel = null;
     const dlg = this.host._root.getElementById("ag-presets");
     dlg.innerHTML = this.presetsHtml();
     dlg.showModal();
@@ -807,17 +804,268 @@ export class SensorsUi {
     const dlg = h._root.getElementById("ag-presets");
     try {
       const msg = { type: "alarmageddon/save_presets", presets: this.presetDraft };
-      // Alle Sensoren übernehmen die Voreinstellung: eigene Werte je Sensor werden gelöscht
-      if (this.presetOverride) msg.reset_sensors = Object.keys(this.presetDraft);
-      await h._hass.callWS(msg);
+      // Gewählte Sensoren übernehmen die Voreinstellungen (1.91.0): ihre eigenen Werte werden gelöscht, je Anlage genannt
+      const chosen = this.applyDiffs().filter((r) => this.applySel?.has(r.key));
+      if (chosen.length) {
+        msg.reset_entities = {};
+        for (const r of chosen) (msg.reset_entities[r.entry] ||= []).push(r.id);
+      }
+      const res = await h._hass.callWS(msg);
       if (h._data) h._data.presets = JSON.parse(JSON.stringify(this.presetDraft));
+      // Sofort wie der Server: die Optionen der Anlagen ohne die gelöschten Werte, und der (saubere) Entwurf der Seite neu daraus. Sonst hielte die
+      // Seite die alten eigenen Werte für eine ungespeicherte Änderung und schriebe sie mit dem nächsten Speichern zurück (bis 1.90.0 so beim Schalter
+      // "Auf alle Sensoren anwenden"). Gewählt werden kann nur ohne offene Änderungen der Seite (_applyRowHtml).
+      if (chosen.length) {
+        for (const r of chosen) this._dropOwn(h._system(r.entry), r.id);
+        this.draft = null;
+      }
+      this.applySel = null;
       dlg.close();
-      h._toast(this._t("presetsSaved"));
+      h._toast(chosen.length ? this._t(res?.reset === 1 ? "presetsSavedOne" : "presetsSavedApplied", { count: res?.reset ?? chosen.length }) : this._t("presetsSaved"));
       this.render();
       h._fetch();
     } catch (err) {
       dlg.querySelector(".ag-dlg-err").textContent = this._t("saveFailed", { message: errText(err) });
     }
+  }
+
+  // ----- Voreinstellungen gezielt auf Sensoren anwenden (1.91.0, Wunsch des Nutzers 2026-11-25, Mockup voreinstellungen-anwenden-v1, Variante A) -----
+  // Bis 1.90.0 ein Schalter "Auf alle Sensoren anwenden", der beim Speichern die eigenen Werte aller Sensoren löschte, ohne zu zeigen, was sich
+  // ändert. Jetzt: ein Knopf öffnet ein Fenster mit den Sensoren, deren eigene Werte von den Voreinstellungen im Fenster abweichen, je mit "bisher → neu";
+  // alle vorgewählt, wählbar je Sensor und je Sensorart. Gelöscht wird erst mit "Speichern" der Voreinstellungen.
+
+  // Abweichungen: je Sensor jeder Anlage die eigenen Werte (gemeinsam und je Modus), die sich von der Voreinstellung seiner Art unterscheiden. Ein eigener
+  // Wert gleich der Voreinstellung zählt nicht (es ändert sich nichts). Optionen, die es für die Art nicht gibt (notFor), auch nicht.
+  applyDiffs() {
+    const h = this.host;
+    const p = this.presetDraft || this.presets;
+    const out = [];
+    for (const s of h._systems()) {
+      const own = s.sensor_options || {};
+      const modes = s.sensor_modes || {};
+      const ids = new Set([...Object.keys(own), ...SCOPES.flatMap((m) => Object.keys(modes[m] || {}))]);
+      for (const id of ids) {
+        const info = h._sensor(id);
+        const kind = info.type || "other";
+        const preset = p[kind] || [];
+        const changes = [];
+        const keep = [];
+        for (const scope of [null, ...SCOPES]) {
+          const values = scope ? modes[scope]?.[id] : own[id];
+          if (!values || typeof values !== "object") continue;
+          for (const o of OPTIONS) {
+            if (o.notFor?.includes(kind) || values[o.key] === undefined || values[o.key] === preset.includes(o.key)) continue;
+            const shown = (v) => (o.invert ? !v : Boolean(v));
+            changes.push({ scope, key: o.key, icon: o.icon, name: o.name, from: shown(values[o.key]), to: shown(preset.includes(o.key)) });
+          }
+          if (Number.isInteger(values.entry_delay)) keep.push({ scope, seconds: values.entry_delay });
+        }
+        if (!changes.length) continue;
+        out.push({ key: `${s.entry_id}|${id}`, entry: s.entry_id, id, kind, info, system: s.title, name: h._name(id), changes, keep });
+      }
+    }
+    const order = TYPES.map(([k]) => k);
+    return out.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.name.localeCompare(b.name) || a.system.localeCompare(b.system));
+  }
+
+  // Wie der Server (websocket_api.ws_save_presets): die eigenen Werte fallen weg, eigene Eingangsverzögerung und "Immer aktiv ignorieren" bleiben
+  _dropOwn(s, id) {
+    if (!s) return;
+    const keep = (o) => Object.fromEntries(Object.entries(o || {}).filter(([k]) => k === "entry_delay" || k === "always_off"));
+    const tidy = (map) => {
+      if (!map?.[id]) return;
+      const rest = keep(map[id]);
+      if (Object.keys(rest).length) map[id] = rest;
+      else delete map[id];
+    };
+    tidy(s.sensor_options);
+    for (const m of Object.keys(s.sensor_modes || {})) {
+      tidy(s.sensor_modes[m]);
+      if (!Object.keys(s.sensor_modes[m]).length) delete s.sensor_modes[m];
+    }
+  }
+
+  // Gewählt bleibt nur, was noch abweicht (eine geänderte Voreinstellung kann eine Abweichung aufheben); nichts mehr gewählt: zurück zum Knopf
+  _applyChosen(diffs = this.applyDiffs()) {
+    if (!this.applySel) return [];
+    const keys = new Set(diffs.map((r) => r.key));
+    for (const k of [...this.applySel]) if (!keys.has(k)) this.applySel.delete(k);
+    if (!this.applySel.size) this.applySel = null;
+    return diffs.filter((r) => this.applySel?.has(r.key));
+  }
+
+  // Namen für einen Satz: höchstens fünf, dann "und N weitere"
+  _nameList(rows) {
+    const names = rows.slice(0, 5).map((r) => r.name);
+    const rest = rows.length - names.length;
+    if (rest > 0) return `${names.join(", ")} ${this._t("presetsApplyMore", { count: rest })}`;
+    return names.length > 1 ? `${names.slice(0, -1).join(", ")}${this._t("listAnd")}${names.at(-1)}` : names[0] || "";
+  }
+
+  // Zeile unter der Tabelle: ohne Abweichung nichts; sonst der Knopf, nach "Übernehmen" die Wahl mit "Verwerfen" und "Auswahl ändern"
+  _applyRowHtml() {
+    const diffs = this.applyDiffs();
+    if (!diffs.length) return "";
+    const chosen = this._applyChosen(diffs);
+    if (chosen.length) {
+      const rest = diffs.filter((r) => !this.applySel.has(r.key));
+      const one = chosen.length === 1;
+      const text = `${this._t(one ? "presetsApplyLoseOne" : "presetsApplyLose", { names: this._nameList(chosen) })}${rest.length ? ` ${this._t(rest.length === 1 ? "presetsApplyKeepOne" : "presetsApplyKeep", { names: this._nameList(rest) })}` : ""}`;
+      return `<div class="ag-papplyrow chosen"><span class="ag-oav on">${ic("download", 20)}</span><div class="ag-settx"><b>${esc(this._t(one ? "presetsApplyChosenOne" : "presetsApplyChosen", { n: chosen.length, total: diffs.length }))}</b>
+        <small>${esc(text)}</small><small class="ag-unsaved">${esc(this._t("unsavedOne"))}</small></div>
+        <div class="ag-btnrow"><button class="ag-btn" data-sen="papply-discard">${ic("close", 18)}${esc(this._t("presetsApplyDiscard"))}</button><button class="ag-btn" data-sen="papply-open">${ic("pencil", 18)}${esc(this._t("presetsApplyChange"))}</button></div></div>`;
+    }
+    // Offene Änderungen der Seite Sensoren: erst speichern oder verwerfen (ihr Entwurf trägt die eigenen Werte und schriebe sie sonst zurück)
+    const busy = this.dirtyCount() > 0;
+    const hint = busy ? this._t("presetsApplyBusy") : this._t(diffs.length === 1 ? "presetsApplyHintOne" : "presetsApplyHint", { count: diffs.length });
+    return `<div class="ag-papplyrow"><span class="ag-oav">${ic("download", 20)}</span><div class="ag-settx"><b>${esc(this._t("presetsApplyTitle"))}</b><small class="${busy ? "ag-warntext" : ""}">${esc(hint)}</small></div>
+      <div class="ag-btnrow"><button class="ag-btn" data-sen="papply-open" ${busy ? "disabled" : ""}>${ic("download", 18)}${esc(this._t("presetsApplyBtn", { count: diffs.length }))}</button></div></div>`;
+  }
+
+  _refreshApplyRow() {
+    const dlg = this.host._root.getElementById("ag-presets");
+    const row = dlg?.querySelector(".ag-papplyrow");
+    const html = this._applyRowHtml();
+    if (row && html) row.outerHTML = html;
+    else if (row) row.remove();
+    else if (html) dlg?.querySelector(".ag-dlg-err")?.insertAdjacentHTML("beforebegin", html);
+  }
+
+  // Fenster öffnen: alle vorgewählt, ausser es gibt schon eine Wahl ("Auswahl ändern")
+  openApply() {
+    const diffs = this.applyDiffs();
+    if (!diffs.length || (this.dirtyCount() > 0 && !this.applySel)) return;
+    const sel = new Set(this.applySel ? [...this.applySel] : diffs.map((r) => r.key));
+    this.applyPick = { q: "", filter: "all", sel, init: [...sel].sort().join() };
+    const dlg = this.host._root.getElementById("ag-papply");
+    this.host._setHtml(dlg, this._applyDlgHtml());
+    if (!dlg.open) dlg.showModal();
+    dlg.querySelector(".ag-papply-list")?.scrollTo(0, 0);
+  }
+
+  _applyShown() {
+    const a = this.applyPick;
+    const diffs = this.applyDiffs();
+    return diffs.filter((r) => (a.filter === "all" || sensorKind(r.info) === a.filter)
+      && matchQuery(a.q, r.name, r.id, r.info.area, r.system, this._t(TYPES.find(([k]) => k === r.kind)?.[2] || "typeOther"), r.changes.map((c) => this._t(c.name))));
+  }
+
+  _box(state) {
+    return `<span class="ag-box ${state === "on" ? "on" : state === "mixed" ? "mixed" : ""}" aria-hidden="true">${state === "on" ? ic("check", 18) : state === "mixed" ? ic("minus", 18) : ""}</span>`;
+  }
+
+  _applyListHtml() {
+    const a = this.applyPick;
+    const diffs = this.applyDiffs();
+    const shown = this._applyShown();
+    if (!shown.length) return `<div class="ag-t2 ag-small" style="padding:14px">${esc(this._t("papplyNone"))}</div>`;
+    const state = (rows) => { const n = rows.filter((r) => a.sel.has(r.key)).length; return n === rows.length ? "on" : n ? "mixed" : ""; };
+    const head = shown.length === diffs.length ? this._t(diffs.length === 1 ? "papplyAllOne" : "papplyAll", { count: diffs.length }) : this._t("papplyFiltered", { shown: shown.length, count: diffs.length });
+    let html = `<div class="ag-papply-all"><button class="ag-papply-hit" data-sen="papply-all" role="checkbox" aria-checked="${state(shown) === "on"}">${this._box(state(shown))}<b>${esc(head)}</b></button><span class="ag-grow"></span>
+      <button class="ag-papply-link" data-sen="papply-allon">${esc(this._t("papplySelectAll"))}</button><button class="ag-papply-link" data-sen="papply-none">${esc(this._t("papplySelectNone"))}</button></div>`;
+    const modeName = (scope) => this._t(scope === "always" ? "wfAlways" : MODE_KEY[scope]);
+    const onOff = (v) => this._t(v ? "papplyOn" : "papplyOff");
+    for (const [kind, icon, label] of TYPES) {
+      const rows = shown.filter((r) => r.kind === kind);
+      if (!rows.length) continue;
+      const n = rows.filter((r) => a.sel.has(r.key)).length;
+      html += `<div class="ag-papply-grp"><button class="ag-papply-hit" data-sen="papply-group" data-kind="${kind}" role="checkbox" aria-checked="${n === rows.length}">${this._box(state(rows))}<span class="ag-av">${ic(icon, 16)}</span>
+        <span><b>${esc(this._t(label))}</b> <small>· ${esc(this._t("papplyChosen", { n, m: rows.length }))}</small></span></button></div>`;
+      for (const r of rows) {
+        const on = a.sel.has(r.key);
+        const [dcIcon] = DC[r.info.device_class] || [icon];
+        const chg = r.changes.map((c) => `<div class="ag-papply-chg">${ic(c.icon, 16)}${c.scope ? `<span class="ag-papply-mode">${esc(modeName(c.scope))}</span>` : ""}<span class="ag-papply-opt">${esc(this._t(c.name))}</span>
+          <span class="ag-papply-val"><span class="ag-papply-old">${esc(onOff(c.from))}</span>${ic("chevRight", 14)}<span class="ag-papply-new">${esc(onOff(c.to))}</span></span></div>`).join("")
+          + r.keep.map((k) => `<div class="ag-papply-keep">${ic("check", 14)}${k.scope ? `<span class="ag-papply-mode">${esc(modeName(k.scope))}</span>` : ""}${esc(this._t("papplyKeepDelay", { seconds: k.seconds }))}</div>`).join("");
+        html += `<div class="ag-papply-row ${on ? "" : "off"}" data-key="${esc(r.key)}"><button class="ag-papply-hit" data-sen="papply-toggle" data-key="${esc(r.key)}" role="checkbox" aria-checked="${on}" aria-label="${esc(`${r.name} (${r.system})`)}">${this._box(on ? "on" : "")}<span class="ag-av">${ic(dcIcon, 18)}</span>
+          <span class="ag-papply-name"><b>${esc(r.name)}</b><small>${esc(`${r.info.area || this._t("noArea")} · ${r.system}`)}</small></span></button><div class="ag-papply-chgs">${chg}</div></div>`;
+      }
+    }
+    return html;
+  }
+
+  _applyFootHtml() {
+    const a = this.applyPick;
+    const total = this.applyDiffs().length;
+    return `<span class="ag-papply-count">${esc(this._t("papplyChosen", { n: a.sel.size, m: total }))}</span>
+      <button class="ag-btn" data-sen="papply-cancel">${esc(this._t("cancel"))}</button><button class="ag-btn primary" data-sen="papply-ok">${ic("check", 18)}${esc(this._t("papplyOk", { count: a.sel.size }))}</button>`;
+  }
+
+  _applyDlgHtml() {
+    const a = this.applyPick;
+    const kinds = sensorFilters(this.applyDiffs().map((r) => r.info));
+    if (!kinds.some(([k]) => k === a.filter)) a.filter = "all";
+    const chips = kinds.map(([k, label]) => `<button class="ag-chip ${a.filter === k ? "on" : ""}" data-sen="papply-filter" data-filter="${k}">${esc(this._t(label))}</button>`).join("");
+    return `<div class="ag-dlg-body ag-papply"><div class="ag-papply-head"><span class="ag-oav on">${ic("download", 20)}</span><h3>${esc(this._t("papplyTitle"))}</h3></div>
+      <div class="ag-t2">${esc(this._t("papplyText"))}</div>
+      <div class="ag-papply-search">${searchField("data-sen", "papply-q", a.q, this._t("papplySearch"), this._t("clearSearch"))}</div>
+      <div class="ag-tools ag-pick-chips">${chips}</div>
+      <div class="ag-elist ag-papply-list">${this._applyListHtml()}</div>
+      <div class="ag-dlg-btns">${this._applyFootHtml()}</div></div>`;
+  }
+
+  // Nur Liste und Fusszeile neu (Suche behält den Fokus, die Liste ihren Rollstand)
+  _renderApplyList() {
+    const dlg = this.host._root.getElementById("ag-papply");
+    const list = dlg?.querySelector(".ag-papply-list");
+    if (!list) return;
+    const top = list.scrollTop;
+    list.innerHTML = this._applyListHtml();
+    list.scrollTop = top;
+    dlg.querySelector(".ag-dlg-btns").innerHTML = this._applyFootHtml();
+  }
+
+  applyDirty() {
+    return Boolean(this.applyPick) && [...this.applyPick.sel].sort().join() !== this.applyPick.init;
+  }
+
+  _onApply(act, el) {
+    const a = this.applyPick;
+    const dlg = this.host._root.getElementById("ag-papply");
+    if (act === "papply-open") return this.openApply();
+    if (act === "papply-discard") {
+      this.applySel = null;
+      return this._refreshApplyRow();
+    }
+    if (!a) return;
+    if (act === "papply-cancel") {
+      this.applyPick = null;
+      return this.host._closeDialog("ag-papply");
+    }
+    if (act === "papply-ok") {
+      this.applySel = a.sel.size ? new Set(a.sel) : null;
+      this.applyPick = null;
+      this.host._closeDialog("ag-papply");
+      return this._refreshApplyRow();
+    }
+    const shown = this._applyShown();
+    if (act === "papply-toggle") {
+      if (a.sel.has(el.dataset.key)) a.sel.delete(el.dataset.key);
+      else a.sel.add(el.dataset.key);
+    } else if (act === "papply-group") {
+      const rows = shown.filter((r) => r.kind === el.dataset.kind);
+      const all = rows.every((r) => a.sel.has(r.key));
+      for (const r of rows) all ? a.sel.delete(r.key) : a.sel.add(r.key);
+    } else if (act === "papply-all") {
+      const all = shown.every((r) => a.sel.has(r.key));
+      for (const r of shown) all ? a.sel.delete(r.key) : a.sel.add(r.key);
+    } else if (act === "papply-allon") {
+      for (const r of shown) a.sel.add(r.key);
+    } else if (act === "papply-none") {
+      for (const r of shown) a.sel.delete(r.key);
+    } else if (act === "papply-filter") {
+      a.filter = el.dataset.filter;
+      dlg.querySelectorAll('[data-sen="papply-filter"]').forEach((b) => b.classList.toggle("on", b === el));
+    } else if (act === "papply-q-clear") {
+      const input = dlg.querySelector('[data-sen="papply-q"]');
+      input.value = "";
+      a.q = "";
+      el.hidden = true;
+      input.focus();
+    } else if (act === "papply-q") {
+      return;
+    }
+    this._renderApplyList();
   }
 
   // ----- Ereignisse; true = erledigt -----
@@ -925,9 +1173,8 @@ export class SensorsUi {
       else list.add(el.dataset.key);
       this.presetDraft[el.dataset.kind] = OPTIONS.map((o) => o.key).filter((k) => list.has(k));
       this.host._setHtml(this.host._root.getElementById("ag-presets"), this.presetsHtml());
-    } else if (act === "preset-all") {
-      this.presetOverride = !this.presetOverride;
-      this.host._setHtml(this.host._root.getElementById("ag-presets"), this.presetsHtml());
+    } else if (act?.startsWith("papply-")) {
+      this._onApply(act, el);
     } else if (act === "presets-restore") {
       this.presetDraft = JSON.parse(JSON.stringify(DEFAULT_PRESETS));
       this.host._setHtml(this.host._root.getElementById("ag-presets"), this.presetsHtml());
@@ -942,6 +1189,13 @@ export class SensorsUi {
   }
 
   onInput(el) {
+    if (el.dataset.sen === "papply-q" && this.applyPick) {
+      this.applyPick.q = el.value;
+      const clear = this.host._root.querySelector('#ag-papply [data-sen="papply-q-clear"]');
+      if (clear) clear.hidden = !el.value;
+      this._renderApplyList(); // nur die Liste, das Suchfeld behält den Fokus
+      return true;
+    }
     if (el.dataset.sen === "pick-q" && this.pick) {
       this.pick.q = el.value;
       this.host._root.querySelector('[data-sen="pick-clear"]').hidden = !el.value;

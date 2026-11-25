@@ -37,6 +37,10 @@ const NUMBERS = {
 };
 const GROUP_OF = Object.fromEntries(Object.entries(GROUPS).flatMap(([g, list]) => list.map(([k]) => [k, g])));
 const ICON_OF = Object.fromEntries([...GROUPS.alarm, ...GROUPS.maintenance]);
+// Der Einrichtungsassistent zeigt dieselben Meldungen mit denselben Symbolen und Farben (1.91.0, Wunsch des Nutzers 2026-11-25: "in dem gleichen Stil,
+// mit den gleichen Icons, wie es dann auch in den Einstellungen gibt"): Symbol je Art und Ton der Gruppe (Störung rot, Wartung orange)
+export const NOTIFY_ICON = ICON_OF;
+export const NOTIFY_TONE = Object.fromEntries(Object.entries(GROUP_OF).map(([k, g]) => [k, g === "alarm" ? "fault" : "maint"]));
 const KINDS = [...GROUPS.alarm, ...GROUPS.maintenance].map(([k]) => k);
 
 const short = (s) => s.replace(/^notify\.(mobile_app_)?/, "");

@@ -433,7 +433,8 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-ntk > .ag-ntk-icon, .ag-wf-notice > .ag-wf-icon { order: -2; }
 .ag-setrow:has(> .ag-oav) > .ag-toggle { margin-top: 7px; }
 .ag-setrow:has(> .ag-oav) { align-items: flex-start; }
-.ag-setrow:has(> .ag-oav) > :not(.ag-oav):not(.ag-toggle):not(.ag-settx) { align-self: center; }
+/* Das Schloss der Alarmmeldung im Assistenten (1.91.0) steht wie ein Schalter oben auf der Kachel */
+.ag-setrow:has(> .ag-oav) > :not(.ag-oav):not(.ag-toggle):not(.ag-settx):not(.ag-wz-lock) { align-self: center; }
 /* Einzeiliger Text steht mittig neben der Kachel, längerer beginnt oben auf ihrer Höhe */
 .ag-setrow:has(> .ag-oav) > .ag-settx { min-height: var(--ag-tile); display: flex; flex-direction: column; justify-content: center; }
 .ag-oav.ag-oav-danger { background: var(--ag-error-soft); color: var(--ag-error); }
@@ -774,6 +775,66 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 /* Sensoren hinzufügen am Computer immer gleich hoch (1.90.0, Wunsch des Nutzers 2026-11-25: "egal wie viele Einträge gezeigt werden, damit sind die
    Buttons und Suchfelder immer am gleichen Ort"): das Fenster hat die volle Höhe der Fenster, die Liste füllt den Rest, Suche, Filter und Knöpfe
    springen beim Suchen und Filtern nicht. Auf dem Handy ist es ohnehin der ganze Bildschirm. */
+/* Voreinstellungen gezielt auf Sensoren anwenden (1.91.0, Mockup docs/mockups/voreinstellungen-anwenden-v1, Variante A): Zeile unter der Tabelle der
+   Voreinstellungen (Symbol oben links, Text, Knopf; nach "Übernehmen" orange umrandet mit "Noch nicht gespeichert") und das Fenster #ag-papply */
+.ag-papplyrow { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; margin-top: 14px; border: 1px solid var(--ag-divider); border-radius: 16px; background: var(--ag-card); }
+.ag-papplyrow > .ag-oav { flex: none; }
+.ag-papplyrow .ag-settx { flex: 1; min-width: 0; min-height: var(--ag-tile); display: flex; flex-direction: column; justify-content: center; }
+.ag-papplyrow .ag-settx small { display: block; color: var(--ag-text2); font-size: 12.5px; margin-top: 2px; line-height: 1.4; }
+.ag-papplyrow .ag-settx small.ag-warntext { color: var(--ag-warning-text); }
+.ag-papplyrow .ag-settx small.ag-unsaved { margin-top: 4px; font-size: 12px; }
+.ag-papplyrow .ag-btnrow { align-self: center; display: flex; gap: 8px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.ag-papplyrow.chosen { border-color: color-mix(in srgb, var(--ag-warning) 55%, var(--ag-divider)); background: color-mix(in srgb, var(--ag-warning) 6%, var(--ag-card)); }
+:host([narrow]) .ag-papplyrow { flex-wrap: wrap; }
+:host([narrow]) .ag-papplyrow .ag-settx { flex: 1 1 0; }
+:host([narrow]) .ag-papplyrow .ag-btnrow { flex: 1 1 100%; flex-wrap: nowrap; }
+:host([narrow]) .ag-papplyrow .ag-btnrow .ag-btn { flex: 1; justify-content: center; min-width: 0; }
+dialog#ag-papply { width: min(1040px, calc(100vw - 32px)); }
+:host([narrow]) dialog#ag-papply { width: 100vw; max-width: 100vw; }
+:host(:not([narrow])) dialog#ag-papply[open] { height: min(92vh, 900px); }
+#ag-papply > .ag-dlg-body { display: flex; flex-direction: column; flex: 1 1 auto; }
+.ag-papply-head { display: flex; align-items: center; gap: 12px; padding-right: 44px; }
+.ag-papply-head h3 { margin: 0; }
+.ag-papply > .ag-t2 { margin-top: 10px; }
+.ag-papply-search { margin-top: 12px; }
+#ag-papply .ag-pick-chips { margin-top: 12px; }
+.ag-elist.ag-papply-list { margin-top: 12px; flex: 1 1 0; min-height: 160px; max-height: none; }
+.ag-papply-all { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 4px; padding: 6px 8px 6px 2px; background: var(--ag-card); border-bottom: 1px solid var(--ag-divider); font-size: 13.5px; }
+.ag-papply-all b { font-weight: 600; }
+.ag-papply-link { border: 0; background: none; color: var(--ag-primary); font: inherit; font-size: 13px; padding: 8px; min-height: 36px; cursor: pointer; border-radius: 8px; }
+.ag-papply-hit { display: flex; align-items: center; gap: 10px; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; padding: 6px 10px; min-height: 44px; border-radius: 10px; }
+.ag-papply-hit > .ag-box { margin: 0; flex: none; pointer-events: none; }
+.ag-papply-hit > .ag-av { margin: 0; flex: none; }
+.ag-box.mixed { background: var(--ag-primary); border-color: var(--ag-primary); color: #fff; }
+.ag-papply-grp { display: flex; align-items: center; padding: 2px 2px; background: var(--ag-subtle); border-bottom: 1px solid var(--ag-divider); font-size: 13.5px; }
+.ag-papply-grp b { font-weight: 600; }
+.ag-papply-grp small { color: var(--ag-text2); font-size: 12.5px; }
+.ag-papply-row { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); column-gap: 12px; align-items: start; padding: 4px 12px 4px 2px; border-bottom: 1px solid var(--ag-divider); background: var(--ag-card); }
+.ag-papply-row:last-child { border-bottom: 0; }
+.ag-papply-row.off .ag-papply-name, .ag-papply-row.off .ag-papply-chgs { opacity: .5; }
+.ag-papply-row > .ag-papply-hit { align-items: flex-start; }
+.ag-papply-row > .ag-papply-hit > .ag-box, .ag-papply-row > .ag-papply-hit > .ag-av { margin-top: 2px; }
+.ag-papply-name { min-width: 0; }
+.ag-papply-name b { font-weight: 500; display: block; }
+.ag-papply-name small { color: var(--ag-text2); font-size: 12.5px; }
+.ag-papply-chgs { display: flex; flex-direction: column; gap: 5px; padding: 11px 0 9px; max-width: 640px; min-width: 0; }
+.ag-papply-chg { display: flex; align-items: center; gap: 8px; font-size: 13px; flex-wrap: wrap; }
+.ag-papply-chg > svg { color: var(--ag-text2); flex: none; }
+.ag-papply-val { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; white-space: nowrap; color: var(--ag-text2); }
+.ag-papply-old { text-decoration: line-through; }
+.ag-papply-new { color: var(--ag-primary); font-weight: 600; }
+.ag-papply-mode { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; background: var(--ag-subtle); font-size: 11.5px; color: var(--ag-text2); }
+.ag-papply-keep { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ag-text2); }
+.ag-papply-keep svg { color: var(--ag-success); flex: none; }
+.ag-papply-count { margin-right: auto; color: var(--ag-text2); font-size: 13px; align-self: center; }
+:host([narrow]) .ag-papply-row { grid-template-columns: minmax(0, 1fr); padding-bottom: 8px; }
+:host([narrow]) .ag-papply-chgs { padding: 0 0 4px 46px; }
+:host([narrow]) .ag-papply-val { margin-left: 0; }
+:host([narrow]) .ag-papply-chg .ag-papply-opt { flex: 1 1 calc(100% - 30px); }
+:host([narrow]) #ag-papply .ag-dlg-btns { flex-wrap: wrap; }
+:host([narrow]) #ag-papply .ag-dlg-btns .ag-papply-count { flex: 1 1 100%; }
+:host([narrow]) #ag-papply .ag-dlg-btns .ag-btn { flex: 1 1 auto; justify-content: center; }
+:host([narrow]) #ag-papply .ag-dlg-btns .ag-btn.primary { flex: 1 1 100%; order: 5; }
 :host(:not([narrow])) dialog#ag-pick[open] { height: min(92vh, 900px); }
 :host(:not([narrow])) #ag-pick > .ag-dlg-body { flex: 1 1 auto; }
 :host(:not([narrow])) #ag-pick .ag-pick-list { flex: 1 1 0; min-height: 120px; max-height: none; }
@@ -949,34 +1010,12 @@ button.ag-link, a.ag-link { display: inline-flex; align-items: center; gap: 5px;
 .ag-rx { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
 .ag-rx:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
 .ag-rx:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
-.ag-mtlist { padding: 4px 0; }
-.ag-mt { padding: 12px 16px; border-top: 1px solid var(--ag-divider); }
-.ag-mt:first-child { border-top: 0; }
-.ag-mt.group { padding-bottom: 4px; }
-.ag-mt.sub { border-top: 0; padding: 10px 0 10px 14px; }
-.ag-mt.sub .ag-mt-body { margin-left: 0; }
-/* Schalter stehen links, der Text wächst nach rechts (1.17.7): so ist klar, welcher Schalter zu welcher Option gehört */
-.ag-mt-head { display: flex; align-items: flex-start; gap: 12px; }
-.ag-mt-head > .ag-toggle { margin-top: 3px; }
-.ag-mt-head > .ag-mini { margin-top: 0; }
-.ag-mt-opt.sw { justify-content: flex-start; align-items: flex-start; flex-wrap: nowrap; }
-.ag-mt-opt.sw > .ag-toggle { margin: 3px 0 0; }
-.ag-mt-head .ag-settx { flex: 1 1 auto; min-width: 0; }
-.ag-mt.off .ag-settx { opacity: .6; }
-.ag-mt-body { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 2px 52px; padding: 4px 12px; border-radius: 12px; background: var(--ag-subtle); }
-.ag-mt-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; padding: 6px 0; }
-.ag-mt-opt > span:first-child { flex: 1 1 auto; min-width: 0; }
-.ag-mt-opt small { display: block; margin-top: 1px; color: var(--ag-text2); font-size: 12px; line-height: 1.35; }
-.ag-mt-opt.vol { flex-wrap: wrap; }
-.ag-mt-opt.vol .ag-range { flex: 1 1 200px; max-width: 320px; }
-:host([narrow]) .ag-mt-body { margin-left: 0; }
-:host([narrow]) .ag-mt-opt { flex-wrap: wrap; row-gap: 8px; }
-:host([narrow]) .ag-mt-opt.sw { flex-wrap: nowrap; }
-:host([narrow]) .ag-mt-opt.vol .ag-range { flex-basis: 100%; max-width: none; }
 /* Konfiguration › Meldungen (1.69.0, Variante C, Entscheid des Nutzers 2026-11-19): jede Meldung eine Karte wie die festen Meldungen unter Aktionen,
    Symbol und Streifen links in der Farbe des Kapitels (Störung rot, Wartung orange); ausgeschaltet grau. Einstellungen im Fenster #ag-ntkind. */
-.ag-ntk, .ag-ntk-icon.fault { --tone: var(--ag-error); --tone-soft: var(--ag-error-soft); --tone-text: var(--ag-error); }
-.ag-ntk.maint, .ag-ntk-icon.maint { --tone: var(--ag-warning); --tone-soft: var(--ag-warning-soft); --tone-text: var(--ag-warning-text); }
+.ag-ntk, .ag-ntk-icon.fault, .ag-ntone.fault { --tone: var(--ag-error); --tone-soft: var(--ag-error-soft); --tone-text: var(--ag-error); }
+.ag-ntk.maint, .ag-ntk-icon.maint, .ag-ntone.maint { --tone: var(--ag-warning); --tone-soft: var(--ag-warning-soft); --tone-text: var(--ag-warning-text); }
+/* Meldungen im Einrichtungsassistenten (1.91.0): Kachel in der Farbe der Gruppe wie die Karten unter Benachrichtigungen, grau, solange aus */
+.ag-oav.ag-ntone.on { background: var(--tone-soft); color: var(--tone-text); }
 .ag-ntk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ag-ntk-grid + .ag-pmscope { margin-top: 20px; }
 .ag-ntk { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 14px 16px; }
@@ -1519,7 +1558,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 /* Handy: Beschreibungen und Hinweise durchgängig in einer gut lesbaren Grösse (Vorgabe des Nutzers: die kleine war zu klein) */
 :host([narrow]) .ag-small, :host([narrow]) .ag-hint, :host([narrow]) .ag-settx small, :host([narrow]) .ag-otx small, :host([narrow]) .ag-pmbanner small,
 :host([narrow]) .ag-pmnote, :host([narrow]) .ag-kind small, :host([narrow]) .ag-sys-sub, :host([narrow]) .ag-nm small,
-:host([narrow]) #ag-codes .ag-fld small, :host([narrow]) .ag-mt-opt small, :host([narrow]) .ag-pv-note, :host([narrow]) .ag-wf-text small,
+:host([narrow]) #ag-codes .ag-fld small, :host([narrow]) .ag-pv-note, :host([narrow]) .ag-wf-text small,
 :host([narrow]) .ag-inc-text small, :host([narrow]) .ag-sv-ttl small, :host([narrow]) .ag-erow small, :host([narrow]) .ag-combo-item small,
 :host([narrow]) .ag-dlg-body > p, :host([narrow]) .ag-lfacts { font-size: 14.5px; line-height: 1.35; }
 
@@ -1985,7 +2024,10 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz-list .ag-group-label { padding: 10px 14px 4px; }
 .ag-wz-list .ag-erow { padding: 9px 14px; }
 .ag-wz-wait { padding: 18px; }
-.ag-wz-lock { width: 44px; flex: none; display: grid; place-items: center; color: var(--ag-text3); }
+.ag-wz-lock { width: 40px; flex: none; display: grid; place-items: center; color: var(--ag-text3); }
+/* Seit 1.91.0 steht das Schloss der Alarmmeldung an der Stelle des Schalters: nach dem Symbol, mittig auf der Kachel */
+.ag-setrow > .ag-wz-lock { order: -1; height: var(--ag-tile); align-self: flex-start; }
+.ag-setrow.ag-wz-kind.off .ag-settx { opacity: .6; }
 .ag-wz-note { margin: 10px 4px 0; }
 .ag-wz-sw { justify-content: flex-start; }
 .ag-wz-sw > .ag-toggle { order: -1; flex: none; }
@@ -1998,7 +2040,10 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz-mempty small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.4; }
 .ag-wz-mtools .ag-wz-count { margin-left: auto; }
 .ag-wz-mhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.ag-wz-mhead > .ag-settx { flex: 1 1 260px; }
+.ag-wz-mhead > .ag-wz-mtitle { flex: 1 1 260px; }
+/* Titel der Messwerte mit Symbol (1.91.0): Kachel oben links, der Text daneben wie in jeder Zeile */
+.ag-wz-mtitle { display: flex; align-items: flex-start; gap: 16px; min-width: 0; }
+.ag-wz-mtitle > .ag-settx { flex: 1 1 auto; min-width: 0; min-height: var(--ag-tile); display: flex; flex-direction: column; justify-content: center; }
 .ag-wz-mhead > .ag-btn { flex: none; }
 .ag-wz-mlist { max-height: 360px; }
 .ag-wz-mlist .ag-group-label, .ag-wz-plist .ag-group-label { padding: 10px 12px 4px; margin: 0; }
@@ -2025,9 +2070,7 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz.narrow .ag-wz-testbtns { flex: 1 1 100%; }
 .ag-wz.narrow .ag-wz-testbtns > .ag-btn { flex: 1 1 0; min-width: 0; justify-content: center; }
 .ag-wz-morerow { align-items: flex-start; flex-wrap: nowrap; }
-.ag-wz-moreic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; color: var(--ag-text2); background: var(--ag-subtle); }
-/* Seit 1.72.0 in der Farbe des Kapitels unter Konfiguration › Anlage (wie .ag-oav.ag-tint.on) */
-.ag-wz-moreic.ag-tint { background: color-mix(in srgb, var(--ag-tint) 15%, transparent); color: var(--ag-tint); }
+/* Seit 1.72.0 in der Farbe des Kapitels unter Konfiguration › Anlage; seit 1.91.0 dieselbe Kachel wie dort (.ag-oav.ag-tint.on, rowIcon) */
 .ag-tint-card { --ag-tint: #0277bd; }
 :host([dark]) .ag-tint-card { --ag-tint: #81d4fa; }
 .ag-wz-morerow > .ag-wz-gowrap, :host([narrow]) .ag-wz-morerow > .ag-wz-gowrap { flex: none; width: 44px; min-width: 0; margin: 0 0 0 auto; align-self: center; }

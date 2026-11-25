@@ -47,6 +47,8 @@ for (const lang of ["de", "en"]) {
     const rows = () => s.ev("return r.querySelectorAll('.ag-log .ag-row').length");
     const pick = async (v) => { await (await s.el('[data-log="range"]')).selectOption(v); await s.page.waitForTimeout(150); };
     const dayStr = (ms) => { const d = new Date(Date.now() - ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+    // Seit 1.91.0 ist "Letzte 7 Tage" vorgewählt (Suite logrange-e2e); hier zuerst "Alle"
+    await pick("all");
     check(`${tag}: Zeitraum "Alles": alle Ereignisse, Anlagenwahl bei zwei Anlagen`, await rows() === 5 && await s.ev("return !!r.querySelector('[data-log=\"system\"]') && r.querySelector('.ag-log-count').textContent.includes('5')"));
     await pick("3h");
     check(`${tag}: letzte 3 Stunden: nur das jüngste Ereignis und der Alarm`, await s.waitFor("return r.querySelectorAll('.ag-log .ag-row').length === 1 && r.querySelectorAll('.ag-inc').length === 1"));

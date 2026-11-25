@@ -235,6 +235,26 @@ for (const lang of ["en", "de"]) {
     await click('[data-sen="detail"][data-ent="binary_sensor.haustuer"]')({ frame });
     await page.waitForTimeout(600);
   } });
+  // Voreinstellungen auf Sensoren anwenden (1.91.0, Handbuch): sieben Sensoren mit abweichenden eigenen Werten in zwei Anlagen (erfundene Daten wie
+  // in der Suite presetapply-e2e), Fenster Bad abgewählt (die Art "Fenster" halb gewählt)
+  await shot(lang, "presets-apply", { tab: "config", height: 1000, prepare: async ({ page, frame }) => {
+    await page.evaluate(() => {
+      const [H, G] = window.__systems;
+      H.sensor_options = { "binary_sensor.haustuer": { arm_on_close: false, entry_delay: 45 }, "binary_sensor.terrassentuer": { offline_alarm: true },
+        "binary_sensor.fenster_kueche": { open_ok: true }, "binary_sensor.fenster_bad": { confirm: true }, "binary_sensor.bewegung_flur": { confirm: true },
+        "binary_sensor.rauchmelder_flur": { always: true }, "binary_sensor.wasser_keller": { report_only: true } };
+      H.sensor_modes = { away: { "binary_sensor.fenster_kueche": { reachable: false } } };
+      G.sensor_options = { "binary_sensor.bewegung_garage": { reachable: false } };
+    });
+    await frame.evaluate(() => document.querySelector("alarmageddon-panel")._fetch());
+    await click('[data-sub="sensors"]')({ frame });
+    await page.waitForTimeout(600);
+    await click('[data-sen="presets"]')({ frame });
+    await page.waitForTimeout(500);
+    await click('#ag-presets [data-sen="papply-open"]')({ frame });
+    await page.waitForTimeout(500);
+    await click('#ag-papply [data-sen="papply-toggle"][data-key="e_haus|binary_sensor.fenster_bad"]')({ frame });
+  } });
   // Störungsmeldungen (1.87.0): mit "Weiterer Sensor während eines Alarms" und "Codes nach Fehleingaben gesperrt" (Handbuch)
   await shot(lang, "notifications", { tab: "config", height: 900, prepare: async ({ page, frame }) => {
     await click('[data-sub="notify"]')({ frame });

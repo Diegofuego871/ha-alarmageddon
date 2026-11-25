@@ -736,25 +736,38 @@ async def ws_rename(hass: HomeAssistant, connection, msg: dict[str, Any]) -> Non
     {
         vol.Required("type"): f"{DOMAIN}/save_presets",
         vol.Required("presets"): {vol.In(SENSOR_TYPES): [vol.In(SENSOR_OPTIONS)]},
-        # Sensorarten, deren Sensoren die Voreinstellung übernehmen: eigene Werte je Sensor werden gelöscht
+        # Sensorarten, deren Sensoren die Voreinstellung übernehmen: eigene Werte je Sensor werden gelöscht (bis 1.90.0 der Schalter "Auf alle Sensoren
+        # anwenden"; ein Panel aus dem Zwischenspeicher sendet es vielleicht noch)
         vol.Optional("reset_sensors"): [vol.In(SENSOR_TYPES)],
+        # Seit 1.91.0 (Wunsch des Nutzers 2026-11-25, Mockup voreinstellungen-anwenden-v1): gezielt gewählte Sensoren je Anlage
+        vol.Optional("reset_entities"): vol.All(
+            {str: vol.All([vol.All(str, vol.Match(r"^binary_sensor\.[a-z0-9_]+$"))], vol.Length(max=1000))}, vol.Length(max=50)
+        ),
     }
 )
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """Voreinstellungen je Sensorart, für alle Anlagen. Die Anlagen laden danach neu."""
+    chosen = {entry_id: set(ids) for entry_id, ids in (msg.get("reset_entities") or {}).items()}
+    # Gewählte Sensoren nur in geladenen Anlagen dieser Integration; geprüft, bevor sich irgendetwas ändert
+    loaded = {e.entry_id for e in hass.config_entries.async_entries(DOMAIN) if e.state is ConfigEntryState.LOADED}
+    if any(entry_id not in loaded for entry_id in chosen):
+        connection.send_error(msg["id"], "not_found", "Unknown alarm system")
+        return
     settings = await async_get_settings(hass)
     # Erst die Voreinstellungen (ohne Benachrichtigung), dann die Optionen: jede Anlage lädt genau einmal neu und sieht beides
     presets_changed = await settings.async_store_presets(msg["presets"])
     reset = 0
     reloading: set[str] = set()
     kinds = set(msg.get("reset_sensors") or [])
-    if kinds:
+    if kinds or chosen:
         for entry in hass.config_entries.async_entries(DOMAIN):
             own = dict(entry.options.get(CONF_SENSOR_OPTIONS) or {})
             per_mode = {m: dict(v) for m, v in (entry.options.get(CONF_SENSOR_MODES) or {}).items() if isinstance(v, dict)}
-            drop = [e for e in {*own, *(e for v in per_mode.values() for e in v)} if sensor_type(hass, e) in kinds]
+            listed = chosen.get(entry.entry_id, set())
+            # Ein gewählter Sensor ohne eigene Werte (inzwischen anderswo zurückgesetzt) zählt nicht: es gibt nichts zu löschen
+            drop = [e for e in {*own, *(e for v in per_mode.values() for e in v)} if e in listed or (kinds and sensor_type(hass, e) in kinds)]
             if drop:
                 reset += len(drop)
                 # Auch die eigenen Werte je Modus fallen weg: der Sensor folgt danach wieder der Voreinstellung

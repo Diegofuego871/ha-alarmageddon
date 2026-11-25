@@ -26,7 +26,7 @@ const WAND_STARS = ["M7.5,5.6L5,7L6.4,4.5L5,2L7.5,3.4L10,2L8.6,4.5L10,7L7.5,5.6Z
 const SUBS = ["sensors", "actions", "notify", "system"];
 
 // Knöpfe, die einen Dialog ohne Speichern schliessen (das X löst den ersten gefundenen aus)
-const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sys="code-close"],[data-sys="rt-cancel"],[data-wf="mon-cancel-form"],[data-wf="mon-step-cancel"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"],[data-nt="kind-cancel"],[data-wz="mpick-close"]';
+const DLG_CANCEL = '[data-wf="close"],[data-sen="pick-close"],[data-sen="presets-cancel"],[data-sen="papply-cancel"],[data-sys="code-close"],[data-sys="rt-cancel"],[data-wf="mon-cancel-form"],[data-wf="mon-step-cancel"],[data-act="close-code"],[data-c="no"],[data-sen="close-detail"],[data-list="vdone"],[data-nt="kind-cancel"],[data-wz="mpick-close"]';
 
 class AlarmageddonPanel extends HTMLElement {
   constructor() {
@@ -106,7 +106,7 @@ class AlarmageddonPanel extends HTMLElement {
   _init() {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
       <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg ag-wide" id="ag-accent"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
-      <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-wide" id="ag-codelist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
+      <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-papply"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-wide" id="ag-codelist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-xfer"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog><dialog class="ag-dlg" id="ag-wzask"></dialog><dialog class="ag-dlg ag-wide" id="ag-ntkind"></dialog><dialog class="ag-dlg ag-wide" id="ag-wzpick"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
     if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => this._stickySync()).observe(this._content);
@@ -318,10 +318,15 @@ class AlarmageddonPanel extends HTMLElement {
       clearTimeout(this._retryTimer);
       this._retryTimer = 0;
       if (!this._wait) this._busy(false);
+      // Entwürfe ohne Änderung des Nutzers, gemessen an den bisherigen Daten (1.91.0): bis 1.90.0 wurde nur mit den neuen Daten verglichen. Hatte
+      // der Server etwas geändert (eigene Werte über die Voreinstellungen zurückgesetzt, ein anderes Gerät gespeichert), wich der unberührte Entwurf
+      // davon ab, stand als "N Änderungen" da und hätte mit dem nächsten Speichern die alten Werte zurückgeschrieben.
+      const drafts = [this.sensors, this.systemUi, this.actions, this.notify];
+      const untouched = new Set(drafts.filter((ui) => !ui.pinned?.() && !ui.dirtyCount()));
       this._data = data;
       this._connError = false;
       if (!this._systems().some((s) => s.entry_id === this._sel)) this._sel = this._systems()[0]?.entry_id || null;
-      for (const ui of [this.sensors, this.systemUi, this.actions, this.notify]) if (!ui.dirtyCount() && !ui.pinned?.()) ui.draft = null;
+      for (const ui of drafts) if (!ui.pinned?.() && (untouched.has(ui) || !ui.dirtyCount())) ui.draft = null;
       [this._sig, this._softSig] = this._stateSigs();
       this._fetchForecast();
       this.selftest.render(); // offenes Fenster des Selbsttests mit den neuen Befunden
@@ -369,6 +374,7 @@ class AlarmageddonPanel extends HTMLElement {
       if (view === "log" && this._systems().length) {
         this.log.touched = false;
         this.log.expandFirst = true; // der neueste Alarm ist aufgeklappt, auch wenn er inzwischen beendet ist
+        this.log.reveal = "newest"; // und zu sehen, auch wenn er vor dem gewählten Zeitraum liegt (1.91.0)
         this._tab = "log";
         this._savePref("tab", "log");
         this._render();
@@ -1221,6 +1227,7 @@ class AlarmageddonPanel extends HTMLElement {
     this.log.touched = Boolean(unseen);
     this.log.open = new Set(unseen ? [unseen.id] : []);
     this.log.expandFirst = !unseen;
+    this.log.reveal = unseen ? String(unseen.id) : "newest"; // zu sehen, auch wenn er vor dem gewählten Zeitraum liegt (1.91.0)
     this.log.pane = "alarms";
     this._tab = "log";
     this._savePref("tab", "log");
@@ -1736,7 +1743,9 @@ class AlarmageddonPanel extends HTMLElement {
     if (dlg.id === "ag-wzpick") return Boolean(this.wizard.pick?.sel?.size);
     if (dlg.id === "ag-monstep") return Boolean(this.actions.mon.step) && JSON.stringify(this.actions.mon.step.form) !== this.actions.mon.step.snap;
     if (dlg.id === "ag-pick") return Boolean(this.sensors.pick?.sel?.size);
-    if (dlg.id === "ag-presets") return JSON.stringify(this.sensors.presetDraft) !== JSON.stringify(this.sensors.presets) || Boolean(this.sensors.presetOverride);
+    if (dlg.id === "ag-presets") return JSON.stringify(this.sensors.presetDraft) !== JSON.stringify(this.sensors.presets) || Boolean(this.sensors.applySel?.size);
+    // "Voreinstellungen auf Sensoren anwenden" (1.91.0): eine geänderte Wahl ist eine offene Änderung
+    if (dlg.id === "ag-papply") return this.sensors.applyDirty();
     // Code hinzufügen oder bearbeiten: geändert ist, was vom Stand beim Öffnen abweicht (Bearbeiten: Name und Benutzer stehen schon drin)
     if (dlg.id === "ag-codes") return [...dlg.querySelectorAll("[data-key]")].some((i) => i.value !== (i.dataset.init ?? "")) && Boolean(dlg.querySelector('[data-sys="code-save"]'));
     return false;

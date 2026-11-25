@@ -7,6 +7,25 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.91.0] - 2026-11-25
+
+Die Voreinstellungen je Sensorart lassen sich jetzt gezielt auf Sensoren anwenden: ein Fenster nennt jeden Sensor mit abweichenden eigenen Werten, zeigt, was sich ändern würde, und lässt einzeln oder je Sensorart wählen. Das Protokoll beginnt mit "Letzte 7 Tage" und behält den Zeitraum, den du wählst, und der Einrichtungsassistent zeigt seine Symbole wie die Konfiguration: Symbol, Schalter, Text.
+
+### Geändert
+
+- **Voreinstellungen gezielt anwenden:** im Fenster "Voreinstellungen je Sensorart" ersetzt die Zeile "Auf Sensoren anwenden" mit dem Knopf "Sensoren wählen (7)" den Schalter "Auf alle Sensoren anwenden". Die Zeile erscheint nur, wenn Sensoren eigene Werte haben, die von den Voreinstellungen im Fenster abweichen (auch von noch nicht gespeicherten Änderungen), und zählt nur diese: ein eigener Wert gleich der Voreinstellung ändert nichts und zählt nicht (bisher zählte der Schalter jeden Sensor mit eigenen Werten). Der Knopf öffnet das Fenster "Voreinstellungen auf Sensoren anwenden": jeder solche Sensor aller Anlagen mit Bereich und Anlage, dazu je Option, die sich ändern würde, Symbol, Name und "bisher → neu" (ein eigener Wert nur für einen Modus trägt den Modus, zum Beispiel "Abwesend"); was bleibt, steht grün darunter ("Eigene Eingangsverzögerung 45 s bleibt"). Eine Suche, dieselben Filter wie die Sensortabelle (nur Arten, die vorkommen), ein Kästchen je Sensorart (die ganze Art an oder ab, halb gefüllt bei teilweiser Wahl), "Alle" und "Keine"; zu Beginn sind alle gewählt. Am Computer ist das Fenster immer gleich hoch und nur die Liste scrollt, auf dem Handy füllt es den Bildschirm. "Übernehmen" führt zurück zu den Voreinstellungen: die Zeile nennt, wer die Voreinstellungen übernimmt und wer seine eigenen Werte behält, trägt "Noch nicht gespeichert" und bietet "Verwerfen" und "Auswahl ändern". Erst "Speichern" der Voreinstellungen löscht die eigenen Werte, und nur die der gewählten Sensoren (bisher löschte der Schalter die eigenen Werte aller Sensoren jeder Art). Wer danach eine Voreinstellung ändert, sieht die Zeile neu berechnet. Solange die Seite Sensoren ungespeicherte Änderungen hat, ist der Knopf mit einem Hinweis gesperrt: diese Änderungen enthalten eigene Werte, die sonst wieder gespeichert würden.
+- **Symbole im Einrichtungsassistenten:** jede Zeile des Assistenten beginnt jetzt mit ihrem Symbol, dann der Schalter, dann der Text, wie in der Konfiguration seit 1.90.0 (bisher stand der Schalter vor dem Symbol, und mehrere Zeilen hatten keines). Die Meldungen tragen dieselben Symbole und Farben wie unter Konfiguration › Benachrichtigungen (Störungen rot, Wartung orange, grau, solange aus; bisher teils andere Symbole), die Empfänger von Alarmen und von Wartungsmeldungen die Glocke und das Zahnrad, "Kommen die Meldungen an?" ein Handy mit Haken. Die Alarmmeldung, die immer an ist, zeigt ihr Schloss an der Stelle des Schalters. Auf dem Handy zeigt jeder Eingangssensor das Symbol seiner Art (blau beim Eingang); "Überwachung verwenden" hat das Auge, "Messwerte" die Kurve; im letzten Schritt haben auch "Alarmaktionen testen", beide Testmeldungen, "Bereit zum Scharfschalten" und "Konfiguration öffnen" ein Symbol, und die weiteren Funktionen nutzen dieselben farbigen Kacheln wie unter Konfiguration › Anlage.
+- **Zeitraum des Protokolls:** beginnt mit "Letzte 7 Tage" (bisher "Alles"). Ein gewählter Zeitraum bleibt, auch nach dem Neuladen der Seite (je Browser). Ein Alarm, den der rote Kreis oder eine Meldung öffnet, ist immer zu sehen: liegt er vor dem gewählten Zeitraum, zeigt die Liste dieses Mal "Alles", ohne deine Wahl zu ändern.
+- Bilder des Handbuchs: das neue Fenster und das Protokoll mit dem Zeitraum "Letzte 7 Tage".
+
+### Behoben
+
+- **Änderungen von anderswo standen als ungespeicherte Änderungen da:** änderte Home Assistant etwas, während eine Seite der Konfiguration offen war (zum Beispiel eigene Werte über "Auf alle Sensoren anwenden" gelöscht oder auf einem anderen Gerät gespeichert), zeigte die Seite "1 Änderung" oder mehr mit orangen Punkten, obwohl du nichts geändert hattest, und "Speichern" hätte die alten Werte zurückgeschrieben. Jetzt übernimmt die Seite die neuen Werte; eigene ungespeicherte Änderungen bleiben wie bisher.
+
+### Sicherheit
+
+- Das Speichern der Voreinstellungen nimmt die gewählten Sensoren je Anlage: nur Binärsensoren, nur geladene Anlagen dieser Integration. Eine unbekannte oder nicht geladene Anlage lehnt den ganzen Aufruf ab, bevor sich etwas ändert, auch die Voreinstellungen. Die eigene Eingangsverzögerung und "Scharf: nur der Modus zählt" bleiben, wie beim bisherigen Schalter. Neue Tests und vier Zeilen der Mutationsprobe.
+
 ## [1.90.0] - 2026-11-25
 
 Es gibt keinen Hauptcode mehr: ein bestehender wird zum Code pro Person "Hauptcode" und gilt weiter. Jede Zeile der Konfiguration zeigt ihr Symbol oben links, vor dem Schalter, und das Kapitel "Zeiten" fasst alle Zeiten in einer Karte zusammen.
@@ -2415,6 +2434,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.91.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.0
 [1.90.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.90.0
 [1.89.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.89.0
 [1.88.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.88.0

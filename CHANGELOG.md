@@ -7,6 +7,25 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.91.0] - 2026-11-25
+
+The defaults per sensor type can now be applied to chosen sensors: a window lists every sensor whose own values differ, shows what would change, and lets you choose sensor by sensor or a whole type at once. The log starts at "Last 7 days" and keeps the period you choose, and the setup assistant shows its symbols like the configuration: symbol, switch, text.
+
+### Changed
+
+- **Apply the defaults to chosen sensors:** in the window "Defaults per sensor type" the switch "Apply to all sensors" is replaced by the row "Apply to sensors" with the button "Choose sensors (7)". The row appears only when sensors have own values that differ from the defaults in the window (also from changes not saved yet) and counts only those: an own value equal to the default changes nothing and does not count (until now the switch counted every sensor with own values). The button opens the window "Apply the defaults to sensors": every such sensor of every alarm system with its area and alarm system, and for each option that would change its symbol, its name and "before → after" (an own value for one mode only carries the mode, for example "Away"); what stays is shown in green ("Own entry delay 45 s stays"). A search, the same filters as the sensor table (only the types that occur), a box per sensor type (the whole type on or off, half filled when partly chosen), "All" and "None"; at first all are chosen. On the computer the window always has the same height and only the list scrolls; on the phone it fills the screen. "Apply" returns to the defaults: the row names who takes the defaults and who keeps own values, carries "Not saved yet" and offers "Discard" and "Change selection". Only "Save" of the defaults removes the own values, and only those of the chosen sensors (until now the switch removed the own values of all sensors of every type). Changing a default afterwards recalculates the row. While the page Sensors has unsaved changes, the button is locked with a hint: those changes hold own values that would otherwise be written back.
+- **Symbols in the setup assistant:** every row of the assistant now starts with its symbol, then the switch, then the text, as in the configuration since 1.90.0 (until now the switch stood in front of the symbol, and several rows had none). The notifications carry the same symbols and colours as under Configuration › Notifications (faults red, maintenance orange, grey while off; until now partly other symbols), the recipients of alarms and of maintenance notifications the bell and the cog, "Do the notifications arrive?" a phone with a tick. The alarm notification, which is always on, shows its lock where the switch would be. On the phone every entry sensor shows the symbol of its type (blue for the entry); "Use monitoring" has the eye, "Measurements" the chart; in the last step "Test the alarm actions", both test notifications, "Ready to arm" and "Open configuration" have a symbol too, and the further functions use the same coloured tiles as under Configuration › Alarm system.
+- **Period of the log:** starts at "Last 7 days" (until now "All"). A period you choose stays, also after reloading the page (per browser). An alarm opened with the red circle or from a notification is always visible: if it lies before the chosen period, the list shows "All" this once, without changing your choice.
+- Pictures of the manual: the new window, and the log with the period "Last 7 days".
+
+### Fixed
+
+- **Changes from elsewhere showed as unsaved changes:** if Home Assistant changed something while a page of the configuration was open (for example own values removed with "Apply to all sensors", or saved on another device), the page showed "1 change" or more with orange dots although you had changed nothing, and "Save" would have written the old values back. Now the page takes the new values; your own unsaved changes stay as before.
+
+### Security
+
+- Saving the defaults takes the chosen sensors per alarm system: only binary sensors, only loaded alarm systems of this integration. An unknown or unloaded alarm system rejects the whole call before anything changes, the defaults included. The own entry delay and "Armed: only the mode counts" stay, as with the previous switch. New tests and four lines of the mutation check.
+
 ## [1.90.0] - 2026-11-25
 
 There is no main code any more: an existing one becomes a code per person called "Main code" and keeps working. Every row of the configuration shows its symbol at the top left, in front of the switch, and the chapter "Times" holds all times in one card.
@@ -2415,6 +2434,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.91.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.0
 [1.90.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.90.0
 [1.89.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.89.0
 [1.88.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.88.0

@@ -7,6 +7,7 @@
 
 const V = new URL(import.meta.url).search;
 const { ic, esc, onceBtn, DC, OPENINGS, MOTION, AIR, measureKind, MODE_KEY, MODE_ICON, errText, matchQuery, searchField, rowIcon } = await import(`./common.js${V}`);
+const { NOTIFY_ICON, NOTIFY_TONE } = await import(`./notify.js${V}`);
 
 export const WZ_STEPS = ["welcome", "modes", "sensors", "zones", "code", "notify", "actions", "monitor", "done"];
 const ALL_MODES = ["home", "away", "night"];
@@ -16,8 +17,9 @@ const SUB = { welcome: "system", modes: "system", sensors: "sensors", zones: "se
 const EMBED = { zones: true, actions: true, monitor: true };
 // Rauch, Wasser, Gas und Hitze: lösen über "Immer aktiv" aus, nicht über eine Zone
 const SAFETY = new Set(["smoke", "gas", "carbon_monoxide", "moisture", "heat"]);
-// Meldungen mit Schalter im Assistenten (die Alarmmeldung ist immer an; "Scharf geschaltet" und "Deaktiviert" stehen bei den Aktionen)
-const KINDS = [["arm_failed", "window"], ["sensor_offline", "offline"], ["alarm_again", "bell"], ["code_locked", "key"], ["battery_low", "battery"], ["sensor_unavailable", "offline"], ["selftest", "stethoscope"], ["healthcheck", "heartPulse"]];
+// Meldungen mit Schalter im Assistenten (die Alarmmeldung ist immer an; "Scharf geschaltet" und "Deaktiviert" stehen bei den Aktionen). Seit 1.91.0
+// mit Symbol und Farbe wie unter Konfiguration › Benachrichtigungen (NOTIFY_ICON, NOTIFY_TONE; bis 1.90.0 eigene, teils andere Symbole)
+const KINDS = ["arm_failed", "sensor_offline", "alarm_again", "code_locked", "battery_low", "sensor_unavailable", "selftest", "healthcheck"];
 // Messwerte der Überwachung nach Art (Filter im Fenster "Messwerte hinzufügen" und in der Liste der gewählten; Wunsch des Nutzers 2026-11-20,
 // 08:31: statt aller Messwerte als Knöpfe eine leere Liste, ein Fenster mit Suche und Filtern wie "Sensoren hinzufügen", die gewählten wieder
 // mit Suche und Filtern)
@@ -601,8 +603,9 @@ export class WizardUi {
     const rows = ids.map((id) => {
       const on = d.entrySensors.has(id);
       const ok = h.sensors.inActive(id);
-      const [, label] = DC[h._sensor(id).device_class] || ["sensor", "dcOther"];
-      return `<div class="ag-setrow ag-wz-sw ag-wz-entry">${this._toggle(on, `data-wz="entry-sensor" data-ent="${esc(id)}" ${ok || on ? "" : "disabled"}`, `${h._name(id)}: ${this._t("colEntry")}`)}
+      const [icon, label] = DC[h._sensor(id).device_class] || ["sensor", "dcOther"];
+      // Symbol der Sensorart zuerst (1.91.0, wie in der Sensortabelle), blau, wenn der Sensor der Eingang ist
+      return `<div class="ag-setrow ag-wz-sw ag-wz-entry">${rowIcon(icon, on)}${this._toggle(on, `data-wz="entry-sensor" data-ent="${esc(id)}" ${ok || on ? "" : "disabled"}`, `${h._name(id)}: ${this._t("colEntry")}`)}
         <div class="ag-settx"><b>${esc(h._name(id))}</b><small>${esc(ok ? this._t(label) : this._t("entryHint"))}</small></div></div>`;
     }).join("");
     return this._chap(this._t("colEntry"), `<div class="ag-card ag-setlist">${rows}</div>`, this._t("wzEntryPick"));
@@ -647,20 +650,24 @@ export class WizardUi {
       const select = services.length ? `<select class="ag-input ag-rsel" data-wz="target-add" data-key="${key}" aria-label="${esc(this._t("ntAdd"))}" ${free.length ? "" : "disabled"}><option value="">${esc(this._t(free.length ? "ntAdd" : "ntAllChosen"))}</option>${free.map((x) => `<option value="${esc(x)}">${esc(short(x))}</option>`).join("")}</select>`
         : `<div class="ag-t2 ag-small">${esc(this._t("ntNoServices"))}</div>`;
       const none = !chosen.length && services.length ? `<small class="ag-warntext">${ic("alert", 14)} ${esc(this._t("ntNoneChosen"))}</small>` : "";
-      return `<div class="ag-setrow ag-recip" data-group="${key}"><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(hint))}</small><div class="ag-rline">${select}</div>${pills ? `<div class="ag-rpills">${pills}</div>` : ""}${none}</div></div>`;
+      // Symbol oben links wie unter Konfiguration › Benachrichtigungen (1.91.0): Glocke für die Alarme, Zahnrad für die Wartung
+      return `<div class="ag-setrow ag-recip" data-group="${key}">${rowIcon(key === "alarm_targets" ? "bell" : "cog")}<div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(hint))}</small><div class="ag-rline">${select}</div>${pills ? `<div class="ag-rpills">${pills}</div>` : ""}${none}</div></div>`;
     };
-    const kind = (key, icon) => {
+    // Seit 1.91.0 (Wunsch des Nutzers 2026-11-25: "zuerst das Icon, dann der Schalter, dann der Text", "mit den gleichen Icons wie in den
+    // Einstellungen"): Zeilen wie überall, das Symbol in der Farbe der Gruppe (Störung rot, Wartung orange), grau, solange die Meldung aus ist
+    const kind = (key) => {
       const on = d.types[key]?.enabled !== false;
-      return `<div class="ag-mt ${on ? "" : "off"}"><div class="ag-mt-head">${this._toggle(on, `data-wz="kind" data-kind="${key}"`, this._t(`ntT_${key}`))}<span class="ag-mini">${ic(icon, 16)}</span>
-        <div class="ag-settx"><b>${esc(this._t(`ntT_${key}`))}</b><small>${esc(this._t(`ntH_${key}`))}</small></div></div></div>`;
+      return `<div class="ag-setrow ag-wz-kind ${on ? "" : "off"}" data-kind="${key}">${rowIcon(NOTIFY_ICON[key], on, `ag-ntone ${NOTIFY_TONE[key]}`)}${this._toggle(on, `data-wz="kind" data-kind="${key}"`, this._t(`ntT_${key}`))}
+        <div class="ag-settx"><b>${esc(this._t(`ntT_${key}`))}</b><small>${esc(this._t(`ntH_${key}`))}</small></div></div>`;
     };
-    const alarm = `<div class="ag-mt"><div class="ag-mt-head"><span class="ag-wz-lock" title="${esc(this._t("wzKindAlarmHint"))}">${ic("lockClosed", 20)}</span><span class="ag-mini">${ic("alert", 16)}</span>
-      <div class="ag-settx"><b>${esc(this._t("ntT_triggered"))}</b><small>${esc(this._t("wzKindAlarmHint"))}</small></div></div></div>`;
+    // Die Alarmmeldung ist immer an: an der Stelle des Schalters ein Schloss
+    const alarm = `<div class="ag-setrow ag-wz-kind" data-kind="triggered">${rowIcon("alert", true, "ag-ntone fault")}<span class="ag-wz-lock" title="${esc(this._t("wzKindAlarmHint"))}">${ic("lockClosed", 20)}</span>
+      <div class="ag-settx"><b>${esc(this._t("ntT_triggered"))}</b><small>${esc(this._t("wzKindAlarmHint"))}</small></div></div>`;
     // Je eine Testmeldung an die Empfänger von Alarmen und von Wartungsmeldungen (Wunsch des Nutzers 2026-11-20, 11:40: sie können verschieden sein)
     const test = `<div class="ag-wz-testbtns">${this._groupTestBtn("alarm", "wzTestBtnAlarm", (d.alarm_targets || []).length)}${this._groupTestBtn("maintenance", "wzTestBtnMaint", (d.maintenance_targets || []).length)}</div>`;
     return `${this._chap(this._t("wzRecipients"), `<div class="ag-card ag-setlist">${group("alarm_targets", "ntAlarmTargets", "ntAlarmTargetsHint")}${group("maintenance_targets", "ntMaintTargets", "ntMaintTargetsHint")}</div>`, this._t("wzRecipientsHint"))}
-      ${this._chap(this._t("wzKinds"), `<div class="ag-card ag-mtlist">${alarm}${KINDS.map(([k, i]) => kind(k, i)).join("")}</div><p class="ag-chap-h ag-wz-note">${esc(this._t("wzArmedNote"))}</p>`)}
-      <div class="ag-card ag-setlist"><div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzTestTitle"))}</b><small>${esc(this._t("wzTestHint"))}</small></div>${test}</div></div>`;
+      ${this._chap(this._t("wzKinds"), `<div class="ag-card ag-setlist ag-wz-kinds">${alarm}${KINDS.map(kind).join("")}</div><p class="ag-chap-h ag-wz-note">${esc(this._t("wzArmedNote"))}</p>`)}
+      <div class="ag-card ag-setlist"><div class="ag-setrow ag-wz-testrow">${rowIcon("cellphoneCheck")}<div class="ag-settx"><b>${esc(this._t("wzTestTitle"))}</b><small>${esc(this._t("wzTestHint"))}</small></div>${test}</div></div>`;
   }
 
   // Messwerte der Überwachung, die gewählt sind (Entwurf der Sensoren, sonst gespeichert)
@@ -727,16 +734,17 @@ export class WizardUi {
     const free = Object.keys(measures).filter((id) => !chosen.includes(id)).length;
     if (!chosen.some((id) => this.mf === "all" || measureKind(this._monInfo(id).device_class) === this.mf)) this.mf = "all";
     const add = `<button class="ag-btn" data-wz="mpick-open" ${this.busy || !free ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("wzMonAdd"))}</button>`;
-    const head = `<div class="ag-settx"><b>${esc(this._t("wzMonSensors"))}</b><small>${esc(this._t("wzMonSensorsHint"))}</small></div>`;
+    // Symbol der Messwerte wie in der Sensortabelle (1.91.0); die leere Liste zeigt es nicht noch einmal
+    const head = `<div class="ag-wz-mtitle">${rowIcon("gauge", chosen.length > 0)}<div class="ag-settx"><b>${esc(this._t("wzMonSensors"))}</b><small>${esc(this._t("wzMonSensorsHint"))}</small></div></div>`;
     // Leer: nur der Hinweis mit dem Knopf. Mit Messwerten: Knopf oben rechts, darunter Suche, Filter und die Liste fester Höhe
     const body = !chosen.length
-      ? `${head}<div class="ag-wz-mempty">${ic("gauge", 22)}<div><b>${esc(this._t("wzMonEmpty"))}</b><small>${esc(this._t("wzMonEmptyHint", { n: free }))}</small></div>${add}</div>`
+      ? `${head}<div class="ag-wz-mempty"><div><b>${esc(this._t("wzMonEmpty"))}</b><small>${esc(this._t("wzMonEmptyHint", { n: free }))}</small></div>${add}</div>`
       : `<div class="ag-wz-mhead">${head}${add}</div>
         <div class="ag-wz-tools ag-wz-mtools">${searchField("data-wz", "mon-q", this.mq, this._t("search"), this._t("clearSearch"))}<div class="ag-wz-chips">${this._monChips(chosen, this.mf, "mon-filter")}</div>
           <span class="ag-wz-count">${esc(this._t("wzMonCount", { n: chosen.length }))}</span></div>
         <div class="ag-elist ag-wz-mlist">${this._monListHtml()}</div>`;
     return `${this._info("eye", this._t("wzL_monitor", { n: Object.keys(measures).length }))}
-      <div class="ag-card ag-setlist"><div class="ag-setrow ag-wz-sw">${this._toggle(on, `data-wz="mon-use" ${this.busy ? "disabled" : ""}`, this._t("wzMonUse"))}<div class="ag-settx"><b>${esc(this._t("wzMonUse"))}</b><small>${esc(this._t("wzMonUseHint"))}</small></div></div>
+      <div class="ag-card ag-setlist"><div class="ag-setrow ag-wz-sw">${rowIcon("eye", on)}${this._toggle(on, `data-wz="mon-use" ${this.busy ? "disabled" : ""}`, this._t("wzMonUse"))}<div class="ag-settx"><b>${esc(this._t("wzMonUse"))}</b><small>${esc(this._t("wzMonUseHint"))}</small></div></div>
         ${on ? `<div class="ag-setrow ag-wz-monsensors">${body}</div>` : ""}</div>`;
   }
 
@@ -854,7 +862,7 @@ export class WizardUi {
     if (step === "notify") {
       const n = h._data?.notify || {};
       const targets = (n.alarm_targets || []).map(short).join(", ");
-      const on = KINDS.filter(([k]) => n.types?.[k]?.enabled !== false).length + 1;
+      const on = KINDS.filter((k) => n.types?.[k]?.enabled !== false).length + 1;
       return targets ? this._t("wzSumNotify", { targets, on, total: KINDS.length + 1 }) : this._t("wzSumNoTargets");
     }
     if (step === "actions") {
@@ -884,7 +892,7 @@ export class WizardUi {
     const testHint = this._t(steps ? (per ? "wzTestActionsHint" : "wzTestActionsHintAll") : per ? "wzTestActionsNone" : "wzTestActionsNoneAll", mode);
     const msgRow = (group, title) => {
       const targets = (h._data?.notify?.[group === "alarm" ? "alarm_targets" : "maintenance_targets"] || []).map(short).join(", ");
-      return `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(targets ? this._t("wzTestMsgHint", { targets }) : this._t("wzSumNoTargets"))}</small></div>${this._groupTestBtn(group, "ntTestType", targets)}</div>`;
+      return `<div class="ag-setrow">${rowIcon(group === "alarm" ? "bell" : "cog")}<div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(targets ? this._t("wzTestMsgHint", { targets }) : this._t("wzSumNoTargets"))}</small></div>${this._groupTestBtn(group, "ntTestType", targets)}</div>`;
     };
     const ready = (s.modes || []).map((m) => {
       const open = [...h._blocking(s, m), ...h._unreachable(s, m)]; // offen oder nicht erreichbar (1.87.0)
@@ -892,15 +900,15 @@ export class WizardUi {
     }).join("");
     // Nur zur Information, keine Kacheln (sie verleiteten zum Klicken): je Funktion, was sie tut und wo sie steht; unten ein Knopf, der den
     // Assistenten abschliesst und Konfiguration › Anlage öffnet
-    const more = MORE.map(([icon, tint, title, text, where, go]) => `<div class="ag-setrow ag-wz-morerow"><span class="ag-wz-moreic ag-tint ag-tint-${tint}">${ic(icon, 20)}</span><div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(text))}</small>
+    const more = MORE.map(([icon, tint, title, text, where, go]) => `<div class="ag-setrow ag-wz-morerow">${rowIcon(icon, true, `ag-tint ag-tint-${tint} ag-wz-moreic`)}<div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(text))}</small>
       <small class="ag-wz-where">${ic("info", 13)}${esc(this._t(where))}</small></div>${go ? `<div class="ag-wf-btns ag-wz-gowrap"><button class="ag-iconbtn ag-wz-go" data-wz="more-go" data-go="${go}" ${this.busy ? "disabled" : ""} aria-label="${esc(this._t("wzMoreGo", { name: this._t(title) }))}" title="${esc(this._t("wzMoreGo", { name: this._t(title) }))}">${ic("chevRight", 18)}</button></div>` : ""}</div>`).join("");
     return `<div class="ag-card ag-setlist ag-wz-sum">${rows}</div>
       ${this._chap(this._t("wzTry"), `<div class="ag-card ag-setlist">
-        <div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzTestActions"))}</b><small>${esc(testHint)}</small></div>${testBtn}</div>
+        <div class="ag-setrow">${rowIcon("power")}<div class="ag-settx"><b>${esc(this._t("wzTestActions"))}</b><small>${esc(testHint)}</small></div>${testBtn}</div>
         ${msgRow("alarm", "wzTestMsgAlarm")}${msgRow("maintenance", "wzTestMsgMaint")}
-        <div class="ag-setrow ag-wz-readyrow"><div class="ag-settx"><b>${esc(this._t("wzReady"))}</b><small>${esc(this._t("wzReadyHint"))}</small></div><div class="ag-ready">${ready}</div></div></div>`)}
+        <div class="ag-setrow ag-wz-readyrow">${rowIcon("shieldCheck")}<div class="ag-settx"><b>${esc(this._t("wzReady"))}</b><small>${esc(this._t("wzReadyHint"))}</small></div><div class="ag-ready">${ready}</div></div></div>`)}
       ${this._chap(this._t("wzMore"), `<div class="ag-card ag-setlist ag-wz-more">${more}
-        <div class="ag-setrow ag-wz-moreopen"><div class="ag-settx"><small>${esc(this._t("wzMoreOpenHint"))}</small></div><button class="ag-btn" data-wz="settings" ${this.busy ? "disabled" : ""}>${ic("cog", 18)}${esc(this._t("wzMoreOpen"))}</button></div></div>`, this._t("wzMoreHint"))}`;
+        <div class="ag-setrow ag-wz-moreopen">${rowIcon("cog")}<div class="ag-settx"><small>${esc(this._t("wzMoreOpenHint"))}</small></div><button class="ag-btn" data-wz="settings" ${this.busy ? "disabled" : ""}>${ic("cog", 18)}${esc(this._t("wzMoreOpen"))}</button></div></div>`, this._t("wzMoreHint"))}`;
   }
 
   // ----- Fenster "Später" und "Offene Änderungen" -----
