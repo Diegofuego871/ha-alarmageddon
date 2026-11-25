@@ -87,6 +87,7 @@ async def test_identical_backup_is_skipped(hass: HomeAssistant, freezer) -> None
 
 async def test_only_five_automatic_and_ten_manual_are_kept(hass: HomeAssistant, freezer) -> None:
     entry = await setup_alarm(hass)
+    backup.async_stop_auto_backup(hass)  # der Nachholtermin (300 s nach dem Start) feuert sonst beim Vorstellen der Uhr mitten im Test und legt denselben Stand ab
     for n in range(MAX_BACKUPS + 2):
         await _change(hass, entry, 100 + n)
         freezer.tick(timedelta(minutes=1))
@@ -103,6 +104,7 @@ async def test_only_five_automatic_and_ten_manual_are_kept(hass: HomeAssistant, 
 async def test_keep_count_is_the_users_choice(hass: HomeAssistant, hass_ws_client, freezer, keep: int) -> None:
     """Wie viele automatische Sicherungen bleiben, wählt der Nutzer (1 bis 50, Standard 5); die eigenen zählen getrennt."""
     entry = await setup_alarm(hass)
+    backup.async_stop_auto_backup(hass)  # der Nachholtermin (300 s nach dem Start) feuert sonst beim Vorstellen der Uhr mitten im Test und legt denselben Stand ab (CI 2026-11-25)
     client = await hass_ws_client(hass)
     await client.send_json({"id": 1, "type": "alarmageddon/save_auto_backup", "enabled": True, "every": "weekly", "keep": keep})
     reply = await client.receive_json()
