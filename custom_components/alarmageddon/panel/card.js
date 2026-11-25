@@ -366,9 +366,10 @@ class AlarmageddonCard extends AlarmageddonCardBase {
     const mode = el.dataset.mode;
     const service = mode === "off" ? "alarm_disarm" : ARM_SERVICE[mode];
     const call = (code) => hass.callService("alarm_control_panel", service, { entity_id: id, ...(code ? { code } : {}) });
-    // Wechsel des Modus einer scharfen (oder scharf werdenden) Anlage verlangt den Code (1.87.0, wie controller.async_arm)
+    // Wechsel des Modus einer scharfen (oder scharf werdenden) Anlage verlangt den Code (1.87.0, wie controller.async_arm), abschaltbar seit
+    // 1.88.0 (Attribut code_mode_required; fehlt es, gilt wie in 1.87.0 "an")
     const armed = st.state === "arming" || String(st.state).startsWith("armed_");
-    const needsCode = Boolean(attrs.code_format) && (mode === "off" || attrs.code_arm_required || armed);
+    const needsCode = Boolean(attrs.code_format) && (mode === "off" || attrs.code_arm_required || (armed && attrs.code_mode_required !== false));
     if (needsCode) {
       this._askCode(mode === "off" ? this._t("codeDisarm", { name: this._title(st) }) : this._t("codeArm", { mode: this._t(MODE_KEY[mode]), name: this._title(st) }), call);
       return;

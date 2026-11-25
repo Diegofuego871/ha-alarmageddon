@@ -61,6 +61,18 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-sys="save"]');
     await s.waitFor(`return r.querySelector('${ack}').getAttribute('aria-checked') === 'false' && r.querySelector('[data-sys="save"]').disabled`);
 
+    // ----- Moduswechsel verlangt den Code (1.88.0): gleich gebaut, Standard an (auch ohne gespeicherten Wert), nur mit einem Code -----
+    const modeCode = '[data-sys="modecode"]';
+    check(`${tag}: Schalter "Moduswechsel verlangt den Code" steht unter "Quittieren verlangt den Code", an und frei`, await s.ev(`const b=r.querySelector('${modeCode}'); const a=r.querySelector('${ack}');
+      return !!b && !b.disabled && b.getAttribute('aria-checked') === 'true' && !!b.closest('.ag-codes') && a.getBoundingClientRect().top < b.getBoundingClientRect().top`));
+    await s.tap(modeCode);
+    check(`${tag}: Schalter aus zählt als Änderung`, await s.waitFor(`return r.querySelector('${modeCode}').getAttribute('aria-checked') === 'false' && !r.querySelector('[data-sys="save"]').disabled`));
+    await s.tap('[data-sys="save"]');
+    check(`${tag}: gespeichert und mit code_mode_required: false gesendet`, await s.waitFor(`return r.querySelector('.ag-foot').innerText.includes('${t.saved}')`) && await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_system').at(-1)?.code_mode_required === false"));
+    await s.tap(modeCode);
+    await s.tap('[data-sys="save"]');
+    check(`${tag}: wieder an gespeichert`, await s.waitFor(`return r.querySelector('${modeCode}').getAttribute('aria-checked') === 'true' && r.querySelector('[data-sys="save"]').disabled`) && await s.sim("return window.__calls.filter((c) => c.type === 'alarmageddon/save_system').at(-1)?.code_mode_required === true"));
+
     // ----- Codes pro Person (seit 1.63.0 im Fenster "Codes pro Person") -----
     await s.tap('[data-sys="code-open"]');
     check(`${tag}: Fenster der Codes offen`, await s.waitFor("return r.getElementById('ag-codelist').open"));

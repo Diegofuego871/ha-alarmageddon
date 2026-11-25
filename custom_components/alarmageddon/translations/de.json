@@ -66,12 +66,14 @@
             "data": {
               "night_enabled": "Modus \"Nacht\"",
               "code_arm_required": "Code zum Scharfschalten",
-              "code_ack_required": "Code zum Quittieren"
+              "code_ack_required": "Code zum Quittieren",
+              "code_mode_required": "Code zum Wechseln des Modus"
             },
             "data_description": {
               "night_enabled": "Ergänzt den Modus \"Nacht\" mit eigener Zone. Standardmässig aus.",
               "code_arm_required": "Auch das Scharfschalten verlangt den Code. Nur mit Code möglich.",
-              "code_ack_required": "Das Quittieren eines Alarms verlangt auch den Code (zum Beispiel aus der Dashboard-Karte). Nur mit einem Code möglich. Standardmässig aus."
+              "code_ack_required": "Das Quittieren eines Alarms verlangt auch den Code (zum Beispiel aus der Dashboard-Karte). Nur mit einem Code möglich. Standardmässig aus.",
+              "code_mode_required": "Im scharfen Zustand und während der Ausgangsverzögerung verlangt der Wechsel zwischen Anwesend, Abwesend und Nacht den Code (zum Beispiel auf Dashboard-Karten, über Sprachassistenten oder in Apple Home). Aus: der Wechsel verlangt den Code nur, wenn auch das Scharfschalten ihn verlangt. Standardmässig an; wirkt nur mit einem Code."
             }
           },
           "code_section": {

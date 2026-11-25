@@ -428,7 +428,7 @@ Umsetzung:
   mit `realarm_enabled`, nur wenn die Aktionen durch sind, höchstens `realarm_count`, Zustand "vorher" bleibt der vor dem ersten Alarm. **Codes (M2,
   M3):** Sperre wächst nach `CODE_LOCKOUT_STEPS`, steht in der eigenen Ablage (eine `Store` je Anlage für die Laufzeit von HA, `controller.state_store`;
   nie eine zweite Instanz derselben Ablage anlegen, sonst liest das Neuladen einen alten Stand); Moduswechsel im scharfen Zustand und in der
-  Ausgangsverzögerung verlangt den Code (`code_mode_change`), ausser `skip_code`. **Nie signierte Ton-URLs einbauen** (Entscheid M7 "Nie umsetzen").
+  Ausgangsverzögerung verlangt den Code (`code_mode_change`), ausser `skip_code`; seit 1.88.0 je Anlage abschaltbar (`code_mode_required`, Standard an, nur `False` schaltet ab, Tests `tests/test_mode_code.py`). **Nie signierte Ton-URLs einbauen** (Entscheid M7 "Nie umsetzen").
 - Jede Änderung am Zustandsautomaten oder an der Szenario-Engine braucht
   Tests für: Deaktivieren während Verzögerung, Neustart während Alarm,
   Sensor fällt im scharfen Zustand aus.

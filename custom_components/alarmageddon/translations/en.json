@@ -66,12 +66,14 @@
             "data": {
               "night_enabled": "Night mode",
               "code_arm_required": "Code required to arm",
-              "code_ack_required": "Code required to acknowledge"
+              "code_ack_required": "Code required to acknowledge",
+              "code_mode_required": "Code required to switch modes"
             },
             "data_description": {
               "night_enabled": "Adds the mode \"Night\" with its own zone. Off by default.",
               "code_arm_required": "Arming also asks for the code. Only possible with a code.",
-              "code_ack_required": "Acknowledging an alarm also asks for the code (for example from the dashboard card). Only possible with a code. Off by default."
+              "code_ack_required": "Acknowledging an alarm also asks for the code (for example from the dashboard card). Only possible with a code. Off by default.",
+              "code_mode_required": "While armed or during the exit delay, switching between Home, Away and Night asks for the code (for example on dashboard cards, from voice assistants or in Apple Home). Off: switching asks for the code only if arming does. On by default; only has an effect with a code."
             }
           },
           "code_section": {

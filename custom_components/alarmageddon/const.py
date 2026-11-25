@@ -52,6 +52,9 @@ CONF_OPEN_SENSORS: Final = "open_sensors"  # Verhalten bei offenem Sensor beim S
 CONF_CODE_ARM_REQUIRED: Final = "code_arm_required"
 # Quittieren verlangt den Code (1.34.0): nur wirksam mit einem Code; Standard aus (Quittieren schaltet nichts ab)
 CONF_CODE_ACK_REQUIRED: Final = "code_ack_required"
+# Moduswechsel im scharfen Zustand und in der Ausgangsverzögerung verlangt den Code (1.87.0 immer, einstellbar seit 1.88.0, Wunsch des
+# Nutzers 2026-11-24). Standard an, auch ohne gespeicherten Wert; nur wirksam mit einem Code. Aus: wie bis 1.86.x ("Code zum Scharfschalten")
+CONF_CODE_MODE_REQUIRED: Final = "code_mode_required"
 CONF_CODE_HASH: Final = "code_hash"
 CONF_CODE_SALT: Final = "code_salt"
 # Weitere Codes, je einer Person zugeordnet (0.5.0): [{"id", "name", "user_id", "hash", "salt"}].
@@ -84,7 +87,7 @@ CODE_LOCKOUT_STEPS: Final = (CODE_LOCKOUT_SECONDS, 120, 240, 480, 900)
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 296  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 297  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"

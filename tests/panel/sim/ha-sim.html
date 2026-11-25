@@ -1011,6 +1011,11 @@
         if (!Number.isInteger(msg.realarm_count) || msg.realarm_count < 1 || msg.realarm_count > 10) throw err("invalid_format", "realarm_count");
         sys.realarm_count = msg.realarm_count;
       }
+      // Moduswechsel verlangt den Code (1.88.0): ohne Code ohne Wirkung, gespeichert wird er trotzdem
+      if (msg.code_mode_required !== undefined) {
+        if (typeof msg.code_mode_required !== "boolean") throw err("invalid_format", "code_mode_required");
+        sys.code_mode_required = msg.code_mode_required;
+      }
       if (typeof msg.code_ack_required === "boolean") {
         if (msg.code_ack_required && !sys.has_code) throw err("code_missing");
         sys.code_ack_required = msg.code_ack_required;

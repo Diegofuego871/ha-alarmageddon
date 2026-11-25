@@ -250,6 +250,12 @@ for (const lang of ["en", "de"]) {
     await page.waitForTimeout(800);
     await toElement(frame, '.ag-chap:has([data-sys="realarm"])', 0, 18);
   } });
+  // Kapitel "Codes" (1.88.0): Hauptcode, "Quittieren verlangt den Code" und "Moduswechsel verlangt den Code" (Handbuch)
+  await shot(lang, "codes", { tab: "config", height: 860, prepare: async ({ page, frame }) => {
+    await click('[data-sub="system"]')({ frame });
+    await page.waitForTimeout(800);
+    await toElement(frame, '.ag-chap:has([data-sys="modecode"])', 0, 18);
+  } });
   // Alarm auf dem Handy: rotes Band, Kachel mit Auslöser und "scharf seit … von …" (1.11.0)
   await shot(lang, "alarm", { mobile: true, prepare: async ({ page }) => {
     await page.evaluate(() => window.__setState("alarm_control_panel.haus", "triggered", { arm_mode: "away", changed_by: "Marco", armed_by: "Marco", armed_at: new Date(Date.now() - 95 * 60e3).toISOString(), triggered_by: "binary_sensor.haustuer", deadline: null }));

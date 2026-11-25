@@ -90,6 +90,8 @@ class AlarmageddonAlarm(AlarmageddonEntity, AlarmControlPanelEntity, RestoreEnti
             "state_since": self._ctl.state_since.isoformat() if self._ctl.state_since else None,
             # Fragt das Quittieren nach dem Code? Die Dashboard-Karte zeigt dann ihr Fenster (die Prüfung macht der Dienst)
             "code_ack_required": self._ctl.code_ack_required,
+            # Verlangt der Wechsel des Modus im scharfen Zustand den Code (1.88.0)? Die Dashboard-Karte fragt dann vorher
+            "code_mode_required": self._ctl.code_mode_required,
         }
 
     @property

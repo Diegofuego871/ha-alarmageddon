@@ -46,6 +46,7 @@ from .const import (
     SELFTEST_MINUTES_RANGE,
     CODE_PATTERN,
     CONF_CODE_ACK_REQUIRED,
+    CONF_CODE_MODE_REQUIRED,
     CONF_CODE_ARM_REQUIRED,
     CONF_CODE_HASH,
     CONF_CODE_SALT,
@@ -429,6 +430,8 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "main_code": bool(entry.options.get(CONF_CODE_HASH)),
                 "code_arm_required": ctl.code_arm_required,
                 "code_ack_required": ctl.code_ack_required,
+                # Gespeicherter Wert (Standard an), unabhängig davon, ob schon ein Code gesetzt ist; wirksam ist er nur mit Code
+                "code_mode_required": entry.options.get(CONF_CODE_MODE_REQUIRED, True) is not False,
                 "events": entry.runtime_data.events.events[:20],
                 # Einrichtungsassistent (1.69.0): Zustand, Schritt und ob er jetzt erscheint
                 "wizard": settings.wizard_payload(entry.entry_id),
@@ -799,6 +802,7 @@ async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) 
         vol.Optional("open_sensors"): vol.In(OPEN_SENSOR_MODES),
         vol.Optional("confirm_window"): vol.All(vol.Coerce(int), vol.Range(min=5, max=MAX_CONFIRM_WINDOW)),
         vol.Optional("code_ack_required"): bool,
+        vol.Optional("code_mode_required"): bool,
     }
 )
 @websocket_api.require_admin
@@ -840,6 +844,9 @@ async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             connection.send_error(msg["id"], "code_missing", "Add a code first")
             return
         options[CONF_CODE_ACK_REQUIRED] = msg["code_ack_required"]
+    if "code_mode_required" in msg:
+        # Ohne Code ohne Wirkung; gespeichert wird er trotzdem, damit er gilt, sobald ein Code dazukommt (Standard an)
+        options[CONF_CODE_MODE_REQUIRED] = msg["code_mode_required"]
     if "night_enabled" in msg:
         options[CONF_NIGHT_ENABLED] = msg["night_enabled"]
     for scope, values in msg.get("mode_settings", {}).items():

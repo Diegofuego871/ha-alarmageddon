@@ -126,6 +126,7 @@ export class SystemUi {
       realarmCount: Number.isInteger(s.realarm_count) ? s.realarm_count : 3,
       accent: s.accent || "ha", // Akzentfarbe der Anlage (1.75.0)
       ackCode: Boolean(s.code_ack_required) && Boolean(s.has_code), // Quittieren verlangt den Code (nur mit einem Code)
+      modeCode: s.code_mode_required !== false && Boolean(s.has_code), // Moduswechsel verlangt den Code (1.88.0, Standard an, nur mit einem Code)
       auto: this.autoOf(this.host._data?.auto_backup),
       // Abstand des Selbsttests (1.65.0, Kapitel HealthCheck; gilt für alle Anlagen, gespeichert in den Benachrichtigungen): nicht scharf und solange
       // eine Anlage scharf ist (Wunsch des Nutzers 2026-11-19: zwei Zeiten); je Zahl und Einheit, gespeichert in Minuten (seit 1.67.0)
@@ -169,6 +170,7 @@ export class SystemUi {
     if (a.realarm !== d.realarm || (d.realarm && a.realarmCount !== d.realarmCount)) n += 1;
     if (a.accent !== d.accent) n += 1;
     if (a.ackCode !== d.ackCode) n += 1;
+    if (a.modeCode !== d.modeCode) n += 1;
     if (JSON.stringify(a.auto) !== JSON.stringify(d.auto)) n += 1;
     // Zählt der Abstand, nicht die Einheit (6 Stunden und 360 Minuten sind dasselbe)
     for (const k of ["stOff", "stOn"]) if (!Object.is(stMinutes(a[k]), stMinutes(d[k]))) n += 1;
@@ -263,7 +265,7 @@ export class SystemUi {
           <button class="ag-btn" data-sys="code-open">${ic("key", 18)}${esc(this._t("codesShow"))}</button></div></div>
       <div class="ag-coderow"><span class="ag-oav">${ic("lockClosed", 20)}</span><span class="ag-grow"><b>${esc(this._t("sysCodeMain"))}</b><small class="ag-t2">${esc(this._t(s.main_code ? "sysCodeMainSet" : "sysCodeMainNone"))}</small></span>
         <button class="ag-btn" data-sys="code">${ic("cog", 18)}${esc(this._t("sysCodeOpen"))}</button></div>
-      ${this._ackRow(d, Boolean(s.has_code))}</div>`, this._t("sysCodesHint"));
+      ${this._ackRow(d, Boolean(s.has_code))}${this._modeCodeRow(d, Boolean(s.has_code))}</div>`, this._t("sysCodesHint"));
   }
 
   _codeListDlg() {
@@ -344,6 +346,14 @@ export class SystemUi {
     const on = Boolean(d?.ackCode) && hasCode;
     return `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("sysAckCode"))}</b><small>${esc(this._t(hasCode ? "sysAckCodeHint" : "sysAckCodeNone"))}</small></div>
       <button class="ag-toggle ${on ? "on" : ""}" data-sys="ackcode" role="switch" aria-checked="${on}" aria-label="${esc(this._t("sysAckCode"))}" ${hasCode ? "" : "disabled"}></button></div>`;
+  }
+
+  // Moduswechsel verlangt den Code (1.87.0 immer, Schalter seit 1.88.0, Standard an): im scharfen Zustand und in der Ausgangsverzögerung. Ohne Code
+  // gesperrt wie "Quittieren verlangt den Code"
+  _modeCodeRow(d, hasCode) {
+    const on = Boolean(d?.modeCode) && hasCode;
+    return `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("sysModeCode"))}</b><small>${esc(this._t(hasCode ? "sysModeCodeHint" : "sysAckCodeNone"))}</small></div>
+      <button class="ag-toggle ${on ? "on" : ""}" data-sys="modecode" role="switch" aria-checked="${on}" aria-label="${esc(this._t("sysModeCode"))}" ${hasCode ? "" : "disabled"}></button></div>`;
   }
 
   // Eigene Töne (1.39.0, Fenster seit 1.56.0): gelten für alle Anlagen und alle Arten von Tönen; sofort gespeichert, nicht Teil des Entwurfs.
@@ -1100,8 +1110,11 @@ export class SystemUi {
       const saved = await h._hass.callWS({ type: "alarmageddon/save_system", entry_id: s.entry_id, mode_settings, per_mode_settings: d.perMode,
         home_enabled: d.modes.home, away_enabled: d.modes.away, night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, routines: d.routines,
         realarm_enabled: d.realarm, ...(d.realarm ? { realarm_count: d.realarmCount } : {}),
-        ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}) });
+        ...(s.has_code || s.code_ack_required ? { code_ack_required: d.ackCode && Boolean(s.has_code) } : {}),
+        // Nur mit einem Code: ohne Code bleibt der gespeicherte Wert (Standard an) und gilt, sobald ein Code dazukommt
+        ...(s.has_code ? { code_mode_required: d.modeCode } : {}) });
       Object.assign(s, { per_mode_settings: d.perMode, mode_settings: JSON.parse(JSON.stringify(mode_settings)), night_enabled: d.modes.night, always_enabled: d.always, monitor_enabled: d.monitor, accent: d.accent, modes, routines: JSON.parse(JSON.stringify(d.routines)), code_ack_required: d.ackCode && Boolean(s.has_code),
+        ...(s.has_code ? { code_mode_required: d.modeCode } : {}),
         realarm_enabled: d.realarm, ...(d.realarm ? { realarm_count: d.realarmCount } : {}) });
       // Abstand des Selbsttests (1.65.0): nur dieser Wert der Benachrichtigungen, alles andere bleibt, wie es ist
       const stBase = this.base(s);
@@ -1264,6 +1277,10 @@ export class SystemUi {
       this.render();
     } else if (act === "ackcode") {
       d.ackCode = !d.ackCode;
+      this.saveState = null;
+      this.render();
+    } else if (act === "modecode") {
+      d.modeCode = !d.modeCode;
       this.saveState = null;
       this.render();
     } else if (act === "always") {

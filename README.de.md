@@ -116,7 +116,7 @@ Eine Alarmanlage muss funktionieren, wenn etwas anderes es nicht tut. Das ist ei
 
 - **Neustart und Absturz:** Jeder Wechsel des Zustands wird sofort geschrieben. Eine Eingangsverzögerung, die während eines Neustarts abläuft, wird zum Alarm; ein laufender Alarm geht weiter.
 - **Nichts hält die Sirene auf:** Ein Gerät, das nicht antwortet, wird nach 10 Sekunden übergangen; ein scheiternder Schritt stoppt den Rest nie; ein Wächter startet den Ablauf selbst, wenn er ausbleibt.
-- **Codes:** nur als Hash mit Salz gespeichert, nie angezeigt, nie in einem Backup. Fünf falsche Codes sperren die Codes für eine Minute, jede weitere Sperre länger (bis 15 Minuten); die Sperre übersteht Speichern und Neustart, jeder falsche Code steht im Protokoll, und eine Sperre kommt als Push-Meldung. Auch der Wechsel zwischen Modi im scharfen Zustand verlangt den Code.
+- **Codes:** nur als Hash mit Salz gespeichert, nie angezeigt, nie in einem Backup. Fünf falsche Codes sperren die Codes für eine Minute, jede weitere Sperre länger (bis 15 Minuten); die Sperre übersteht Speichern und Neustart, jeder falsche Code steht im Protokoll, und eine Sperre kommt als Push-Meldung. Auch der Wechsel zwischen Modi im scharfen Zustand verlangt den Code (je Anlage abschaltbar).
 - **Nur Administratoren** erreichen das Panel und seine Befehle. Knöpfe in Push-Meldungen wirken nur vom Handy eines Empfängers.
 - **Ausfälle:** Ein Sensor, der im scharfen Zustand nicht mehr antwortet, wird gemeldet (höchstens alle 10 Minuten je Sensor) oder zählt auf Wunsch als Alarm. Ein Sensor, der zu war, ausfällt und offen zurückkommt, gilt als geöffnet (nach 2 Sekunden). Türen, Fenster und Bewegungsmelder müssen beim Scharfschalten erreichbar sein (einstellbar je Sensorart und je Sensor).
 - **Während eines Alarms:** Ein weiterer Sensor wird gemeldet; mit "Nachalarm" laufen die Alarmaktionen erneut, wenn sie vorbei sind (standardmässig aus, höchstens 1 bis 10 Mal). Quittieren und sofort ein neuer Alarm schalten die Sirene des neuen Alarms nicht mehr ab.
@@ -137,7 +137,7 @@ Alarmageddon ist keine zertifizierte Alarmanlage:
 
 1. Die Alarm-Entität in die HomeKit Bridge von Home Assistant aufnehmen (Domäne `alarm_control_panel` oder die Entität einschliessen).
 2. Apple Home zeigt "Aus" und die eingeschalteten Modi.
-3. Mit Code: HomeKit fragt nicht danach. Trage ihn in der Konfiguration der HomeKit Bridge ein (`entity_config` → `code`) oder als Standardcode in den Einstellungen der Entität. Seit 1.87.0 verlangt auch der Wechsel zwischen Modi im scharfen Zustand den Code; ist er dort eingetragen, wechselt Apple Home wie bisher.
+3. Mit Code: HomeKit fragt nicht danach. Trage ihn in der Konfiguration der HomeKit Bridge ein (`entity_config` → `code`) oder als Standardcode in den Einstellungen der Entität. Seit 1.87.0 verlangt auch der Wechsel zwischen Modi im scharfen Zustand den Code; ist er dort eingetragen, wechselt Apple Home wie bisher. Seit 1.88.0 lässt sich das je Anlage abschalten (Konfiguration › Anlage › "Moduswechsel verlangt den Code"). `entity_config` gehört zur YAML-Konfiguration der HomeKit Bridge; ein Standardcode gilt für jeden Aufruf ohne Code, auch fürs Deaktivieren.
 
 ## Mehr erfahren
 

@@ -65,6 +65,7 @@ from .const import (
     OPT_OPEN_OK,
     CODE_MAX_ATTEMPTS,
     CONF_CODE_ACK_REQUIRED,
+    CONF_CODE_MODE_REQUIRED,
     CONF_CODE_ARM_REQUIRED,
     CONF_CODE_HASH,
     CONF_CODES,
@@ -341,6 +342,14 @@ class AlarmController:
     def code_ack_required(self) -> bool:
         """Quittieren verlangt den Code (1.34.0): nur mit einem Code, vom Administrator eingeschaltet."""
         return self.has_code and bool(self.options.get(CONF_CODE_ACK_REQUIRED, False))
+
+    @property
+    def code_mode_required(self) -> bool:
+        """
+        Moduswechsel einer scharfen (oder scharf werdenden) Anlage verlangt den Code (1.87.0, einstellbar seit 1.88.0). Standard an; nur der
+        gespeicherte Wert False schaltet es ab (ein fehlender oder beschädigter Wert lässt den Schutz an). Nur mit einem Code.
+        """
+        return self.has_code and self.options.get(CONF_CODE_MODE_REQUIRED, True) is not False
 
     # ----- Optionen pro Sensor -----
 
@@ -955,10 +964,12 @@ class AlarmController:
             raise _error("disarm_first")
         # Wechsel des Modus einer scharfen (oder scharf werdenden) Anlage verlangt den Code (1.87.0, Entscheid des Nutzers, Code-Review M3): er kann
         # den Schutz schwächen (Bewegungsmelder aus der Überwachung) und startet eine Ausgangsverzögerung, in der die Zone nicht überwacht wird
+        # Abschaltbar seit 1.88.0 ("Moduswechsel verlangt den Code", Standard an): aus gilt wie bis 1.86.x nur "Code zum Scharfschalten"
         armed = self.state == AlarmControlPanelState.ARMING or self.state in STATE_MODE
-        if self.has_code and armed and not skip_code and not code:
+        mode_code = armed and self.code_mode_required
+        if mode_code and not skip_code and not code:
             raise _error("code_mode_change")
-        if (self.code_arm_required or (self.has_code and armed)) and not skip_code:
+        if (self.code_arm_required or mode_code) and not skip_code:
             changed_by = await self._async_check_code(code) or changed_by
             # Die Code-Prüfung läuft im Executor: löst währenddessen ein Sensor aus, darf das Scharfschalten die laufende
             # Eingangsverzögerung oder den Alarm nicht still beenden (Sicherheitsregel: im Zweifel alarmieren)

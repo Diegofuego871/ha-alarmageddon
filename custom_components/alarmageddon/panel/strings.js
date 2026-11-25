@@ -763,6 +763,8 @@ export const STRINGS = {
     sysAckCode: "Acknowledging asks for the code",
     sysAckCodeHint: "Applies to the dashboard cards and the action alarmageddon.acknowledge (anyone who can use the card may acknowledge an alarm). Administrators acknowledge in this panel without a code. Off: no code needed, acknowledging switches nothing off, a new trigger alarms again.",
     sysAckCodeNone: "Needs a code first (main code or code per person).",
+    sysModeCode: "Switching modes asks for the code",
+    sysModeCodeHint: "While armed or during the exit delay, switching between Home, Away and Night needs the code (for example on dashboard cards, from voice assistants or in Apple Home). Off: switching asks for the code only if arming does. Routines and the buttons of the message \"Arming not possible\" never need it.",
     // Dashboard-Karten (1.34.0)
     cardPickControl: "Alarmageddon: Control",
     cardPickControlText: "State, choose the mode, ready to arm, and the red alarm band with Acknowledge and Disarm.",
@@ -2928,6 +2930,8 @@ export const STRINGS = {
     sysAckCode: "Quittieren verlangt den Code",
     sysAckCodeHint: "Gilt für die Dashboard-Karten und die Aktion alarmageddon.acknowledge (wer die Karte benutzen darf, darf einen Alarm quittieren). Administratoren quittieren in diesem Panel ohne Code. Aus: kein Code nötig, Quittieren schaltet nichts ab, ein neuer Auslöser alarmiert wieder.",
     sysAckCodeNone: "Braucht zuerst einen Code (Hauptcode oder Code pro Person).",
+    sysModeCode: "Moduswechsel verlangt den Code",
+    sysModeCodeHint: "Im scharfen Zustand und während der Ausgangsverzögerung braucht der Wechsel zwischen Anwesend, Abwesend und Nacht den Code (zum Beispiel auf Dashboard-Karten, über Sprachassistenten oder in Apple Home). Aus: der Wechsel verlangt den Code nur, wenn auch das Scharfschalten ihn verlangt. Routinen und die Knöpfe der Meldung \"Scharfschalten nicht möglich\" brauchen ihn nie.",
     cardPickControl: "Alarmageddon: Bedienteil",
     cardPickControlText: "Zustand, Modus wählen, Bereit für und das rote Alarmband mit Quittieren und Deaktivieren.",
     cardPickStatus: "Alarmageddon: Status",

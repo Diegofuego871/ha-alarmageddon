@@ -116,7 +116,7 @@ An alarm system has to work when something else does not. This is built in and c
 
 - **Restart and crash:** every change of state is written at once. An entry delay that runs out during a restart becomes an alarm; a running alarm continues.
 - **Nothing holds up the siren:** a device that does not answer is skipped after 10 seconds; a failing step never stops the rest; a watchdog starts the flow itself if it fails to begin.
-- **Codes:** stored only as a salted hash, never shown, never in a backup. Five wrong codes lock the codes for one minute, each further lockout for longer (up to 15 minutes); the lockout survives saving and restarting, every wrong code is in the log, and a lockout is reported by push. Switching between modes while armed asks for the code too.
+- **Codes:** stored only as a salted hash, never shown, never in a backup. Five wrong codes lock the codes for one minute, each further lockout for longer (up to 15 minutes); the lockout survives saving and restarting, every wrong code is in the log, and a lockout is reported by push. Switching between modes while armed asks for the code too (can be switched off per alarm system).
 - **Administrators only** reach the panel and its commands. Buttons in push notifications only work from the phone of a recipient.
 - **Failures:** a sensor that stops answering while armed is reported (at most every 10 minutes per sensor), or counts as an alarm if you like. A sensor that was closed, drops out and comes back open counts as opened (after 2 seconds). Doors, windows and motion sensors must be reachable when arming (adjustable per sensor type and per sensor).
 - **During an alarm:** another sensor is reported; with "Re-alarm" the alarm actions run again once they are over (off by default, at most 1 to 10 times). Acknowledging and an immediate new alarm no longer switch off the siren of the new alarm.
@@ -137,7 +137,7 @@ Alarmageddon is not a certified alarm system:
 
 1. Add the alarm entity to the HomeKit Bridge of Home Assistant (include the domain `alarm_control_panel` or the entity).
 2. Apple Home shows "Off" and the modes that are switched on.
-3. With a code: HomeKit does not ask for it. Set it in the HomeKit Bridge configuration (`entity_config` → `code`) or as default code in the entity settings. Since 1.87.0 switching between modes while armed needs the code as well; with the code set there, Apple Home switches as before.
+3. With a code: HomeKit does not ask for it. Set it in the HomeKit Bridge configuration (`entity_config` → `code`) or as default code in the entity settings. Since 1.87.0 switching between modes while armed needs the code as well; with the code set there, Apple Home switches as before. Since 1.88.0 this can be switched off per alarm system (Configuration › Alarm system › "Switching modes asks for the code"). `entity_config` is part of the YAML configuration of the HomeKit Bridge; a default code applies to every call without a code, disarming included.
 
 ## Learn more
 

@@ -7,7 +7,20 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.88.0] - 2026-11-24
+
+### Hinzugefügt
+
+- **"Moduswechsel verlangt den Code" je Anlage:** Seit 1.87.0 verlangt der Wechsel zwischen "Anwesend", "Abwesend" und "Nacht" im scharfen Zustand oder während der Ausgangsverzögerung den Code. Der neue Schalter unter Konfiguration › Anlage (neben "Quittieren verlangt den Code", und im Optionsdialog von Home Assistant unter "Verhalten") schaltet das ab. Standardmässig an, auch für bestehende Anlagen; ein beschädigter gespeicherter Wert lässt ihn an. Aus: der Wechsel verlangt den Code nur, wenn auch das Scharfschalten ihn verlangt ("Code zum Scharfschalten"), wie bis 1.86.x. Wirkt nur mit einem Code; Deaktivieren verlangt den Code immer. Teil des Backups.
+- Die Alarm-Entität hat das Attribut `code_mode_required` (der wirksame Wert).
+
+### Geändert
+
+- Die Dashboard-Karte fragt beim Moduswechsel nur dann nach dem Code, wenn die Anlage ihn verlangt (Attribut `code_mode_required`).
+
 ## [1.87.0] - 2026-11-24
+
+Nicht veröffentlicht; enthalten in 1.88.0.
 
 Ergebnis eines vollständigen Code-Reviews der Alarmlogik (2026-11-24). Jeder Befund wurde zuerst mit einem Test gegen 1.86.2 nachgestellt; die Tests sichern jetzt die Korrekturen.
 
@@ -2344,7 +2357,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.87.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.87.0
+[1.88.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.88.0
 [1.86.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.2
 [1.86.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.1
 [1.86.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.0

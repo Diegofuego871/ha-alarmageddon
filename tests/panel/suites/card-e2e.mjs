@@ -89,6 +89,16 @@ for (const lang of ["de", "en"]) {
       const s = await open("&code=1&ack=1");
       await s.page.evaluate(() => window.__setState("alarm_control_panel.wohnung", "armed_away", { arm_mode: "away" }));
       await s.waitFor("return root(0).querySelector('.ag-sys-state').textContent !== ''");
+      // Moduswechsel im scharfen Zustand: verlangt den Code (1.87.0), seit 1.88.0 abschaltbar (Attribut code_mode_required der Anlage)
+      await s.tap('.ag-seg [data-mode="home"]');
+      check(`${tag}: Moduswechsel scharf: Code-Fenster, noch kein Aufruf`, await s.waitFor("return !!root(0).querySelector('dialog.ag-dlg')?.open") && await s.ev("return window.__calls.length === 0"));
+      await s.page.keyboard.press("Escape");
+      await s.waitFor("return !root(0).querySelector('dialog.ag-dlg')?.open");
+      await s.page.evaluate(() => window.__setState("alarm_control_panel.wohnung", "armed_away", { arm_mode: "away", code_mode_required: false }));
+      await s.tap('.ag-seg [data-mode="home"]');
+      check(`${tag}: "Moduswechsel verlangt den Code" aus: Wechsel ohne Code-Fenster, Aufruf ohne Code`, await s.waitFor("return window.__calls.some((c) => c.service === 'alarm_arm_home' && !('code' in c.data))") && await s.ev("return !root(0).querySelector('dialog.ag-dlg')?.open"));
+      await s.page.evaluate(() => { window.__calls.length = 0; window.__setState("alarm_control_panel.wohnung", "armed_away", { arm_mode: "away", code_mode_required: true }); });
+      await s.waitFor("return root(0).querySelector('.ag-seg > button.on')?.dataset.mode === 'away'");
       await s.tap('.ag-seg [data-mode="off"]');
       check(`${tag}: Deaktivieren mit Code: Fenster, noch kein Aufruf`, await s.waitFor("return !!root(0).querySelector('dialog.ag-dlg')?.open") && await s.ev("return window.__calls.length === 0"));
       await s.page.keyboard.type("0000");
