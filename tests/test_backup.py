@@ -64,8 +64,8 @@ async def test_round_trip(hass: HomeAssistant, hass_ws_client) -> None:
     assert entry.options["entry_delay"] == 45
     assert entry.options["zone_away"] == [FRONT_DOOR, WINDOW, MOTION]
     assert hass.data[DATA_SETTINGS].notify["types"]["triggered"]["volume"] == 0.9
-    # Der Code der Anlage bleibt
-    assert entry.options["code_hash"] == code_hash
+    # Der Code der Anlage bleibt (der Hauptcode aus 1.89.x ist seit 1.90.0 beim Laden ein Code pro Person geworden)
+    assert [c["hash"] for c in entry.options["codes"]] == [code_hash] and "code_hash" not in entry.options
 
 
 async def test_invalid_backup_rejected(hass: HomeAssistant, hass_ws_client) -> None:

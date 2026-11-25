@@ -6,7 +6,9 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.alarmageddon.code import verify_code
+import pytest
+import voluptuous as vol
+
 from custom_components.alarmageddon.const import DOMAIN
 
 from .conftest import FRONT_DOOR, MOTION, WINDOW, setup_alarm
@@ -19,18 +21,16 @@ async def _create(hass: HomeAssistant, **data):
 
 
 async def test_create_alarm_system(hass: HomeAssistant) -> None:
-    result = await _create(hass, name="Haus", night_enabled=True, code="2468")
+    result = await _create(hass, name="Haus", night_enabled=True)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Haus"
     options = result["options"]
     assert options["night_enabled"] is True
-    # Code nur als Hash, nie im Klartext
-    # Hash und Salz sind Hexwerte und können die Ziffern "2468" zufällig enthalten: nur die übrigen Felder prüfen
-    others = {k: v for k, v in {**result["data"], **options}.items() if k not in ("code_hash", "code_salt")}
-    assert "2468" not in str(others) and options["code_hash"] != "2468" and options["code_salt"] != "2468"
-    assert verify_code("2468", options["code_hash"], options["code_salt"])
+    # Seit 1.90.0 ohne Code: es gibt keinen Hauptcode mehr, Codes pro Person entstehen nur im Panel
+    assert not {"code_hash", "code_salt", "codes"} & set(options)
     await hass.async_block_till_done()
     assert hass.states.get("alarm_control_panel.haus") is not None
+    assert hass.states.get("alarm_control_panel.haus").attributes["code_format"] is None
 
 
 async def test_several_entries_but_unique_names(hass: HomeAssistant) -> None:
@@ -53,9 +53,16 @@ async def test_empty_name_is_refused(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.FORM and result["errors"] == {"name": "name_required"}
 
 
-async def test_invalid_code(hass: HomeAssistant) -> None:
-    result = await _create(hass, name="Haus", code="12a")
-    assert result["errors"] == {"code": "invalid_code_format"}
+async def test_setup_has_no_code_field(hass: HomeAssistant) -> None:
+    """
+    Seit 1.90.0 (Entscheid des Nutzers 2026-11-25: Hauptcode abschaffen) fragt die Einrichtung nicht mehr nach einem Code. Ein Code im Aufruf
+    (alte Automatisierung, altes Skript) wird abgelehnt und legt nie einen Hauptcode an.
+    """
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    assert [str(k) for k in result["data_schema"].schema] == ["name", "night_enabled"]
+    with pytest.raises(vol.Invalid):
+        await hass.config_entries.flow.async_configure(result["flow_id"], {"name": "Haus", "code": "2468"})
+    assert not hass.config_entries.async_entries(DOMAIN)
 
 
 def _sections(**changes):
@@ -69,7 +76,6 @@ def _sections(**changes):
             "entry_sensors": [FRONT_DOOR],
         },
         "behaviour": {"night_enabled": False, "code_arm_required": False},
-        "code_section": {"remove_code": False},
     }
     for key, value in changes.items():
         data[key] = {**data[key], **value}
@@ -97,26 +103,14 @@ async def test_options_entry_sensor_must_be_in_zone(hass: HomeAssistant) -> None
     assert result["errors"] == {"base": "entry_not_in_zone"}
 
 
-async def test_options_set_and_remove_code(hass: HomeAssistant) -> None:
+async def test_options_dialog_has_no_code_section(hass: HomeAssistant) -> None:
+    """Seit 1.90.0 setzt der Optionsdialog keinen Code mehr; ein Abschnitt "Code" im Aufruf wird abgelehnt und ändert nichts."""
     entry = await setup_alarm(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], _sections(code_section={"code": "13579"})
-    )
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert verify_code("13579", entry.options["code_hash"], entry.options["code_salt"])
-    await hass.async_block_till_done()
-
-    # Leeres Feld behält den Code
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-    await hass.config_entries.options.async_configure(result["flow_id"], _sections())
-    await hass.async_block_till_done()
-    assert verify_code("13579", entry.options["code_hash"], entry.options["code_salt"])
-
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-    await hass.config_entries.options.async_configure(result["flow_id"], _sections(code_section={"remove_code": True}))
-    await hass.async_block_till_done()
-    assert "code_hash" not in entry.options
+    assert [str(k) for k in result["data_schema"].schema] == ["zones", "delays", "behaviour"]
+    with pytest.raises(vol.Invalid):
+        await hass.config_entries.options.async_configure(result["flow_id"], {**_sections(), "code_section": {"code": "13579"}})
+    assert not {"code_hash", "code_salt"} & set(entry.options) and not entry.options.get("codes")
 
 
 async def test_options_arm_code_needs_code(hass: HomeAssistant) -> None:
@@ -128,21 +122,29 @@ async def test_options_arm_code_needs_code(hass: HomeAssistant) -> None:
     assert result["errors"] == {"base": "code_missing"}
 
 
-async def test_options_main_code_never_equals_a_personal_code(hass: HomeAssistant, hass_ws_client) -> None:
-    """
-    Ein neuer Hauptcode darf keinem persönlichen Code gleichen (1.63.0, wie add_code und update_code umgekehrt): sonst wäre "geändert von"
-    leer, obwohl die Person ihren Code getippt hat. Der Dialog zeigt den Fehler, der bisherige Hauptcode bleibt.
-    """
+@pytest.mark.parametrize(
+    "codes",
+    [[{"id": "a", "name": "Ohne Hash", "user_id": None, "salt": "00ff"}], [{"id": "b", "name": "Ohne Salz", "user_id": None, "hash": "00ff"}], ["kein Eintrag"]],
+    ids=["ohne_hash", "ohne_salz", "kein_eintrag"],
+)
+@pytest.mark.parametrize("switch", ["code_arm_required", "code_ack_required"])
+async def test_options_code_switches_need_a_complete_code(hass: HomeAssistant, codes: list, switch: str) -> None:
+    """Seit 1.90.0 zählt wie beim Entfernen nur ein vollständiger Code (bis 1.89.x genügte irgendein Eintrag in der Liste)."""
+    entry = await setup_alarm(hass, codes=codes)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], _sections(behaviour={switch: True}))
+    assert result["errors"] == {"base": "code_missing"}
+    assert entry.options.get(switch) is not True
+
+
+async def test_options_arm_code_with_a_personal_code(hass: HomeAssistant, hass_ws_client) -> None:
+    """Mit einem Code pro Person (seit 1.90.0 die einzigen Codes) lässt der Dialog "Code zum Scharfschalten" einschalten."""
     entry = await setup_alarm(hass)
     client = await hass_ws_client(hass)
     await client.send_json_auto_id({"type": "alarmageddon/add_code", "entry_id": entry.entry_id, "name": "Anna", "code": "5678"})
     assert (await client.receive_json())["success"]
     await hass.async_block_till_done()
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(result["flow_id"], _sections(code_section={"code": "5678"}))
-    assert result["type"] is FlowResultType.FORM and result["errors"] == {"base": "code_taken"}
-    assert "code_hash" not in entry.options
-    # Ein anderer Code geht
-    result = await hass.config_entries.options.async_configure(result["flow_id"], _sections(code_section={"code": "9753"}))
+    result = await hass.config_entries.options.async_configure(result["flow_id"], _sections(behaviour={"code_arm_required": True}))
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert verify_code("9753", entry.options["code_hash"], entry.options["code_salt"])
+    assert entry.options["code_arm_required"] is True and [c["name"] for c in entry.options["codes"]] == ["Anna"]

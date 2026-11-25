@@ -33,7 +33,7 @@ from homeassistant.helpers.event import async_call_later, async_track_time_chang
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, DATA_HEALTHCHECK, CONF_CODE_ACK_REQUIRED, CONF_CODE_HASH, CONF_CODES, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS, MODE_ENABLED_DEFAULT, MODE_ENABLED_KEY
+from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, DATA_HEALTHCHECK, CONF_CODE_ACK_REQUIRED, CONF_CODES, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS, MODE_ENABLED_DEFAULT, MODE_ENABLED_KEY
 from .custom_sounds import valid_backup_sounds
 from .monitor import check_monitors
 from .routines import check_routines, migrate_options
@@ -237,9 +237,12 @@ async def async_restore(hass: HomeAssistant, backup: dict[str, Any], mapping: li
 
 
 def _has_code(entry: ConfigEntry) -> bool:
-    """Hat die Anlage einen Code? Wie AlarmController.has_code, aber aus den Optionen (auch für eine Anlage, die nicht geladen ist)."""
-    codes = entry.options.get(CONF_CODES) or []
-    return bool(entry.options.get(CONF_CODE_HASH)) or any(isinstance(c, dict) and c.get("hash") and c.get("salt") for c in codes)
+    """
+    Hat die Anlage einen Code? Wie AlarmController.has_code, aber aus den Optionen (auch für eine Anlage, die nicht geladen ist). Seit 1.90.0 nur
+    vollständige Codes pro Person: einen Hauptcode gibt es nicht mehr (ein früherer ist beim Laden ein Code pro Person geworden,
+    __init__._migrate_main_code), und Ziel eines Backups ist immer eine geladene oder eine neue Anlage.
+    """
+    return any(isinstance(c, dict) and c.get("hash") and c.get("salt") for c in entry.options.get(CONF_CODES) or [])
 
 
 # ----- Sicherungen in der Integration (0.38.0): bis zu MAX_BACKUPS, neueste zuerst -----

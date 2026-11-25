@@ -6,7 +6,7 @@
 // "Weiter" speichert den Schritt; der Server merkt sich den Schritt, damit es nach "Später" genau dort weitergeht.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, onceBtn, DC, OPENINGS, MOTION, AIR, measureKind, MODE_KEY, MODE_ICON, errText, matchQuery, searchField } = await import(`./common.js${V}`);
+const { ic, esc, onceBtn, DC, OPENINGS, MOTION, AIR, measureKind, MODE_KEY, MODE_ICON, errText, matchQuery, searchField, rowIcon } = await import(`./common.js${V}`);
 
 export const WZ_STEPS = ["welcome", "modes", "sensors", "zones", "code", "notify", "actions", "monitor", "done"];
 const ALL_MODES = ["home", "away", "night"];
@@ -581,8 +581,9 @@ export class WizardUi {
     const num = (key, value, mark) => `<span class="ag-num ${mark ? "bad" : ""}"><input type="number" min="0" max="3600" step="1" inputmode="numeric" data-wz="${key}" value="${esc(value)}" aria-label="${esc(this._t(key === "exit" ? "wzExit" : "wzEntry", { mode: this._t("modeAway") }))}"><span class="ag-t2">${esc(this._t("seconds"))}</span></span>`;
     const first = modes.includes("away") ? "away" : modes[0] || "away";
     const entries = [...new Set(modes.map((m) => d.per[m].entry_delay))];
-    const exitRow = modes.includes("away") ? `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzExit", { mode: this._t("modeAway") }))}</b><small>${esc(this._t("wzExitHint"))}</small></div>${num("exit", d.per.away.exit_delay, bad.has("away.exit_delay"))}</div>` : "";
-    const entryRow = `<div class="ag-setrow"><div class="ag-settx"><b>${esc(this._t("wzEntry"))}</b><small>${esc(this._t("wzEntryHint"))}${entries.length > 1 ? ` ${esc(this._t("wzEntryMixed"))}` : ""}</small></div>${num("entry", d.per[first].entry_delay, modes.some((m) => bad.has(`${m}.entry_delay`)))}</div>`;
+    // Symbole wie unter Konfiguration › Anlage › Zeiten (1.90.0)
+    const exitRow = modes.includes("away") ? `<div class="ag-setrow">${rowIcon("timer")}<div class="ag-settx"><b>${esc(this._t("wzExit", { mode: this._t("modeAway") }))}</b><small>${esc(this._t("wzExitHint"))}</small></div>${num("exit", d.per.away.exit_delay, bad.has("away.exit_delay"))}</div>` : "";
+    const entryRow = `<div class="ag-setrow">${rowIcon("doorOpen")}<div class="ag-settx"><b>${esc(this._t("wzEntry"))}</b><small>${esc(this._t("wzEntryHint"))}${entries.length > 1 ? ` ${esc(this._t("wzEntryMixed"))}` : ""}</small></div>${num("entry", d.per[first].entry_delay, modes.some((m) => bad.has(`${m}.entry_delay`)))}</div>`;
     return `${this._entryHtml()}${this._info("doorOpen", this._t("wzEntryInfo"))}${this._chap(this._t("chapTimes"), `<div class="ag-card ag-setlist">${exitRow}${entryRow}</div>`)}`;
   }
 
@@ -614,14 +615,14 @@ export class WizardUi {
     if (post) this.host._setHtml(post, this._postHtml());
   }
 
-  // Ein Hauptcode (aus der Einrichtung in Home Assistant oder unter Anlage › Hauptcode) zählt als Code: dann nie "Noch kein Code"
+  // Seit 1.90.0 gibt es nur noch Codes pro Person (kein Hauptcode mehr; einer aus 1.89.x ist beim Laden ein Code pro Person geworden)
   _hasCode(s = this.system) {
-    return Boolean((s?.codes || []).length || s?.main_code);
+    return Boolean((s?.codes || []).length);
   }
 
-  // Seit 1.89.0 (Wunsch des Nutzers 2026-11-25: alle Einstellungen zum Code auch im Assistenten): Codes pro Person, der Hauptcode (festlegen, ändern,
-  // entfernen) und mit einem Code die Schalter, wann er verlangt wird. Zeile und Schalter sind dieselben wie unter Konfiguration › Anlage (SystemUi);
-  // die Schalter gehören zum Entwurf der Seite Anlage und werden mit "Weiter" gespeichert (_saveStep), Codes sofort wie dort.
+  // Seit 1.89.0 (Wunsch des Nutzers 2026-11-25: alle Einstellungen zum Code auch im Assistenten): Codes pro Person und mit einem Code die Schalter,
+  // wann er verlangt wird. Die Schalter sind dieselben wie unter Konfiguration › Anlage (SystemUi), gehören zum Entwurf der Seite Anlage und werden
+  // mit "Weiter" gespeichert (_saveStep), Codes sofort wie dort. Die Zeile des Hauptcodes gibt es seit 1.90.0 nicht mehr.
   _codeHtml() {
     const h = this.host;
     const s = this.system;
@@ -630,8 +631,7 @@ export class WizardUi {
     const title = codes.length ? this._t("wzCodeSome", { names }) : this._t("wzCodePersonNone");
     const card = `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum ag-codesum"><span class="ag-oav ag-tint ag-tint-codes ${codes.length ? "on" : ""}">${ic("hand", 20)}</span>
         <div class="ag-settx"><b>${esc(title)}</b></div>
-        <div class="ag-btnrow"><button class="ag-btn ${this._hasCode(s) ? "" : "primary"}" data-wz="code-add">${ic("plus", 18)}${esc(this._t("codeAdd"))}</button></div></div>
-      ${s ? h.systemUi.mainRowHtml(s) : ""}</div>`;
+        <div class="ag-btnrow"><button class="ag-btn ${this._hasCode(s) ? "" : "primary"}" data-wz="code-add">${ic("plus", 18)}${esc(this._t("codeAdd"))}</button></div></div></div>`;
     const switches = s?.has_code ? this._chap(this._t("wzCodeWhen"), `<div class="ag-card ag-setlist ag-codes">${h.systemUi.codeSwitchesHtml(h.systemUi.ensureDraft())}</div>`) : "";
     return `${card}${switches}${this._info("check", esc(this._t("wzCodeHash")), "ok")}${this._info("hand", this._t("wzCodeMore"))}`;
   }
@@ -848,7 +848,7 @@ export class WizardUi {
       return this._t("wzSumSensors", { n, entry, exit: `${ms.away?.exit_delay ?? 0} s`, delay: `${ms[first]?.entry_delay ?? 0} s` });
     }
     if (step === "code") {
-      const names = [...(s.codes || []).map((c) => c.name), ...(s.main_code ? [this._t("wzSumMain")] : [])];
+      const names = (s.codes || []).map((c) => c.name);
       return names.length ? this._t("wzSumCodes", { names: names.join(", ") }) : this._t("wzSumNoCode");
     }
     if (step === "notify") {

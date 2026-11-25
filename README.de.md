@@ -55,8 +55,8 @@ Automationen bleiben möglich: Jede Anlage ist eine gewöhnliche `alarm_control_
 ## Installation
 
 1. **Installieren:** HACS → drei Punkte → "Benutzerdefinierte Repositories" → `https://github.com/Diegofuego871/ha-alarmageddon`, Typ "Integration". "Alarmageddon" installieren und Home Assistant neu starten.
-2. **Anlage hinzufügen:** Einstellungen → Geräte & Dienste → "Integration hinzufügen" → "Alarmageddon". Name vergeben und, wenn du willst, einen Code. Weitere Anlagen lassen sich auch im Panel hinzufügen ("Anlage hinzufügen").
-3. **Einrichten:** "Alarmageddon" in der Seitenleiste öffnen (nur Administratoren). Der Einrichtungsassistent startet von selbst und geht Modi, Sensoren, Eingang und Verzögerungen, einen Code, Meldungen und Alarmaktionen durch; jeder Schritt wird mit "Weiter" gespeichert. Danach findest du alles unter Konfiguration; Routinen, Hauptcode und Codes pro Person, eigene Töne, HealthCheck und Backup stehen unter Konfiguration › Anlage. Mit "Testmeldung senden" und dem Abspielknopf eines Schritts probierst du alles ohne Alarm aus.
+2. **Anlage hinzufügen:** Einstellungen → Geräte & Dienste → "Integration hinzufügen" → "Alarmageddon". Name vergeben. Weitere Anlagen lassen sich auch im Panel hinzufügen ("Anlage hinzufügen").
+3. **Einrichten:** "Alarmageddon" in der Seitenleiste öffnen (nur Administratoren). Der Einrichtungsassistent startet von selbst und geht Modi, Sensoren, Eingang und Verzögerungen, einen Code, Meldungen und Alarmaktionen durch; jeder Schritt wird mit "Weiter" gespeichert. Danach findest du alles unter Konfiguration; Routinen, Codes pro Person, eigene Töne, HealthCheck und Backup stehen unter Konfiguration › Anlage. Mit "Testmeldung senden" und dem Abspielknopf eines Schritts probierst du alles ohne Alarm aus.
 
 ## Rundgang
 

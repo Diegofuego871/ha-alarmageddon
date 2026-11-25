@@ -421,10 +421,26 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 /* Abhängiger Schalter (1.89.0, "Umgehen" unter "Muss beim Scharfschalten geschlossen sein"): eingerückt und ohne Linie dazwischen, er gehört
    zum Schalter darüber und erscheint nur, solange dieser an ist */
 .ag-orow:has(+ .ag-osub) { border-bottom: 0; padding-bottom: 4px; }
-.ag-orow.ag-osub { padding-left: 30px; padding-top: 4px; } /* Innenabstand statt Rand: die Linie darunter reicht über die ganze Breite */
+.ag-orow.ag-osub { padding-left: calc(var(--ag-tile) + 12px); padding-top: 4px; } /* Innenabstand statt Rand: die Linie darunter reicht über die ganze Breite.
+   Seit 1.90.0 (Symbol zuerst) beginnt die Unteroption genau unter dem Schalter der Zeile darüber (bis 1.89.x 30 px) */
 .ag-orow .ag-toggle { margin: 6px 0 0; }
 .ag-oav { width: var(--ag-tile); height: var(--ag-tile); border-radius: 11px; background: var(--ag-subtle); color: var(--ag-text2); display: grid; place-items: center; flex: none; }
 .ag-oav.on { background: var(--ag-primary-soft); color: var(--ag-primary); }
+/* Symbol oben links (1.90.0, Wunsch des Nutzers 2026-11-25, Mockup docs/mockups/symbole-v1): in jeder Zeile steht die Kachel zuerst und oben im weissen
+   Bereich, danach der Schalter, dann der Text ("das Icon soll immer oben links, im weissen Bereich sein", "Schalter sind immer links vor dem Text").
+   Bis 1.89.x stand der Schalter vor dem Symbol. Felder und Knöpfe rechts bleiben mittig. */
+.ag-orow > .ag-oav, .ag-setrow > .ag-oav, .ag-pmsw > .ag-oav { order: -2; align-self: flex-start; }
+.ag-ntk > .ag-ntk-icon, .ag-wf-notice > .ag-wf-icon { order: -2; }
+.ag-setrow:has(> .ag-oav) > .ag-toggle { margin-top: 7px; }
+.ag-setrow:has(> .ag-oav) { align-items: flex-start; }
+.ag-setrow:has(> .ag-oav) > :not(.ag-oav):not(.ag-toggle):not(.ag-settx) { align-self: center; }
+/* Einzeiliger Text steht mittig neben der Kachel, längerer beginnt oben auf ihrer Höhe */
+.ag-setrow:has(> .ag-oav) > .ag-settx { min-height: var(--ag-tile); display: flex; flex-direction: column; justify-content: center; }
+.ag-oav.ag-oav-danger { background: var(--ag-error-soft); color: var(--ag-error); }
+/* Unteroption einer Schalter-Zeile (1.90.0, "Höchstens" beim Nachalarm, Wunsch des Nutzers: "Option ohne den Strich, es gehört zu Nachalarm"): ohne
+   Linie dazwischen, eingerückt bis zum Text der Zeile darüber (Kachel, Abstand, Schalter, Abstand) */
+.ag-setlist > :has(+ .ag-rowsub) { border-bottom: 0; padding-bottom: 2px; }
+.ag-setrow.ag-rowsub { padding-left: calc(var(--ag-tile) + 64px); padding-top: 2px; }
 /* Kapitel unter Konfiguration › Anlage mit eigener Farbe (1.66.0, Wunsch des Nutzers 2026-11-19): nur das Symbol, in leichtem Pastell wie
    die übrigen; ohne Inhalt bleibt es grau wie bisher. Der Selbsttest behält seine Farbe nach dem Ergebnis (.ag-st-av). */
 .ag-oav.ag-tint.on { background: color-mix(in srgb, var(--ag-tint) 15%, transparent); color: var(--ag-tint); }
@@ -445,9 +461,10 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-otx small { display: block; color: var(--ag-text2); font-size: 12.5px; margin-top: 2px; line-height: 1.35; }
 /* Einstellungen pro Modus: Schalter mit Text, daneben die Reiter; Punkt am Kästchen = eigener Wert dieses Modus */
 .ag-pmbar { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; width: fit-content; max-width: 100%; margin: 22px 0; padding: 14px 18px; border: 1px solid var(--ag-divider); border-radius: 16px; background: var(--ag-card); }
-.ag-pmsw { display: flex; align-items: center; gap: 12px; max-width: 560px; }
+/* Kachel oben links, der Schalter auf ihrer Mitte, der Text beginnt oben (1.90.0; bis 1.89.x mittig ohne Kachel) */
+.ag-pmsw { display: flex; align-items: flex-start; gap: 12px; max-width: 560px; }
 :host([narrow]) .ag-pmbar { width: auto; }
-.ag-pmsw .ag-toggle { margin: 0; flex: none; }
+.ag-pmsw .ag-toggle { margin: calc((var(--ag-tile) - 22px) / 2) 0 0; flex: none; }
 /* Schalter, Reiter und alles, was zu den Reitern gehört, stehen in einem umrandeten Bereich: so ist klar, bis wohin die Einstellung greift */
 /* Der Abstand unter der Leiste gehört zur festen Leiste (Innenabstand): er bleibt beim Scrollen gleich */
 .ag-pmstick { margin: var(--ag-gap, 18px) 0 0; padding-bottom: var(--ag-gap, 18px); }
@@ -753,6 +770,13 @@ dialog.ag-sheetdlg > .ag-side-body:focus, .ag-sheet > .ag-side-body:focus { outl
 /* Handy: das Suchfeld im Fenster darf nicht mit "flex: 1 1 100%" der Seite in die Höhe wachsen (Geräteauswahl der Routinen) */
 :host([narrow]) .ag-dlg-body .list-search { flex: none; height: 48px; }
 .ag-pick-chips { gap: 10px; margin-top: 12px; }
+.ag-elist.ag-pick-list { margin-top: 10px; max-height: min(46vh, 380px); }
+/* Sensoren hinzufügen am Computer immer gleich hoch (1.90.0, Wunsch des Nutzers 2026-11-25: "egal wie viele Einträge gezeigt werden, damit sind die
+   Buttons und Suchfelder immer am gleichen Ort"): das Fenster hat die volle Höhe der Fenster, die Liste füllt den Rest, Suche, Filter und Knöpfe
+   springen beim Suchen und Filtern nicht. Auf dem Handy ist es ohnehin der ganze Bildschirm. */
+:host(:not([narrow])) dialog#ag-pick[open] { height: min(92vh, 900px); }
+:host(:not([narrow])) #ag-pick > .ag-dlg-body { flex: 1 1 auto; }
+:host(:not([narrow])) #ag-pick .ag-pick-list { flex: 1 1 0; min-height: 120px; max-height: none; }
 /* Pillen der Sensorliste (seit 1.72.0 eigener Behälter, den render() nachzeichnet): stehen in der Werkzeugzeile wie vorher */
 .ag-senfilters { display: contents; }
 .ag-step-ed .ag-sys-top h3 { margin: 0; }
@@ -785,14 +809,6 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 .ag-codes { margin-top: 16px; }
 /* Alle Symbol-Kacheln der Anlagen-Seite (Modi, Codes, Eigene Töne) sind gleich gross (1.43.2) */
 :host { --ag-tile: 36px; }
-.ag-coderow .ag-oav { background: var(--ag-subtle); color: var(--ag-text2); }
-.ag-coderow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--ag-divider); }
-.ag-coderow small { display: block; font-size: 12.5px; }
-.ag-codesum + .ag-coderow { border-top: 0; } /* die Zeile darüber trägt den Strich schon (sonst doppelt) */
-/* Hauptcode (1.89.0): auf dem Handy steht "Hauptcode festlegen" unter Symbol und Text über die ganze Breite (wie "Code hinzufügen"); die Kreise zum Ändern
-   und Entfernen bleiben neben "Festgelegt" */
-.ag-mainrow { flex-wrap: wrap; row-gap: 12px; }
-:host([narrow]) .ag-mainrow > .ag-btn { flex: 1 1 100%; justify-content: center; }
 .ag-schrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--ag-divider); }
 .ag-schrow .ag-time { width: 140px; }
 .ag-days { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -838,7 +854,9 @@ textarea.ag-input { height: auto; padding: 10px 12px; resize: vertical; }
 :host([narrow]) .ag-fl-band > div { flex-basis: 100%; }
 :host([narrow]) .ag-fl-step { grid-template-columns: 26px minmax(0, 1fr); gap: 8px; }
 :host([narrow]) .ag-fl-node { padding: 12px; }
-.ag-rtsub { padding-left: 22px; border-left: 3px solid var(--ag-primary-soft); margin-left: 10px; }
+/* Seit 1.90.0 (Symbol zuerst): die Unterzeile beginnt mit ihrem Symbol genau unter dem Schalter der Zeile darüber (Rand 10 + Linie 3 + Innenabstand =
+   Kachel + 12 px Abstand der Zeilen im Editor der Routine; bis 1.89.x 22 px) */
+.ag-rtsub { padding-left: calc(var(--ag-tile) - 1px); border-left: 3px solid var(--ag-primary-soft); margin-left: 10px; }
 /* Routinen (1.44.0): Liste, Editor mit Bedingungsbaum, Geräteauswahl */
 .ag-rtrow.dim > :not(.ag-toggle):not(.ag-wf-btns) { opacity: .55; }
 /* Schalter, Symbol und Text nahe beieinander (Grundregel: Schalter links, Text nahe rechts davon), wie die Modus-Zeilen */
@@ -1500,7 +1518,7 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* Handy: Beschreibungen und Hinweise durchgängig in einer gut lesbaren Grösse (Vorgabe des Nutzers: die kleine war zu klein) */
 :host([narrow]) .ag-small, :host([narrow]) .ag-hint, :host([narrow]) .ag-settx small, :host([narrow]) .ag-otx small, :host([narrow]) .ag-pmbanner small,
-:host([narrow]) .ag-pmnote, :host([narrow]) .ag-kind small, :host([narrow]) .ag-sys-sub, :host([narrow]) .ag-nm small, :host([narrow]) .ag-coderow small,
+:host([narrow]) .ag-pmnote, :host([narrow]) .ag-kind small, :host([narrow]) .ag-sys-sub, :host([narrow]) .ag-nm small,
 :host([narrow]) #ag-codes .ag-fld small, :host([narrow]) .ag-mt-opt small, :host([narrow]) .ag-pv-note, :host([narrow]) .ag-wf-text small,
 :host([narrow]) .ag-inc-text small, :host([narrow]) .ag-sv-ttl small, :host([narrow]) .ag-erow small, :host([narrow]) .ag-combo-item small,
 :host([narrow]) .ag-dlg-body > p, :host([narrow]) .ag-lfacts { font-size: 14.5px; line-height: 1.35; }
@@ -1517,6 +1535,8 @@ button.ag-sv-tag.alarm { background: var(--ag-error-soft); color: var(--ag-error
 :host([narrow]) .ag-mon-rule { padding: 12px 10px 8px; }
 .ag-mon-rule.dim .ag-wf-line, .ag-mon-rule.dim .ag-mon-head > :not(.ag-toggle):not(.ag-wf-btns) { opacity: .55; }
 .ag-mon-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+/* Symbol vor dem Schalter wie in allen Zeilen (1.90.0) */
+.ag-mon-head > .ag-oav { order: -2; }
 .ag-mon-head .ag-settx { flex: 1; min-width: 0; }
 .ag-mon-head .ag-chap-t { margin: 0 0 2px; font-size: 17px; }
 .ag-mon-head small { display: block; color: var(--ag-text2); overflow-wrap: anywhere; }
@@ -1743,6 +1763,12 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-sthours { flex-wrap: wrap; row-gap: 10px; }
 /* Abstände des Selbsttests (seit 1.67.0, Wunsch des Nutzers 2026-11-19): auf Computer und Handy untereinander unter dem Text, je Zahl und Einheit */
 .ag-sthours .ag-settx { flex: 1 1 100%; min-width: 0; }
+/* Mit Symbol (1.90.0): Kachel links, Text und Felder in der zweiten Spalte untereinander */
+.ag-sthours:has(> .ag-oav) { display: grid; grid-template-columns: var(--ag-tile) minmax(0, 1fr); column-gap: 12px; }
+.ag-sthours:has(> .ag-oav) > :not(.ag-oav) { grid-column: 2; }
+/* Auf dem Handy stehen die Felder wie in den übrigen Zeilen ab dem linken Rand unter dem Text: neben der Kachel wäre die Spalte zu schmal, die
+   Einheit rutschte unter das Feld */
+:host([narrow]) .ag-sthours:has(> .ag-oav) > .ag-sthfs { grid-column: 1 / -1; }
 .ag-sthours .ag-num { flex-wrap: wrap; min-width: 0; row-gap: 6px; }
 .ag-sthours .ag-num .ag-unit { margin-left: 0; min-width: 9em; max-width: 100%; }
 :host([narrow]) .ag-sthours .ag-num .ag-unit { min-width: 0; }

@@ -4,7 +4,7 @@
 // (workflow.py); Entwurf mit "Speichern". Schritte lassen sich am Griff ziehen und einzeln testen.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur, MODE_ICON, MODE_KEY, errText, onceBtn, paintOnce, runOnce, copyBtn, copyValue } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, MODE_ICON, MODE_KEY, errText, onceBtn, paintOnce, runOnce, copyBtn, copyValue, perModeIcon } = await import(`./common.js${V}`);
 const { MonitorUi } = await import(`./monitor.js${V}`);
 const { XferUi } = await import(`./xfer.js${V}`);
 const { suggest, applySuffix } = await import(`./healthcheck.js${V}`);
@@ -572,7 +572,7 @@ export class ActionsUi {
     const tabs = tabItems.length ? h._segHtml("wf-trigger", tabItems, this.trigger, "data-trigger", "small ag-modeseg") : "";
     // Schalter "Einstellungen pro Modus": in jedem Reiter derselbe, an derselben Stelle (seit 1.63.0 auch bei "Überwachung", Wunsch des Nutzers;
     // vorher stand dort ein unsichtbarer Platzhalter). So steht die Reiterzeile in allen Reitern auf derselben Höhe und springt nie.
-    const sw = `<div class="ag-pmsw"><button class="ag-toggle ${d.perMode ? "on" : ""}" data-wf="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("wfPerMode"))}"></button>
+    const sw = `<div class="ag-pmsw">${perModeIcon(d.perMode)}<button class="ag-toggle ${d.perMode ? "on" : ""}" data-wf="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("wfPerMode"))}"></button>
         <div class="ag-settx"><b>${esc(this._t("wfPerMode"))}</b><small>${esc(this._t(d.perMode ? "wfPerModeOn" : "wfPerModeHint"))}</small></div></div>`;
     if (this.trigger === "monitor" && mon) {
       const monScope = `<div class="ag-pmscope" style="margin:0">${ic("eye", 18)}${esc(this._t("monScope"))}</div>`;

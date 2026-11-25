@@ -18,6 +18,7 @@ import logging
 from typing import Any
 
 import pytest
+import voluptuous as vol
 from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, State
@@ -87,8 +88,6 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "add_code": {"entry_id": "ENTRY", "name": "Anna", "code": "2468"},
     "update_code": {"entry_id": "ENTRY", "code_id": "x", "name": "Anna", "code": "2468"},
     "remove_code": {"entry_id": "ENTRY", "code_id": "x"},
-    "set_main_code": {"entry_id": "ENTRY", "code": "8642"},
-    "remove_main_code": {"entry_id": "ENTRY"},
     "rename_sound": {"sound_id": "custom_000000000000", "name": "Neuer Name"},
     "delete_sound": {"sound_id": "custom_000000000000"},
     "selftest_run": {},
@@ -232,17 +231,11 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
     assert state(hass) == AlarmControlPanelState.TRIGGERED
     assert (await ws(client, type=f"{DOMAIN}/arm", entry_id=entry.entry_id, mode="off", code=main))["success"]
     await settle(hass)
-    # Hauptcode im Panel ändern (1.89.0): die Antwort nennt weder den Code noch Hash oder Salz, der neue Hash steht in keiner Antwort und Ablage
-    new_main = "92748163"
-    set_main = await ws(client, type=f"{DOMAIN}/set_main_code", entry_id=entry.entry_id, code=new_main)
-    assert set_main["success"]
-    await settle(hass)
-    assert entry.options["code_hash"] != code_hash, "der Hauptcode muss geändert sein"
-
-    personal_entry, bert_entry = entry.options["codes"]
-    secrets = [main, personal, wrong, renewed, "61839402", code_hash, salt, personal_entry["hash"], personal_entry["salt"], bert_entry["hash"], bert_entry["salt"],
-               new_main, entry.options["code_hash"], entry.options["code_salt"]]
-    answers = {"update_code": updated, "set_main_code": set_main}
+    # Der Hauptcode aus 1.89.x ist seit 1.90.0 beim Laden ein Code pro Person geworden (derselbe Hash, dasselbe Salz)
+    main_entry, personal_entry, bert_entry = entry.options["codes"]
+    assert (main_entry["hash"], main_entry["salt"]) == (code_hash, salt) and "code_hash" not in entry.options
+    secrets = [main, personal, wrong, renewed, "61839402", code_hash, salt, personal_entry["hash"], personal_entry["salt"], bert_entry["hash"], bert_entry["salt"]]
+    answers = {"update_code": updated}
     for command in ("data", "log", "export", "backups", "monitor_entities", "sensor_candidates"):
         answers[command] = (await ws(client, type=f"{DOMAIN}/{command}"))["result"]
     created = (await ws(client, type=f"{DOMAIN}/backup_create", name="vor dem Umbau"))["result"]
@@ -286,7 +279,7 @@ async def test_codes_and_hashes_never_leave_the_server(hass: HomeAssistant, hass
         for secret in secrets:
             assert secret not in text, f"Geheimnis in {name}"
     # Der Klartext steht auch nicht in den Optionen (nur Hash und Salz)
-    assert all(c not in json.dumps(dict(entry.options), default=str) for c in (main, personal, renewed, new_main))
+    assert all(c not in json.dumps(dict(entry.options), default=str) for c in (main, personal, renewed))
     own_log = "\n".join(r.getMessage() for r in caplog.records if r.name.startswith("custom_components.alarmageddon"))
     for secret in secrets:
         assert secret not in own_log
@@ -601,8 +594,9 @@ async def test_import_cannot_add_remove_or_replace_codes(hass: HomeAssistant, ha
     client = await hass_ws_client(hass)
     assert (await ws(client, type=f"{DOMAIN}/import", data=backup))["success"]
     await hass.async_block_till_done()
-    assert haus.options["code_hash"] == code_hash and haus.options["code_salt"] == salt and not haus.options.get("codes")
-    assert "code_hash" not in garage.options and not garage.options.get("codes")
+    # Der Code der Anlage (seit 1.90.0 der übertragene Hauptcode, ein Code pro Person) bleibt; der Hauptcode der Sicherung wird nie einer
+    assert [(c["name"], c["hash"], c["salt"]) for c in haus.options["codes"]] == [("Main code", code_hash, salt)]
+    assert not {"code_hash", "code_salt"} & (set(haus.options) | set(garage.options)) and not garage.options.get("codes")
     assert garage.options.get("code_arm_required") is False  # ohne Code kein "Code zum Scharfschalten"
     with pytest.raises(ServiceValidationError):
         await call(hass, "alarm_arm_home", code="0000")  # der eingeschleuste Code gilt nicht
@@ -643,12 +637,15 @@ async def test_rename_validates_the_name(hass: HomeAssistant, hass_ws_client, na
 
 
 async def test_config_and_options_flow_reject_bad_input(hass: HomeAssistant) -> None:
-    """Leerer Name beim Anlegen; im Optionsdialog ein Code im falschen Format und "neuer Code" zusammen mit "Code entfernen"."""
+    """
+    Leerer Name beim Anlegen. Seit 1.90.0 setzen weder die Einrichtung noch der Optionsdialog einen Code (kein Hauptcode mehr): ein Code im Aufruf
+    wird abgelehnt und legt nie einen an.
+    """
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"name": "   ", "code": "1234"})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"name": "   "})
     assert result["type"] is FlowResultType.FORM and result["errors"] == {"name": "name_required"}
-    # Der eingegebene Code geht nie als Vorschlagswert zurück an die Oberfläche
-    assert "1234" not in json.dumps([str(key.description) for key in result["data_schema"].schema], default=str)
+    with pytest.raises(vol.Invalid):
+        await hass.config_entries.flow.async_configure(result["flow_id"], {"name": "Haus", "code": "1234"})
 
     entry = await setup_alarm(hass)
     sections = {
@@ -656,12 +653,11 @@ async def test_config_and_options_flow_reject_bad_input(hass: HomeAssistant) -> 
         "delays": {"exit_delay_home": 0, "exit_delay_away": 30, "exit_delay_night": 0, "entry_delay": 20, "entry_sensors": [FRONT_DOOR]},
         "behaviour": {"night_enabled": False, "code_arm_required": False},
     }
-    for code_section, error in (({"code": "12", "remove_code": False}, "invalid_code_format"), ({"code": "abcd", "remove_code": False}, "invalid_code_format"),
-                                ({"code": "1234", "remove_code": True}, "code_and_remove")):
+    for code_section in ({"code": "12", "remove_code": False}, {"code": "1234", "remove_code": False}, {"remove_code": True}):
         result = await hass.config_entries.options.async_init(entry.entry_id)
-        result = await hass.config_entries.options.async_configure(result["flow_id"], {**sections, "code_section": code_section})
-        assert result["type"] is FlowResultType.FORM and result["errors"] == {"base": error}
-    assert "code_hash" not in entry.options
+        with pytest.raises(vol.Invalid):
+            await hass.config_entries.options.async_configure(result["flow_id"], {**sections, "code_section": code_section})
+    assert not {"code_hash", "code_salt"} & set(entry.options) and not entry.options.get("codes")
 
 
 # ----- Robustheit von Meldungen, Zeitplan und Ablauf -----

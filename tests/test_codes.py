@@ -23,6 +23,10 @@ async def _ws(client, **msg):
 
 
 async def _with_codes(hass: HomeAssistant, hass_ws_client, main: bool = True):
+    """
+    `main`: die Anlage hatte einen Hauptcode 1234 (Stand bis 1.89.x). Seit 1.90.0 wird er beim Laden zum Code "Main code" (Sprache der Tests:
+    Englisch), der erste der Liste; er schaltet weiter wie zuvor.
+    """
     extra = {}
     if main:
         extra["code_hash"], extra["code_salt"] = hash_code("1234")
@@ -40,10 +44,11 @@ async def test_personal_code_sets_changed_by(hass: HomeAssistant, hass_ws_client
     await call(hass, "alarm_disarm", code="5678")
     assert state(hass) == AlarmControlPanelState.DISARMED
     assert hass.states.get(ALARM).attributes["changed_by"] == "Anna"
-    # Der Hauptcode gilt weiter
+    # Der übertragene Hauptcode gilt weiter, seit 1.90.0 mit seinem Namen
     await call(hass, "alarm_arm_away")
     await call(hass, "alarm_disarm", code="1234")
     assert state(hass) == AlarmControlPanelState.DISARMED
+    assert hass.states.get(ALARM).attributes["changed_by"] == "Main code"
 
 
 async def test_code_never_stored_or_returned_in_clear(hass: HomeAssistant, hass_ws_client) -> None:
@@ -59,16 +64,17 @@ async def test_code_never_stored_or_returned_in_clear(hass: HomeAssistant, hass_
     assert all(c["hash"] != "5678" and c["salt"] != "5678" for c in entry.options["codes"])
     data = await _ws(client, type="alarmageddon/data")
     system = data["result"]["systems"][0]
-    assert system["codes"] == [{"id": system["codes"][0]["id"], "name": "Anna", "user_id": None}]
+    assert system["codes"] == [{"id": c["id"], "name": name, "user_id": None} for c, name in zip(system["codes"], ("Main code", "Anna"))]
     assert "hash" not in json.dumps(data["result"]) and "salt" not in json.dumps(data["result"])
-    assert system["main_code"] is True and system["has_code"] is True
+    # Seit 1.90.0 kein Hauptcode mehr, auch nicht als Angabe an das Panel
+    assert "main_code" not in system and system["has_code"] is True
 
 
 async def test_add_code_validation(hass: HomeAssistant, hass_ws_client) -> None:
     entry, client = await _with_codes(hass, hass_ws_client)
     bad = await _ws(client, type="alarmageddon/add_code", entry_id=entry.entry_id, name="Anna", code="12a4")
     assert bad["error"]["code"] == "invalid_code_format"
-    # Gleicher Code wie der Hauptcode: "geändert von" wäre nicht eindeutig
+    # Gleicher Code wie der übertragene Hauptcode: "geändert von" wäre nicht eindeutig
     same = await _ws(client, type="alarmageddon/add_code", entry_id=entry.entry_id, name="Anna", code="1234")
     assert same["error"]["code"] == "code_taken"
     ok = await _ws(client, type="alarmageddon/add_code", entry_id=entry.entry_id, name="Anna", code="5678")
@@ -177,7 +183,7 @@ async def test_update_code_without_code_keeps_the_code(hass: HomeAssistant, hass
     assert state(hass) == AlarmControlPanelState.DISARMED
     assert hass.states.get(ALARM).attributes["changed_by"] == "Anna Muster"
     # Die Reihenfolge der Codes bleibt
-    assert [c["name"] for c in entry.options["codes"]] == ["Anna Muster", "Bert"]
+    assert [c["name"] for c in entry.options["codes"]] == ["Main code", "Anna Muster", "Bert"]
 
 
 async def test_update_code_with_a_new_code_replaces_the_old_one(hass: HomeAssistant, hass_ws_client, hass_admin_user) -> None:
@@ -211,7 +217,7 @@ async def test_update_code_validation(hass: HomeAssistant, hass_ws_client, hass_
         ({"code": "123"}, "invalid_code_format"),
         ({"code": "123456789"}, "invalid_code_format"),
         ({"code": "5678"}, "code_taken"),  # Annas Code
-        ({"code": "1234"}, "code_taken"),  # Hauptcode
+        ({"code": "1234"}, "code_taken"),  # übertragener Hauptcode
         ({"name": "anna"}, "name_taken"),
         ({"user_id": hass_admin_user.id}, "user_taken"),  # schon mit Anna verknüpft
         ({"user_id": "gibt-es-nicht"}, "user_taken"),
@@ -271,12 +277,12 @@ async def test_double_click_adds_the_code_only_once(hass: HomeAssistant, hass_ws
     await hass.async_block_till_done()
     assert replies[0]["success"], replies
     assert replies[1]["success"] is False and replies[1]["error"]["code"] == "name_taken", replies
-    assert [c["name"] for c in entry.options["codes"]] == ["Anna"]
+    assert [c["name"] for c in entry.options["codes"]] == ["Main code", "Anna"]
     # Zwei Namen, derselbe Code zur selben Zeit: der zweite ist vergeben ("geändert von" bliebe sonst nicht eindeutig)
     other = await _both(client, {**add, "name": "Bert", "code": "2468"}, {**add, "name": "Carla", "code": "2468"})
     await hass.async_block_till_done()
     assert other[0]["success"] and other[1]["error"]["code"] == "code_taken", other
-    assert [c["name"] for c in entry.options["codes"]] == ["Anna", "Bert"]
+    assert [c["name"] for c in entry.options["codes"]] == ["Main code", "Anna", "Bert"]
 
 
 async def test_editing_and_removing_at_the_same_time_lose_nothing(hass: HomeAssistant, hass_ws_client, hass_admin_user) -> None:
@@ -292,7 +298,7 @@ async def test_editing_and_removing_at_the_same_time_lose_nothing(hass: HomeAssi
     )
     await hass.async_block_till_done()
     assert replies[0]["success"] and replies[1]["success"], replies
-    assert [c["id"] for c in entry.options["codes"]] == [anna]
+    assert [c["id"] for c in entry.options["codes"] if c["name"] != "Main code"] == [anna]
     await call(hass, "alarm_arm_away")
     await call(hass, "alarm_disarm", code="13579")
     assert state(hass) == AlarmControlPanelState.DISARMED

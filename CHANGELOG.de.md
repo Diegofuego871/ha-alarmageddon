@@ -7,6 +7,31 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.90.0] - 2026-11-25
+
+Es gibt keinen Hauptcode mehr: ein bestehender wird zum Code pro Person "Hauptcode" und gilt weiter. Jede Zeile der Konfiguration zeigt ihr Symbol oben links, vor dem Schalter, und das Kapitel "Zeiten" fasst alle Zeiten in einer Karte zusammen.
+
+### Geändert
+
+- **Symbol oben links:** jede Zeile der Konfiguration mit Symbol zeigt es zuerst, oben links im weissen Bereich der Zeile, danach den Schalter, dann den Text (bisher stand der Schalter vor dem Symbol, und in vielen Zeilen stand das Symbol mittig neben einem langen Text). Ein langer Text beginnt auf der Höhe des Symbols, der Schalter sitzt mittig auf dem Symbol. Auf dem Handy rutschen Felder und Knöpfe wie bisher unter den Text. Auch in den Karten der Benachrichtigungen, bei den festen Meldungen unter Aktionen und in den Regeln der Überwachung steht das Symbol vor dem Schalter. Unteroptionen ("Beim Scharfschalten umgehen" in den Einstellungen eines Sensors, die Modi unter "Anlage scharf" in einer Routine) beginnen mit ihrem Symbol unter dem Schalter der Zeile darüber.
+- **Neue Symbole:** "Einstellungen pro Modus" trägt auf allen vier Seiten (Sensoren, Aktionen, Benachrichtigungen, Anlage) das Symbol der Einstellungen, blau, solange es an ist. Weitere Symbole für die Zeiten (Ausgangs-, Eingangsverzögerung, Bestätigungsfenster), die Schalter zum Code (Schloss, Pfeile, durchgestrichene Glocke), "Selbsttest alle", die Empfänger von Alarmen (Glocke) und von Wartungsmeldungen (Zahnrad) und "Anlage löschen" (roter Papierkorb).
+- **Kapitel "Zeiten":** bisher "Zeiten und Verhalten" mit zwei Karten und den Untertiteln "Zeiten" und "Verhalten". Jetzt eine Karte mit Ausgangsverzögerung, Eingangsverzögerung und Bestätigungsfenster.
+- **"Höchstens" beim Nachalarm:** gehört zum Nachalarm und steht jetzt direkt darunter, ohne Strich dazwischen, bündig mit seinem Text.
+- **Fenster "Voreinstellungen je Sensorart" am Computer:** so breit wie das Panel dahinter (bisher höchstens 880 Pixel), die Tabelle braucht kein seitliches Scrollen. Auf dem Handy wie bisher über den ganzen Bildschirm.
+- **Fenster "Sensoren hinzufügen" am Computer:** immer gleich hoch (900 Pixel, höchstens 92 % des Fensters), egal wie viele Einträge es zeigt: Suche, Filter und Knöpfe bleiben am selben Ort, nur die Liste scrollt. Auf dem Handy wie bisher über den ganzen Bildschirm.
+- **Benutzer eines Codes erklärt:** der Hinweis zum Feld "Benutzer in Home Assistant" beim Hinzufügen eines Codes sagt jetzt, was es bewirkt: es verknüpft den Code mit einem Benutzer von Home Assistant; schaltet dieser Benutzer ohne Code (zum Beispiel in diesem Panel), nennt das Protokoll ebenfalls diese Person. Ohne Benutzer gilt der Code für sich, zum Beispiel für Gäste oder angebundene Systeme.
+- Bilder des Handbuchs: die Konfiguration mit den neuen Symbolen und das Kapitel "Codes pro Person" neu. Das Skript, das die Bilder verkleinert, vergleicht jetzt auch die mittlere Abweichung: bisher konnte ein helles Grau auf grossen Flächen leicht rosa werden (jedes Pixel nur wenig daneben, darum liess die Prüfung der grössten Abweichung es durch).
+
+### Entfernt
+
+- **Hauptcode:** bisher hatte eine Anlage neben den Codes pro Person einen Hauptcode, der niemandem gehörte (festgelegt beim Hinzufügen der Anlage, im Optionsdialog von Home Assistant oder seit 1.89.0 im Panel). Er konnte nichts, was ein Code pro Person nicht kann, denn ein Code pro Person braucht keinen Benutzer: "Benutzer in Home Assistant" bleibt einfach leer, zum Beispiel für Gäste oder angebundene Systeme. Darum gibt es nur noch Codes pro Person. **Wer den Hauptcode nutzt, tippt weiter dieselben Ziffern:** beim ersten Start nach dem Update wird er zum Code pro Person "Hauptcode" ("Main code", wenn Home Assistant nicht auf Deutsch läuft; "Hauptcode 2", wenn ein Code schon so heisst), ohne Benutzer. Dieselben Ziffern gelten weiter, gespeichert ist er wie bisher nur als Hash, und die Schalter "Scharfschalten", "Moduswechsel" und "Quittieren verlangt den Code" bleiben, wie sie waren. Ein sichtbarer Unterschied: Protokoll und Attribut "geändert von" nennen beim Eintippen jetzt diesen Code ("Hauptcode"); bisher nannten sie den Benutzer von Home Assistant, der geschaltet hat, oder niemanden. Im Fenster "Codes anzeigen" lässt er sich umbenennen, mit einem Benutzer verknüpfen oder entfernen. Ein beschädigter Hauptcode (Hash oder Salz fehlt oder ist unlesbar) fällt weg. Die Umstellung läuft einmal.
+- **Code in den Dialogen von Home Assistant:** das Hinzufügen einer Anlage unter Einstellungen › Geräte & Dienste fragt nur noch nach Name und Modus "Nacht", der Optionsdialog hat keinen Abschnitt "Code" mehr. Codes legst du im Panel an: Konfiguration › Anlage › Codes pro Person, oder im Schritt "Code" des Einrichtungsassistenten. "Code zum Scharfschalten" und "Code zum Quittieren" im Optionsdialog brauchen weiterhin einen Code; ohne Code sagt der Dialog, wo du ihn anlegst.
+- **Hauptcode im Panel:** seine Zeile im Kapitel "Codes pro Person" und im Einrichtungsassistenten fällt weg, ebenso die Befehle `set_main_code` und `remove_main_code`. Die Zusammenfassung des Kapitels "Codes pro Person" zählt die Codes ("1 Code"); ohne Code steht "Noch keine Codes" mit dem Hinweis, dass die Anlage nie einen Code verlangt und die Schalter zum Code mit dem ersten Code erscheinen.
+
+### Sicherheit
+
+- Das Entfernen des letzten Codes schaltet "Scharfschalten" und "Quittieren verlangt den Code" weiterhin aus; es zählen nur vollständige Codes (ein beschädigter Eintrag gilt nicht mehr als Code). Der Optionsdialog prüft dasselbe. Die Umstellung des Hauptcodes schreibt nie Code, Hash oder Salz ins Log; neue Tests und Zeilen der Mutationsprobe sichern die Umstellung, die Sprache des Namens, belegte Namen, beschädigte Werte und die entfernten Befehle.
+
 ## [1.89.0] - 2026-11-25
 
 Alles, was der Optionsdialog von Home Assistant einstellt, geht jetzt auch im Panel. Der Nachalarm lässt sich pro Modus einstellen, ein Sensor, der während der Ausgangsverzögerung ausfällt, wird nicht mehr still übergangen, und "Beim Scharfschalten umgehen" gilt nur noch für offene Sensoren.
@@ -2390,6 +2415,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.90.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.90.0
 [1.89.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.89.0
 [1.88.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.88.0
 [1.86.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.2

@@ -7,6 +7,31 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.90.0] - 2026-11-25
+
+There is no main code any more: an existing one becomes a code per person called "Main code" and keeps working. Every row of the configuration shows its symbol at the top left, in front of the switch, and the chapter "Times" holds all times in one card.
+
+### Changed
+
+- **Symbol at the top left:** every row of the configuration with a symbol shows it first, at the top left in the white area of the row, then the switch, then the text (until now the switch stood in front of the symbol, and in many rows the symbol was centred beside a long text). A long text starts at the height of the symbol, the switch sits in the middle of the symbol. On the phone fields and buttons wrap below the text as before. In the cards of the notifications, in the fixed messages under Actions and in the rules of the monitoring, too, the symbol stands in front of the switch. Sub-options ("Bypass when arming" in the settings of a sensor, the modes below "Armed" in a routine) start with their symbol below the switch of the row above.
+- **New symbols:** "Settings per mode" has the symbol of settings on all four pages (Sensors, Actions, Notifications, Alarm system), blue while it is on. Further symbols for the times (exit delay, entry delay, confirmation window), the switches for the code (lock, arrows, crossed-out bell), "Self-test every", the recipients of alarms (bell) and of maintenance notifications (cog) and "Delete alarm system" (red bin).
+- **Chapter "Times":** until now "Times and behaviour" with two cards and the subtitles "Times" and "Behaviour". Now one card with exit delay, entry delay and confirmation window.
+- **"At most" of the re-alarm:** belongs to the re-alarm and now stands directly below it, without a line in between, aligned with its text.
+- **Window "Defaults per sensor type" on the computer:** as wide as the panel behind it (until now at most 880 pixels), so the table needs no sideways scrolling. On the phone full screen as before.
+- **Window "Add sensors" on the computer:** always the same height (900 pixels, at most 92 % of the window), however many entries it shows: search, filters and buttons stay in place, only the list scrolls. On the phone full screen as before.
+- **User of a code explained:** the hint of the field "Home Assistant user" when adding a code now says what it does: it links the code with a user of Home Assistant; when that user switches without a code (for example in this panel), the log names the same person. Without a user the code stands on its own, for example for guests or connected systems.
+- Pictures of the manual: the configuration with the new symbols and the chapter "Codes per person" made again. The script that makes the pictures smaller now also compares the average deviation: until now a light grey on large areas could turn slightly pink (each pixel only a little off, so the check of the largest deviation let it through).
+
+### Removed
+
+- **Main code:** until now an alarm system had, besides the codes per person, a main code that belonged to nobody (set when adding the alarm system, in the options dialog of Home Assistant or, since 1.89.0, in the panel). It could do nothing a code per person cannot do, because a code per person does not need a user: "Home Assistant user" simply stays empty, for example for guests or connected systems. So there are only codes per person now. **Anyone who uses the main code keeps typing the same digits:** on the first start after the update it becomes a code per person called "Main code" ("Hauptcode" when Home Assistant runs in German; "Main code 2" if a code already has that name), without a user. The same digits keep working, it is stored as before only as a hash, and the switches "Arming", "Switching modes" and "Acknowledging asks for the code" stay as they were. One visible difference: the log and the attribute "changed by" now name this code ("Main code") when it is typed; until now they named the Home Assistant user who switched, or nobody. You can rename it, link it with a user or remove it in the window "Show codes". A damaged main code (hash or salt missing or unreadable) is dropped. The conversion runs once.
+- **Code in the dialogs of Home Assistant:** adding an alarm system under Settings › Devices & services asks only for the name and the mode "Night"; the options dialog no longer has the section "Code". Codes are added in the panel: Configuration › Alarm system › Codes per person, or in the step "Code" of the setup assistant. "Code required to arm" and "Code required to acknowledge" in the options dialog still need a code; without one the dialog says where to add it.
+- **Main code in the panel:** its row in the chapter "Codes per person" and in the setup assistant is gone, and so are the commands `set_main_code` and `remove_main_code`. The summary of the chapter "Codes per person" counts the codes ("1 code"); without a code it shows "No codes yet" with the note that the alarm system never asks for a code and that the switches for the code appear with the first code.
+
+### Security
+
+- Removing the last code still switches off "Arming" and "Acknowledging asks for the code"; only complete codes count (a damaged entry no longer counts as a code). The options dialog checks the same. The conversion of the main code never writes the code, hash or salt into the log; new tests and lines of the mutation check cover the conversion, the language of the name, names already taken, damaged values and the removed commands.
+
 ## [1.89.0] - 2026-11-25
 
 Everything the options dialog of Home Assistant sets can now also be set in the panel. The re-alarm can be set per mode, a sensor that drops out during the exit delay is no longer passed over in silence, and "Bypass when arming" applies only to open sensors.
@@ -2390,6 +2415,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.90.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.90.0
 [1.89.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.89.0
 [1.88.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.88.0
 [1.86.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.86.2

@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import re
+import secrets
 from collections.abc import Awaitable
 from dataclasses import dataclass
 from datetime import timedelta
@@ -27,6 +28,9 @@ from homeassistant.loader import async_get_integration
 
 from . import websocket_api
 from .const import (
+    CONF_CODE_HASH,
+    CONF_CODE_SALT,
+    CONF_CODES,
     CONF_ENTRY_SENSORS,
     CONF_MONITOR_SENSORS,
     CONF_PER_MODE_SENSORS,
@@ -40,6 +44,7 @@ from .const import (
     DOMAIN,
     HEALTHCHECK_STORE_KEY,
     HEALTHLOG_STORE_KEY,
+    MAIN_CODE_NAME,
     MAINTENANCE_STORE_KEY,
     MODES,
     OPT_BYPASS,
@@ -141,6 +146,42 @@ def _migrate_schedules(hass: HomeAssistant, entry: ConfigEntry) -> None:
         hass.config_entries.async_update_entry(entry, options=migrated if migrated is not None else options)
 
 
+def _migrate_main_code(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """
+    Bis 1.89.x hatte eine Anlage neben den Codes pro Person einen Hauptcode (`code_hash`, `code_salt`) ohne Person. Seit 1.90.0 (Frage des
+    Nutzers "Wieso braucht es den Hauptcode überhaupt?", Entscheid "Abschaffen", 2026-11-25) gibt es nur noch Codes pro Person: ein Hauptcode wird
+    einmal zu einem Code "Hauptcode" ("Main code") ohne Benutzer, mit demselben Hash und Salz. Wer ihn kennt, schaltet also unverändert weiter.
+    Ein unvollständiger oder beschädigter Hauptcode (Hash ohne Salz, kein Hex) passte nie zu einem Code (bis 1.89.x übersprang ihn die Prüfung)
+    und fällt weg, statt als nutzloser Eintrag in der Liste zu stehen. Die Höchstzahl der Codes
+    (`MAX_CODES`) hält die Übertragung nicht auf: danach lässt sich erst wieder ein Code hinzufügen, wenn einer entfernt ist.
+    """
+    options = dict(entry.options)
+    if CONF_CODE_HASH not in options and CONF_CODE_SALT not in options:
+        return
+    code_hash, salt = options.pop(CONF_CODE_HASH, None), options.pop(CONF_CODE_SALT, None)
+    raw = options.get(CONF_CODES)
+    codes = list(raw) if isinstance(raw, list) else []
+    if _hex(code_hash) and _hex(salt):
+        base = MAIN_CODE_NAME["de" if (hass.config.language or "").lower().startswith("de") else "en"]
+        taken = {str(c.get("name", "")).casefold() for c in codes if isinstance(c, dict)}
+        # Wie add_code: zwei Codes mit demselben Namen gibt es nie (sonst wäre "geändert von" nicht eindeutig)
+        name, number = base, 1
+        while name.casefold() in taken:
+            number += 1
+            name = f"{base} {number}"
+        codes.append({"id": secrets.token_hex(6), "name": name, "user_id": None, "hash": code_hash, "salt": salt})
+    options[CONF_CODES] = codes
+    hass.config_entries.async_update_entry(entry, options=options)
+
+
+def _hex(value: Any) -> bool:
+    """Ein nicht leerer Hexwert, wie hash_code ihn schreibt (nur dann konnte der Hauptcode je passen)."""
+    try:
+        return isinstance(value, str) and bool(value) and bool(bytes.fromhex(value))
+    except ValueError:
+        return False
+
+
 async def _isolated(entry: ConfigEntry, awaitable: Awaitable[Any], what: str, part: str | None = None, hass: HomeAssistant | None = None) -> Any:
     """
     Etwas Zusätzliches (Protokoll, Aufzeichnung, Statistik, Aktionen, Wartung) vorbereiten, ohne dass sein Scheitern die Anlage mitnimmt.
@@ -226,6 +267,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
     # Vor dem Controller und vor dem Update-Listener: die Änderung der Optionen löst so kein zusätzliches Neuladen aus
     _migrate_open_sensors(hass, entry)
     _migrate_schedules(hass, entry)
+    _migrate_main_code(hass, entry)
     integration = await async_get_integration(hass, DOMAIN)
     settings = await async_get_settings(hass)
     # Selbsttest (1.65.0) zuerst: er hält fest, wenn ein Teil der Anlage nicht startet. Er ist Zusatz wie die Wartung.

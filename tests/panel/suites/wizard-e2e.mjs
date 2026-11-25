@@ -8,13 +8,13 @@ const T = {
   de: { moreTitles: ["Routinen", "Codes pro Person", "Eigene Töne", "HealthCheck", "Dashboard-Karte"], tAlarm: "Alarmmeldung", tMaint: "Wartungsmeldung", tMsgAlarm: "Testmeldung Alarm", tMsgMaint: "Testmeldung Wartung", monAdd: "Messwerte hinzufügen", monChosen: "gewählt", more: "Weitere Funktionen", openCfg: "Konfiguration öffnen", welcome: "Willkommen bei Alarmageddon", welcomeShort: "Willkommen", title: "Einrichtungsassistent", start: "Los geht's", next: "Weiter", finish: "Fertig", skipCode: "Ohne Code weiter",
     askTitle: "Assistent später fortsetzen?", later: "Später", stepOf: (n, total) => `Schritt ${n} von ${total}`, chapter: "Einrichtungsassistent", del: "Anlage löschen",
     stDone: "Abgeschlossen", stLater: "Verschoben bis", stHidden: "Ausgeblendet, bei Schritt 3", run: "Assistent starten", resume: "Bei Schritt 3 fortsetzen", restart: "Von vorn",
-    dirty: "Ungespeicherte Änderungen", chosen: (n, total) => `${n} von ${total} gewählt`, codeSome: "Codes dieser Anlage: Diego", codeAnna: "Codes dieser Anlage: Anna", mainSet: "Hauptcode festlegen", mainDone: "Festgelegt", codeWhen: "Wann der Code verlangt wird", sumCode: "Diego, Hauptcode",
+    dirty: "Ungespeicherte Änderungen", chosen: (n, total) => `${n} von ${total} gewählt`, codeSome: "Codes dieser Anlage: Diego", codeAnna: "Codes dieser Anlage: Anna", codeWhen: "Wann der Code verlangt wird", sumCode: "Diego",
     siren: "Sirene 3 Minuten", sound: "Alarmton", sumZones: "3 Sensoren · Eingang: Haustür · Verlassen: 60 s · Deaktivieren: 45 s", sumNotify: "an diego · 8 von 9 Meldungen an",
     sumActions: "nur die Alarmmeldung", found: "Gefunden: 3 Sensoren", entry: "Eingangsverzögerung", modes: ["Anwesend", "Abwesend", "Nacht"] },
   en: { moreTitles: ["Routines", "Codes per person", "Your own sounds", "HealthCheck", "Dashboard card"], tAlarm: "Alarm notification", tMaint: "Maintenance notification", tMsgAlarm: "Test notification: alarm", tMsgMaint: "Test notification: maintenance", monAdd: "Add measurements", monChosen: "chosen", more: "More features", openCfg: "Open configuration", welcome: "Welcome to Alarmageddon", welcomeShort: "Welcome", title: "Setup assistant", start: "Let's go", next: "Next", finish: "Finish", skipCode: "Continue without code",
     askTitle: "Continue the assistant later?", later: "Later", stepOf: (n, total) => `Step ${n} of ${total}`, chapter: "Setup assistant", del: "Delete alarm system",
     stDone: "Completed", stLater: "Postponed until", stHidden: "Hidden, at step 3", run: "Start assistant", resume: "Continue at step 3", restart: "Start over",
-    dirty: "Unsaved changes", chosen: (n, total) => `${n} of ${total} chosen`, codeSome: "Codes of this alarm system: Diego", codeAnna: "Codes of this alarm system: Anna", mainSet: "Set main code", mainDone: "Set", codeWhen: "When the code is needed", sumCode: "Diego, main code",
+    dirty: "Unsaved changes", chosen: (n, total) => `${n} of ${total} chosen`, codeSome: "Codes of this alarm system: Diego", codeAnna: "Codes of this alarm system: Anna", codeWhen: "When the code is needed", sumCode: "Diego",
     siren: "Siren 3 minutes", sound: "Alarm sound", sumZones: "3 sensors · entry: Haustür · leave: 60 s · disarm: 45 s", sumNotify: "to diego · 8 of 9 notifications on",
     sumActions: "only the alarm notification", found: "Found: 3 sensors", entry: "Entry delay", modes: ["Home", "Away", "Night"] },
 };
@@ -240,8 +240,8 @@ for (const lang of ["de", "en"]) {
 
     // Code (freiwillig)
     check(`${tag}: Code: noch keiner, Knopf "${t.skipCode}"`, await s.waitFor(`return r.querySelector('[data-wz="next"]').innerText.trim() === ${J(t.skipCode)} && !!r.querySelector('[data-wz="code-add"]')`));
-    // Seit 1.89.0 (Wunsch des Nutzers 2026-11-25): auch der Hauptcode und, mit einem Code, die Schalter dazu; ohne Code noch keine Schalter
-    check(`${tag}: Code: Zeile "Hauptcode" mit "${t.mainSet}", noch keine Schalter`, await s.ev(`const sl=r.querySelector('.ag-wz-slot'); return sl.querySelector('.ag-mainrow [data-sys="main-set"]')?.innerText.trim() === ${J(t.mainSet)} && !sl.querySelector('.ag-toggle')`));
+    // Seit 1.89.0: mit einem Code die Schalter dazu, ohne Code noch keine. Seit 1.90.0 keine Zeile "Hauptcode" mehr (Entscheid des Nutzers: abgeschafft)
+    check(`${tag}: Code: keine Zeile "Hauptcode", noch keine Schalter`, await s.ev(`const sl=r.querySelector('.ag-wz-slot'); return !sl.querySelector('.ag-mainrow, [data-sys^="main-"]') && !sl.querySelector('.ag-toggle')`));
     await s.tap('[data-wz="code-add"]');
     check(`${tag}: "Code hinzufügen" öffnet das Fenster der Codes, mit dem eigenen Benutzer und Namen vorbelegt`, await s.waitFor("const d=r.getElementById('ag-codes'); return d.open && d.querySelector('[data-key=\"name\"]').value === 'Diego' && d.querySelector('select[data-key=\"user_id\"]').value === 'u_diego'"));
     await (await s.el("#ag-cf-code")).fill("4826");
@@ -256,15 +256,6 @@ for (const lang of ["de", "en"]) {
       && (await sw()) === "armcode:false,modecode:true,ackcode:false", await sw());
     await s.tap('.ag-wz-slot [data-sys="armcode"]');
     check(`${tag}: Scharfschalten an: Moduswechsel verschwindet, der Schritt folgt sofort`, await s.waitFor("return [...r.querySelectorAll('.ag-wz-slot .ag-toggle')].map((b) => b.dataset.sys + ':' + b.getAttribute('aria-checked')).join() === 'armcode:true,ackcode:false'"));
-    // Hauptcode festlegen, im selben Fenster wie unter Anlage
-    await s.tap('.ag-wz-slot [data-sys="main-set"]');
-    await s.waitFor("return r.getElementById('ag-codes').open");
-    await (await s.el("#ag-cf-code")).fill("97315");
-    await (await s.el("#ag-cf-code2")).fill("97315");
-    await s.tap('#ag-codes [data-sys="code-save"]');
-    check(`${tag}: Hauptcode festgelegt: die Zeile zeigt "${t.mainDone}" mit Ändern und Entfernen, der Schalter bleibt an (Entwurf)`, await s.waitFor(`const sl=r.querySelector('.ag-wz-slot'); return !r.getElementById('ag-codes').open && r.querySelector('.ag-wz')?.dataset.step === 'code'
-      && sl.querySelector('.ag-mainrow small')?.innerText.trim() === ${J(t.mainDone)} && !!sl.querySelector('[data-sys="main-edit"]') && sl.querySelector('[data-sys="armcode"]')?.getAttribute('aria-checked') === 'true'`, 10000)
-      && await s.sim("return window.__systems.find((x) => x.entry_id === 'e_ferienhaus').main_code === true"));
     await s.tap('[data-wz="next"]');
     check(`${tag}: "Weiter" speichert die Schalter (code_arm_required an)`, await H.waitStep("notify") && await s.sim("const c=window.__calls.filter((x) => x.type === 'alarmageddon/save_system' && x.entry_id === 'e_ferienhaus').at(-1); return c?.code_arm_required === true && c.code_ack_required === false"));
 
@@ -362,7 +353,7 @@ for (const lang of ["de", "en"]) {
     // Fertig
     check(`${tag}: Fertig: Zusammenfassung mit sechs Zeilen und "Ändern"`, await H.waitStep("done") && (await s.waitFor("return r.querySelectorAll('.ag-wz-sum .ag-setrow').length === 6 && r.querySelectorAll('.ag-wz-sum [data-wz=\"goto\"]').length === 6")));
     const sum = await s.ev("return [...r.querySelectorAll('.ag-wz-sum .ag-setrow small')].map((x) => x.textContent)");
-    check(`${tag}: Zusammenfassung: Modi, Sensoren mit Eingang und Zeiten, Code (Person und Hauptcode, seit 1.89.0 im Assistenten), Meldungen, Aktionen`, sum[0].includes(t.modes[2]) && sum[1] === t.sumZones && sum[2] === t.sumCode && sum[3] === t.sumNotify && sum[4] === t.sumActions, J(sum));
+    check(`${tag}: Zusammenfassung: Modi, Sensoren mit Eingang und Zeiten, Code (seit 1.90.0 nur Codes pro Person), Meldungen, Aktionen`, sum[0].includes(t.modes[2]) && sum[1] === t.sumZones && sum[2] === t.sumCode && sum[3] === t.sumNotify && sum[4] === t.sumActions, J(sum));
     check(`${tag}: Ausprobieren: Test der Aktionen, Testmeldung, Bereit zum Scharfschalten je Modus`, await s.ev("return !!r.querySelector('[data-wz=\"wf-test\"]') && !!r.querySelector('[data-wz=\"nt-test\"]') && r.querySelectorAll('.ag-wz-readyrow .ag-rchip').length === 3"));
     const tryRows = await s.ev("return [...r.querySelectorAll('[data-wz=\"nt-test\"]')].map((b) => { const row=b.closest('.ag-setrow'); return { g: b.dataset.group, b: row.querySelector('b').textContent, s: row.querySelector('small').textContent, off: b.disabled }; })");
     check(`${tag}: Ausprobieren: zwei Testmeldungen, "${t.tMsgAlarm}" an diego, "${t.tMsgMaint}" an partnerin`, J(tryRows.map((x) => [x.g, x.b, x.off])) === J([["alarm", t.tMsgAlarm, false], ["maintenance", t.tMsgMaint, false]])

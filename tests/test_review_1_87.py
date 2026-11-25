@@ -807,9 +807,10 @@ async def test_diagnostics_never_contain_secrets(hass: HomeAssistant, hass_ws_cl
     entry = hass.config_entries.async_get_entry(entry.entry_id)
     result = await async_get_config_entry_diagnostics(hass, entry)
     text = json.dumps(result, default=str)
-    for secret in ("84615297", "73920518", code_hash, salt, entry.options["codes"][0]["hash"], entry.options["codes"][0]["salt"]):
+    # Seit 1.90.0 ist der Hauptcode beim Laden ein Code pro Person geworden: zwei Codes, keiner davon in der Diagnose
+    for secret in ("84615297", "73920518", code_hash, salt, *(c[k] for c in entry.options["codes"] for k in ("hash", "salt"))):
         assert secret not in text
-    assert result["controller"]["state"] == "disarmed" and result["controller"]["personal_codes"] == 1
+    assert result["controller"]["state"] == "disarmed" and result["controller"]["personal_codes"] == 2
 
 
 async def test_acknowledge_service_exists_without_a_loaded_system(hass: HomeAssistant) -> None:

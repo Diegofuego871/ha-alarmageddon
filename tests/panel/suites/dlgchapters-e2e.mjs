@@ -8,8 +8,8 @@ const DIALOGS = [
   { name: "Anlage hinzufügen", open: "r.host._openAdd(); return 1", id: "ag-add", title: { de: "Name", en: "Name" } },
   { name: "Anlage umbenennen", open: "r.host._openRename(); return 1", id: "ag-rename", title: { de: "Name", en: "Name" } },
   { name: "Anlage löschen", open: "r.host._openDelete(); return 1", id: "ag-delete", title: { de: "Bestätigung", en: "Confirmation" } },
-  // 1.89.0: Hauptcode festlegen oder ändern, wie "Code hinzufügen"
-  { name: "Hauptcode ändern", open: "r.host.systemUi.openMainForm(); return 1", id: "ag-codes", title: { de: "Code (4 bis 8 Ziffern)", en: "Code (4 to 8 digits)" } },
+  // "Code hinzufügen" selbst (das Vorbild, erstes Feld der Benutzer); von 1.89.0 bis 1.89.x stand hier das Fenster des Hauptcodes, den es seit 1.90.0 nicht mehr gibt
+  { name: "Code hinzufügen", open: "r.host.systemUi.openCodeForm(); return 1", id: "ag-codes", title: { de: "Benutzer in Home Assistant", en: "Home Assistant user" } },
 ];
 
 const browser = await launch();

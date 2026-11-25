@@ -6,19 +6,16 @@
         "description": "Jede Alarmanlage ist ein eigenes Gerät mit eigener Alarm-Entität. Die Sensoren wählst du danach in den Optionen.",
         "data": {
           "name": "Name",
-          "night_enabled": "Modus \"Nacht\"",
-          "code": "Code (optional)"
+          "night_enabled": "Modus \"Nacht\""
         },
         "data_description": {
           "name": "Zum Beispiel \"Haus\" oder \"Garage\". Gerät und Alarm-Entität bekommen diesen Namen.",
-          "night_enabled": "Ergänzt den Modus \"Nacht\" mit eigener Zone. Standardmässig aus.",
-          "code": "4 bis 8 Ziffern. Nötig zum Deaktivieren. Leer lassen für keinen Code."
+          "night_enabled": "Ergänzt den Modus \"Nacht\" mit eigener Zone. Standardmässig aus."
         }
       }
     },
     "error": {
       "name_required": "Gib einen Namen ein.",
-      "invalid_code_format": "Der Code muss 4 bis 8 Ziffern haben.",
       "name_taken": "Es gibt schon eine Alarmanlage mit diesem Namen."
     }
   },
@@ -62,7 +59,7 @@
           },
           "behaviour": {
             "name": "Verhalten",
-            "description": "Modi und Scharfschalten.",
+            "description": "Modi und Scharfschalten. Codes legst du im Seitenpanel an: Konfiguration › Anlage › Codes pro Person.",
             "data": {
               "night_enabled": "Modus \"Nacht\"",
               "code_arm_required": "Code zum Scharfschalten",
@@ -75,29 +72,14 @@
               "code_ack_required": "Das Quittieren eines Alarms verlangt auch den Code (zum Beispiel aus der Dashboard-Karte). Nur mit einem Code möglich. Standardmässig aus.",
               "code_mode_required": "Im scharfen Zustand und während der Ausgangsverzögerung verlangt der Wechsel zwischen Anwesend, Abwesend und Nacht den Code (zum Beispiel auf Dashboard-Karten, über Sprachassistenten oder in Apple Home). Aus: der Wechsel verlangt den Code nur, wenn auch das Scharfschalten ihn verlangt. Standardmässig an; wirkt nur mit einem Code."
             }
-          },
-          "code_section": {
-            "name": "Code",
-            "description": "Der Code wird nur als Hash gespeichert und nie angezeigt.",
-            "data": {
-              "code": "Neuer Code",
-              "remove_code": "Code entfernen"
-            },
-            "data_description": {
-              "code": "4 bis 8 Ziffern. Leer lassen, um den bisherigen Code zu behalten.",
-              "remove_code": "Deaktivieren braucht keinen Code mehr."
-            }
           }
         }
       }
     },
     "error": {
       "entry_not_in_zone": "Jeder Sensor mit Eingangsverzögerung muss in einer der aktiven Zonen sein.",
-      "invalid_code_format": "Der Code muss 4 bis 8 Ziffern haben.",
-      "code_and_remove": "Gib einen neuen Code ein oder entferne den Code, nicht beides.",
-      "code_missing": "\"Code zum Scharfschalten\" braucht einen Code.",
-      "mode_active": "Zuerst die Anlage deaktivieren: Der Modus, in dem sie scharf ist, lässt sich nicht abschalten.",
-      "code_taken": "Dieser Code gehört schon einer Person. Jeder Code muss eindeutig sein."
+      "code_missing": "\"Code zum Scharfschalten\" und \"Code zum Quittieren\" brauchen einen Code. Lege ihn im Seitenpanel an: Konfiguration › Anlage › Codes pro Person.",
+      "mode_active": "Zuerst die Anlage deaktivieren: Der Modus, in dem sie scharf ist, lässt sich nicht abschalten."
     }
   },
   "entity": {

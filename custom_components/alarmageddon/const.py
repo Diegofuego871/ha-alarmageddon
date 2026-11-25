@@ -79,16 +79,15 @@ CONF_CODE_ACK_REQUIRED: Final = "code_ack_required"
 # Moduswechsel im scharfen Zustand und in der Ausgangsverzögerung verlangt den Code (1.87.0 immer, einstellbar seit 1.88.0, Wunsch des
 # Nutzers 2026-11-24). Standard an, auch ohne gespeicherten Wert; nur wirksam mit einem Code. Aus: wie bis 1.86.x ("Code zum Scharfschalten")
 CONF_CODE_MODE_REQUIRED: Final = "code_mode_required"
+# Hauptcode bis 1.89.x (ein Code der Anlage ohne Person, aus der Einrichtung und dem Optionsdialog). Seit 1.90.0 (Entscheid des Nutzers
+# 2026-11-25: "Abschaffen") nur noch gelesen, um ihn beim Laden einmal in einen Code pro Person zu übertragen (__init__._migrate_main_code)
 CONF_CODE_HASH: Final = "code_hash"
 CONF_CODE_SALT: Final = "code_salt"
-# Weitere Codes, je einer Person zugeordnet (0.5.0): [{"id", "name", "user_id", "hash", "salt"}].
-# Der Hauptcode (code_hash/code_salt aus dem Optionsdialog) gilt weiter, ohne Namen.
+# Name des übertragenen Hauptcodes (Sprache von Home Assistant beim Übertragen; danach ein Name wie jeder andere)
+MAIN_CODE_NAME: Final = {"de": "Hauptcode", "en": "Main code"}
+# Codes, je einer Person zugeordnet (0.5.0): [{"id", "name", "user_id", "hash", "salt"}]. Seit 1.90.0 die einzigen Codes einer Anlage
 CONF_CODES: Final = "codes"
 MAX_CODES: Final = 20
-
-# Felder im Formular (nicht gespeichert, nur Eingabe)
-FIELD_CODE: Final = "code"
-FIELD_REMOVE_CODE: Final = "remove_code"
 
 OPEN_BLOCK: Final = "block"
 OPEN_BYPASS: Final = "bypass"
@@ -111,7 +110,7 @@ CODE_LOCKOUT_STEPS: Final = (CODE_LOCKOUT_SECONDS, 120, 240, 480, 900)
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 298  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 299  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"

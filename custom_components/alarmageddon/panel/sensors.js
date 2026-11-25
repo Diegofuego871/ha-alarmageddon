@@ -3,7 +3,7 @@
 // Änderungen sind ein Entwurf mit "Abbrechen" und "Speichern" (Regel aus ha-device-panel).
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, fmtDur, DC, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText, sensorKind, sensorFilters, optionShown } = await import(`./common.js${V}`);
+const { ic, esc, fmtDur, DC, MODE_KEY, MODE_ICON, OPTIONS, TYPES, DEFAULT_PRESETS, errText, sensorKind, sensorFilters, optionShown, perModeIcon } = await import(`./common.js${V}`);
 const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 
 const ALL_MODES = ["home", "away", "night"];
@@ -330,7 +330,7 @@ export class SensorsUi {
     if (d.perMode && !modes.includes(this.mtab) && !(this.mtab === "always" && this.alwaysOn)) this.mtab = modes[0] || "home";
     // Reiter der Modi und "Immer aktiv" (Rauch, Wasser, Gas: gilt auch bei deaktivierter Anlage), jeder mit allen Einstellungen für sich
     const tabs = d.perMode ? h._segHtml("sen-mode", [...modes.map((m) => [`mt:${m}`, this._t(MODE_KEY[m]), MODE_ICON[m]]), ...(this.alwaysOn ? [["mt:always", this._t("wfAlways"), "flash"]] : [])], `mt:${this.mtab}`, "data-sen", "small ag-modeseg") : "";
-    h._setHtml(bar, `<div class="ag-pmsw"><button class="ag-toggle ${d.perMode ? "on" : ""}" data-sen="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("senPerMode"))}"></button>
+    h._setHtml(bar, `<div class="ag-pmsw">${perModeIcon(d.perMode)}<button class="ag-toggle ${d.perMode ? "on" : ""}" data-sen="permode" role="switch" aria-checked="${d.perMode}" aria-label="${esc(this._t("senPerMode"))}"></button>
       <div class="ag-settx"><b>${esc(this._t("senPerMode"))}</b><small>${esc(this._t(d.perMode ? "senPerModeOn" : "senPerModeHint"))}</small></div></div>${tabs}
       ${d.perMode ? `<div class="ag-pmscope" style="flex-basis:100%;margin:0">${ic(this.mtab === "always" ? "flash" : MODE_ICON[this.mtab], 18)}${esc(this._t(this.mtab === "always" ? "pmScopeAlways" : "pmScope", { mode: this._t(MODE_KEY[this.mtab] || "wfAlways") }))}</div>` : ""}`);
     h._placePills();
@@ -736,7 +736,7 @@ export class SensorsUi {
       <label class="list-search" style="margin-top:12px">${ic("search", 18)}<input type="search" data-sen="pick-q" placeholder="${esc(this._t("search"))}" value="${esc(this.pick.q)}" aria-label="${esc(this._t("search"))}">
         <button class="ag-clear" data-sen="pick-clear" aria-label="${esc(this._t("clearSearch"))}" ${this.pick.q ? "" : "hidden"}>${ic("close", 16)}</button></label>
       <div class="ag-tools ag-pick-chips">${this._pickChips()}</div>
-      <div class="ag-elist" style="margin-top:10px;max-height:min(46vh,380px)">${this._pickListHtml()}</div>
+      <div class="ag-elist ag-pick-list">${this._pickListHtml()}</div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sen="pick-close">${esc(this._t("cancel"))}</button>
         <button class="ag-btn primary" data-sen="pick-add" ${this.pick.sel.size ? "" : "disabled"}>${ic("plus", 18)}${esc(this._t("pickAdd", { count: this.pick.sel.size }))}</button></div></div>`);
   }
@@ -779,6 +779,27 @@ export class SensorsUi {
     const dlg = this.host._root.getElementById("ag-presets");
     dlg.innerHTML = this.presetsHtml();
     dlg.showModal();
+    this._fitPresets(dlg);
+    if (!this._fitBound) {
+      this._fitBound = true;
+      window.addEventListener("resize", () => { if (dlg.open) this._fitPresets(dlg); });
+    }
+  }
+
+  // Am Computer so breit wie der Inhalt des Panels dahinter und darüber ausgerichtet (1.90.0, Wunsch des Nutzers 2026-11-25: "gleich breit wie
+  // das Panel dahinter"): die Tabelle hat sechs Spalten und lief in der Breite der übrigen Fenster (880 px) seitlich über. Auf dem Handy bleibt
+  // es der ganze Bildschirm (Stil der Fenster, nichts gesetzt).
+  _fitPresets(dlg) {
+    const reset = () => Object.assign(dlg.style, { width: "", maxWidth: "", marginLeft: "", marginRight: "" });
+    const content = this.host.hasAttribute("narrow") ? null : this.host._content;
+    const rect = content?.getBoundingClientRect();
+    if (!rect?.width) return reset();
+    // Innenfläche des Inhalts (ohne den Rand, auf breiten Bildschirmen die Polster, die ihn mittig halten)
+    const cs = getComputedStyle(content);
+    const inner = { left: rect.left + parseFloat(cs.paddingLeft), width: rect.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) };
+    const width = Math.min(inner.width, window.innerWidth - 32);
+    const left = Math.min(Math.max(16, inner.left), window.innerWidth - 16 - width);
+    Object.assign(dlg.style, { width: `${width}px`, maxWidth: `${width}px`, marginLeft: `${left}px`, marginRight: "auto" });
   }
 
   async savePresets() {

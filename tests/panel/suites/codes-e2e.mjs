@@ -4,11 +4,13 @@
 // öffnet dasselbe Fenster wie Hinzufügen, Name und Benutzer stehen drin, die Codefelder sind leer (leer = bisheriger Code). Das Auge blendet nur
 // den getippten Code ein. Warnung bei einfachen Codes (rot, fett, Achtung-Zeichen), Speichern bleibt möglich. Je Sprache, Desktop und Handy,
 // dazu ein schmales Handy (320 px).
+// Seit 1.90.0 (Entscheid des Nutzers 2026-11-25: Hauptcode abgeschafft) gibt es nur noch Codes pro Person: weder auf der Seite noch im Fenster
+// eine Zeile oder einen Knopf eines Hauptcodes; ohne Code sagt die Zusammenfassung, dass die Anlage nie einen Code verlangt.
 import { check, done, launch, open, outDir } from "../lib.mjs";
 
 const T = {
-  de: { one: "1 Code", many: "5 Codes", none: "Noch keine Codes", title: "Codes pro Person", gone: "Benutzer nicht verfügbar", weak: "Leicht zu erraten", short: "Zu kurz", edit: "Code bearbeiten", add: "Code hinzufügen", keep: "Leer lassen", noMatch: "Kein Code passt", mismatch: "stimmen nicht", taken: "schon vergeben", show: "Code anzeigen", hide: "Code ausblenden" },
-  en: { one: "1 code", many: "5 codes", none: "No codes yet", title: "Codes per person", gone: "User not available", weak: "Easy to guess", short: "Too short", edit: "Edit code", add: "Add code", keep: "Leave empty", noMatch: "No code matches", mismatch: "do not match", taken: "already used", show: "Show code", hide: "Hide code" },
+  de: { one: "1 Code", many: "5 Codes", none: "Noch keine Codes", noneHint: "Die Anlage verlangt nie einen Code", empty: "Noch keine Codes. Jede Person bekommt einen eigenen Code.", title: "Codes pro Person", gone: "Benutzer nicht verfügbar", weak: "Leicht zu erraten", short: "Zu kurz", edit: "Code bearbeiten", add: "Code hinzufügen", keep: "Leer lassen", noMatch: "Kein Code passt", mismatch: "stimmen nicht", taken: "schon vergeben", show: "Code anzeigen", hide: "Code ausblenden" },
+  en: { one: "1 code", many: "5 codes", none: "No codes yet", noneHint: "The alarm system never asks for a code", empty: "No codes yet. Every person gets their own code.", title: "Codes per person", gone: "User not available", weak: "Easy to guess", short: "Too short", edit: "Edit code", add: "Add code", keep: "Leave empty", noMatch: "No code matches", mismatch: "do not match", taken: "already used", show: "Show code", hide: "Hide code" },
 };
 // Code und erwarteter Grund der Warnung (null: keine Warnung)
 const WEAK = [["1234", "sequence"], ["9753", "sequence"], ["0000", "same"], ["1212", "pattern"], ["1122", "pattern"], ["1112", "run"], ["1221", "mirror"], ["2580", "keypad"],
@@ -39,7 +41,7 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   const page = await s.ev(`const c=r.querySelector('[data-sys="code-open"]').closest('.ag-chap'); return { summary: c.querySelector('.ag-codesum b').innerText.trim(), add: !!r.querySelector('.ag-content [data-sys="code-add"]'),
     addPage: c.querySelector('.ag-codesum .ag-btnrow > .ag-btn:first-child')?.dataset.sys === 'code-add-page' && c.querySelector('.ag-codesum .ag-btnrow > .ag-btn:last-child')?.dataset.sys === 'code-open',
     addText: c.querySelector('[data-sys="code-add-page"]')?.innerText.trim(),
-    rows: c.querySelectorAll('.ag-coderow').length, main: !!c.querySelector('.ag-mainrow [data-sys="main-edit"]') && !!c.querySelector('.ag-mainrow [data-sys="main-del"]') && !c.querySelector('[data-sys="code"]'),
+    sub: c.querySelector('.ag-codesum small')?.innerText.trim() || '', main: !c.querySelector('.ag-mainrow, .ag-coderow, [data-sys^="main-"]') && !c.querySelector('[data-sys="code"]') && !/Hauptcode|Main code/.test(c.innerText),
     ack: !!c.querySelector('[data-sys="ackcode"]') && !!c.querySelector('[data-sys="armcode"]') && !!c.querySelector('[data-sys="modecode"]'), hint: c.querySelector(':scope > .ag-chap-h')?.innerText.trim() === r.host._t('sysCodesHint'),
     noName: !c.innerText.includes('Anna'), noCode: !c.innerText.includes('2468') }`);
   check(`${tag}: Seite: Zusammenfassung "${t.one}", links "${t.add}", rechts "Codes anzeigen", keine Liste`, page.summary === t.one && !page.add && page.addPage && page.addText === t.add && page.noName && page.noCode, JSON.stringify(page));
@@ -48,7 +50,7 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   check(`${tag}: Seite: "${t.add}" öffnet das Formular "${t.add}" direkt (ohne die Liste)`, await s.waitFor(`const d=r.getElementById('ag-codes'); return d.open && d.querySelector('h3')?.innerText.trim() === ${JSON.stringify(t.add)} && !!d.querySelector('[data-sys="code-save"]') && !r.getElementById('ag-codelist').open`));
   await s.tap('#ag-codes [data-sys="code-close"]');
   await s.waitFor("return !r.getElementById('ag-codes').open");
-  check(`${tag}: Seite: Hauptcode (Ändern, Entfernen, seit 1.89.0 ohne "Optionen öffnen") und die drei Schalter zum Code bleiben, der Hinweis steht über der Karte`, page.rows === 1 && page.main && page.ack && page.hint, JSON.stringify(page));
+  check(`${tag}: Seite: kein Hauptcode (seit 1.90.0), Zusammenfassung ohne Zusatz, die drei Schalter zum Code bleiben, der Hinweis steht über der Karte`, page.sub === "" && page.main && page.ack && page.hint, JSON.stringify(page));
 
   // Zeile mit der Zusammenfassung wie bei Routinen und Tönen: Text in einer Zeile, der Knopf überdeckt ihn nie (Handy: darunter, Desktop: daneben)
   const row = await s.ev(`const row=r.querySelector('.ag-codesum'); const card=row.closest('.ag-card').getBoundingClientRect(); const b=row.querySelector('.ag-settx b').getBoundingClientRect();
@@ -67,10 +69,12 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
     return { title: head?.querySelector('h3')?.innerText.trim(), search: !!head?.querySelector('[data-sys="code-search"]'), sort: ths.map((x) => x.querySelector('[data-sys="code-sort"]')?.dataset.key || ''),
       cols: ths.length, lastTh: ths[ths.length - 1]?.innerText.trim(), rows: d.querySelectorAll('tr[data-code]').length, round, dots: /•/.test(d.innerText), digits: /\\d{4}/.test(d.innerText),
       acts: [...d.querySelectorAll('tr[data-code]')].every((x) => x.querySelector('[data-sys="code-edit"]') && x.querySelector('[data-sys="code-del"]')),
+      main: !d.querySelector('tr.ag-codemain, [data-sys^="main-"]') && d.querySelectorAll('.ag-codetable tr').length === 6,
       foot: foot.map((b) => b.dataset.sys + (b.classList.contains('primary') ? '*' : '')).join() }`);
   check(`${tag}: Fenster: Titel "${t.title}" und Suchfeld im klebenden Kopf`, win.title === t.title && win.search, JSON.stringify(win));
   check(`${tag}: Fenster: Spalten Name und Benutzer (sortierbar), dazu nur die Knöpfe; keine Spalte "Code"`, win.sort.join() === "name,user," && win.cols === 3 && win.lastTh === "", JSON.stringify(win));
   check(`${tag}: Fenster: fünf Zeilen, je Stift und Papierkorb in Kreisen (44 px, mit Rand), kein Platzhalter und keine Ziffern im Fenster`, win.rows === 5 && win.acts && win.round.w === 44 && win.round.border === "solid" && !win.dots && !win.digits, JSON.stringify(win));
+  check(`${tag}: Fenster: nur die Codes pro Person, keine Zeile eines Hauptcodes (seit 1.90.0)`, win.main, JSON.stringify(win));
   check(`${tag}: Fenster: Fusszeile "Schliessen" und "${t.add}" (blau)`, win.foot === "code-list-close,code-add*", win.foot);
 
   // Darstellung: kein seitliches Scrollen, Handy: ganzer Bildschirm, X oben rechts, Fusszeile unten
@@ -212,9 +216,12 @@ for (const [lang, mobile, width] of [["de", false, null], ["de", true, null], ["
   check(`${tag}: 20 Codes: "${t.add}" gesperrt (im Fenster und auf der Seite)`, await s.waitFor("return r.querySelectorAll('#ag-codelist tr[data-code]').length === 20 && r.querySelector('#ag-codelist [data-sys=\"code-add\"]').disabled && r.querySelector('.ag-content [data-sys=\"code-add-page\"]').disabled"));
   await s.sim("const sys = window.__systems[0]; sys.codes = []; sys.pcodes = {}; return 1");
   await s.ev("return r.host._fetch()");
-  check(`${tag}: ohne Codes: Hinweis mit blauem Knopf in der Mitte, kein Suchfeld, Fusszeile nur "Schliessen"`, await s.waitFor("const d=r.getElementById('ag-codelist'); return !d.querySelector('.ag-codetable') && !!d.querySelector('.ag-rtempty [data-sys=\"code-add\"].primary') && !d.querySelector('[data-sys=\"code-search\"]') && [...d.querySelectorAll('.ag-dlg-btns button')].map((b) => b.dataset.sys).join() === 'code-list-close'"));
+  check(`${tag}: ohne Codes: Hinweis "${t.empty}" mit blauem Knopf in der Mitte, keine Tabelle, kein Suchfeld, Fusszeile nur "Schliessen"`, await s.waitFor(`const d=r.getElementById('ag-codelist'); return !d.querySelector('.ag-codetable')
+    && d.querySelector('.ag-rtempty')?.innerText.includes(${JSON.stringify(t.empty)}) && !!d.querySelector('.ag-rtempty [data-sys="code-add"].primary') && !d.querySelector('[data-sys="code-search"]') && [...d.querySelectorAll('.ag-dlg-btns button')].map((b) => b.dataset.sys).join() === 'code-list-close'`));
+  if (!width) await s.page.screenshot({ path: `${outDir}codes-list-empty-${lang}-${mobile ? "mobile" : "desktop"}.png` });
   await s.tap('#ag-codelist [data-sys="code-list-close"]');
-  check(`${tag}: Seite ohne Codes: "${t.none}"`, await s.waitFor(`return !r.getElementById('ag-codelist').open && r.querySelector('.ag-codesum b').innerText.trim() === ${JSON.stringify(t.none)}`));
+  check(`${tag}: Seite ohne Codes: "${t.none}" mit "${t.noneHint} ..."`, await s.waitFor(`return !r.getElementById('ag-codelist').open && r.querySelector('.ag-codesum b').innerText.trim() === ${JSON.stringify(t.none)}
+    && (r.querySelector('.ag-codesum small')?.innerText || '').startsWith(${JSON.stringify(t.noneHint)})`));
   if (!width) {
     await s.ev("r.querySelector('.ag-codesum').scrollIntoView({ block: 'center' }); return 1");
     await (await s.el('.ag-chap:has([data-sys="code-open"])')).screenshot({ path: `${outDir}codes-page-${lang}-${mobile ? "mobile" : "desktop"}.png` });

@@ -67,9 +67,7 @@ from .const import (
     CONF_CODE_ACK_REQUIRED,
     CONF_CODE_MODE_REQUIRED,
     CONF_CODE_ARM_REQUIRED,
-    CONF_CODE_HASH,
     CONF_CODES,
-    CONF_CODE_SALT,
     CONF_ENTRY_DELAY,
     CONF_ENTRY_SENSORS,
     CONF_EXIT_DELAY_PREFIX,
@@ -323,19 +321,15 @@ class AlarmController:
 
     @property
     def has_code(self) -> bool:
-        return bool(self.options.get(CONF_CODE_HASH)) or bool(self.codes)
+        # Seit 1.90.0 gibt es nur noch Codes pro Person: ein Hauptcode früherer Versionen (bis 1.89.x) ist beim Laden einer geworden (__init__._migrate_main_code)
+        return bool(self.codes)
 
     def person_for_user(self, user_id: str | None) -> str | None:
         """Name der Person, deren Code mit diesem HA-Benutzer verknüpft ist (für "geändert von")."""
         return next((c["name"] for c in self.codes if user_id and c.get("user_id") == user_id), None)
 
     def _candidates(self) -> list[tuple[tuple[str, str], str | None]]:
-        out: list[tuple[tuple[str, str], str | None]] = []
-        # Ein Hauptcode ohne Salz (beschädigte Ablage) wird übersprungen, statt die Prüfung für alle Codes zu stören
-        if self.options.get(CONF_CODE_HASH) and self.options.get(CONF_CODE_SALT):
-            out.append(((self.options[CONF_CODE_HASH], self.options[CONF_CODE_SALT]), None))
-        out.extend(((c["hash"], c["salt"]), c.get("name")) for c in self.codes)
-        return out
+        return [((c["hash"], c["salt"]), c.get("name")) for c in self.codes]
 
     @property
     def code_arm_required(self) -> bool:

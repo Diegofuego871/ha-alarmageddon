@@ -6,7 +6,7 @@
 // Testmeldungen gehen mit dem gespeicherten Stand hinaus.
 
 const V = new URL(import.meta.url).search;
-const { ic, esc, errText, chapter, MODE_KEY, MODE_ICON, onceBtn, paintOnce, runOnce } = await import(`./common.js${V}`);
+const { ic, esc, errText, chapter, MODE_KEY, MODE_ICON, onceBtn, paintOnce, runOnce, rowIcon, perModeIcon } = await import(`./common.js${V}`);
 
 // Arten je Gruppe in der Reihenfolge der Anzeige, mit Symbol
 const GROUPS = {
@@ -150,7 +150,8 @@ export class NotifyUi {
           <option value="">${esc(this._t(free.length ? "ntAdd" : "ntAllChosen"))}</option>${free.map((s) => `<option value="${esc(s)}">${esc(short(s))}</option>`).join("")}</select>`
       : `<div class="ag-t2 ag-small">${esc(this._t("ntNoServices"))}</div>`;
     const none = !chosen.length && services.length ? `<small class="ag-warntext">${ic("alert", 14)} ${esc(this._t("ntNoneChosen"))}</small>` : "";
-    return `<div class="ag-setrow ag-recip"><div class="ag-settx"><b>${esc(this._t(group === "alarm" ? "ntAlarmTargets" : "ntMaintTargets"))}</b><small>${esc(this._t(group === "alarm" ? "ntAlarmTargetsHint" : "ntMaintTargetsHint"))}</small>
+    // Symbol oben links (1.90.0): Glocke für die Alarme, Zahnrad für die Wartung
+    return `<div class="ag-setrow ag-recip">${rowIcon(group === "alarm" ? "bell" : "cog")}<div class="ag-settx"><b>${esc(this._t(group === "alarm" ? "ntAlarmTargets" : "ntMaintTargets"))}</b><small>${esc(this._t(group === "alarm" ? "ntAlarmTargetsHint" : "ntMaintTargetsHint"))}</small>
         <div class="ag-rline">${select}</div>${pills ? `<div class="ag-rpills">${pills}</div>` : ""}${none}</div></div>`;
   }
 
@@ -264,7 +265,7 @@ export class NotifyUi {
     const modes = ALL_MODES.filter((m) => (h._systems().length ? h._systems().some((s) => (s.modes || []).includes(m)) : m !== "night"));
     if (d.per_mode && !modes.includes(this.modeTab)) this.modeTab = modes[0] || "home";
     const tabs = d.per_mode ? h._segHtml("nt-mode", modes.map((m) => [`tab:${m}`, this._t(MODE_KEY[m]), MODE_ICON[m]]), `tab:${this.modeTab}`, "data-nt", "small ag-modeseg") : "";
-    const sw = `<div class="ag-pmbar"><div class="ag-pmsw">${this._toggle('data-nt="permode"', d.per_mode, this._t("ntPerMode"))}
+    const sw = `<div class="ag-pmbar"><div class="ag-pmsw">${perModeIcon(d.per_mode)}${this._toggle('data-nt="permode"', d.per_mode, this._t("ntPerMode"))}
       <div class="ag-settx"><b>${esc(this._t("ntPerMode"))}</b><small>${esc(this._t(d.per_mode ? "ntPerModeOn" : "ntPerModeHint"))}</small></div></div>${tabs}</div>`;
     // Arten, die nicht vom Modus abhängen (Scharfschalten nicht möglich): mit Schalter unter den Reitern, sonst im gemeinsamen Raster
     const modeKinds = new Set(MODE_KINDS.map(([k]) => k));

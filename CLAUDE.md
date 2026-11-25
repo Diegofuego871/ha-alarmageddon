@@ -396,7 +396,7 @@ Umsetzung:
   "Überwachung" sind die eingebetteten Ansichten (das Panel zeichnet in `.ag-wz-slot` als `_view`, `_tab`/`_sub` stehen auf dem Schritt, Ereignisse
   laufen weiter über die Reiter). Eine Änderung an einem Reiter gilt damit auch im Assistenten; was im Assistenten fehlen soll, blendet `styles.js`
   je Schritt aus. Er öffnet sich nie über ungespeicherte Änderungen oder ein offenes Fenster; der Start von Hand fragt vorher. Der Code ist
-  freiwillig (ein Hauptcode zählt), "Schnell hinzufügen" nur Sirene 3 Minuten und Alarmton (Entscheid: ohne Licht), "Überwachung" nur mit
+  freiwillig (seit 1.90.0 nur Codes pro Person), "Schnell hinzufügen" nur Sirene 3 Minuten und Alarmton (Entscheid: ohne Licht), "Überwachung" nur mit
   passenden Messwerten oder eingeschalteter Überwachung (seit 1.70.0: solange die Messwerte laden, bleibt ein angefangener Schritt "Überwachung" stehen,
   `_monitorFits`; Messwerte über das Fenster `#ag-wzpick`, nie alle als Knöpfe, Wunsch des Nutzers 2026-11-20). "Weitere Funktionen" am Schluss hat seit 1.73.0 je Funktion (ausser der Dashboard-Karte)
   einen runden Pfeil (`data-wz="more-go"`, `wizard._goMore`, `MORE`): er schliesst den Assistenten **ohne ihn abzuschliessen**, springt mit `openPlace` (Routinen,
@@ -435,10 +435,17 @@ Umsetzung:
   Ausgangsverzögerung verlangt den Code (`code_mode_change`), ausser `skip_code`; seit 1.88.0 je Anlage abschaltbar (`code_mode_required`, Standard an, nur `False` schaltet ab, Tests `tests/test_mode_code.py`). **Nie signierte Ton-URLs einbauen** (Entscheid M7 "Nie umsetzen").
 - Alles aus dem Optionsdialog auch im Panel (seit 1.89.0, Wunsch des Nutzers 2026-11-25): jede Einstellung, die der Optionsdialog von HA kennt, hat
   auch einen Platz im Panel, im Stil der übrigen Seite und ohne unnötigen Platz (Schalter, die ohne eine sichere Voraussetzung nichts bewirken,
-  erscheinen erst mit ihr). Hauptcode über `set_main_code`/`remove_main_code` (nur Administratoren, unter `_codes_lock`, nie gleich wie ein Code pro
-  Person, Optionen erst nach dem Hashen lesen; Entfernen des letzten Codes setzt `code_arm_required` und `code_ack_required` zurück). Die Schalter zum
-  Code im Entwurf (`system.js CODE_KEYS`) folgen dem Server, solange sie unverändert sind (`_followCodes`). Tests `tests/test_main_code_panel.py`,
-  Suite `maincode-e2e.mjs`, Zeilen "Hauptcode im Panel" in `scripts/mutation_check.py`.
+  erscheinen erst mit ihr). Die Schalter zum Code im Entwurf (`system.js CODE_KEYS`) folgen dem Server, solange sie unverändert sind (`_followCodes`);
+  Entfernen des letzten vollständigen Codes setzt `code_arm_required` und `code_ack_required` zurück (`ws_remove_code`). Suite `codeswitches-e2e.mjs`.
+- **Kein Hauptcode (seit 1.90.0, Frage des Nutzers "Wieso braucht es den Hauptcode überhaupt?", Entscheid "Abschaffen", 2026-11-25):** es gibt nur
+  Codes pro Person; ein Code ohne Benutzer erfüllt alles, wofür der Hauptcode da war. Nie wieder einen zweiten Weg für Codes neben der Liste `codes`
+  einführen. Ein Hauptcode früherer Versionen (`code_hash`, `code_salt` in den Optionen) wird beim Laden einmal zum Code pro Person "Hauptcode"/"Main code" (Sprache von HA, nie doppelt:
+  "… 2") ohne Benutzer, mit demselben Hash und Salz (`__init__._migrate_main_code`, vor dem Controller; die Schalter bleiben; ein unvollständiger oder
+  unlesbarer Wert fällt weg, `_hex`). Einrichtung und Optionsdialog von HA haben kein Codefeld mehr; "Code zum Scharfschalten"/"Quittieren" im Dialog
+  verlangen einen vollständigen Code pro Person (`config_flow._has_code`, Fehler `code_missing`). `controller.has_code`, `_candidates` und `backup._has_code` kennen nur
+  vollständige Einträge in `codes`. Es gibt keine Befehle `set_main_code`/`remove_main_code` und kein
+  `main_code` in `data`. Tests `tests/test_main_code_migration.py`, `tests/test_config_flow.py -k "code"`, Zeilen "Hauptcode abgeschafft" in
+  `scripts/mutation_check.py`; die Konstanten `CONF_CODE_HASH`, `CONF_CODE_SALT` bleiben nur für die Umstellung und die Schwärzung der Diagnose.
 - Nachalarm pro Modus (seit 1.89.0, Wunsch des Nutzers 2026-11-25): Schalter `realarm_per_mode` wie bei den Zeiten (Standard aus, nur `True` schaltet
   ein); an, gilt `realarm_scopes[auslöser]` des laufenden Alarms (`const.realarm_for`, Auslöser = `plan[0]`, "Immer aktiv" = `always`), fehlt er, der
   gemeinsame Wert. Beschädigte Werte bleiben im Bereich 1 bis 10, der Alarm läuft immer weiter. Panel, Backup und `save_system` prüfen streng
@@ -554,10 +561,22 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
 - **Orange Punkte (Vorgabe des Nutzers, 2026-11-10):** Ein orange Punkt bedeutet immer "ungespeicherte Änderung" (zum Beispiel am Reiter). Jede andere Markierung, etwa "eigener Wert", ist blau. Verschwindet ein orange Punkt nach dem Speichern nicht, ist es ein Fehler.
 - **Schalter links, Text rechts (Grundregel, Vorgabe des Nutzers, 2026-11-11):** Jeder Schalter steht links, sein Text
   rechts davon und nahe dabei; der Text wächst nach rechts. Nie ein Schalter am rechten Rand, weit weg von seinem Text,
-  auf Desktop und auf dem Handy. Zwischen Schalter und Text darf nur das Symbol der Option stehen. Die Regel gilt
-  zentral im CSS für alle Zeilenarten (`order: -1` in `styles.js`); eine neue Zeilenart wird dort ergänzt. Ausnahme:
-  Schalter in Tabellenzellen (die Spalte ist ihre Beschriftung). `tests/panel/suites/switches-e2e.mjs` prüft das ganze
-  Panel samt allen Fenstern; jede neue Ansicht mit Schaltern kommt dort dazu.
+  auf Desktop und auf dem Handy. Die Regel gilt zentral im CSS für alle Zeilenarten (`order: -1` in `styles.js`); eine neue
+  Zeilenart wird dort ergänzt. Ausnahme: Schalter in Tabellenzellen (die Spalte ist ihre Beschriftung).
+  `tests/panel/suites/switches-e2e.mjs` prüft das ganze Panel samt allen Fenstern; jede neue Ansicht mit Schaltern kommt dort dazu.
+- **Symbol oben links (seit 1.90.0, Vorgaben des Nutzers 2026-11-25: "das Icon soll immer oben links, im weissen Bereich sein", "Schalter sind
+  immer links vor dem Text"; Mockup `docs/mockups/symbole-v1`):** eine Zeile mit Symbol beginnt mit der Kachel (`.ag-oav`, `common.js rowIcon`),
+  danach der Schalter, dann der Text: [Symbol][Schalter][Text]. Die Kachel steht oben (ein langer Text beginnt auf ihrer Höhe), der Schalter mittig
+  auf der Kachel, Felder und Knöpfe rechts bleiben mittig; auf dem Handy rutschen sie unter den Text. Zentral in `styles.js` (`order: -2` für
+  `.ag-oav` in `.ag-orow`, `.ag-setrow`, `.ag-pmsw`, `.ag-mon-head`, für `.ag-ntk-icon` und `.ag-wf-icon`); bis 1.89.x stand das Symbol zwischen Schalter und Text.
+  Unterzeilen mit eigenem Symbol (`.ag-osub` im Sensor, `.ag-rtsub` in der Routine) beginnen mit dem Symbol unter dem Schalter der Zeile darüber.
+  "Einstellungen pro Modus" trägt auf jeder Seite `perModeIcon` ("tune", blau wenn an). Eine Unteroption (wie "Höchstens" beim Nachalarm) ist
+  `.ag-setrow.ag-rowsub`: ohne Symbol und ohne Strich dazwischen, bündig mit dem Text der Zeile darüber. Suite `icons-e2e.mjs` (Lage je Zeile auf
+  allen vier Seiten); eine neue Zeilenart mit Symbol kommt dort dazu.
+- **Fenster mit Listen am Computer (seit 1.90.0, Wünsche des Nutzers 2026-11-25):** "Voreinstellungen je Sensorart" ist so breit wie der Inhalt des
+  Panels dahinter (`sensors.js _fitPresets`, bündig, folgt der Fenstergrösse); "Sensoren hinzufügen" ist immer gleich hoch (`#ag-pick`: Höhe
+  `min(92vh, 900px)`, nur die Liste `.ag-pick-list` scrollt), damit Suche und Knöpfe nie springen. Auf dem Handy bleiben beide Vollbild. Suite
+  `icons-e2e.mjs`.
 - **Sensorkarten gleich hoch (Vorgabe des Nutzers, 2026-11-13):** Alle Karten der Übersicht sind immer gleich hoch, im Raster und auf
   dem Handy. Der Name hat immer Platz für drei Zeilen (danach "…", voll im Tooltip), die übrigen Zeilen haben feste Höhen, fehlende
   Angaben stehen als "–" da. Eine neue Zeile oder Angabe auf der Karte bekommt eine feste Höhe; `tests/panel/suites/cardheight-e2e.mjs`
@@ -634,7 +653,8 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
    Link-Fussnote.
 4. README und Handbuch (`docs/MANUAL*.md`) EN und DE nachführen, bei jeder Lieferung (Vorgabe des Nutzers, 2026-11-11). Hat sich die Oberfläche sichtbar
    geändert, auch die Bilder neu erzeugen: `node tests/panel/readme-shots.mjs`, danach `python scripts/optimize_images.py` (nennt je Bild Verfahren
-   und Abweichung; seit 1.89.0 verliert kein Bild mehr Farben). Danach jedes Bild einzeln ansehen, nicht nur Stichproben (Vorgabe des Nutzers).
+   und Abweichung; seit 1.89.0 verliert kein Bild mehr Farben, seit 1.90.0 zählt unter den passenden Verfahren die mittlere Abweichung, damit grosse
+   Flächen nicht leicht die Farbe wechseln). Danach jedes Bild einzeln ansehen, nicht nur Stichproben (Vorgabe des Nutzers).
 5. Sicherung und Wiederherstellung prüfen: Alles, was der Nutzer eingestellt
    hat (Zonen, Szenarien, Überwachung, Einstellungen pro Gerät), gehört in
    die Sicherung, mit Prüfung des Werts und Test. Laufzeitdaten nicht.

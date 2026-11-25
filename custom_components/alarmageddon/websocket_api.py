@@ -51,8 +51,6 @@ from .const import (
     CONF_CODE_ACK_REQUIRED,
     CONF_CODE_MODE_REQUIRED,
     CONF_CODE_ARM_REQUIRED,
-    CONF_CODE_HASH,
-    CONF_CODE_SALT,
     CONF_CODES,
     MAX_CODES,
     CONF_CONFIRM_WINDOW,
@@ -184,8 +182,6 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_add_code)
     websocket_api.async_register_command(hass, ws_update_code)
     websocket_api.async_register_command(hass, ws_remove_code)
-    websocket_api.async_register_command(hass, ws_set_main_code)
-    websocket_api.async_register_command(hass, ws_remove_main_code)
     websocket_api.async_register_command(hass, ws_rename_sound)
     websocket_api.async_register_command(hass, ws_delete_sound)
     websocket_api.async_register_command(hass, ws_selftest_run)
@@ -436,7 +432,6 @@ async def ws_data(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
                 "alarm_unseen": ({"id": unseen["id"], "running": unseen.get("end") is None} if (unseen := entry.runtime_data.recorder.unseen if entry.runtime_data.recorder else None) else None),
                 # Codes nie zum Panel: nur Name und verknüpfter Benutzer
                 "codes": [{"id": c.get("id", ""), "name": c.get("name", ""), "user_id": c.get("user_id")} for c in ctl.codes],
-                "main_code": bool(entry.options.get(CONF_CODE_HASH)),
                 "code_arm_required": ctl.code_arm_required,
                 "code_ack_required": ctl.code_ack_required,
                 # Gespeicherter Wert (Standard an), unabhängig davon, ob schon ein Code gesetzt ist; wirksam ist er nur mit Code
@@ -823,8 +818,8 @@ async def ws_save_presets(hass: HomeAssistant, connection, msg: dict[str, Any]) 
 @websocket_api.async_response
 async def ws_save_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """
-    Verzögerungen und Verhalten einer Anlage (dieselben Schlüssel wie der Optionsdialog). Den Hauptcode selbst setzen und entfernen eigene Befehle
-    (set_main_code, remove_main_code), sofort und nie als Teil des Entwurfs.
+    Verzögerungen und Verhalten einer Anlage (dieselben Schlüssel wie der Optionsdialog). Die Codes setzen eigene Befehle (add_code, update_code,
+    remove_code), sofort und nie als Teil des Entwurfs; einen Hauptcode gibt es seit 1.90.0 nicht mehr.
     """
     if (entry := _entry(hass, connection, msg)) is None:
         return
@@ -1414,8 +1409,6 @@ async def ws_add_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -> N
             connection.send_error(msg["id"], "user_taken", "User unknown or already linked")
             return
         existing = [(c["hash"], c["salt"]) for c in codes]
-        if entry.options.get(CONF_CODE_HASH) and entry.options.get(CONF_CODE_SALT):
-            existing.append((entry.options[CONF_CODE_HASH], entry.options[CONF_CODE_SALT]))
         if await hass.async_add_executor_job(match_code, code, existing) is not None:
             connection.send_error(msg["id"], "code_taken", "Code already used")
             return
@@ -1474,8 +1467,6 @@ async def ws_update_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -
         updated = {**current, "name": msg["name"], "user_id": user_id}
         if code:
             existing = [(c.get("hash"), c.get("salt")) for c in others if c.get("hash") and c.get("salt")]
-            if entry.options.get(CONF_CODE_HASH) and entry.options.get(CONF_CODE_SALT):
-                existing.append((entry.options[CONF_CODE_HASH], entry.options[CONF_CODE_SALT]))
             if await hass.async_add_executor_job(match_code, code, existing) is not None:
                 connection.send_error(msg["id"], "code_taken", "Code already used")
                 return
@@ -1545,63 +1536,13 @@ async def ws_remove_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -
             return
         options = dict(entry.options)
         options[CONF_CODES] = rest
-        if not rest and not options.get(CONF_CODE_HASH):
-            # Ohne Code kann "Code zum Scharfschalten" nicht gelten
+        if not any(isinstance(c, dict) and c.get("hash") and c.get("salt") for c in rest):
+            # Ohne Code kann "Code zum Scharfschalten" nicht gelten (seit 1.90.0 gibt es keinen Hauptcode mehr, der bliebe)
             options[CONF_CODE_ARM_REQUIRED] = False
             options[CONF_CODE_ACK_REQUIRED] = False
         changed = hass.config_entries.async_update_entry(entry, options=options)
     # "reload": lädt die Anlage neu? Home Assistant lädt nur neu, wenn sich die Optionen wirklich geändert haben. Ohne diese Angabe
     # wartete das Panel mit der Ladeanzeige 25 Sekunden auf eine neue Kennung, die nie kam.
-    connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
-
-
-@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/set_main_code", vol.Required("entry_id"): str, vol.Required("code"): str})
-@websocket_api.require_admin
-@websocket_api.async_response
-async def ws_set_main_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
-    """
-    Hauptcode festlegen oder ändern (1.89.0, Wunsch des Nutzers 2026-11-25: alles aus dem Optionsdialog auch im Panel). Dieselben Regeln wie dort:
-    4 bis 8 Ziffern, nie derselbe Code wie ein persönlicher. Der Code kommt nur hier herein und wird sofort als Hash gespeichert; nie geloggt, nie
-    zurückgegeben. Der bisherige Hauptcode muss nicht angegeben werden (wie im Optionsdialog und bei den Codes pro Person: das Panel ist nur für
-    Administratoren).
-    """
-    if (entry := _entry(hass, connection, msg)) is None:
-        return
-    code = msg["code"].strip()
-    if not re.fullmatch(CODE_PATTERN, code):
-        connection.send_error(msg["id"], "invalid_code_format", "4 to 8 digits")
-        return
-    # Unter derselben Sperre wie die Codes pro Person: sonst legte ein gleichzeitiges add_code denselben Code als persönlichen an
-    async with _codes_lock(hass, entry.entry_id):
-        personal = [(c["hash"], c["salt"]) for c in _stored_codes(entry)]
-        if personal and await hass.async_add_executor_job(match_code, code, personal) is not None:
-            connection.send_error(msg["id"], "code_taken", "Code already used")
-            return
-        code_hash, salt = await hass.async_add_executor_job(hash_code, code)
-        # Die Optionen erst nach dem Warten lesen: was in der Zwischenzeit gespeichert wurde (zum Beispiel save_system), bleibt erhalten
-        changed = hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_CODE_HASH: code_hash, CONF_CODE_SALT: salt})
-    connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
-
-
-@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/remove_main_code", vol.Required("entry_id"): str})
-@websocket_api.require_admin
-@websocket_api.async_response
-async def ws_remove_main_code(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
-    """
-    Hauptcode entfernen (1.89.0). Wie remove_code: ist danach kein Code mehr da, entfallen "Scharfschalten verlangt den Code" und "Quittieren
-    verlangt den Code" (der Optionsdialog verlangt dafür, die Schalter vorher selbst auszuschalten; das Panel fragt vorher nach und nennt die Folge).
-    """
-    if (entry := _entry(hass, connection, msg)) is None:
-        return
-    async with _codes_lock(hass, entry.entry_id):
-        if not entry.options.get(CONF_CODE_HASH):
-            connection.send_error(msg["id"], "not_found", "No main code")
-            return
-        options = {k: v for k, v in entry.options.items() if k not in (CONF_CODE_HASH, CONF_CODE_SALT)}
-        if not _stored_codes(entry):
-            # Kein Code mehr: nichts mehr zu verlangen
-            options.update({CONF_CODE_ARM_REQUIRED: False, CONF_CODE_ACK_REQUIRED: False})
-        changed = hass.config_entries.async_update_entry(entry, options=options)
     connection.send_result(msg["id"], {"ok": True, "reload": bool(changed)})
 
 

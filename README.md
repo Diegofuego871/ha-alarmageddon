@@ -55,8 +55,8 @@ Automations stay possible: each alarm system is an ordinary `alarm_control_panel
 ## Installation
 
 1. **Install:** HACS → three dots → "Custom repositories" → `https://github.com/Diegofuego871/ha-alarmageddon`, type "Integration". Install "Alarmageddon" and restart Home Assistant.
-2. **Add an alarm system:** Settings → Devices & services → "Add integration" → "Alarmageddon". Give it a name and, if you like, a code. More alarm systems can also be added in the panel ("Add alarm system").
-3. **Set it up:** open "Alarmageddon" in the sidebar (administrators only). The setup assistant starts by itself and goes through modes, sensors, entry and delays, a code, notifications and alarm actions; every step is saved with "Next". Afterwards everything is under Configuration; routines, the main code and codes per person, your own sounds, HealthCheck and backup are under Configuration › Alarm system. "Send test message" and the play button of a step let you try everything without an alarm.
+2. **Add an alarm system:** Settings → Devices & services → "Add integration" → "Alarmageddon". Give it a name. More alarm systems can also be added in the panel ("Add alarm system").
+3. **Set it up:** open "Alarmageddon" in the sidebar (administrators only). The setup assistant starts by itself and goes through modes, sensors, entry and delays, a code, notifications and alarm actions; every step is saved with "Next". Afterwards everything is under Configuration; routines, codes per person, your own sounds, HealthCheck and backup are under Configuration › Alarm system. "Send test message" and the play button of a step let you try everything without an alarm.
 
 ## A tour
 

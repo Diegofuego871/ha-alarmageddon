@@ -81,8 +81,8 @@
       sensors: params.get("sensors") === "few" ? [] : BINARY,
       entry_sensors: ["binary_sensor.haustuer"],
       mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 60, entry_delay: 30, confirm_window: 60 },
-        night: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: true, code_arm_required: false, code: "1234",
-      main_code: true, codes: [{ id: "c_anna", name: "Anna", user_id: "u_anna" }], pcodes: { c_anna: "2468" },
+        night: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: true, code_arm_required: false,
+      codes: [{ id: "c_anna", name: "Anna", user_id: "u_anna" }], pcodes: { c_anna: "2468" },
       // Routinen (1.44.0): eine Zeit, ein Gerät mit Und/Oder, eine, die deaktiviert
       routines: [
         { id: "r_nacht", name: "Nachts scharf", enabled: true, action: "night", states: ["arming", "armed", "disarmed"], unsafe: false, trigger: { type: "schedule", times: [{ time: "22:30", days: [0, 1, 2, 3, 4, 5, 6] }] } },
@@ -118,7 +118,7 @@
       zones: { home: ["binary_sensor.garagentor"], away: ["binary_sensor.garagentor", "binary_sensor.bewegung_garage"] },
       sensors: params.get("sensors") === "few" ? [] : BINARY,
       entry_sensors: [],
-      entry_delay_max: { home: 0, away: 0 }, mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [],
+      entry_delay_max: { home: 0, away: 0 }, mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 0, entry_delay: 30, confirm_window: 60 } }, has_code: false, code_arm_required: false, codes: [], pcodes: {}, routines: [],
       night_enabled: false, sensor_options: {}, workflows: {}, workflow_running: null, workflow_test: false,
       events: [ { t: iso(20 * 60e3), state: "disarmed", mode: null, by: "Automation" } ] },
   ];
@@ -861,7 +861,7 @@
       const created = { entry_id: `e_${slug}`, title: name, entity_id: `alarm_control_panel.${slug}`, modes: ["home", "away"], zones: { home: [], away: [] },
         sensors: [], entry_sensors: [], entry_delay_max: { home: 0, away: 0 },
         mode_settings: { home: { exit_delay: 0, entry_delay: 30, confirm_window: 60 }, away: { exit_delay: 60, entry_delay: 30, confirm_window: 60 } },
-        has_code: false, code_arm_required: false, main_code: false, codes: [], pcodes: {}, routines: [], night_enabled: false, sensor_options: {},
+        has_code: false, code_arm_required: false, codes: [], pcodes: {}, routines: [], night_enabled: false, sensor_options: {},
         workflows: {}, workflow_running: null, workflow_test: false, events: [], accent: msg.accent || "ha", wizard: { state: "open", until: null, step: "welcome" } };
       window.__systems.push(created);
       window.__systems.sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
@@ -966,7 +966,7 @@
     if (msg.type === "alarmageddon/add_code") {
       if (!/^\d{4,8}$/.test(msg.code)) throw err("invalid_code_format");
       if (sys.codes.some((c) => c.name.toLowerCase() === msg.name.toLowerCase())) throw err("name_taken");
-      if (msg.code === sys.code || Object.values(sys.pcodes).includes(msg.code)) throw err("code_taken");
+      if (Object.values(sys.pcodes).includes(msg.code)) throw err("code_taken");
       if (msg.user_id && sys.codes.some((c) => c.user_id === msg.user_id)) throw err("user_taken");
       const id = `c_${Date.now()}`;
       sys.codes.push({ id, name: msg.name, user_id: msg.user_id || null });
@@ -983,7 +983,7 @@
       if (code && !/^\d{4,8}$/.test(code)) throw err("invalid_code_format");
       if (others.some((c) => c.name.toLowerCase() === msg.name.toLowerCase())) throw err("name_taken");
       if (msg.user_id && others.some((c) => c.user_id === msg.user_id)) throw err("user_taken");
-      if (code && (code === sys.code || others.some((c) => sys.pcodes[c.id] === code))) throw err("code_taken");
+      if (code && others.some((c) => sys.pcodes[c.id] === code)) throw err("code_taken");
       const changed = mine.name !== msg.name || (mine.user_id || null) !== (msg.user_id || null) || (code && code !== sys.pcodes[mine.id]);
       Object.assign(mine, { name: msg.name, user_id: msg.user_id || null });
       if (code) sys.pcodes[mine.id] = code;
@@ -993,27 +993,10 @@
       if (!sys.codes.some((c) => c.id === msg.code_id)) throw err("not_found");
       sys.codes = sys.codes.filter((c) => c.id !== msg.code_id);
       delete sys.pcodes[msg.code_id];
-      sys.has_code = sys.main_code || sys.codes.length > 0;
+      sys.has_code = sys.codes.length > 0;
       // Wie der Server: ohne Code entfallen "Scharfschalten" und "Quittieren verlangt den Code"
       if (!sys.has_code) Object.assign(sys, { code_arm_required: false, code_ack_required: false });
       return { ok: true };
-    }
-    // Hauptcode im Panel (1.89.0), wie der Server: 4 bis 8 Ziffern, nie der Code einer Person; Entfernen ohne Code: not_found
-    if (msg.type === "alarmageddon/set_main_code") {
-      const code = String(msg.code || "").trim();
-      if (!/^\d{4,8}$/.test(code)) throw err("invalid_code_format");
-      if (Object.values(sys.pcodes).includes(code)) throw err("code_taken");
-      Object.assign(sys, { code, main_code: true, has_code: true });
-      window.__mainCode = code;
-      reloadNow();
-      return { ok: true, reload: true };
-    }
-    if (msg.type === "alarmageddon/remove_main_code") {
-      if (!sys.main_code) throw err("not_found");
-      Object.assign(sys, { code: null, main_code: false, has_code: sys.codes.length > 0 });
-      if (!sys.has_code) Object.assign(sys, { code_arm_required: false, code_ack_required: false });
-      reloadNow();
-      return { ok: true, reload: true };
     }
     if (msg.type === "alarmageddon/save_system") {
       for (const [scope, vals] of Object.entries(msg.mode_settings || {})) {
@@ -1092,7 +1075,7 @@
     }
     if (msg.type === "alarmageddon/arm") {
       const needCode = sys.has_code && (msg.mode === "off" || sys.code_arm_required);
-      if (needCode && msg.code !== sys.code && !Object.values(sys.pcodes).includes(msg.code)) throw err("invalid_code", "Wrong code");
+      if (needCode && !Object.values(sys.pcodes).includes(msg.code)) throw err("invalid_code", "Wrong code");
       if (msg.mode === "off") {
         window.__setState(sys.entity_id, "disarmed", { arm_mode: null, changed_by: "Diego", deadline: null, triggered_by: null });
         sys.events.unshift({ t: new Date().toISOString(), state: "disarmed", mode: null, by: "Diego" });

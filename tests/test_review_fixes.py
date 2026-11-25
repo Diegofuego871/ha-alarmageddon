@@ -129,11 +129,13 @@ async def test_disarming_works_with_a_damaged_main_code_and_a_personal_code(hass
     await hass.services.async_call("alarm_control_panel", "alarm_disarm", {"entity_id": "alarm_control_panel.haus", "code": "1357"}, blocking=True)
     await hass.async_block_till_done()
     assert state(hass) == AlarmControlPanelState.DISARMED
-    # Hauptcode ohne Salz: übersprungen statt Fehler (KeyError)
+    # Seit 1.90.0 wird ein Hauptcode beim Laden ein Code pro Person; ein beschädigter (kein Hex) oder unvollständiger (ohne Salz) galt nie und
+    # wird keiner: er stört die Prüfung der übrigen Codes nicht und steht nicht als nutzloser Eintrag in der Liste
+    assert [c["name"] for c in entry.options["codes"]] == ["Anna"] and "code_hash" not in entry.options
     hass.config_entries.async_update_entry(entry, options={**entry.options, "code_hash": "abcd", "code_salt": ""})
     await hass.async_block_till_done()
     ctl = entry.runtime_data.controller
-    assert [name for _c, name in ctl._candidates()] == ["Anna"]
+    assert [name for _c, name in ctl._candidates()] == ["Anna"] and "code_hash" not in entry.options
 
 
 # ----- Löschen: die Anlage wird zwischen Prüfung und Löschen nicht scharf -----

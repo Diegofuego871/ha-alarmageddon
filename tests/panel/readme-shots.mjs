@@ -256,8 +256,15 @@ for (const lang of ["en", "de"]) {
     await page.waitForTimeout(800);
     await toElement(frame, '.ag-chap:has([data-sys="realarm"])', 0, 18);
   } });
-  // Kapitel "Codes" (1.88.0): Hauptcode, "Quittieren verlangt den Code" und "Moduswechsel verlangt den Code" (Handbuch)
-  await shot(lang, "codes", { tab: "config", height: 860, prepare: async ({ page, frame }) => {
+  // Kapitel "Codes" (1.88.0): Zusammenfassung, "Scharfschalten", "Moduswechsel" und "Quittieren verlangt den Code" (Handbuch); seit 1.90.0 ohne
+  // Hauptcode, mit drei Codes pro Person und den Symbolen oben links
+  await shot(lang, "codes", { tab: "config", height: 750, prepare: async ({ page, frame }) => {
+    await page.evaluate(() => {
+      const sys = window.__systems[0];
+      sys.codes.push({ id: "c_marco", name: "Marco", user_id: "u_diego" }, { id: "c_lena", name: "Lena", user_id: null });
+      Object.assign(sys.pcodes, { c_marco: "5791", c_lena: "8642" });
+    });
+    await frame.evaluate(() => document.querySelector("alarmageddon-panel")._fetch());
     await click('[data-sub="system"]')({ frame });
     await page.waitForTimeout(800);
     await toElement(frame, '.ag-chap:has([data-sys="modecode"])', 0, 18);

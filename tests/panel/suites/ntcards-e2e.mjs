@@ -1,6 +1,6 @@
 // 1.69.0: Konfiguration › Meldungen im neuen Design (Wunsch des Nutzers 2026-11-19, 22:20 und 22:27; Entscheid 23:01: Variante C, Störung rot,
 // Wartung orange, "Fehlversuche", Einstellungen weiterhin auf der Seite gespeichert, ungespeicherte Änderungen markiert wie überall). Jede Meldung
-// ist eine Karte wie die festen Meldungen unter Aktionen (Schalter, Symbol, Titel, Kurzfassung, Play, Stift); der Stift öffnet das Fenster
+// ist eine Karte wie die festen Meldungen unter Aktionen (seit 1.90.0 Symbol, Schalter, Titel, Kurzfassung, Play, Stift); der Stift öffnet das Fenster
 // #ag-ntkind. Das Fenster ändert nur den Entwurf: "Übernehmen" behält, "Abbrechen", X und Escape stellen nach einer Rückfrage den Stand beim
 // Öffnen wieder her; gespeichert wird allein mit "Speichern" unten. Zahlen einheitlich: Beschriftung links, Felder in einer Flucht, Hinweis
 // darunter. Je Sprache, Desktop und Handy, echte Klicks und Taps.
@@ -64,14 +64,14 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Streifen links am Rahmen: rot (Störung), orange (Wartung); die Karten tragen keinen eigenen Streifen; Symbole getönt`, colors.fault === colors.red && colors.maint === colors.orange && colors.faultW === "5px" && colors.maintW === "5px"
       && colors.cards.every(Boolean) && colors.iconFault !== colors.iconMaint && colors.iconOff !== colors.iconMaint, JSON.stringify(colors));
 
-    // ----- Karte: Schalter links, Symbol, Titel, Kurzfassung, Play und Stift -----
+    // ----- Karte: Symbol links (seit 1.90.0 vor dem Schalter, Vorgabe des Nutzers "Icon immer oben links"), Schalter, Titel, Kurzfassung, Play und Stift -----
     const card = await s.ev(`const c=r.querySelector('${CARD("battery_low")}'); const tg=c.querySelector('[data-nt="enabled"]').getBoundingClientRect(); const ico=c.querySelector('.ag-ntk-icon').getBoundingClientRect();
       const tx=c.querySelector('.ag-wf-text').getBoundingClientRect(); const play=c.querySelector('[data-nt="test"]'); const pen=c.querySelector('[data-nt="edit"]');
-      return { order: tg.right <= ico.left && ico.right <= tx.left, title: c.querySelector('.ag-wf-text b').textContent, sum: c.querySelector('.ag-wf-text small').textContent,
+      return { order: ico.right <= tg.left && tg.right <= tx.left, title: c.querySelector('.ag-wf-text b').textContent, sum: c.querySelector('.ag-wf-text small').textContent,
         play: !!play && !play.disabled, pen: pen?.getAttribute('aria-label'), hc: r.querySelector('${CARD("healthcheck")} .ag-wf-text small').textContent,
         offPlay: r.querySelector('${CARD("sensor_unavailable")} [data-nt="test"]').disabled, offTip: r.querySelector('${CARD("sensor_unavailable")} [data-nt="test"]').title,
         offSum: r.querySelector('${CARD("sensor_unavailable")} .ag-wf-text small').textContent, marks: r.querySelectorAll('.ag-nt .ag-unsaved').length }`);
-    check(`${tag}: Karte "${t.battery}": Schalter, Symbol, Text von links nach rechts; Kurzfassung "${t.below} · ${t.checks}"; Play frei, Stift "${t.edit}"`,
+    check(`${tag}: Karte "${t.battery}": Symbol, Schalter, Text von links nach rechts; Kurzfassung "${t.below} · ${t.checks}"; Play frei, Stift "${t.edit}"`,
       card.order && card.title === t.battery && card.sum.includes(t.below) && card.sum.includes(t.checks) && card.play && card.pen === t.edit && card.marks === 0, JSON.stringify(card));
     check(`${tag}: HealthCheck "${t.fails}"; ausgeschaltete Meldung: Play gesperrt ("${t.off}")`, card.hc.includes(t.fails) && card.offPlay && card.offTip.includes(t.off) && card.offSum.length < 8, JSON.stringify(card));
 
