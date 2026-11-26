@@ -89,6 +89,7 @@ for (const lang of ["de", "en"]) {
       const tone = await s.ev("const m = {}; for (const x of r.querySelectorAll('.ag-wz-kind[data-kind]:not(.off)')) m[x.dataset.kind] = getComputedStyle(x.querySelector(':scope > .ag-oav')).color; return m");
       check(`${tag}: Meldungen: Farbe der Kachel wie die Karte (Störung rot, Wartung orange)`, Object.keys(setTone).length === 8 && Object.keys(setTone).every((k) => tone[k] === setTone[k]), J({ tone, setTone }));
       const recip = await s.ev("return [...r.querySelectorAll('.ag-wz .ag-recip')].map((x) => x.querySelector(':scope > .ag-oav svg')?.innerHTML || '')");
+      check(`${tag}: Empfänger: Symbole in der Farbe der Meldungen (Alarme rot, Wartung orange)`, await s.ev("const k=[...r.querySelectorAll('.ag-wz .ag-recip')].map((x) => x.querySelector(':scope > .ag-oav')); return k.length === 2 && k[0].classList.contains('ag-ntone') && k[0].classList.contains('fault') && k[1].classList.contains('maint')"));
       check(`${tag}: Empfänger: Glocke und Zahnrad wie unter Benachrichtigungen`, recip.length === 2 && J(recip) === J(setRecip), J({ recip: recip.map(Boolean), same: J(recip) === J(setRecip) }));
       const alarm = await s.ev("const x=r.querySelector('.ag-wz-kind[data-kind=\"triggered\"]'); return x ? { icon: !!x.querySelector(':scope > .ag-oav.on svg'), lock: !!x.querySelector(':scope > .ag-wz-lock svg'), toggle: !!x.querySelector('.ag-toggle') } : null");
       check(`${tag}: Alarmmeldung: Symbol, an der Stelle des Schalters das Schloss`, alarm && alarm.icon && alarm.lock && !alarm.toggle, J(alarm));

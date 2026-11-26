@@ -651,7 +651,7 @@ export class WizardUi {
         : `<div class="ag-t2 ag-small">${esc(this._t("ntNoServices"))}</div>`;
       const none = !chosen.length && services.length ? `<small class="ag-warntext">${ic("alert", 14)} ${esc(this._t("ntNoneChosen"))}</small>` : "";
       // Symbol oben links wie unter Konfiguration › Benachrichtigungen (1.91.0): Glocke für die Alarme, Zahnrad für die Wartung
-      return `<div class="ag-setrow ag-recip" data-group="${key}">${rowIcon(key === "alarm_targets" ? "bell" : "cog")}<div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(hint))}</small><div class="ag-rline">${select}</div>${pills ? `<div class="ag-rpills">${pills}</div>` : ""}${none}</div></div>`;
+      return `<div class="ag-setrow ag-recip" data-group="${key}">${rowIcon(key === "alarm_targets" ? "bell" : "cog", true, `ag-ntone ${key === "alarm_targets" ? "fault" : "maint"}`)}<div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(this._t(hint))}</small><div class="ag-rline">${select}</div>${pills ? `<div class="ag-rpills">${pills}</div>` : ""}${none}</div></div>`;
     };
     // Seit 1.91.0 (Wunsch des Nutzers 2026-11-25: "zuerst das Icon, dann der Schalter, dann der Text", "mit den gleichen Icons wie in den
     // Einstellungen"): Zeilen wie überall, das Symbol in der Farbe der Gruppe (Störung rot, Wartung orange), grau, solange die Meldung aus ist

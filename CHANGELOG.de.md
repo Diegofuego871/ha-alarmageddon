@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.92.1] - 2026-11-26
+
+### Geändert
+
+- **Empfänger im Einrichtungsassistenten in der Farbe der Meldungen:** im Schritt "Meldungen" sind die Symbole der Empfänger von Alarmen (Glocke) und von Wartungsmeldungen (Zahnrad) rot und orange wie die Meldungen darunter.
+
 ## [1.92.0] - 2026-11-26
 
 Die Option "Beim Scharfschalten umgehen" gibt es nicht mehr: sie widersprach "Muss beim Scharfschalten geschlossen sein". Wo sie wirkte, darf der Sensor jetzt beim Scharfschalten offen sein; Scharfschalten geht wie bisher, der Sensor wird danach überwacht, statt bis zum Deaktivieren übergangen zu werden.
@@ -2458,6 +2464,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.92.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.1
 [1.92.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.0
 [1.91.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.1
 [1.91.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.0
