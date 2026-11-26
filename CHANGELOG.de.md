@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.91.1] - 2026-11-25
+
+### Geändert
+
+- **"Auf Sensoren anwenden" immer sichtbar:** im Fenster "Voreinstellungen je Sensorart" steht die Zeile "Auf Sensoren anwenden" jetzt immer unter der Tabelle. Hat kein Sensor eigene Werte, die von den Voreinstellungen abweichen, ist der Knopf "Sensoren wählen (0)" gesperrt, und die Zeile sagt, dass alle Sensoren diesen Voreinstellungen folgen; sobald eine Voreinstellung im Fenster einen eigenen Wert abweichen lässt, wird der Knopf frei. In 1.91.0 fehlte die Zeile in diesem Fall, und die Funktion schien verschwunden.
+
 ## [1.91.0] - 2026-11-25
 
 Die Voreinstellungen je Sensorart lassen sich jetzt gezielt auf Sensoren anwenden: ein Fenster nennt jeden Sensor mit abweichenden eigenen Werten, zeigt, was sich ändern würde, und lässt einzeln oder je Sensorart wählen. Das Protokoll beginnt mit "Letzte 7 Tage" und behält den Zeitraum, den du wählst, und der Einrichtungsassistent zeigt seine Symbole wie die Konfiguration: Symbol, Schalter, Text.
@@ -2434,6 +2440,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.91.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.1
 [1.91.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.0
 [1.90.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.90.0
 [1.89.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.89.0

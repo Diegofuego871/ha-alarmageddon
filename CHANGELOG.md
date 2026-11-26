@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.91.1] - 2026-11-25
+
+### Changed
+
+- **"Apply to sensors" always visible:** in the window "Defaults per sensor type" the row "Apply to sensors" now always stands below the table. When no sensor has own values that differ from the defaults, the button "Choose sensors (0)" is locked and the row says that all sensors follow these defaults; as soon as a default in the window makes an own value differ, the button becomes available. In 1.91.0 the row was missing in that case, so the function looked gone.
+
 ## [1.91.0] - 2026-11-25
 
 The defaults per sensor type can now be applied to chosen sensors: a window lists every sensor whose own values differ, shows what would change, and lets you choose sensor by sensor or a whole type at once. The log starts at "Last 7 days" and keeps the period you choose, and the setup assistant shows its symbols like the configuration: symbol, switch, text.
@@ -2434,6 +2440,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.91.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.1
 [1.91.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.0
 [1.90.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.90.0
 [1.89.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.89.0

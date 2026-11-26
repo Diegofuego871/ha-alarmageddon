@@ -586,7 +586,8 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   mit `invert`), je mit "bisher → neu" und dem, was bleibt (eigene Eingangsverzögerung); alle vorgewählt, je Sensor und je Art wählbar, Suche und
   dieselben Pillen wie die Sensortabelle. Gelöscht wird erst mit "Speichern" der Voreinstellungen, nur bei den gewählten Sensoren je Anlage
   (`reset_entities`; der Server prüft Anlagen und Kennungen vor jeder Änderung). Solange die Seite Sensoren ungespeicherte Änderungen hat, ist der
-  Knopf gesperrt. Eine neue Option in `OPTIONS` erscheint dort von selbst; eine neue Angabe, die wie `entry_delay` bleiben soll, ergänzt `keep` im
+  Knopf gesperrt. Die Zeile steht immer da (seit 1.91.1, Meldung des Nutzers "Hier fehlt der Button"): ohne Abweichung mit gesperrtem Knopf und
+  Hinweis, nie ausgeblendet. Eine neue Option in `OPTIONS` erscheint dort von selbst; eine neue Angabe, die wie `entry_delay` bleiben soll, ergänzt `keep` im
   Server (`ws_save_presets`) und im Panel (`_dropOwn`, `applyDiffs`). Suite `presetapply-e2e.mjs`, Tests `tests/test_presets_apply.py`.
 - **Entwürfe und Daten des Servers (seit 1.91.0):** nach jedem Abruf (`_fetch`) fällt ein Entwurf weg, der gegen die bisherigen oder die neuen
   Daten unverändert ist; nur eine echte Änderung des Nutzers bleibt. Nie nur gegen die neuen Daten prüfen: eine Änderung des Servers (Zurücksetzen,

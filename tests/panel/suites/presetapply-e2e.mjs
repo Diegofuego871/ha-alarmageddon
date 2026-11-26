@@ -7,11 +7,11 @@ import { check, done, launch, open } from "../lib.mjs";
 
 const J = JSON.stringify;
 const T = {
-  de: { btn: "Sensoren wählen (7)", hint: "7 Sensoren haben eigene Werte", all: "Alle 7 Sensoren", filtered: "4 von 7 Sensoren (Filter)", chosen6: "6 von 7 gewählt", ok6: "Übernehmen (6)",
+  de: { title: "Auf Sensoren anwenden", follow: "Alle Sensoren folgen diesen Voreinstellungen", btn0: "Sensoren wählen (0)", btn1: "Sensoren wählen (1)", btn: "Sensoren wählen (7)", hint: "7 Sensoren haben eigene Werte", all: "Alle 7 Sensoren", filtered: "4 von 7 Sensoren (Filter)", chosen6: "6 von 7 gewählt", ok6: "Übernehmen (6)",
     rowChosen: "Beim Speichern übernehmen 5 von 7 Sensoren", rowChosen6: "5 von 6 Sensoren", unsaved: "Noch nicht gespeichert", keep: "Eigene Eingangsverzögerung 45 s bleibt",
     arm: "Scharf, sobald geschlossen", close: "Muss beim Scharfschalten geschlossen sein", away: "Abwesend", on: "an", off: "aus", busy: "Zuerst die Änderungen unter Sensoren",
     saved: "5 Sensoren folgen ihnen wieder", noChanges: "Keine Änderungen", none: "Kein Sensor passt zur Suche" },
-  en: { btn: "Choose sensors (7)", hint: "7 sensors have own values", all: "All 7 sensors", filtered: "4 of 7 sensors (filter)", chosen6: "6 of 7 chosen", ok6: "Apply (6)",
+  en: { title: "Apply to sensors", follow: "All sensors follow these defaults", btn0: "Choose sensors (0)", btn1: "Choose sensors (1)", btn: "Choose sensors (7)", hint: "7 sensors have own values", all: "All 7 sensors", filtered: "4 of 7 sensors (filter)", chosen6: "6 of 7 chosen", ok6: "Apply (6)",
     rowChosen: "When saving, 5 of 7 sensors take the defaults", rowChosen6: "5 of 6 sensors", unsaved: "Not saved yet", keep: "Own entry delay 45 s stays",
     arm: "Arm as soon as closed", close: "Must be closed when arming", away: "Away", on: "on", off: "off", busy: "First save or cancel the changes under Sensors",
     saved: "5 sensors follow them again", noChanges: "No changes", none: "No sensor matches the search" },
@@ -154,11 +154,22 @@ for (const lang of ["de", "en"]) {
     await s.waitFor("return !r.getElementById('ag-presets').open");
     await s.ev("r.host.sensors.draft = null; r.host.sensors.render(); return 1");
 
-    // ----- Ohne Abweichung keine Zeile -----
-    await s.sim("for (const x of window.__systems) { x.sensor_options = {}; x.sensor_modes = {}; } return 1");
+    // ----- Ohne Abweichung (seit 1.91.1, Bildschirmfoto des Nutzers 2026-11-25, 22:27: "Hier fehlt der Button"): die Zeile bleibt, mit Hinweis und
+    // gesperrtem Knopf (in 1.91.0 fehlte sie). Der eigene Wert von Fenster Bad gleicht der Voreinstellung ("Braucht einen zweiten Sensor" aus) -----
+    await s.sim("for (const x of window.__systems) { x.sensor_options = {}; x.sensor_modes = {}; } window.__systems[0].sensor_options = { 'binary_sensor.fenster_bad': { confirm: false } }; return 1");
     await s.ev("return r.host._fetch().then(() => { r.host.sensors.reset(); r.host.sensors.render(); return 1; })");
     await openPresets();
-    check(`${tag}: ohne Abweichung keine Zeile "Auf Sensoren anwenden"`, await s.ev("return !r.querySelector('#ag-presets .ag-papplyrow')"));
+    const none = await s.ev("const x=r.querySelector('#ag-presets .ag-papplyrow'); const b=x?.querySelector('[data-sen=\"papply-open\"]'); return x ? { text: x.innerText, btn: b?.innerText.trim(), disabled: b?.disabled, icon: !!x.querySelector(':scope > .ag-oav svg') } : null");
+    check(`${tag}: ohne Abweichung: Zeile "${t.title}" mit "${t.follow}" und gesperrtem Knopf "${t.btn0}"`, none && none.text.includes(t.title) && none.text.includes(t.follow) && none.btn === t.btn0 && none.disabled && none.icon, J(none));
+    await s.ev("r.querySelector('#ag-presets [data-sen=\"papply-open\"]').click(); return 1");
+    await s.page.waitForTimeout(300);
+    check(`${tag}: der gesperrte Knopf öffnet kein Fenster`, !(await s.ev("return r.getElementById('ag-papply').open")));
+    // Eine geänderte Voreinstellung lässt den eigenen Wert abweichen: der Knopf wird frei, das Fenster nennt Fenster Bad
+    await s.tap('#ag-presets [data-sen="preset"][data-kind="window"][data-key="confirm"]');
+    const one = await s.ev("const b=r.querySelector('#ag-presets .ag-papplyrow [data-sen=\"papply-open\"]'); return { btn: b.innerText.trim(), disabled: b.disabled }");
+    check(`${tag}: Voreinstellung geändert: "${t.btn1}" frei`, one.btn === t.btn1 && !one.disabled, J(one));
+    await s.tap('#ag-presets [data-sen="papply-open"]');
+    check(`${tag}: das Fenster nennt Fenster Bad`, await s.waitFor("return r.getElementById('ag-papply').open && [...r.querySelectorAll('#ag-papply .ag-papply-row')].map((x) => x.dataset.key).join() === 'e_haus|binary_sensor.fenster_bad'"));
     check(`${tag}: keine Fehler der Seite`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
   }

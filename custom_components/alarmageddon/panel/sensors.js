@@ -902,10 +902,11 @@ export class SensorsUi {
     return names.length > 1 ? `${names.slice(0, -1).join(", ")}${this._t("listAnd")}${names.at(-1)}` : names[0] || "";
   }
 
-  // Zeile unter der Tabelle: ohne Abweichung nichts; sonst der Knopf, nach "Übernehmen" die Wahl mit "Verwerfen" und "Auswahl ändern"
+  // Zeile unter der Tabelle: der Knopf, nach "Übernehmen" die Wahl mit "Verwerfen" und "Auswahl ändern". Seit 1.91.1 (Bildschirmfoto des Nutzers
+  // 2026-11-25, 22:27: "Hier fehlt der Button") steht sie immer da: ohne Abweichung mit gesperrtem Knopf und dem Hinweis, dass alle Sensoren den
+  // Voreinstellungen folgen (in 1.91.0 fehlte die Zeile dann, und die Funktion schien verschwunden)
   _applyRowHtml() {
     const diffs = this.applyDiffs();
-    if (!diffs.length) return "";
     const chosen = this._applyChosen(diffs);
     if (chosen.length) {
       const rest = diffs.filter((r) => !this.applySel.has(r.key));
@@ -917,9 +918,10 @@ export class SensorsUi {
     }
     // Offene Änderungen der Seite Sensoren: erst speichern oder verwerfen (ihr Entwurf trägt die eigenen Werte und schriebe sie sonst zurück)
     const busy = this.dirtyCount() > 0;
-    const hint = busy ? this._t("presetsApplyBusy") : this._t(diffs.length === 1 ? "presetsApplyHintOne" : "presetsApplyHint", { count: diffs.length });
-    return `<div class="ag-papplyrow"><span class="ag-oav">${ic("download", 20)}</span><div class="ag-settx"><b>${esc(this._t("presetsApplyTitle"))}</b><small class="${busy ? "ag-warntext" : ""}">${esc(hint)}</small></div>
-      <div class="ag-btnrow"><button class="ag-btn" data-sen="papply-open" ${busy ? "disabled" : ""}>${ic("download", 18)}${esc(this._t("presetsApplyBtn", { count: diffs.length }))}</button></div></div>`;
+    const hint = busy ? this._t("presetsApplyBusy") : !diffs.length ? this._t("presetsApplyNone")
+      : this._t(diffs.length === 1 ? "presetsApplyHintOne" : "presetsApplyHint", { count: diffs.length });
+    return `<div class="ag-papplyrow ${diffs.length ? "" : "none"}"><span class="ag-oav">${ic("download", 20)}</span><div class="ag-settx"><b>${esc(this._t("presetsApplyTitle"))}</b><small class="${busy ? "ag-warntext" : ""}">${esc(hint)}</small></div>
+      <div class="ag-btnrow"><button class="ag-btn" data-sen="papply-open" ${busy || !diffs.length ? "disabled" : ""}>${ic("download", 18)}${esc(this._t("presetsApplyBtn", { count: diffs.length }))}</button></div></div>`;
   }
 
   _refreshApplyRow() {
