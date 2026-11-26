@@ -295,7 +295,7 @@ export class SensorsUi {
           <button class="ag-clear" data-sen="clear" aria-label="${esc(this._t("clearSearch"))}" ${this.q ? "" : "hidden"}>${ic("close", 16)}</button></label>
         ${filters}<span class="ag-grow"></span>${narrow ? "" : `<span class="ag-hint">${ic("hand", 16)}${esc(this._t("dragHint"))}</span>`}
         <button class="ag-btn primary" data-sen="add">${ic("plus", 18)}${esc(this._t("addSensors"))}</button>
-        <button class="ag-btn" data-sen="presets">${ic("tune", 18)}${esc(this._t("presets"))}</button></div>
+        <button class="ag-btn ag-toolbtn" data-sen="presets">${ic("tune", 18)}${esc(this._t("presets"))}</button></div>
       <div class="ag-pmstick"><div class="ag-pmbar"></div></div>
       <div class="ag-sen-layout"><div class="ag-gbody"></div><div class="ag-side"></div></div><div class="ag-foot"></div>`;
   }
@@ -540,7 +540,8 @@ export class SensorsUi {
     else if (ownSensor) origin = `<button class="ag-origin own" data-sen="delay-reset" data-ent="${esc(id)}">${ic("undo", 14)} ${esc(this._t("originOwn"))} · ${esc(this._t("resetToSystem"))}</button>`;
     else origin = `<span class="ag-origin">${esc(this._t("originSystem", { n: fmtDur(val) }))}</span>`;
     const own = ownMode || ownSensor;
-    return `<div class="ag-orow"><span class="ag-oav ${own ? "on" : ""}">${ic("timer", 20)}</span><div class="ag-otx"><b>${esc(this._t("senDelay"))}</b><small>${esc(this._t("senDelayHint"))}</small>${origin}</div>
+    // Ohne Schalter: Leerraum an seiner Stelle, damit der Text in der Flucht der Zeilen mit Schalter steht (1.92.0, .ag-tgap)
+    return `<div class="ag-orow"><span class="ag-oav ${own ? "on" : ""}">${ic("timer", 20)}</span><span class="ag-tgap" aria-hidden="true"></span><div class="ag-otx"><b>${esc(this._t("senDelay"))}</b><small>${esc(this._t("senDelayHint"))}</small>${origin}</div>
       <span class="ag-num"><input type="number" min="0" max="3600" step="1" inputmode="numeric" data-sen="delay" ${mode ? `data-mode="${mode}"` : ""} data-ent="${esc(id)}" value="${esc(val)}" aria-label="${esc(`${this.host._name(id)}: ${this._t("senDelay")}`)}"><span class="ag-t2">${esc(this._t("seconds"))}</span></span></div>`;
   }
 
@@ -756,8 +757,8 @@ export class SensorsUi {
     const p = this.presetDraft;
     const rows = TYPES.map(([kind, icon, label]) => `<tr><td><div class="ag-nm"><span class="ag-av">${ic(icon, 18)}</span>${esc(this._t(label))}</div></td>
       ${OPTIONS.map((o) => {
-        // Gilt nicht für diese Art (Bewegungsmelder: "Muss geschlossen sein"): kein Kästchen, die Voreinstellung bleibt, wie sie ist
-        // Seit 1.89.0 ebenso ein abhängiger Schalter, dessen übergeordneter für diese Art aus ist ("Umgehen" ohne "Muss geschlossen sein")
+        // Gilt nicht für diese Art (Bewegungsmelder: "Muss geschlossen sein"): kein Kästchen, die Voreinstellung bleibt, wie sie ist; ebenso ein
+        // abhängiger Schalter (under), dessen übergeordneter für diese Art aus ist
         if (!optionShown(o, kind, (k) => (p[kind] || []).includes(k))) return `<td class="z"><span class="ag-t2" aria-hidden="true">–</span></td>`;
         const on = o.invert ? !(p[kind] || []).includes(o.key) : (p[kind] || []).includes(o.key);
         return `<td class="z"><button class="ag-box ${on ? "on" : ""}" data-sen="preset" data-kind="${kind}" data-key="${o.key}" role="checkbox" aria-checked="${on}" aria-label="${esc(`${this._t(label)}: ${this._t(o.name)}`)}">${on ? ic("check", 18) : ""}</button></td>`;

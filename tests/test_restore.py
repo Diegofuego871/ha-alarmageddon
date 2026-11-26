@@ -28,8 +28,8 @@ async def _start(hass: HomeAssistant, **overrides: Any) -> None:
 
 
 async def test_armed_survives_restart(hass: HomeAssistant) -> None:
-    _restore(hass, "armed_away", mode="away", bypassed=[WINDOW])
-    await _start(hass, open_sensors="bypass")
+    _restore(hass, "armed_away", mode="away", bypassed=[WINDOW])  # übergangen mit "Trotzdem scharf schalten"
+    await _start(hass)
     assert state(hass) == AlarmControlPanelState.ARMED_AWAY
     assert hass.states.get(ALARM).attributes["bypassed_sensors"] == [WINDOW]
 

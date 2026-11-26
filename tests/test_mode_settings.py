@@ -72,14 +72,17 @@ async def test_always_active_alarm_lasts_until_disarmed(hass: HomeAssistant, fre
 
 
 async def test_open_sensor_behaviour_per_mode(hass: HomeAssistant) -> None:
-    """Die Wahl "Umgehen" je Modus (Anlagen bis 0.31.0) wird in Sensor-Einstellungen je Modus übertragen."""
+    """
+    Die Wahl "Umgehen" je Modus (Anlagen bis 0.31.0) wird in Sensor-Einstellungen je Modus übertragen; seit 1.92.0 als "darf offen sein"
+    (tests/test_bypass_removed.py).
+    """
     entry = await setup_alarm(hass, open_sensors="block", open_sensors_home="bypass", exit_delay_away=0)
     assert entry.options["per_mode_sensors"] is True and not any(k.startswith("open_sensors") for k in entry.options)
-    assert entry.options["sensor_modes"]["home"][WINDOW] == {"bypass": True} and "away" not in entry.options["sensor_modes"]
+    assert entry.options["sensor_modes"]["home"][WINDOW] == {"open_ok": True} and "away" not in entry.options["sensor_modes"]
     await open_sensor(hass, WINDOW)
-    await call(hass, "alarm_arm_home")  # Anwesend: umgehen
+    await call(hass, "alarm_arm_home")  # Anwesend: darf offen sein
     assert state(hass) == AlarmControlPanelState.ARMED_HOME
-    assert hass.states.get(ALARM).attributes["bypassed_sensors"] == [WINDOW]
+    assert hass.states.get(ALARM).attributes["bypassed_sensors"] == []
     await call(hass, "alarm_disarm")
     with pytest.raises(ServiceValidationError):  # Abwesend: verhindern
         await call(hass, "alarm_arm_away")
@@ -169,12 +172,12 @@ async def test_options_dialog_changes_all_modes_only_when_changed(hass: HomeAssi
 
 
 async def test_backup_contains_mode_settings(hass: HomeAssistant, hass_ws_client) -> None:
-    entry = await setup_alarm(hass, entry_delay_away=44, per_mode_sensors=True, sensor_modes={"home": {WINDOW: {"bypass": True}}}, confirm_window_night=15)
+    entry = await setup_alarm(hass, entry_delay_away=44, per_mode_sensors=True, sensor_modes={"home": {WINDOW: {"open_ok": True}}}, confirm_window_night=15)
     client = await hass_ws_client(hass)
     exported = (await _ws(client, type="alarmageddon/export"))["result"]
     options = exported["systems"][0]["options"]
     assert options["entry_delay_away"] == 44
-    assert options["per_mode_sensors"] is True and options["sensor_modes"] == {"home": {WINDOW: {"bypass": True}}} and options["confirm_window_night"] == 15
+    assert options["per_mode_sensors"] is True and options["sensor_modes"] == {"home": {WINDOW: {"open_ok": True}}} and options["confirm_window_night"] == 15
     hass.config_entries.async_update_entry(entry, options={k: v for k, v in entry.options.items() if k != "entry_delay_away"})
     await hass.async_block_till_done()
     assert (await _ws(client, type="alarmageddon/import", data=exported))["success"]

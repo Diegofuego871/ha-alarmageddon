@@ -176,20 +176,20 @@ async def test_open_sensor_blocks_arming(hass: HomeAssistant) -> None:
     assert state(hass) == AlarmControlPanelState.DISARMED
 
 
-async def test_open_sensor_bypassed(hass: HomeAssistant) -> None:
+async def test_legacy_open_sensors_bypass_now_may_be_open(hass: HomeAssistant) -> None:
+    """
+    "Offener Sensor beim Scharfschalten: umgehen" (bis 0.31.0) wurde zu "Umgehen" je Sensor, seit 1.92.0 zu "darf offen sein"
+    (tests/test_bypass_removed.py): scharf schalten geht wie bisher, der Sensor wird danach überwacht statt übergangen.
+    """
     await setup_alarm(hass, open_sensors="bypass")
     hass.states.async_set(WINDOW, "on")
+    await settle(hass)  # das Öffnen gehört vor das Scharfschalten
     await call(hass, "alarm_arm_home")
     assert state(hass) == AlarmControlPanelState.ARMED_HOME
-    assert hass.states.get(ALARM).attributes["bypassed_sensors"] == [WINDOW]
-    # Umgangen bis zum Deaktivieren, auch wenn es zu- und wieder aufgeht
+    assert hass.states.get(ALARM).attributes["bypassed_sensors"] == []
     hass.states.async_set(WINDOW, "off")
     await open_sensor(hass, WINDOW)
-    assert state(hass) == AlarmControlPanelState.ARMED_HOME
-    await open_sensor(hass, FRONT_DOOR)
-    assert state(hass) == AlarmControlPanelState.PENDING
-    await call(hass, "alarm_disarm")
-    assert hass.states.get(ALARM).attributes["bypassed_sensors"] == []
+    assert state(hass) == AlarmControlPanelState.TRIGGERED
 
 
 async def test_arming_while_triggered_is_refused(hass: HomeAssistant) -> None:

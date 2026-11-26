@@ -7,6 +7,24 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.92.0] - 2026-11-26
+
+Die Option "Beim Scharfschalten umgehen" gibt es nicht mehr: sie widersprach "Muss beim Scharfschalten geschlossen sein". Wo sie wirkte, darf der Sensor jetzt beim Scharfschalten offen sein; Scharfschalten geht wie bisher, der Sensor wird danach überwacht, statt bis zum Deaktivieren übergangen zu werden.
+
+### Geändert
+
+- **Einstellungen eines Sensors:** der Text von "Eigene Eingangsverzögerung" (eine Zeile ohne Schalter) steht jetzt in der Flucht der Texte der anderen Zeilen; an der Stelle des Schalters bleibt Leerraum.
+- **Knöpfe neben Filter-Pillen:** "Voreinstellungen" (Konfiguration › Sensoren) und am Computer "Ansicht" (Übersicht) haben Ecken wie das Suchfeld und ihr Symbol in einer kleinen Kachel wie die Zeilen der Einstellungen, damit sie nicht mehr wie eine weitere Filter-Pille aussehen. Gleich hoch, nicht breiter; auf dem Handy bleibt "Ansicht" der runde Symbolknopf neben der Suche.
+
+### Entfernt
+
+- **"Beim Scharfschalten umgehen":** den Schalter unter "Muss beim Scharfschalten geschlossen sein" (Einstellungen eines Sensors, je Modus und die Spalte in "Voreinstellungen je Sensorart") gibt es nicht mehr. Ein Sensor, der geschlossen sein muss, verhindert das Scharfschalten immer, solange er offen ist; "Trotzdem scharf schalten" (in der Meldung "Scharfschalten nicht möglich") übergeht offene Sensoren weiterhin bis zum Deaktivieren. Die Erklärung von "Muss beim Scharfschalten geschlossen sein" sagt jetzt, was "aus" bedeutet: er darf offen sein, erst ein neues Öffnen nach dem Scharfschalten zählt.
+- **Deine Einstellungen werden einmal umgestellt:** mit dem Update bekommt jeder Sensor, bei dem "Umgehen" wirkte (eigener Wert, je Modus oder aus der Voreinstellung seiner Art), "Muss beim Scharfschalten geschlossen sein" aus. Scharfschalten mit offenem Sensor geht wie bisher, der Sensor wird aber nicht mehr bis zum Deaktivieren übergangen: ist er einmal geschlossen, löst ein neues Öffnen aus wie bei jedem anderen Sensor. Sensoren, bei denen "Umgehen" eingestellt war, aber nichts bewirkte (weil "Muss geschlossen sein" ohnehin aus war, oder bei Bewegungsmeldern), bleiben, wie sie waren. Voreinstellungen je Sensorart mit "Umgehen" werden zu "Muss beim Scharfschalten geschlossen sein" aus. Backups früherer Versionen werden beim Zurückholen ebenso umgestellt, mit den Voreinstellungen aus dem Backup. Prüfe die Sensoren, die du umgangen hattest: soll ein offener Sensor das Scharfschalten verhindern, schalte "Muss beim Scharfschalten geschlossen sein" wieder ein.
+
+### Sicherheit
+
+- Das Panel kann "Umgehen" nicht mehr speichern (abgelehnt wie jeder unbekannte Wert); die Umstellung der gespeicherten Einstellungen, nicht geladener Anlagen und alter Backups hat Tests und sieben Zeilen der Mutationsprobe.
+
 ## [1.91.1] - 2026-11-25
 
 ### Geändert
@@ -2440,6 +2458,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.92.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.0
 [1.91.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.1
 [1.91.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.0
 [1.90.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.90.0

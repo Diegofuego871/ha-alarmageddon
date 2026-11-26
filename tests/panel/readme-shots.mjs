@@ -227,8 +227,8 @@ for (const lang of ["en", "de"]) {
     await click('#ag-hclist [data-hc-row="a1b2c3d4e5f6"] [data-hc="log"]')(ctx);
     await ctx.page.waitForTimeout(900);
   } });
-  // Einstellungen eines Sensors (1.87.0): "Muss beim Scharfschalten geschlossen sein" (seit 1.89.0 mit "Umgehen" eingerückt darunter), "Muss beim
-  // Scharfschalten erreichbar sein" (Handbuch)
+  // Einstellungen eines Sensors (1.87.0): "Muss beim Scharfschalten geschlossen sein" (1.89.0 bis 1.91.x mit "Umgehen" eingerückt darunter), "Muss
+  // beim Scharfschalten erreichbar sein", seit 1.92.0 "Eigene Eingangsverzögerung" mit dem Text in der Flucht der übrigen Zeilen (Handbuch)
   await shot(lang, "sensor-options", { tab: "config", height: 900, prepare: async ({ page, frame }) => {
     await click('[data-sub="sensors"]')({ frame });
     await page.waitForTimeout(600);

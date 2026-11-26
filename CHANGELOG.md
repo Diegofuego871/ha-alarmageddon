@@ -7,6 +7,24 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.92.0] - 2026-11-26
+
+The option "Bypass when arming" is gone: it contradicted "Must be closed when arming". Where it worked, the sensor may now be open when arming; arming works as before, and the sensor is watched afterwards instead of being skipped until disarming.
+
+### Changed
+
+- **Sensor settings:** the text of "Own entry delay" (a row without switch) now lines up with the texts of the other rows; where the switch would be, there is empty space.
+- **Buttons next to filter pills:** "Defaults" (Configuration › Sensors) and, on the computer, "View" (Overview) have the rounded corners of the search field instead of round ends and their symbol in a small tile like the rows of the settings, so they no longer look like one more filter pill. Same height, not wider; on the phone "View" stays the round symbol button next to the search.
+
+### Removed
+
+- **"Bypass when arming":** the switch below "Must be closed when arming" (sensor settings, per mode and the column in "Defaults per sensor type") no longer exists. A sensor that must be closed always prevents arming while it is open; "Arm anyway" (in the notification "Arming not possible") still skips open sensors until disarming. The explanation of "Must be closed when arming" now says what "off" means: it may be open, only opening it again after arming counts.
+- **Your settings are converted once:** with the update, every sensor where "Bypass" was in effect (own value, per mode or from the defaults of its type) gets "Must be closed when arming" off. Arming with that sensor open works as before, but the sensor is no longer ignored until disarming: once it closes, opening it again triggers like any other sensor. Sensors where "Bypass" was set but had no effect (because "Must be closed" was off anyway, or for motion sensors) stay as they were. Defaults per sensor type with "Bypass" become "Must be closed when arming" off. Backups from earlier versions are converted the same way when restored, with the defaults stored in the backup. Check the sensors you had bypassed: if you want arming to be prevented while they are open, switch "Must be closed when arming" on again.
+
+### Security
+
+- The panel can no longer save "Bypass" (rejected like any unknown value); the conversion of the stored settings, of not loaded alarm systems and of old backups has tests and seven lines of the mutation check.
+
 ## [1.91.1] - 2026-11-25
 
 ### Changed
@@ -2440,6 +2458,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.92.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.0
 [1.91.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.1
 [1.91.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.0
 [1.90.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.90.0

@@ -110,7 +110,7 @@ CODE_LOCKOUT_STEPS: Final = (CODE_LOCKOUT_SECONDS, 120, 240, 480, 900)
 MANUFACTURER: Final = "Alarmageddon"
 
 # Panel (eingebautes iframe-Panel, siehe LEARNINGS)
-PANEL_VERSION: Final = 301  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
+PANEL_VERSION: Final = 303  # Cache-Buster: bei jeder Änderung unter panel/ erhöhen
 PANEL_URL_PATH: Final = "alarmageddon"
 PANEL_STATIC_URL_PATH: Final = "/alarmageddon_panel"
 PANEL_DIR: Final = "panel"
@@ -151,8 +151,9 @@ SENSOR_CLASSES: Final = (
 CONF_SENSOR_OPTIONS: Final = "sensor_options"
 OPT_ALWAYS: Final = "always"  # löst auch unscharf aus (Rauch, Wasser, Gas)
 OPT_OPEN_OK: Final = "open_ok"  # darf beim Scharfschalten offen sein
-# Umgehen (0.32.0, ersetzt die globale Wahl "Offener Sensor beim Scharfschalten"): ist der Sensor beim Scharfschalten offen und darf nicht
-# offen sein, wird er bis zum Deaktivieren übergangen, statt das Scharfschalten zu verhindern. Nie voreingestellt.
+# Umgehen (0.32.0 bis 1.91.x): ist der Sensor beim Scharfschalten offen und darf nicht offen sein, wurde er bis zum Deaktivieren übergangen.
+# Seit 1.92.0 gestrichen (Entscheid des Nutzers 2026-11-26): gespeicherte Werte werden beim Laden zu "darf offen sein" (settings.fold_bypass);
+# der Schlüssel bleibt nur dafür und für Backups älterer Versionen. Übergangen wird ein offener Sensor nur noch mit "Trotzdem scharf schalten".
 OPT_BYPASS: Final = "bypass"
 # Einstellungen pro Sensor je Modus (0.32.0): Schalter CONF_PER_MODE_SENSORS; dann gelten CONF_SENSOR_MODES[modus][sensor][option] vor den
 # Werten für alle Modi (CONF_SENSOR_OPTIONS) und der Voreinstellung der Sensorart.
@@ -194,7 +195,7 @@ OPT_ENTRY_DELAY: Final = "entry_delay"
 # aber keine Voreinstellung der Sensorart, darum nicht in SENSOR_OPTIONS. Wirkt nur in Modi, in deren Zone ein immer aktiver Sensor
 # steht. An: dort gelten allein Regel und Aktionen des Modus. Aus: "Immer aktiv" gilt zusätzlich (sofort Alarm, beide Abläufe).
 OPT_ALWAYS_OFF: Final = "always_off"
-SENSOR_OPTIONS: Final = (OPT_ALWAYS, OPT_OPEN_OK, OPT_REACHABLE, OPT_BYPASS, OPT_ARM_ON_CLOSE, OPT_OFFLINE_ALARM, OPT_CONFIRM, OPT_REPORT_ONLY)
+SENSOR_OPTIONS: Final = (OPT_ALWAYS, OPT_OPEN_OK, OPT_REACHABLE, OPT_ARM_ON_CLOSE, OPT_OFFLINE_ALARM, OPT_CONFIRM, OPT_REPORT_ONLY)
 CONF_CONFIRM_WINDOW: Final = "confirm_window"
 # Einstellungen je Modus (0.10.0): Schlüssel "<name>_<modus>" (entry_delay_away …), "always" für Alarme durch immer aktive Sensoren
 # bei deaktivierter Anlage (nur Alarmdauer). Fehlt der Wert, gilt der alte gemeinsame Schlüssel ohne Modus, dann die Grundeinstellung.

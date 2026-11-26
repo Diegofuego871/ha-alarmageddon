@@ -136,9 +136,10 @@ async def test_disarm_or_a_new_attempt_forgets_the_failures(hass: HomeAssistant,
 
 
 async def test_sensor_outside_the_zone_or_bypassed_is_not_reported(hass: HomeAssistant, freezer) -> None:
-    entry = await setup_alarm(hass, exit_delay_home=DELAY, sensor_options={FRONT_DOOR: {"bypass": True}})
-    await _set(hass, FRONT_DOOR, "on")  # offen beim Scharfschalten: mit "Umgehen" bis zum Deaktivieren übergangen
-    await call(hass, "alarm_arm_home")
+    entry = await setup_alarm(hass, exit_delay_home=DELAY)
+    await _set(hass, FRONT_DOOR, "on")  # offen beim Scharfschalten: mit "Trotzdem scharf schalten" bis zum Deaktivieren übergangen (bis 1.91.x auch mit "Umgehen")
+    await entry.runtime_data.controller.async_arm("home", None, force=True)
+    await settle(hass)
     await _set(hass, MOTION, "unavailable")  # nur in der Zone "Abwesend"
     await _set(hass, FRONT_DOOR, "unavailable")
     await advance(hass, freezer, DELAY + 1)

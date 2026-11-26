@@ -1,14 +1,15 @@
-// "Beim Scharfschalten umgehen" nur für offene Sensoren (1.89.0, Frage und Entscheid des Nutzers 2026-11-25: "Nur für offene"). Der Schalter steht
-// eingerückt direkt unter "Muss beim Scharfschalten geschlossen sein" und erscheint nur, solange dieser an ist (sonst wirkt er nie); bei
-// Bewegungsmeldern gibt es beide nicht. Die Erklärungen nennen "Umgehen" nicht mehr bei der Erreichbarkeit. In den Voreinstellungen steht "–",
-// wo er nicht wirkt. Je Sprache, Desktop und Handy, echte Klicks/Taps.
+// "Beim Scharfschalten umgehen" gibt es seit 1.92.0 nicht mehr (Frage des Nutzers 2026-11-26: "Haben wir diese Option nicht gestrichen? ... das
+// widerspricht sich doch", Entscheid "Ja mach es so"). Bis 1.91.x stand der Schalter eingerückt unter "Muss beim Scharfschalten geschlossen sein"
+// (1.89.0). Jetzt: kein Schalter im Blatt, keine Spalte in den Voreinstellungen, kein Kurztext "umgangen" in der Tabelle, auch nicht für einen Rest im
+// Entwurf; die Erklärung von "Muss geschlossen sein" sagt, was "aus" bedeutet (darf offen sein, ein neues Öffnen zählt). Die Umstellung des Bestands
+// rechnet der Server (tests/test_bypass_removed.py). Je Sprache, Desktop und Handy, echte Klicks/Taps.
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { bypass: "Beim Scharfschalten umgehen", close: "Muss beim Scharfschalten geschlossen sein", word: "umgehen", short: "umgangen",
-    hint: "verhindert er das Scharfschalten nicht, sondern wird bis zum Deaktivieren übergangen" },
-  en: { bypass: "Bypass when arming", close: "Must be closed when arming", word: "Bypass", short: "bypassed",
-    hint: "it does not prevent arming but is skipped until the alarm system is disarmed" },
+  de: { bypass: "Beim Scharfschalten umgehen", close: "Muss beim Scharfschalten geschlossen sein", word: "umgeh", short: "umgangen",
+    hint: "Ist er beim Scharfschalten offen, ist Scharfschalten nicht möglich. Aus: er darf offen sein; erst ein neues Öffnen nach dem Scharfschalten zählt." },
+  en: { bypass: "Bypass when arming", close: "Must be closed when arming", word: "bypass", short: "bypassed",
+    hint: "If it is open when arming, arming is not possible. Off: it may be open; only opening it again after arming counts." },
 };
 const WINDOW = "binary_sensor.fenster_bad";
 const MOTION = "binary_sensor.bewegung_flur";
@@ -30,49 +31,46 @@ for (const lang of ["de", "en"]) {
       else await s.tap('.ag-side [data-sen="close-detail"]');
       await s.waitFor(mobile ? "return !r.getElementById('ag-sheet').open" : "return !r.querySelector('.ag-sheet')");
     };
-    const rows = () => s.ev(`const sh=r.querySelector('${SHEET}'); const row=(k) => sh.querySelector('[data-key="' + k + '"]')?.closest('.ag-orow');
-      const close=row('open_ok'), by=row('bypass'), reach=row('reachable');
-      return { close: !!close, bypass: !!by, sub: !!by?.classList.contains('ag-osub'), next: !!close && close.nextElementSibling === by,
-        indent: by && close ? Math.round(by.querySelector('.ag-toggle').getBoundingClientRect().left - close.querySelector('.ag-toggle').getBoundingClientRect().left) : null,
-        line: close ? getComputedStyle(close).borderBottomWidth : null, title: by?.querySelector('b')?.textContent, hint: by?.querySelector('small')?.textContent,
-        reachHint: reach?.querySelector('small')?.textContent, wide: sh.scrollWidth <= sh.clientWidth + 1 }`);
+    const sheet = () => s.ev(`const sh=r.querySelector('${SHEET}'); const row=(k) => sh.querySelector('[data-key="' + k + '"]')?.closest('.ag-orow');
+      const close=row('open_ok'), reach=row('reachable'), text=sh.innerText;
+      return { close: !!close, title: close?.querySelector('b')?.textContent, hint: close?.querySelector('small')?.textContent, reachHint: reach?.querySelector('small')?.textContent,
+        bypass: !!sh.querySelector('[data-key="bypass"]'), sub: !!sh.querySelector('.ag-osub'), named: text.includes(${J(t.bypass)}), wide: sh.scrollWidth <= sh.clientWidth + 1 }`);
+    const rowText = () => s.ev(`return r.querySelector('tr[data-row="${WINDOW}"]')?.innerText || ''`);
 
-    // ----- Fenster: "Muss geschlossen sein" an (Voreinstellung) -----
+    // ----- Fenster: nur "Muss geschlossen sein", mit der neuen Erklärung -----
     await openSheet(WINDOW);
-    const on = await rows();
-    check(`${tag}: Fenster: "${t.bypass}" direkt unter "${t.close}", eingerückt, ohne Linie dazwischen`,
-      on.close && on.bypass && on.sub && on.next && on.indent >= 20 && on.line === "0px" && on.title === t.bypass && on.wide, J(on));
-    check(`${tag}: Erklärung von "${t.bypass}" nur für offene Sensoren, "Muss erreichbar sein" nennt "${t.word}" nicht mehr`,
-      on.hint.includes(t.hint) && !on.hint.toLowerCase().includes(lang === "de" ? "erreichbar" : "reachable") && !on.reachHint.includes(t.word), J({ hint: on.hint, reach: on.reachHint }));
-    // "Muss geschlossen sein" aus: "Umgehen" verschwindet; wieder an: es ist zurück
+    const on = await sheet();
+    check(`${tag}: Fenster: "${t.close}" mit Erklärung, kein "${t.bypass}"`,
+      on.close && on.title === t.close && on.hint === t.hint && !on.bypass && !on.sub && !on.named && on.wide, J(on));
+    check(`${tag}: "Muss erreichbar sein" nennt "${t.word}" nicht`, !on.reachHint.toLowerCase().includes(t.word), on.reachHint);
+    // "Muss geschlossen sein" aus: es erscheint nichts darunter (bis 1.91.x kam hier "Umgehen" weg und wieder)
     await s.tap(`${SHEET} [data-sen="opt"][data-key="open_ok"]`);
-    check(`${tag}: "${t.close}" aus: "${t.bypass}" verschwindet`, await s.waitFor(`const sh=r.querySelector('${SHEET}'); return sh.querySelector('[data-sen="opt"][data-key="open_ok"]').getAttribute('aria-checked') === 'false' && !sh.querySelector('[data-key="bypass"]')`));
-    // Ein eigener Wert "Umgehen" ohne "Muss geschlossen sein" zeigt in der Tabelle keinen Kurztext "umgangen"
+    check(`${tag}: "${t.close}" aus: kein "${t.bypass}"`, await s.waitFor(`const sh=r.querySelector('${SHEET}'); return sh.querySelector('[data-sen="opt"][data-key="open_ok"]').getAttribute('aria-checked') === 'false'
+      && !sh.querySelector('[data-key="bypass"], .ag-osub')`));
+    await s.tap(`${SHEET} [data-sen="opt"][data-key="open_ok"]`);
+    check(`${tag}: "${t.close}" wieder an: kein "${t.bypass}"`, await s.waitFor(`const sh=r.querySelector('${SHEET}'); return sh.querySelector('[data-sen="opt"][data-key="open_ok"]').getAttribute('aria-checked') === 'true'
+      && !sh.querySelector('[data-key="bypass"], .ag-osub')`));
+    // Ein Rest "Umgehen" im Entwurf (gibt es vom Server nicht mehr, er stellt beim Laden um) zeigt weder Schalter noch Kurztext
     await s.ev(`const d=r.host.sensors.draft; d.opts["${WINDOW}"] = { ...(d.opts["${WINDOW}"] || {}), bypass: true }; r.host.sensors.render(); return 1`);
-    const rowText = await s.waitFor(`return !(r.querySelector('tr[data-row="${WINDOW}"]')?.innerText || '').includes(${J(t.short)})`);
-    check(`${tag}: Tabelle: "Umgehen" ohne "Muss geschlossen sein" ohne Kurztext "${t.short}"`, rowText);
-    await s.tap(`${SHEET} [data-sen="opt"][data-key="open_ok"]`);
-    check(`${tag}: "${t.close}" wieder an: "${t.bypass}" ist zurück (an), Kurztext "${t.short}" in der Tabelle`, await s.waitFor(`const sh=r.querySelector('${SHEET}'); const b=sh.querySelector('[data-sen="opt"][data-key="bypass"]');
-      return !!b && b.getAttribute('aria-checked') === 'true' && b.closest('.ag-orow').classList.contains('ag-osub') && (r.querySelector('tr[data-row="${WINDOW}"]')?.innerText || '').includes(${J(t.short)})`));
+    await s.page.waitForTimeout(300);
+    const rest = await sheet();
+    check(`${tag}: Rest "Umgehen" im Entwurf: kein Schalter, kein Kurztext "${t.short}" in der Tabelle`, !rest.bypass && !rest.named && !(await rowText()).includes(t.short), J({ rest, row: await rowText() }));
     await closeSheet();
     await s.tap('[data-sen="cancel"]');
 
-    // ----- Bewegungsmelder: weder "Muss geschlossen sein" noch "Umgehen" -----
+    // ----- Bewegungsmelder: kein "Muss geschlossen sein" (darf immer offen sein) -----
     await openSheet(MOTION);
-    const motion = await rows();
-    check(`${tag}: Bewegungsmelder: weder "${t.close}" noch "${t.bypass}"`, !motion.close && !motion.bypass, J(motion));
+    const motion = await sheet();
+    check(`${tag}: Bewegungsmelder: weder "${t.close}" noch "${t.bypass}"`, !motion.close && !motion.bypass && !motion.named, J(motion));
     await closeSheet();
 
-    // ----- Voreinstellungen: "–", wo "Umgehen" nicht wirkt -----
+    // ----- Voreinstellungen: keine Spalte "Umgehen" -----
     await s.tap('[data-sen="presets"]');
     await s.waitFor("return r.getElementById('ag-presets').open");
     const pre = await s.ev(`const heads=[...r.querySelectorAll('#ag-presets th')].map((th) => th.textContent);
-      return { order: heads.indexOf(${J(t.bypass)}) - heads.indexOf(${J(t.close)}), at: heads.indexOf(${J(t.bypass)}),
-        door: !!r.querySelector('#ag-presets [data-kind="door"][data-key="bypass"]'), window: !!r.querySelector('#ag-presets [data-kind="window"][data-key="bypass"]'),
-        motion: !!r.querySelector('#ag-presets [data-kind="motion"][data-key="bypass"]') }`);
-    check(`${tag}: Voreinstellungen: Spalte "${t.bypass}" direkt nach "${t.close}", Tür mit Kästchen, Bewegung ohne`, pre.at > 0 && pre.order === 1 && pre.door && pre.window && !pre.motion, J(pre));
-    await s.tap('#ag-presets [data-kind="door"][data-key="open_ok"]');
-    check(`${tag}: Voreinstellungen: Tür "${t.close}" aus: "Umgehen" der Tür wird "–"`, await s.waitFor("return !r.querySelector('#ag-presets [data-kind=\"door\"][data-key=\"bypass\"]') && !!r.querySelector('#ag-presets [data-kind=\"window\"][data-key=\"bypass\"]')"));
+      return { close: heads.includes(${J(t.close)}), bypass: heads.includes(${J(t.bypass)}), boxes: r.querySelectorAll('#ag-presets [data-key="bypass"]').length,
+        text: r.getElementById('ag-presets').innerText.includes(${J(t.bypass)}) }`);
+    check(`${tag}: Voreinstellungen: Spalte "${t.close}", keine Spalte und kein Kästchen "${t.bypass}"`, pre.close && !pre.bypass && pre.boxes === 0 && !pre.text, J(pre));
     await s.tap('[data-sen="presets-cancel"]');
 
     check(`${tag}: keine Fehler der Seite`, s.errors.length === 0, s.errors.join(" | "));

@@ -156,6 +156,11 @@ button { font: inherit; color: inherit; }
 .ag-btn.danger { background: var(--ag-error); border-color: var(--ag-error); color: #fff; }
 .ag-btn:disabled { opacity: .5; cursor: default; }
 .ag-btn:focus-visible { outline: 2px solid var(--ag-primary); outline-offset: 2px; }
+/* Knopf neben Filter-Pillen (1.92.0, Wunsch des Nutzers 2026-11-26: "wie dieser Button sich etwas mehr von den Pillen unterscheiden könnte? ohne grösser
+   zu werden", Mockup docs/mockups/voreinstellungen-knopf-v1, Entscheid "mach A"): Ecken wie das Suchfeld statt runder Enden, das Symbol in der Kachel wie
+   in den Zeilen der Einstellungen. Höhe wie jeder Knopf (38 px), nicht breiter. */
+.ag-btn.ag-toolbtn { border-radius: 12px; padding: 0 14px 0 6px; gap: 8px; }
+.ag-btn.ag-toolbtn > svg { box-sizing: content-box; padding: 4px; border-radius: 8px; background: var(--ag-primary-soft); color: var(--ag-primary); flex: none; }
 .ag-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .ag-tag.ok { color: var(--ag-success); background: var(--ag-success-soft); }
 .ag-tag.warn { color: var(--ag-warning-text); background: var(--ag-warning-soft); }
@@ -418,8 +423,8 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-zline { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 10px; }
 .ag-orow { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--ag-divider); }
 .ag-orow:last-child { border-bottom: 0; }
-/* Abhängiger Schalter (1.89.0, "Umgehen" unter "Muss beim Scharfschalten geschlossen sein"): eingerückt und ohne Linie dazwischen, er gehört
-   zum Schalter darüber und erscheint nur, solange dieser an ist */
+/* Abhängiger Schalter (1.89.0, bis 1.91.x "Umgehen" unter "Muss beim Scharfschalten geschlossen sein"; seit 1.92.0 nutzt keine Option ihn, der Aufbau
+   bleibt für die nächste): eingerückt und ohne Linie dazwischen, er gehört zum Schalter darüber und erscheint nur, solange dieser an ist */
 .ag-orow:has(+ .ag-osub) { border-bottom: 0; padding-bottom: 4px; }
 .ag-orow.ag-osub { padding-left: calc(var(--ag-tile) + 12px); padding-top: 4px; } /* Innenabstand statt Rand: die Linie darunter reicht über die ganze Breite.
    Seit 1.90.0 (Symbol zuerst) beginnt die Unteroption genau unter dem Schalter der Zeile darüber (bis 1.89.x 30 px) */
@@ -431,6 +436,9 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
    Bis 1.89.x stand der Schalter vor dem Symbol. Felder und Knöpfe rechts bleiben mittig. */
 .ag-orow > .ag-oav, .ag-setrow > .ag-oav, .ag-pmsw > .ag-oav { order: -2; align-self: flex-start; }
 .ag-ntk > .ag-ntk-icon, .ag-wf-notice > .ag-wf-icon { order: -2; }
+/* Zeile ohne Schalter in einer Liste mit Schaltern (1.92.0, Wunsch des Nutzers 2026-11-26 zur Zeile "Eigene Eingangsverzögerung": "dass der Text auf der
+   gleichen Flucht ist wie die anderen Texte und dort einfach etwas Leerraum lassen"): an der Stelle des Schalters steht ein leerer Platz in seiner Breite */
+.ag-orow > .ag-tgap, .ag-setrow > .ag-tgap { order: -1; width: 40px; flex: none; }
 .ag-setrow:has(> .ag-oav) > .ag-toggle { margin-top: 7px; }
 .ag-setrow:has(> .ag-oav) { align-items: flex-start; }
 /* Das Schloss der Alarmmeldung im Assistenten (1.91.0) steht wie ein Schalter oben auf der Kachel */
@@ -1275,7 +1283,9 @@ ${WAVE_STARS}
 :host([narrow]) .ag-ov-tools .ag-list-head { display: none; }
 :host([narrow]) .ag-ov-tools .ag-tools { gap: 8px; padding: 8px 0; }
 :host([narrow]) .ag-ov-tools .list-search { flex: 1 1 0; min-width: 0; order: 1; }
-:host([narrow]) .ag-ov-tools [data-list="view"] { order: 2; font-size: 0; gap: 0; width: 44px; padding: 0; justify-content: center; flex: none; }
+:host([narrow]) .ag-ov-tools [data-list="view"] { order: 2; font-size: 0; gap: 0; width: 44px; padding: 0; justify-content: center; flex: none; border-radius: 999px; }
+/* Auf dem Handy steht "Ansicht" als runder Symbolknopf neben der Suche, nicht bei den Pillen: ohne Kachel (1.92.0, Entscheid des Nutzers) */
+:host([narrow]) .ag-ov-tools [data-list="view"].ag-toolbtn > svg { padding: 0; background: none; color: inherit; }
 :host([narrow]) .ag-ov-tools .ag-lchips { order: 3; flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; gap: 8px; scrollbar-width: none; }
 :host([narrow]) .ag-ov-tools .ag-lchips::-webkit-scrollbar { display: none; }
 :host([narrow]) .ag-ov-tools .ag-lchips .ag-chip { flex: none; }

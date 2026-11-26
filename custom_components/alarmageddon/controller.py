@@ -58,7 +58,6 @@ from .const import (
     OPT_ALWAYS_OFF,
     OPT_ENTRY_DELAY,
     OPT_ARM_ON_CLOSE,
-    OPT_BYPASS,
     OPT_OFFLINE_ALARM,
     OPT_REPORT_ONLY,
     REPORT_THROTTLE,
@@ -471,8 +470,11 @@ class AlarmController:
         return [e for e in self.open_sensors(mode) if not self.option(e, OPT_OPEN_OK, mode)]
 
     def blocking_sensors(self, mode: str) -> list[str]:
-        """Offene Sensoren, die das Scharfschalten verhindern (weder "darf offen sein" noch "umgehen")."""
-        return [e for e in self.bypassable_sensors(mode) if not self.option(e, OPT_BYPASS, mode)]
+        """
+        Offene Sensoren, die das Scharfschalten verhindern: alle, die nicht offen sein dürfen. Bis 1.91.x half dabei die Option "Umgehen"; sie ist
+        seit 1.92.0 gestrichen (settings.fold_bypass), übergangen wird ein offener Sensor nur noch mit "Trotzdem scharf schalten" (force).
+        """
+        return self.bypassable_sensors(mode)
 
     def unreachable_sensors(self, mode: str) -> list[str]:
         """Sensoren der Zone, die nicht erreichbar sind (nicht verfügbar, unbekannt) oder fehlen (1.87.0)."""
@@ -999,7 +1001,7 @@ class AlarmController:
     async def async_arm(self, mode: str, code: str | None, changed_by: str | None = None, skip_code: bool = False, force: bool = False) -> None:
         # skip_code nur für den Zeitplan, den ein Administrator eingerichtet hat, und für die Knöpfe der Meldung "Scharfschalten
         # nicht möglich". force (nur dieser Knopf, 1.18.0): offene Sensoren verhindern das Scharfschalten nicht, sie werden bis
-        # zum Deaktivieren übergangen wie mit der Option "Umgehen".
+        # zum Deaktivieren übergangen (bis 1.91.x auch mit der Option "Umgehen", die es seit 1.92.0 nicht mehr gibt).
         if mode not in self.modes:
             raise _error("mode_not_enabled", mode=mode)
         if self.state in (AlarmControlPanelState.PENDING, AlarmControlPanelState.TRIGGERED):
@@ -1017,8 +1019,8 @@ class AlarmController:
             # Eingangsverzögerung oder den Alarm nicht still beenden (Sicherheitsregel: im Zweifel alarmieren)
             if self.state in (AlarmControlPanelState.PENDING, AlarmControlPanelState.TRIGGERED):
                 raise _error("disarm_first")
-        # Offen und nicht erlaubt: mit der Option "Umgehen" bis zum Deaktivieren übergangen, sonst verhindert der Sensor das Scharfschalten. Nicht
-        # erreichbar mit "Muss erreichbar sein" (1.87.0): verhindert ebenso, seit 1.89.0 auch mit "Umgehen" (das gilt nur für offene Sensoren)
+        # Offen und nicht erlaubt: verhindert das Scharfschalten (mit "Trotzdem scharf schalten" bis zum Deaktivieren übergangen). Nicht erreichbar
+        # mit "Muss erreichbar sein" (1.87.0): verhindert ebenso
         open_now = [] if force else self.blocking_sensors(mode)
         offline_now = [] if force else self.blocking_unreachable(mode)
         if open_now or offline_now:

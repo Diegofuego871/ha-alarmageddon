@@ -6,7 +6,7 @@ Globale Einstellungen, für alle Anlagen gleich: Voreinstellungen je Sensorart
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 import copy
 from datetime import date, timedelta
 import re
@@ -22,6 +22,8 @@ from .const import (
     AUTO_BACKUP_DAYS,
     AUTO_BACKUP_DEFAULT,
     AUTO_BACKUP_KEEP_MAX,
+    CONF_SENSOR_MODES,
+    CONF_SENSOR_OPTIONS,
     DATA_SETTINGS,
     DATA_SETTINGS_LOCK,
     BATTERY_CHECKS_RANGE,
@@ -43,6 +45,8 @@ from .const import (
     DOMAIN,
     MODES,
     NOTIFY_MODE_KINDS,
+    OPT_BYPASS,
+    OPT_OPEN_OK,
     OPT_REACHABLE,
     SENSOR_OPTIONS,
     SENSOR_TYPES,
@@ -71,7 +75,85 @@ def valid_presets(value: Any) -> dict[str, list[str]]:
     if isinstance(value, dict):
         for kind in SENSOR_TYPES:
             if isinstance(value.get(kind), list):
-                out[kind] = [o for o in SENSOR_OPTIONS if o in value[kind]]
+                given = {o for o in value[kind] if isinstance(o, str)}
+                # "Beim Scharfschalten umgehen" gibt es seit 1.92.0 nicht mehr (fold_bypass): wo es voreingestellt war, darf der Sensor offen sein
+                if OPT_BYPASS in given:
+                    given.add(OPT_OPEN_OK)
+                out[kind] = [o for o in SENSOR_OPTIONS if o in given]
+    return out
+
+
+def stored_presets(value: Any) -> dict[str, set[str]]:
+    """Voreinstellungen, wie sie gespeichert sind, auch mit "Umgehen" (bis 1.91.x): Grundlage für fold_bypass. Fehlende Arten mit der Grundeinstellung."""
+    out = {kind: set(options) for kind, options in DEFAULT_PRESETS.items()}
+    if isinstance(value, dict):
+        for kind in SENSOR_TYPES:
+            if isinstance(value.get(kind), list):
+                out[kind] = {o for o in value[kind] if isinstance(o, str)}
+    return out
+
+
+def fold_bypass(options: Mapping[str, Any], presets: Mapping[str, set[str]], kind_of: Callable[[str], str]) -> dict[str, Any] | None:
+    """
+    "Beim Scharfschalten umgehen" (`bypass`) gibt es seit 1.92.0 nicht mehr (Frage des Nutzers 2026-11-26: "das widerspricht sich doch", Entscheid:
+    streichen). Wo es wirkte, darf der Sensor jetzt offen sein (`open_ok`, im Panel "Muss beim Scharfschalten geschlossen sein" aus): Scharfschalten
+    geht wie bisher, der Sensor wird danach aber überwacht statt bis zum Deaktivieren übergangen (ein neues Öffnen nach dem Schliessen löst aus).
+
+    Gerechnet wird je Ebene wie in `controller.option` (eigener Wert des Modus, sonst des Sensors, sonst die Voreinstellung der Art): darf offen sein
+    = bisher "darf offen sein" oder "umgehen". Geschrieben wird nur, wo der Sensor dort einen eigenen Wert hatte; "umgehen" fällt überall weg.
+    `presets` sind die Voreinstellungen vor der Umstellung (mit "umgehen", `stored_presets`). Gibt die neuen Optionen zurück, None ohne Änderung.
+    Beschädigte Einträge (kein Wörterbuch) bleiben, wie sie sind.
+    """
+    def val(values: Mapping[str, Any], key: str) -> bool | None:
+        value = values.get(key)
+        return None if value is None else bool(value)
+
+    def fold(values: dict[str, Any], inherited_open: bool, inherited_bypass: bool, new_inherited: bool) -> tuple[dict[str, Any], bool]:
+        own_open, own_bypass = val(values, OPT_OPEN_OK), val(values, OPT_BYPASS)
+        result = (inherited_open if own_open is None else own_open) or (inherited_bypass if own_bypass is None else own_bypass)
+        out = {k: v for k, v in values.items() if k != OPT_BYPASS}
+        if own_open is not None or (own_bypass is not None and result != new_inherited):
+            out[OPT_OPEN_OK] = result
+        return out, result
+
+    own = options.get(CONF_SENSOR_OPTIONS)
+    modes = options.get(CONF_SENSOR_MODES)
+    own = dict(own) if isinstance(own, dict) else {}
+    modes = {m: dict(per) if isinstance(per, dict) else per for m, per in modes.items()} if isinstance(modes, dict) else {}
+    ids = {e for e, v in own.items() if isinstance(v, dict)} | {e for per in modes.values() if isinstance(per, dict) for e, v in per.items() if isinstance(v, dict)}
+    for entity in ids:
+        preset = presets.get(kind_of(entity), set())
+        base_open, base_bypass = OPT_OPEN_OK in preset, OPT_BYPASS in preset
+        values = own.get(entity) if isinstance(own.get(entity), dict) else {}
+        # Gemeinsame Ebene: geerbt von der Voreinstellung; nach der Umstellung sagt die Voreinstellung "darf offen sein", wenn sie eines von beiden hatte
+        common_open, common_bypass = (base_open if val(values, OPT_OPEN_OK) is None else val(values, OPT_OPEN_OK)), (base_bypass if val(values, OPT_BYPASS) is None else val(values, OPT_BYPASS))
+        folded, common_new = fold(values, base_open, base_bypass, base_open or base_bypass)
+        if isinstance(own.get(entity), dict):
+            if folded:
+                own[entity] = folded
+            else:
+                del own[entity]
+        # Je Modus: geerbt von der gemeinsamen Ebene (vor der Umstellung: ihre beiden Werte; danach: ihr neuer Wert)
+        for scope, per in modes.items():
+            if isinstance(per, dict) and isinstance(per.get(entity), dict):
+                folded_mode, _ = fold(per[entity], common_open, common_bypass, common_new)
+                per = dict(per)
+                if folded_mode:
+                    per[entity] = folded_mode
+                else:
+                    del per[entity]
+                modes[scope] = per
+    new_own = {e: v for e, v in own.items() if not isinstance(v, dict) or v}
+    new_modes = {m: per for m, per in modes.items() if not isinstance(per, dict) or per}
+    old_own = options.get(CONF_SENSOR_OPTIONS)
+    old_modes = options.get(CONF_SENSOR_MODES)
+    if (new_own == (old_own if isinstance(old_own, dict) else {})) and (new_modes == (old_modes if isinstance(old_modes, dict) else {})):
+        return None
+    out = dict(options)
+    if CONF_SENSOR_OPTIONS in options or new_own:
+        out[CONF_SENSOR_OPTIONS] = new_own
+    if CONF_SENSOR_MODES in options or new_modes:
+        out[CONF_SENSOR_MODES] = new_modes
     return out
 
 
@@ -332,6 +414,8 @@ class Settings:
             "presets": copy.deepcopy(DEFAULT_PRESETS),
             # Die Voreinstellungen kennen "Muss erreichbar sein" (1.87.0); fehlt der Vermerk in der Ablage, wird es einmal ergänzt (with_reachable)
             "presets_reachable": True,
+            # "Umgehen" ist in Voreinstellungen und eigenen Werten umgestellt (1.92.0, fold_bypass); fehlt der Vermerk, geschieht es einmal beim Laden
+            "presets_no_bypass": True,
             "notify": copy.deepcopy(DEFAULT_NOTIFY),
             # Namen der Sensoren (1.12.0): an (Standard) = "Gerät - Sensor", aus = nur der Name des Sensors. Gilt überall, wo ein
             # Sensor genannt wird (Panel, Protokoll, Meldungen), siehe devices.display_name
@@ -380,11 +464,21 @@ class Settings:
         if migrate:
             self.data["wizard"] = {e.entry_id: {"state": "done"} for e in self.hass.config_entries.async_entries(DOMAIN)}
         self.data["wizard"] = valid_wizard(self.data.get("wizard"))
-        self.data["presets"] = valid_presets(self.data.get("presets"))
+        raw_presets = self.data.get("presets")
+        self.data["presets"] = valid_presets(raw_presets)
         reachable = isinstance(stored, dict) and stored.get("presets_reachable") is not True
         if reachable:
             self.data["presets"] = with_reachable(self.data["presets"])
             self.data["presets_reachable"] = True
+        # Update auf 1.92.0: "Beim Scharfschalten umgehen" entfällt. Die eigenen Werte aller Anlagen (auch nicht geladener) werden einmal umgestellt,
+        # mit den Voreinstellungen von vorher (sie wissen, wo "umgehen" voreingestellt war); valid_presets hat die Voreinstellungen schon umgestellt
+        fold = isinstance(stored, dict) and stored.get("presets_no_bypass") is not True
+        if fold:
+            before = stored_presets(raw_presets)
+            for entry in self.hass.config_entries.async_entries(DOMAIN):
+                if (options := fold_bypass(entry.options, before, lambda e: sensor_type(self.hass, e))) is not None:
+                    self.hass.config_entries.async_update_entry(entry, options=options)
+            self.data["presets_no_bypass"] = True
         self.data["notify"] = valid_notify(self.data.get("notify"))
         self.data["names_with_device"] = self.data.get("names_with_device") is not False
         self.data["auto_backup"] = valid_auto_backup(self.data.get("auto_backup"))
@@ -395,7 +489,7 @@ class Settings:
         self.data.pop("cleanup", None)  # kurzzeitiger Vermerk eines Zwischenstands von 1.82.0
         stored_changes = self.data.get("last_changes")
         self.data["last_changes"] = {k: v for k, v in stored_changes.items() if isinstance(k, str) and isinstance(v, str)} if isinstance(stored_changes, dict) else {}
-        if migrate or reachable:
+        if migrate or reachable or fold:
             # Sofort festhalten: sonst hielte ein späterer Start die inzwischen neu angelegten Anlagen ebenfalls für eingerichtet (Assistent), und
             # ein vom Nutzer später abgewähltes "Muss erreichbar sein" käme nie wieder zurück
             await self._async_write()

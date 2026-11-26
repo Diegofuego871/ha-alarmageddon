@@ -85,6 +85,7 @@ from .const import (
     MAX_STEPS,
     MODES,
     OPT_ALWAYS_OFF,
+    OPT_BYPASS,
     OPT_ENTRY_DELAY,
     OPEN_SENSOR_MODES,
     SCOPE_ALWAYS,
@@ -99,6 +100,10 @@ SOUND_NAME = vol.Any(vol.In(list(ALL_SOUNDS)), vol.Match(CUSTOM_SOUND_ID_RE))
 ENTITY_LIST = [cv.entity_id]
 # Werte eines Sensors: die Schalter (SENSOR_OPTIONS) und die eigene Eingangsverzögerung in Sekunden
 SENSOR_VALUES = vol.Schema({vol.Optional(vol.In(SENSOR_OPTIONS)): bool, vol.Optional(OPT_ALWAYS_OFF): bool, vol.Optional(OPT_ENTRY_DELAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_DELAY))})
+# Backups bis 1.91.x tragen noch "Umgehen" (OPT_BYPASS): angenommen und beim Einlesen zu "darf offen sein" umgestellt (backup.validate,
+# settings.fold_bypass). Vom Panel kommt es nie mehr (SENSOR_VALUES lehnt es ab)
+SENSOR_VALUES_BACKUP = vol.Schema({vol.Optional(vol.In((*SENSOR_OPTIONS, OPT_BYPASS))): bool, vol.Optional(OPT_ALWAYS_OFF): bool,
+                                   vol.Optional(OPT_ENTRY_DELAY): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_DELAY))})
 # Eigene Empfänger einer Meldung (statt der Alarm-Empfänger aus der Konfiguration): nur notify-Dienste, höchstens 20
 NOTIFY_TARGETS = vol.All([vol.All(str, vol.Match(r"^notify\.[a-z0-9_]+$"))], vol.Length(max=20))
 # Lautstärke je Medienplayer (1.16.0): eigene Werte für einzelne Lautsprecher; wer hier fehlt, bekommt "volume" des Schritts
@@ -592,10 +597,10 @@ SYSTEM_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(CONF_CODE_ACK_REQUIRED): bool,
         vol.Optional(CONF_CODE_MODE_REQUIRED): bool,
         vol.Optional(CONF_CONFIRM_WINDOW): vol.All(vol.Coerce(int), vol.Range(min=5, max=MAX_CONFIRM_WINDOW)),
-        vol.Optional(CONF_SENSOR_OPTIONS): strict_map(cv.entity_id, SENSOR_VALUES),
+        vol.Optional(CONF_SENSOR_OPTIONS): strict_map(cv.entity_id, SENSOR_VALUES_BACKUP),
         vol.Optional(CONF_PER_MODE_SENSORS): bool,
         vol.Optional(CONF_PER_MODE_SETTINGS): bool,
-        vol.Optional(CONF_SENSOR_MODES): strict_map(vol.In([*MODES, SCOPE_ALWAYS]), strict_map(cv.entity_id, SENSOR_VALUES)),
+        vol.Optional(CONF_SENSOR_MODES): strict_map(vol.In([*MODES, SCOPE_ALWAYS]), strict_map(cv.entity_id, SENSOR_VALUES_BACKUP)),
         vol.Optional(CONF_WORKFLOWS): strict_map(vol.In(WORKFLOW_TRIGGERS), step_list(valid_step)),
         vol.Optional(CONF_WORKFLOW_END): strict_map(vol.In(WORKFLOW_TRIGGERS), valid_end),
         vol.Optional(CONF_WORKFLOWS_AFTER): strict_map(vol.In(WORKFLOW_TRIGGERS), step_list(valid_after_step)),

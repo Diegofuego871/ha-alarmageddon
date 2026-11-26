@@ -3,7 +3,8 @@
 // der Kachel), dann der Text. "Einstellungen pro Modus" trägt auf allen vier Seiten das Symbol "tune". Dazu: das Kapitel "Zeiten" (eine Karte mit
 // Ausgangs-, Eingangsverzögerung und Bestätigungsfenster, ohne Untertitel), "Höchstens" als Unteroption des Nachalarms (ohne Strich, eingerückt bis zum
 // Text des Nachalarms), die Symbole der Empfänger und von "Anlage löschen", das Fenster "Voreinstellungen" so breit wie das Panel dahinter und das
-// Fenster "Sensoren hinzufügen" am Computer immer gleich hoch (Suche und Knöpfe bleiben an ihrem Ort). Je Sprache, Desktop und Handy.
+// Fenster "Sensoren hinzufügen" am Computer immer gleich hoch (Suche und Knöpfe bleiben an ihrem Ort). Seit 1.92.0: eine Zeile ohne Schalter zwischen
+// Zeilen mit Schalter ("Eigene Eingangsverzögerung") hat ihren Text in deren Flucht, mit Leerraum an der Stelle des Schalters. Je Sprache, Desktop und Handy.
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = { de: { times: "Zeiten", old: "Zeiten und Verhalten" }, en: { times: "Times", old: "Times and behaviour" } };
@@ -100,14 +101,22 @@ for (const lang of ["de", "en"]) {
     const spm = await s.ev(PMSW);
     check(`${tag}: Sensoren: "Einstellungen pro Modus" mit Symbol`, spm.length === 1 && spm[0], J(spm));
     await geo("Sensoren", ".ag-pmsw", 1);
-    // Einstellungen eines Sensors: dieselbe Reihenfolge; die Unteroption "Beim Scharfschalten umgehen" beginnt unter dem Schalter der Zeile darüber
+    // Einstellungen eines Sensors: dieselbe Reihenfolge. Seit 1.92.0 (Wunsch des Nutzers 2026-11-26) steht der Text der Zeile "Eigene
+    // Eingangsverzögerung" (ohne Schalter) in der Flucht der anderen Texte, an der Stelle des Schalters bleibt Leerraum; "Umgehen" gibt es nicht mehr
     await s.tap('[data-sen="detail"][data-ent="binary_sensor.haustuer"]');
-    await s.waitFor(mobile ? "return r.getElementById('ag-sheet').open" : "return !!r.querySelector('.ag-side .ag-sheet [data-key=\"bypass\"]')", 8000);
+    await s.waitFor(`return !!r.querySelector('${mobile ? "#ag-sheet" : ".ag-side .ag-sheet"} [data-sen="delay"]')`, 8000);
     await s.page.waitForTimeout(450);
     await geo("Einstellungen der Haustür", ".ag-orow, .ag-sheet .ag-setrow", 6);
-    const osub = await s.ev(`const by = r.querySelector('[data-key="bypass"]').closest('.ag-orow'), close = by.previousElementSibling;
-      return { sub: by.classList.contains('ag-osub'), dx: Math.round(by.querySelector(':scope > .ag-oav').getBoundingClientRect().left - close.querySelector(':scope > .ag-toggle').getBoundingClientRect().left) }`);
-    check(`${tag}: "Beim Scharfschalten umgehen" eingerückt bis unter den Schalter von "Muss geschlossen sein"`, osub.sub && Math.abs(osub.dx) <= 1, J(osub));
+    const flush = await s.ev(`const sh = r.querySelector('${mobile ? "#ag-sheet" : ".ag-side .ag-sheet"}');
+      const rows = [...sh.querySelectorAll('.ag-orow')].filter((x) => x.querySelector(':scope > .ag-oav'));
+      const left = (x) => Math.round(x.querySelector(':scope > .ag-otx').getBoundingClientRect().left);
+      const delay = sh.querySelector('[data-sen="delay"]').closest('.ag-orow'), gap = delay.querySelector(':scope > .ag-tgap'), tg = sh.querySelector('.ag-orow > .ag-toggle');
+      return { n: rows.length, lefts: [...new Set(rows.map(left))], toggles: rows.filter((x) => x.querySelector(':scope > .ag-toggle')).length,
+        noToggle: !delay.querySelector(':scope > .ag-toggle'), gap: gap ? [Math.round(gap.getBoundingClientRect().left), Math.round(gap.getBoundingClientRect().width), gap.getAttribute('aria-hidden'), gap.textContent] : null,
+        tg: [Math.round(tg.getBoundingClientRect().left), Math.round(tg.getBoundingClientRect().width)], bypass: !!sh.querySelector('[data-key="bypass"], .ag-osub') }`);
+    check(`${tag}: Haustür: Text von "Eigene Eingangsverzögerung" in der Flucht der anderen Texte, Leerraum an der Stelle des Schalters, kein "Umgehen"`,
+      flush.n >= 6 && flush.toggles === flush.n - 1 && flush.noToggle && flush.lefts.length === 1 && flush.gap && flush.gap[0] === flush.tg[0] && flush.gap[1] === flush.tg[1]
+        && flush.gap[2] === "true" && flush.gap[3] === "" && !flush.bypass, J(flush));
     if (mobile) { await s.tap('#ag-sheet .ag-dlg-btns [data-sen="close-detail"]'); await s.waitFor("return !r.getElementById('ag-sheet').open", 5000); }
     else await s.tap('.ag-side [data-sen="close-detail"]');
     await s.page.waitForTimeout(300);

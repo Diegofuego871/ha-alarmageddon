@@ -1018,14 +1018,13 @@ class AlarmageddonPanel extends HTMLElement {
     return s.zones?.[mode] || [];
   }
 
-  // Wie der Server (controller.blocking_sensors): offene Sensoren der Zone, die weder "darf offen sein" noch "umgehen" haben,
-  // verhindern das Scharfschalten; mit Einstellungen je Modus zählt der Wert des Modus
+  // Wie der Server (controller.blocking_sensors): offene Sensoren der Zone, die nicht offen sein dürfen, verhindern das Scharfschalten; mit
+  // Einstellungen je Modus zählt der Wert des Modus. "Umgehen" gibt es seit 1.92.0 nicht mehr.
   _blocking(s, mode) {
-    return this._members(s, mode).filter((id) => this._state(id)?.state === "on" && !this._optionOf(s, id, "open_ok", mode) && !this._optionOf(s, id, "bypass", mode));
+    return this._members(s, mode).filter((id) => this._state(id)?.state === "on" && !this._optionOf(s, id, "open_ok", mode));
   }
 
-  // Wie controller.blocking_unreachable (1.87.0): nicht erreichbare Sensoren mit "Muss beim Scharfschalten erreichbar sein"; seit 1.89.0 auch mit
-  // "Umgehen" (gilt nur für offene Sensoren, Entscheid des Nutzers 2026-11-25)
+  // Wie controller.blocking_unreachable (1.87.0): nicht erreichbare Sensoren mit "Muss beim Scharfschalten erreichbar sein"
   _unreachable(s, mode) {
     return this._members(s, mode).filter((id) => { const st = this._state(id)?.state; return (st === undefined || GONE.has(st)) && this._optionOf(s, id, "reachable", mode); });
   }

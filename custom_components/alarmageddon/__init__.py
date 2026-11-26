@@ -65,7 +65,7 @@ from .reception import async_get_reception
 from .selftest import ISSUE_GLOBAL, async_get_selftest, async_note, async_resolve, async_stop_selftest
 from .healthcheck import async_get_healthcheck, async_stop_healthcheck
 from .sensor_history import DATA_STATS, STATS_STORE_KEY, async_get_stats
-from .settings import async_get_settings
+from .settings import async_get_settings, fold_bypass, sensor_type
 from .workflow import WorkflowRunner, async_remove_workflow_store
 
 _LOGGER = logging.getLogger(__name__)
@@ -270,6 +270,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry)
     _migrate_main_code(hass, entry)
     integration = await async_get_integration(hass, DOMAIN)
     settings = await async_get_settings(hass)
+    # "Umgehen" gibt es seit 1.92.0 nicht mehr: das Laden der Einstellungen stellt beim Update alle Anlagen um; was danach noch kommt (die
+    # Umstellung "Offener Sensor beim Scharfschalten" oben bei sehr alten Anlagen), wird hier mit den heutigen Voreinstellungen umgestellt
+    if (folded := fold_bypass(entry.options, {k: set(v) for k, v in settings.presets.items()}, lambda e: sensor_type(hass, e))) is not None:
+        hass.config_entries.async_update_entry(entry, options=folded)
     # Selbsttest (1.65.0) zuerst: er hält fest, wenn ein Teil der Anlage nicht startet. Er ist Zusatz wie die Wartung.
     selftest = await _isolated(entry, async_get_selftest(hass, settings), "loading the self-test")
     controller = AlarmController(hass, entry, settings)

@@ -284,10 +284,8 @@ export const OPTIONS = [
   // gespeicherten Werts (invert), gespeichert bleibt "open_ok". Bei Bewegungsmeldern nicht angezeigt (notFor): ein Melder darf beim Scharfschalten
   // ausgelöst sein, ihr Wert bleibt die Voreinstellung. Der Kurztext in der Tabelle erscheint wie bisher, wenn der Sensor offen sein darf.
   { key: "open_ok", invert: true, notFor: ["motion"], icon: "door", name: "optMustClose", hint: "optMustCloseHint", short: "optOpenOkShort" },
-  // Seit 1.89.0 (Entscheid des Nutzers 2026-11-25) nur für offene Sensoren: wirkt nur, solange "Muss beim Scharfschalten geschlossen sein" an ist
-  // (under: der Schalter erscheint eingerückt darunter und nur dann; der Server liest "Umgehen" nur für Sensoren, die nicht offen sein dürfen).
-  // Bei Bewegungsmeldern gibt es "Muss geschlossen sein" nicht, also auch kein "Umgehen"
-  { key: "bypass", under: "open_ok", notFor: ["motion"], icon: "shieldOff", name: "optBypass", hint: "optBypassHint", short: "optBypassShort" },
+  // "Beim Scharfschalten umgehen" (bis 1.91.x, eingerückt unter "Muss geschlossen sein") ist seit 1.92.0 gestrichen (Frage des Nutzers 2026-11-26:
+  // "das widerspricht sich doch"); gespeicherte Werte stellt der Server auf "darf offen sein" um (settings.fold_bypass)
   // Muss beim Scharfschalten erreichbar sein (1.87.0, Code-Review M4): ohne Kurztext in der Tabelle (bei fast allen Sensoren an)
   { key: "reachable", icon: "signal", name: "optReachable", hint: "optReachableHint", short: null },
   { key: "arm_on_close", icon: "lockClosed", name: "optArmOnClose", hint: "optArmOnCloseHint", short: "optArmOnCloseShort" },
@@ -296,7 +294,8 @@ export const OPTIONS = [
   { key: "report_only", icon: "bell", name: "optReport", hint: "optReportHint", short: "optReportShort" },
 ];
 // Erscheint die Option für einen Sensor dieser Art? `eff(key)` liefert den wirksamen gespeicherten Wert. Eine Option mit `under` erscheint nur,
-// solange der übergeordnete Schalter an ist (wie er angezeigt wird: bei "invert" das Gegenteil des gespeicherten Werts)
+// solange der übergeordnete Schalter an ist (wie er angezeigt wird: bei "invert" das Gegenteil des gespeicherten Werts). Seit 1.92.0 hat keine
+// Option mehr `under`; der Weg bleibt für einen Schalter, der nur mit einem anderen wirkt (CLAUDE.md)
 export const optionShown = (o, type, eff) => {
   if (o.notFor?.includes(type || "other")) return false;
   if (!o.under) return true;

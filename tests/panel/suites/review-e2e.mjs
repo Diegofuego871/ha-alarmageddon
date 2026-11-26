@@ -1,4 +1,4 @@
-// 0.40.0 (Code-Review): das Panel rechnet "Bereit für" wie die Anlage (Umgehen, Werte je Modus), die Sensorliste kennt
+// 0.40.0 (Code-Review): das Panel rechnet "Bereit für" wie die Anlage (darf offen sein, Werte je Modus), die Sensorliste kennt
 // "Immer aktiv" aus den Einstellungen je Modus, Meldungen zeigen mit dem Schalter "pro Modus" auch die Arten ohne Modus,
 // Verbindungsfehler lassen die Daten stehen, der CSV-Export entschärft Formelzellen, das Protokoll fragt mit dem Stand
 // der letzten Antwort. Je Sprache auf Desktop und Handy.
@@ -28,10 +28,14 @@ for (const lang of ["de", "en"]) {
       const ready = () => s.ev(`return [...r.querySelectorAll('[data-system="e_garage"] .ag-rchip')].map((c) => c.classList.contains("ok"))`);
       const card = () => s.ev(`return r.querySelector('[data-system="e_garage"]').innerText`);
       check(`${tag}: offenes Garagentor verhindert beide Modi`, JSON.stringify(await ready()) === "[false,false]" && (await card()).includes(t.open), JSON.stringify(await ready()));
-      // Umgehen: die Anlage würde scharf schalten und den Sensor übergehen, also ist sie bereit
+      // "Muss geschlossen sein" aus (open_ok): die Anlage würde scharf schalten, also ist sie bereit
+      await s.sim(`window.__systems[1].sensor_options = { "${GARAGE}": { open_ok: true } }`);
+      await refetch();
+      check(`${tag}: darf offen sein: die Anlage ist bereit, das Tor gilt nicht als Hindernis`, JSON.stringify(await ready()) === "[true,true]" && !(await card()).includes(t.open), await card());
+      // "Umgehen" gibt es seit 1.92.0 nicht mehr (der Server stellt es beim Laden um und rechnet ohne es): ein Rest davon hilft auch im Panel nicht
       await s.sim(`window.__systems[1].sensor_options = { "${GARAGE}": { bypass: true } }`);
       await refetch();
-      check(`${tag}: mit "Umgehen" ist die Anlage bereit, das Tor gilt nicht als Hindernis`, JSON.stringify(await ready()) === "[true,true]" && !(await card()).includes(t.open), await card());
+      check(`${tag}: ein Rest "Umgehen" macht die Anlage nicht bereit (wie controller.blocking_sensors seit 1.92.0)`, JSON.stringify(await ready()) === "[false,false]" && (await card()).includes(t.open), await card());
       // Werte je Modus: "darf offen sein" nur in "Abwesend"
       await s.sim(`const g = window.__systems[1]; g.sensor_options = {}; g.per_mode_sensors = true; g.sensor_modes = { away: { "${GARAGE}": { open_ok: true } } }`);
       await refetch();
@@ -41,14 +45,14 @@ for (const lang of ["de", "en"]) {
       await refetch();
       check(`${tag}: ohne Schalter gelten die Werte je Modus nicht`, JSON.stringify(await ready()) === "[false,false]", JSON.stringify(await ready()));
       // 1.87.0: nicht erreichbar mit "Muss beim Scharfschalten erreichbar sein" (Voreinstellung der Sensorart Tür) verhindert wie offen und wird
-      // genannt; ohne die Option nicht (wie controller.blocking_unreachable). Seit 1.89.0 (Entscheid des Nutzers 2026-11-25) hilft "Umgehen" dabei
-      // nicht mehr: es gilt nur für offene Sensoren
+      // genannt; ohne die Option nicht (wie controller.blocking_unreachable). "Darf offen sein" hilft dabei nicht: es gilt nur für offene Sensoren
+      // (bis 1.91.x ebenso "Umgehen", seit 1.89.0)
       await s.sim(`window.__setState("${GARAGE}", "unavailable")`);
       await refetch();
       check(`${tag}: nicht erreichbares Garagentor verhindert beide Modi und wird genannt`, JSON.stringify(await ready()) === "[false,false]" && (await card()).includes(t.gone) && !(await card()).includes(t.open), await card());
-      await s.sim(`window.__systems[1].sensor_options = { "${GARAGE}": { bypass: true } }`);
+      await s.sim(`window.__systems[1].sensor_options = { "${GARAGE}": { open_ok: true } }`);
       await refetch();
-      check(`${tag}: nicht erreichbar mit "Umgehen": nicht bereit, genannt (seit 1.89.0 entscheidet allein "Muss erreichbar sein")`, JSON.stringify(await ready()) === "[false,false]" && (await card()).includes(t.gone), await card());
+      check(`${tag}: nicht erreichbar, darf aber offen sein: nicht bereit, genannt (es entscheidet allein "Muss erreichbar sein")`, JSON.stringify(await ready()) === "[false,false]" && (await card()).includes(t.gone), await card());
       await s.sim(`window.__systems[1].sensor_options = { "${GARAGE}": { reachable: false } }`);
       await refetch();
       check(`${tag}: nicht erreichbar ohne "Muss erreichbar sein": bereit`, JSON.stringify(await ready()) === "[true,true]", JSON.stringify(await ready()));

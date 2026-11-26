@@ -8,7 +8,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.core import HomeAssistant
 
 from .conftest import ALARM, FRONT_DOOR, MOTION, WINDOW, setup_alarm
-from .test_alarm import advance, call, state
+from .test_alarm import advance, call, settle, state
 
 SMOKE = "binary_sensor.rauchmelder"
 
@@ -233,14 +233,15 @@ async def test_save_sensor_options_and_system(hass: HomeAssistant, hass_ws_clien
     assert not (await client.receive_json())["success"]
 
 
-# ----- Umgehen je Sensor und Einstellungen je Modus (0.32.0) -----
+# ----- Offen beim Scharfschalten je Sensor und Einstellungen je Modus (0.32.0; bis 1.91.x mit "Umgehen", seit 1.92.0 "darf offen sein") -----
 
-async def test_bypass_is_an_option_per_sensor(hass: HomeAssistant) -> None:
-    """Nur der Sensor mit "Umgehen" wird übergangen; ein anderer offener Sensor verhindert das Scharfschalten weiter."""
-    await setup_alarm(hass, exit_delay_away=0, sensor_options={WINDOW: {"bypass": True}})
+async def test_may_be_open_is_an_option_per_sensor(hass: HomeAssistant) -> None:
+    """Nur der Sensor, der offen sein darf, lässt scharf schalten; ein anderer offener Sensor verhindert das Scharfschalten weiter."""
+    await setup_alarm(hass, exit_delay_away=0, sensor_options={WINDOW: {"open_ok": True}})
     hass.states.async_set(WINDOW, "on")
+    await settle(hass)  # das Öffnen gehört vor das Scharfschalten
     await call(hass, "alarm_arm_home")
-    assert hass.states.get(ALARM).attributes["bypassed_sensors"] == [WINDOW]
+    assert state(hass) == AlarmControlPanelState.ARMED_HOME and hass.states.get(ALARM).attributes["bypassed_sensors"] == []
     await call(hass, "alarm_disarm")
     hass.states.async_set(FRONT_DOOR, "on")
     with pytest.raises(ServiceValidationError):
@@ -251,29 +252,33 @@ async def test_sensor_options_per_mode(hass: HomeAssistant) -> None:
     """Mit Einstellungen je Modus gilt der Wert des Modus vor dem Wert für alle Modi und der Voreinstellung."""
     await setup_alarm(
         hass, exit_delay_away=0, per_mode_sensors=True,
-        sensor_options={WINDOW: {"bypass": True}}, sensor_modes={"away": {WINDOW: {"bypass": False}}},
+        sensor_options={WINDOW: {"open_ok": True}}, sensor_modes={"away": {WINDOW: {"open_ok": False}}},
     )
     hass.states.async_set(WINDOW, "on")
-    await call(hass, "alarm_arm_home")  # Anwesend: Wert für alle Modi, umgehen
-    assert hass.states.get(ALARM).attributes["bypassed_sensors"] == [WINDOW]
+    await settle(hass)  # das Öffnen gehört vor das Scharfschalten
+    await call(hass, "alarm_arm_home")  # Anwesend: Wert für alle Modi, darf offen sein
+    assert state(hass) == AlarmControlPanelState.ARMED_HOME
     await call(hass, "alarm_disarm")
-    with pytest.raises(ServiceValidationError):  # Abwesend: eigener Wert, nicht umgehen
+    with pytest.raises(ServiceValidationError):  # Abwesend: eigener Wert, muss geschlossen sein
         await call(hass, "alarm_arm_away")
 
 
 async def test_sensor_modes_ignored_when_switch_is_off(hass: HomeAssistant) -> None:
-    await setup_alarm(hass, exit_delay_away=0, sensor_options={WINDOW: {"bypass": True}}, sensor_modes={"away": {WINDOW: {"bypass": False}}})
+    await setup_alarm(hass, exit_delay_away=0, sensor_options={WINDOW: {"open_ok": True}}, sensor_modes={"away": {WINDOW: {"open_ok": False}}})
     hass.states.async_set(WINDOW, "on")
+    await settle(hass)  # das Öffnen gehört vor das Scharfschalten
     await call(hass, "alarm_arm_away")  # Schalter aus: nur die Werte für alle Modi
-    assert hass.states.get(ALARM).attributes["bypassed_sensors"] == [WINDOW]
+    assert state(hass) == AlarmControlPanelState.ARMED_AWAY
 
 
 async def test_legacy_open_sensors_bypass_is_migrated(hass: HomeAssistant) -> None:
+    """Bis 0.31.0 "umgehen" für die Anlage, bis 1.91.x "Umgehen" je Sensor, seit 1.92.0 "darf offen sein" (tests/test_bypass_removed.py)."""
     entry = await setup_alarm(hass, exit_delay_away=0, open_sensors="bypass")
-    assert "open_sensors" not in entry.options and entry.options["sensor_options"][WINDOW]["bypass"] is True
+    assert "open_sensors" not in entry.options and entry.options["sensor_options"][WINDOW] == {"open_ok": True}
     hass.states.async_set(WINDOW, "on")
+    await settle(hass)  # das Öffnen gehört vor das Scharfschalten
     await call(hass, "alarm_arm_home")
-    assert hass.states.get(ALARM).attributes["bypassed_sensors"] == [WINDOW]
+    assert state(hass) == AlarmControlPanelState.ARMED_HOME and hass.states.get(ALARM).attributes["bypassed_sensors"] == []
 
 
 async def test_save_zones_per_mode_and_backup(hass: HomeAssistant, hass_ws_client) -> None:

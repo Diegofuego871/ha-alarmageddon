@@ -424,11 +424,16 @@ Umsetzung:
   "zu" unter Überwachung. **"Muss beim Scharfschalten erreichbar sein" (M4):** Option `reachable` (Voreinstellung Tür, Fenster, Bewegung; einmalige
   Migration über `presets_reachable` in Einstellungen und Backups, danach entscheidet der Nutzer); `open_ok` wird im Panel umgekehrt als "Muss
   geschlossen sein" gezeigt (`invert`), bei Bewegung nicht (`notFor`). Panel (`_unreachable`), Karte (`unreachable_sensors`) und Server
-  (`blocking_unreachable`) rechnen gleich. **"Umgehen" (`bypass`) gilt seit 1.89.0 nur für offene Sensoren** (Frage und Entscheid des Nutzers
-  2026-11-25, "Strenger werden", ohne Umstellung des Bestands): über nicht erreichbare Sensoren entscheidet allein `reachable`; im Panel steht
-  "Umgehen" eingerückt unter "Muss geschlossen sein" und nur, solange dieser an ist (`OPTIONS[].under`, `common.optionShown`, Klasse `.ag-osub`;
-  Voreinstellungen "–"). Ein Schalter, der nur mit einem anderen wirkt, bekommt `under` statt eigener Logik. Tests `tests/test_bypass_open_only.py`,
-  Suiten `bypass-e2e.mjs`, `review-e2e.mjs`. **Weiterer Sensor im Alarm (H2):** immer Protokoll und Meldung (`alarm_again`, gedrosselt); Nachalarm nur
+  (`blocking_unreachable`) rechnen gleich. **"Umgehen" (`bypass`) gibt es seit 1.92.0 nicht mehr** (Frage des Nutzers 2026-11-26 "das
+  widerspricht sich doch", Entscheid "Ja mach es so"; 1.89.0 bis 1.91.x galt es nur für offene Sensoren, eingerückt unter "Muss geschlossen sein").
+  Wo es wirkte, darf der Sensor offen sein (`settings.fold_bypass`: je Ebene wie `controller.option`, neu `open_ok` = bisher `open_ok` oder `bypass`,
+  geschrieben nur, wo der Sensor dort einen eigenen Wert hatte): einmal beim Laden der Einstellungen für alle Anlagen, auch nicht geladene, mit den
+  Voreinstellungen von vorher (`stored_presets`, Vermerk `presets_no_bypass`, sofort geschrieben), danach je Anlage beim Laden (Reste aus
+  "Offener Sensor beim Scharfschalten" bis 0.31.0), in Backups mit deren Voreinstellungen (`SENSOR_VALUES_BACKUP` nimmt `bypass` nur dort an);
+  `valid_presets` macht aus `bypass` `open_ok`. Das Panel kann `bypass` nicht speichern (`SENSOR_VALUES`, `save_presets`). Übergangen wird ein
+  offener Sensor nur noch mit "Trotzdem scharf schalten" (`force`, `bypassed_sensors`). Nie wieder eine Option einführen, die einer anderen
+  widerspricht. Der Aufbau für abhängige Schalter (`OPTIONS[].under`, `common.optionShown`, `.ag-osub`) bleibt, keine Option nutzt ihn. Tests
+  `tests/test_bypass_removed.py`, Suiten `bypass-e2e.mjs`, `review-e2e.mjs`, Zeilen "1.92.0" in `scripts/mutation_check.py`. **Weiterer Sensor im Alarm (H2):** immer Protokoll und Meldung (`alarm_again`, gedrosselt); Nachalarm nur
   mit `realarm_enabled`, nur wenn die Aktionen durch sind, höchstens `realarm_count`, Zustand "vorher" bleibt der vor dem ersten Alarm. **Codes (M2,
   M3):** Sperre wächst nach `CODE_LOCKOUT_STEPS`, steht in der eigenen Ablage (eine `Store` je Anlage für die Laufzeit von HA, `controller.state_store`;
   nie eine zweite Instanz derselben Ablage anlegen, sonst liest das Neuladen einen alten Stand); Moduswechsel im scharfen Zustand und in der
@@ -570,12 +575,21 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   auf der Kachel, Felder und Knöpfe rechts bleiben mittig; auf dem Handy rutschen sie unter den Text. Zentral in `styles.js` (`order: -2` für
   `.ag-oav` in `.ag-orow`, `.ag-setrow`, `.ag-pmsw`, `.ag-mon-head`, für `.ag-ntk-icon` und `.ag-wf-icon`); bis 1.89.x stand das Symbol zwischen Schalter und Text.
   Unterzeilen mit eigenem Symbol (`.ag-osub` im Sensor, `.ag-rtsub` in der Routine) beginnen mit dem Symbol unter dem Schalter der Zeile darüber.
+  **Zeile ohne Schalter in einer Liste mit Schaltern** (seit 1.92.0, Wunsch des Nutzers 2026-11-26 zur "Eigenen Eingangsverzögerung": "Text auf der
+  gleichen Flucht wie die anderen Texte und dort einfach etwas Leerraum lassen"): nach der Kachel `<span class="ag-tgap" aria-hidden="true">` in der
+  Breite des Schalters, der Text steht in der Flucht der übrigen. Die Kopfzeilen der Karten mit Zusammenfassung und Knöpfen (Codes, Backups) sind
+  davon ausgenommen (gleicher Aufbau wie bei Tönen und Routinen, ohne Schalter).
   "Einstellungen pro Modus" trägt auf jeder Seite `perModeIcon` ("tune", blau wenn an). Eine Unteroption (wie "Höchstens" beim Nachalarm) ist
   `.ag-setrow.ag-rowsub`: ohne Symbol und ohne Strich dazwischen, bündig mit dem Text der Zeile darüber. Suite `icons-e2e.mjs` (Lage je Zeile auf
   allen vier Seiten); eine neue Zeilenart mit Symbol kommt dort dazu. **Auch im Einrichtungsassistenten** (seit 1.91.0, Wunsch des
   Nutzers 2026-11-25: "überall das gleiche Icon", "in dem gleichen Stil, mit den gleichen Icons"): jede Zeile seiner Karten beginnt mit
   `rowIcon`; Meldungen nehmen Symbol und Farbe aus `notify.js` (`NOTIFY_ICON`, `NOTIFY_TONE`, Kachel `.ag-ntone`), nie eine eigene Tabelle; das Schloss
   der Alarmmeldung steht an der Stelle des Schalters (`.ag-wz-lock`). Suite `wzicons-e2e.mjs`; eine neue Zeile im Assistenten kommt dort dazu.
+- **Knöpfe neben Filter-Pillen (seit 1.92.0, Wunsch des Nutzers 2026-11-26, Mockup `docs/mockups/voreinstellungen-knopf-v1`, Entscheid "mach A"):** ein
+  Knopf, der neben Pillen (`.ag-chip`) steht, trägt `.ag-btn.ag-toolbtn`: Ecken 12 px wie das Suchfeld statt runder Enden, das Symbol in einer Kachel
+  (`--ag-primary-soft`) wie in den Zeilen der Einstellungen; Höhe wie jeder Knopf, nicht breiter. Heute "Voreinstellungen" (Sensoren) und am Computer
+  "Ansicht" (Übersicht; auf dem Handy bleibt er der runde Symbolknopf ohne Kachel). Andere `.ag-btn` bleiben rund. Ein neuer Knopf neben Pillen
+  bekommt die Klasse und eine Prüfung in der Suite `toolbtn-e2e.mjs`.
 - **Fenster mit Listen am Computer (seit 1.90.0, Wünsche des Nutzers 2026-11-25):** "Voreinstellungen je Sensorart" ist so breit wie der Inhalt des
   Panels dahinter (`sensors.js _fitPresets`, bündig, folgt der Fenstergrösse); "Sensoren hinzufügen" ist immer gleich hoch (`#ag-pick`: Höhe
   `min(92vh, 900px)`, nur die Liste `.ag-pick-list` scrollt), damit Suche und Knöpfe nie springen. Auf dem Handy bleiben beide Vollbild. Suite

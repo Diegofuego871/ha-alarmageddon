@@ -33,13 +33,13 @@ from homeassistant.helpers.event import async_call_later, async_track_time_chang
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, DATA_HEALTHCHECK, CONF_CODE_ACK_REQUIRED, CONF_CODES, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS, MODE_ENABLED_DEFAULT, MODE_ENABLED_KEY
+from .const import AUTO_BACKUP_DAYS, AUTO_BACKUP_START_DELAY, BACKUPS_STORE_KEY, DATA_AUTO_BACKUP, DATA_HEALTHCHECK, DATA_SETTINGS, DEFAULT_PRESETS, CONF_CODE_ACK_REQUIRED, CONF_CODES, CONF_MONITORS, CONF_ROUTINES, CONF_CODE_ARM_REQUIRED, DATA_CUSTOM_SOUNDS, DOMAIN, MAX_BACKUPS, MODE_ENABLED_DEFAULT, MODE_ENABLED_KEY
 from .custom_sounds import valid_backup_sounds
 from .monitor import check_monitors
 from .routines import check_routines, migrate_options
 from .schemas import SYSTEM_OPTIONS_SCHEMA
 from .selftest import async_note, async_resolve
-from .settings import async_get_settings, valid_healthchecks, valid_notify, valid_presets, with_reachable
+from .settings import async_get_settings, fold_bypass, sensor_type, stored_presets, valid_healthchecks, valid_notify, valid_presets, with_reachable
 from .systems import async_create_system, new_system_name
 
 _LOGGER = logging.getLogger(__name__)
@@ -79,6 +79,11 @@ def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
     if not isinstance(data.get("version"), int) or data["version"] > VERSION:
         raise vol.Invalid("newer_version")
     systems = []
+    settings = data.get("settings") if isinstance(data.get("settings"), dict) else {}
+    # Backups bis 1.91.x kennen "Umgehen": die Werte der Anlagen werden wie beim Update umgestellt (settings.fold_bypass), mit den Voreinstellungen
+    # des Backups (ohne sie mit den heutigen, die "Umgehen" nicht mehr kennen)
+    current = hass.data.get(DATA_SETTINGS)
+    before = stored_presets(settings["presets"]) if "presets" in settings else {k: set(v) for k, v in (current.presets if current else DEFAULT_PRESETS).items()}
     for item in data.get("systems") or []:
         if not isinstance(item, dict) or not isinstance(item.get("title"), str):
             raise vol.Invalid("invalid_backup")
@@ -87,6 +92,8 @@ def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
             # Sicherungen bis 1.43 enthalten Zeitpläne: sie kommen als Routinen zurück
             if (converted := migrate_options(dict(options), hass.config.language)) is not None:
                 options = converted
+            if (folded := fold_bypass(options, before, lambda e: sensor_type(hass, e))) is not None:
+                options = folded
             options.pop("routines_disarm", None)
             options.pop("disarm_ends_alarm", None)  # 1.78.0: die Einstellung gibt es nicht mehr
             if CONF_ROUTINES in options:
@@ -96,7 +103,6 @@ def validate(data: Any, hass: HomeAssistant) -> dict[str, Any]:
         except vol.Invalid as err:
             raise vol.Invalid("invalid_backup") from err
         systems.append({"title": item["title"], "options": options})
-    settings = data.get("settings") if isinstance(data.get("settings"), dict) else {}
     return {
         "systems": systems,
         # Backups vor 1.87.0 kennen "Muss erreichbar sein" nicht: wie beim Laden der Einstellungen ergänzt (settings.with_reachable)
