@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.92.3] - 2026-11-26
+
+### Changed
+
+- **Symbols of "Try it out" in the setup assistant coloured:** in the last step the symbols of "Test the alarm actions" and "Test notification: alarm" are red, "Test notification: maintenance" orange and "Ready to arm" green, like the notifications and states they stand for.
+
 ## [1.92.2] - 2026-11-26
 
 ### Changed
@@ -2470,6 +2476,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3
 [1.92.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.2
 [1.92.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.1
 [1.92.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.0

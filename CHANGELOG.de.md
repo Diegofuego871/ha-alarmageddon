@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.92.3] - 2026-11-26
+
+### Geändert
+
+- **Symbole von "Ausprobieren" im Einrichtungsassistenten farbig:** im letzten Schritt sind die Symbole von "Alarmaktionen testen" und "Testmeldung Alarm" rot, "Testmeldung Wartung" orange und "Bereit zum Scharfschalten" grün, wie die Meldungen und Zustände, für die sie stehen.
+
 ## [1.92.2] - 2026-11-26
 
 ### Geändert
@@ -2470,6 +2476,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3
 [1.92.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.2
 [1.92.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.1
 [1.92.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.0

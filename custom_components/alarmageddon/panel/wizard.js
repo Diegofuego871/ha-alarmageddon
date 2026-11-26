@@ -892,7 +892,7 @@ export class WizardUi {
     const testHint = this._t(steps ? (per ? "wzTestActionsHint" : "wzTestActionsHintAll") : per ? "wzTestActionsNone" : "wzTestActionsNoneAll", mode);
     const msgRow = (group, title) => {
       const targets = (h._data?.notify?.[group === "alarm" ? "alarm_targets" : "maintenance_targets"] || []).map(short).join(", ");
-      return `<div class="ag-setrow">${rowIcon(group === "alarm" ? "bell" : "cog")}<div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(targets ? this._t("wzTestMsgHint", { targets }) : this._t("wzSumNoTargets"))}</small></div>${this._groupTestBtn(group, "ntTestType", targets)}</div>`;
+      return `<div class="ag-setrow">${rowIcon(group === "alarm" ? "bell" : "cog", true, `ag-ntone ${group === "alarm" ? "fault" : "maint"}`)}<div class="ag-settx"><b>${esc(this._t(title))}</b><small>${esc(targets ? this._t("wzTestMsgHint", { targets }) : this._t("wzSumNoTargets"))}</small></div>${this._groupTestBtn(group, "ntTestType", targets)}</div>`;
     };
     const ready = (s.modes || []).map((m) => {
       const open = [...h._blocking(s, m), ...h._unreachable(s, m)]; // offen oder nicht erreichbar (1.87.0)
@@ -904,9 +904,9 @@ export class WizardUi {
       <small class="ag-wz-where">${ic("info", 13)}${esc(this._t(where))}</small></div>${go ? `<div class="ag-wf-btns ag-wz-gowrap"><button class="ag-iconbtn ag-wz-go" data-wz="more-go" data-go="${go}" ${this.busy ? "disabled" : ""} aria-label="${esc(this._t("wzMoreGo", { name: this._t(title) }))}" title="${esc(this._t("wzMoreGo", { name: this._t(title) }))}">${ic("chevRight", 18)}</button></div>` : ""}</div>`).join("");
     return `<div class="ag-card ag-setlist ag-wz-sum">${rows}</div>
       ${this._chap(this._t("wzTry"), `<div class="ag-card ag-setlist">
-        <div class="ag-setrow">${rowIcon("power")}<div class="ag-settx"><b>${esc(this._t("wzTestActions"))}</b><small>${esc(testHint)}</small></div>${testBtn}</div>
+        <div class="ag-setrow">${rowIcon("power", true, "ag-ntone fault")}<div class="ag-settx"><b>${esc(this._t("wzTestActions"))}</b><small>${esc(testHint)}</small></div>${testBtn}</div>
         ${msgRow("alarm", "wzTestMsgAlarm")}${msgRow("maintenance", "wzTestMsgMaint")}
-        <div class="ag-setrow ag-wz-readyrow">${rowIcon("shieldCheck")}<div class="ag-settx"><b>${esc(this._t("wzReady"))}</b><small>${esc(this._t("wzReadyHint"))}</small></div><div class="ag-ready">${ready}</div></div></div>`)}
+        <div class="ag-setrow ag-wz-readyrow">${rowIcon("shieldCheck", true, "ag-ntone ok")}<div class="ag-settx"><b>${esc(this._t("wzReady"))}</b><small>${esc(this._t("wzReadyHint"))}</small></div><div class="ag-ready">${ready}</div></div></div>`)}
       ${this._chap(this._t("wzMore"), `<div class="ag-card ag-setlist ag-wz-more">${more}
         <div class="ag-setrow ag-wz-moreopen">${rowIcon("cog")}<div class="ag-settx"><small>${esc(this._t("wzMoreOpenHint"))}</small></div><button class="ag-btn" data-wz="settings" ${this.busy ? "disabled" : ""}>${ic("cog", 18)}${esc(this._t("wzMoreOpen"))}</button></div></div>`, this._t("wzMoreHint"))}`;
   }

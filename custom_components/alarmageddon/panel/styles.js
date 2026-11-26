@@ -1023,6 +1023,7 @@ button.ag-link, a.ag-link { display: inline-flex; align-items: center; gap: 5px;
 .ag-ntk, .ag-ntk-icon.fault, .ag-ntone.fault { --tone: var(--ag-error); --tone-soft: var(--ag-error-soft); --tone-text: var(--ag-error); }
 .ag-ntk.maint, .ag-ntk-icon.maint, .ag-ntone.maint { --tone: var(--ag-warning); --tone-soft: var(--ag-warning-soft); --tone-text: var(--ag-warning-text); }
 /* Meldungen im Einrichtungsassistenten (1.91.0): Kachel in der Farbe der Gruppe wie die Karten unter Benachrichtigungen, grau, solange aus */
+.ag-ntone.ok { --tone-soft: var(--ag-success-soft); --tone-text: var(--ag-success); }
 .ag-oav.ag-ntone.on { background: var(--tone-soft); color: var(--tone-text); }
 .ag-ntk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ag-ntk-grid + .ag-pmscope { margin-top: 20px; }

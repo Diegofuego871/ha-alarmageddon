@@ -124,6 +124,8 @@ for (const lang of ["de", "en"]) {
     // ----- Fertig: Zusammenfassung, Ausprobieren und "Konfiguration öffnen" mit Symbol -----
     {
       const s = await step("done");
+      const dn = await s.ev("const k=[...r.querySelectorAll('.ag-wz .ag-setrow > .ag-oav.ag-ntone')].map((x) => [...x.classList].filter((c) => ['fault','maint','ok'].includes(c)).join()); return k");
+      check(`${tag}: Ausprobieren: Symbole farbig (Alarmaktionen und Testmeldung Alarm rot, Wartung orange, bereit grün)`, J(dn) === J(["fault", "fault", "maint", "ok"]), J(dn));
       await geo(s, "done", 11);
       check(`${tag}: done: keine Fehler der Seite`, s.errors.length === 0, s.errors.join(" | "));
       await s.ctx.close();
