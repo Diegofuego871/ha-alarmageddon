@@ -77,6 +77,7 @@ for (const lang of ["de", "en"]) {
     const set = await open(browser, { mobile, lang, tab: "config", prefs: { sub: "notify" } });
     await set.waitFor("return r.querySelectorAll('.ag-ntk').length >= 8", 8000);
     const setIcons = await set.ev(SVG(".ag-ntk[data-ntk]"));
+    check(`${tag}: Standard-Empfänger in den Einstellungen: Symbole rot (Alarme) und orange (Wartung)`, await set.ev("const k=[...r.querySelectorAll('.ag-nt .ag-recip')].map((x) => x.querySelector(':scope > .ag-oav')); return k.length === 2 && k[0].classList.contains('fault') && k[1].classList.contains('maint')"));
     const setRecip = await set.ev("return [...r.querySelectorAll('.ag-nt .ag-recip')].map((x) => x.querySelector(':scope > .ag-oav svg')?.innerHTML || '')");
     const setTone = await set.ev("const m = {}; for (const c of r.querySelectorAll('.ag-ntk[data-ntk]:not(.off)')) m[c.dataset.ntk] = getComputedStyle(c.querySelector('.ag-ntk-icon')).color; return m");
     await set.ctx.close();

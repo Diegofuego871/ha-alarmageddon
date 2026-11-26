@@ -155,7 +155,7 @@ export class NotifyUi {
       : `<div class="ag-t2 ag-small">${esc(this._t("ntNoServices"))}</div>`;
     const none = !chosen.length && services.length ? `<small class="ag-warntext">${ic("alert", 14)} ${esc(this._t("ntNoneChosen"))}</small>` : "";
     // Symbol oben links (1.90.0): Glocke für die Alarme, Zahnrad für die Wartung
-    return `<div class="ag-setrow ag-recip">${rowIcon(group === "alarm" ? "bell" : "cog")}<div class="ag-settx"><b>${esc(this._t(group === "alarm" ? "ntAlarmTargets" : "ntMaintTargets"))}</b><small>${esc(this._t(group === "alarm" ? "ntAlarmTargetsHint" : "ntMaintTargetsHint"))}</small>
+    return `<div class="ag-setrow ag-recip">${rowIcon(group === "alarm" ? "bell" : "cog", true, `ag-ntone ${group === "alarm" ? "fault" : "maint"}`)}<div class="ag-settx"><b>${esc(this._t(group === "alarm" ? "ntAlarmTargets" : "ntMaintTargets"))}</b><small>${esc(this._t(group === "alarm" ? "ntAlarmTargetsHint" : "ntMaintTargetsHint"))}</small>
         <div class="ag-rline">${select}</div>${pills ? `<div class="ag-rpills">${pills}</div>` : ""}${none}</div></div>`;
   }
 

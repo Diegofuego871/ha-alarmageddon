@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.92.2] - 2026-11-26
+
+### Geändert
+
+- **Standard-Empfänger in den Einstellungen in der Farbe der Meldungen:** unter Konfiguration › Benachrichtigungen sind die Symbole der Empfänger von Alarmen (Glocke) und von Wartungsmeldungen (Zahnrad) rot und orange wie im Einrichtungsassistenten.
+
 ## [1.92.1] - 2026-11-26
 
 ### Geändert
@@ -2464,6 +2470,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.92.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.2
 [1.92.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.1
 [1.92.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.0
 [1.91.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.91.1
