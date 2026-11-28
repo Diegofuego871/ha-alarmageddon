@@ -7,6 +7,12 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.93.1] - 2026-11-28
+
+### Fixed
+
+- **Routines and daylight saving time:** in autumn the hour from 02:00 to 03:00 happens twice, and a schedule time inside it ran twice, an hour apart (the 10-second lock does not cover that). It now runs once per calendar day. In spring that hour is skipped and a schedule time inside it did not run at all; it is now made up at 03:00, once, and so is a time window that begins inside the skipped hour. After a start of Home Assistant nothing is made up.
+
 ## [1.93.0] - 2026-11-28
 
 ### Added
@@ -2491,6 +2497,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.93.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.1
 [1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0
 [1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3
 [1.92.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.2

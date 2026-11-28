@@ -7,6 +7,12 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.93.1] - 2026-11-28
+
+### Behoben
+
+- **Routinen und Zeitumstellung:** im Herbst kommt die Stunde von 02:00 bis 03:00 zweimal, und eine Uhrzeit des Zeitplans darin lief zweimal, eine Stunde auseinander (die Sperre von 10 Sekunden deckt das nicht ab). Sie läuft jetzt je Kalendertag einmal. Im Frühling fällt die Stunde aus, und eine Uhrzeit darin lief gar nicht; sie wird jetzt um 03:00 nachgeholt, einmal, ebenso ein Zeitfenster, das in der ausgefallenen Stunde beginnt. Nach einem Start von Home Assistant wird nichts nachgeholt.
+
 ## [1.93.0] - 2026-11-28
 
 ### Hinzugefügt
@@ -2491,6 +2497,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.93.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.1
 [1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0
 [1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3
 [1.92.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.2

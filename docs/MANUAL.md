@@ -179,7 +179,7 @@ If the card does not appear in the card picker: restart Home Assistant after the
 
 ### More
 
-- **Routines:** arm or disarm at set times on chosen weekdays, or when a device does something, for example when the smart lock locks. Several conditions can be combined with "and" and "or", in groups. Each routine only applies in the alarm states you choose.
+- **Routines:** arm or disarm at set times on chosen weekdays, or when a device does something, for example when the smart lock locks. Several conditions can be combined with "and" and "or", in groups. Each routine only applies in the alarm states you choose. **Daylight saving time (since 1.93.1):** in autumn the hour from 02:00 to 03:00 happens twice; a schedule time inside it runs only once per calendar day (otherwise a routine would arm or disarm again an hour later). In spring that hour is skipped; a time inside it is made up at 03:00, once, and so is a time window that begins inside it. After a start of Home Assistant nothing is made up.
 - **Codes per person:** everyone gets their own code; the log shows who armed and disarmed.
 - **Modes:** "Home", "Away" and "Night", each switchable on and off, each with its own zone, delays and actions.
 - **Two-sensor confirmation:** a motion sensor can require a second sensor before it triggers, against false alarms.

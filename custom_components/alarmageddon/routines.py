@@ -23,7 +23,7 @@ Sicherheitsregeln (Alarmageddon ist ein Sicherheitsprodukt):
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 import json
 import logging
@@ -267,6 +267,9 @@ class RoutineEngine:
         self._last: dict[str, bool] = {}  # zuletzt ausgewerteter Baum je Routine: nur ein Wechsel auf wahr löst aus
         self._holds: dict[str, CALLBACK_TYPE] = {}
         self._fired: dict[str, float] = {}
+        self._ran: set[tuple[str, str, str]] = set()  # (Routine, Datum, Uhrzeit) in Ortszeit: eine Uhrzeit läuft je Kalendertag nur einmal (1.93.0)
+        self._tick_prev: datetime | None = None  # Ortszeit der letzten Minute, für die Lücke der Sommerzeit
+        self._tick_needed = False
         self.damaged: list[str] = []  # Kennungen beschädigter Routinen, die nicht laufen (für den Selbsttest, 1.65.0)
 
     @property
@@ -284,11 +287,15 @@ class RoutineEngine:
                     for item in trigger["times"]:
                         hour, minute = (int(x) for x in str(item["time"]).split(":"))
                         self._unsubs.append(async_track_time_change(self.hass, partial(self._on_time, rule, item), hour=hour, minute=minute, second=0))
+                        self._tick_needed = True
                 elif trigger.get("type") == "device":
                     self._start_device(rule, trigger)
             except Exception:  # noqa: BLE001 - eine beschädigte Routine (1.63.0: jeder Fehler, nicht nur KeyError) hält die Anlage nie vom Laden ab
                 _LOGGER.warning("%s: routine '%s' is damaged and does not run", self.entry.title, rule.get("name"))
                 self.damaged.append(str(rule.get("id", "")))
+        if self._tick_needed:
+            self._tick_prev = dt_util.as_local(dt_util.utcnow()).replace(second=0, microsecond=0)  # beim Start wird nichts nachgeholt
+            self._unsubs.append(async_track_time_change(self.hass, self._on_tick, second=0))
 
     def _start_device(self, rule: dict[str, Any], trigger: dict[str, Any]) -> None:
         tree = trigger["tree"]
@@ -301,6 +308,7 @@ class RoutineEngine:
         for edge in {t for x in leaves if x["kind"] == "time" for t in (x["from"], x["to"])}:
             hour, minute = (int(x) for x in edge.split(":"))
             self._unsubs.append(async_track_time_change(self.hass, partial(self._on_edge, rule), hour=hour, minute=minute, second=0))
+            self._tick_needed = True
 
     @callback
     def async_stop(self) -> None:
@@ -313,8 +321,48 @@ class RoutineEngine:
 
     @callback
     def _on_time(self, rule: dict[str, Any], item: dict[str, Any], now: Any) -> None:
-        if dt_util.as_local(now).weekday() in item.get("days", []):
-            self.hass.async_create_task(self.async_run(rule))
+        local = dt_util.as_local(now)
+        if local.weekday() not in item.get("days", []):
+            return
+        # Zeitumstellung im Herbst (1.93.0, Wunsch des Nutzers 2026-11-28): die Stunde zwischen 02:00 und 03:00 kommt zweimal; dieselbe Uhrzeit läuft je
+        # Kalendertag nur einmal (die Sperre von ROUTINE_COOLDOWN gilt nur Sekunden, die zweite Auslösung käme eine Stunde später)
+        key = (rule["id"], local.date().isoformat(), str(item["time"]))
+        if key in self._ran:
+            return
+        self._ran.add(key)
+        self.hass.async_create_task(self.async_run(rule))
+
+    @callback
+    def _on_tick(self, now: Any) -> None:
+        """
+        Jede Minute: springt die Uhr durch die Sommerzeit vorwärts (Frühling), werden Uhrzeiten aus der übersprungenen Stunde um 03:00 nachgeholt
+        (Wunsch des Nutzers 2026-11-28), ebenso das Wechseln von Zeitfenstern. Sonst ändert die Minute nichts: nach einem Neustart oder Hängen von
+        Home Assistant wird nie etwas nachgeholt, nur der Sprung der Uhr zählt (die Zeitzone wechselt, nicht die Dauer).
+        """
+        local = dt_util.as_local(now).replace(second=0, microsecond=0)
+        prev, self._tick_prev = self._tick_prev, local
+        today = local.date().isoformat()
+        self._ran = {k for k in self._ran if k[1] >= today or k[1] == (local - timedelta(days=1)).date().isoformat()}
+        if prev is None or local.utcoffset() is None or prev.utcoffset() is None or local.utcoffset() <= prev.utcoffset():
+            return
+        lo, hi = prev.replace(tzinfo=None), local.replace(tzinfo=None)
+        if lo.date() != hi.date():
+            return
+        for rule in self.rules:
+            if not rule.get("enabled", True) or rule.get("id") in self.damaged:
+                continue
+            trigger = rule.get("trigger") or {}
+            try:
+                if trigger.get("type") == "schedule":
+                    for item in trigger["times"]:
+                        hour, minute = (int(x) for x in str(item["time"]).split(":"))
+                        at = lo.replace(hour=hour, minute=minute)
+                        if lo < at < hi:  # in der Lücke; die Minute nach der Lücke löst der gewöhnliche Zeitgeber aus
+                            self._on_time(rule, item, local)
+                elif trigger.get("type") == "device" and any(x["kind"] == "time" for x in tree_leaves(trigger["tree"])):
+                    self._evaluate(rule, fire=True)
+            except Exception:  # noqa: BLE001 - ein Fehler in einer Routine hält die übrigen nie auf
+                _LOGGER.debug("%s: routine '%s' could not be caught up", self.entry.title, rule.get("name"))
 
     # -- Gerät --
 

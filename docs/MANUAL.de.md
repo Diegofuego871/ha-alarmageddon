@@ -179,7 +179,7 @@ Erscheint die Karte nicht im Auswahldialog: Home Assistant nach dem Update neu s
 
 ### Mehr
 
-- **Routinen:** zu festen Zeiten an gewählten Wochentagen scharf schalten oder deaktivieren, oder wenn ein Gerät etwas tut, zum Beispiel wenn das Smart Lock abschliesst. Mehrere Bedingungen lassen sich mit "und" und "oder" verbinden, auch in Gruppen. Jede Routine gilt nur in den Zuständen der Anlage, die du wählst.
+- **Routinen:** zu festen Zeiten an gewählten Wochentagen scharf schalten oder deaktivieren, oder wenn ein Gerät etwas tut, zum Beispiel wenn das Smart Lock abschliesst. Mehrere Bedingungen lassen sich mit "und" und "oder" verbinden, auch in Gruppen. Jede Routine gilt nur in den Zuständen der Anlage, die du wählst. **Zeitumstellung (seit 1.93.1):** im Herbst kommt die Stunde von 02:00 bis 03:00 zweimal; eine Uhrzeit des Zeitplans darin läuft je Kalendertag nur einmal (sonst würde eine Routine eine Stunde später noch einmal scharf- oder deaktivieren). Im Frühling fällt die Stunde aus; eine Uhrzeit darin wird um 03:00 nachgeholt, einmal, ebenso ein Zeitfenster, das darin beginnt. Nach einem Start von Home Assistant wird nichts nachgeholt.
 - **Codes pro Person:** jede Person bekommt ihren eigenen Code; das Protokoll zeigt, wer scharf geschaltet und deaktiviert hat.
 - **Modi:** "Anwesend", "Abwesend" und "Nacht", jeder ein- und ausschaltbar, jeder mit eigener Zone, eigenen Verzögerungen und Aktionen.
 - **Bestätigung durch zwei Sensoren:** ein Bewegungsmelder kann einen zweiten Sensor verlangen, bevor er auslöst, gegen Fehlalarme.
