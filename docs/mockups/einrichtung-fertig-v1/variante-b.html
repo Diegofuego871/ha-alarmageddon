@@ -96,11 +96,11 @@ const page = document.getElementById("p"), hero = document.getElementById("hero"
 page.classList.add(v);
 
 const NAMES = { A: "A · Rad im Seitenkopf", B: "B · Schild als Münze", C: "C · Sieben Striche als Ring", D: "D · Schild zeichnet sich selbst", E: "E · Aus den sieben Strichen wird das Schild" };
-const TOTAL = { A: 2300, B: 3500, C: 2900, D: 3600, E: 3600 };
+const TOTAL = { A: 2300, B: 3600, C: 2900, D: 3900, E: 3900 };
 document.getElementById("label").textContent = "Variante " + NAMES[v];
 function init() {
   // Alles zurücksetzen, damit sich die Animation beliebig oft neu starten lässt
-  document.getAnimations().forEach((a) => a.cancel());
+  const old = document.getElementById("dyn"); if (old) old.remove();
   page.querySelectorAll(".veil2").forEach((e) => e.remove());
   page.classList.remove("run");
   hero.className = "hero"; hero.innerHTML = "";
@@ -112,8 +112,7 @@ const CHECK = '<path class="chk" d="M38 62l16 16 30-34"/>';
     hero.innerHTML = `<svg width="120" height="120" viewBox="0 0 120 120"><circle class="ring-track" cx="60" cy="60" r="44"/><g class="spin"><circle class="arc" cx="60" cy="60" r="44"/></g><circle class="disc" cx="60" cy="60" r="44"/>${CHECK}</svg>`;
   } else if (v === "B" || v === "D" || v === "E") {
     hero.className = "hero none"; // Anzeige liegt im Fenster, nicht im Seitenkopf
-    document.getElementById("chip").hidden = false;
-    const chip = document.getElementById("chip");
+    const chip = document.getElementById("chip"); chip.hidden = false;
     const veil = document.createElement("div"); veil.className = "veil2";
     const SH = "M60 12l36 14v26c0 24-15 42-36 52C39 94 24 76 24 52V26z";
     veil.innerHTML = `<div class="coin2" id="coin"><svg class="shield2" id="shield" width="170" height="170" viewBox="0 0 120 120">
@@ -122,55 +121,61 @@ const CHECK = '<path class="chk" d="M38 62l16 16 30-34"/>';
         <clipPath id="shclip"><path d="${SH}"/></clipPath><clipPath id="rise"><rect id="riserect" x="0" y="0" width="120" height="120"/></clipPath></defs>
       <circle class="pulse2" id="pulse" cx="60" cy="60" r="44"/>
       <path id="shfill" d="${SH}" fill="url(#gr)"/>
-      <path id="shline" d="${SH}" fill="none" stroke="#8fd69c" stroke-width="3.5" stroke-linejoin="round" pathLength="1"/>
-      <g clip-path="url(#shclip)"><rect id="sheenr" x="-60" y="0" width="50" height="120" fill="url(#sheen)" transform="skewX(-18)"/></g>
+      <path id="shline" d="${SH}" fill="none" stroke="#8fd69c" stroke-width="3.5" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="${v === "D" ? 1 : 0}"/>
+      <g clip-path="url(#shclip)"><rect id="sheenr" x="-60" y="0" width="50" height="120" fill="url(#sheen)"/></g>
       <path class="chk2" id="chk" d="M40 60l14 14 27-30"/></svg></div><div class="tag2" id="tag">Die Anlage ist bereit</div>`;
     page.appendChild(veil);
     const $ = (id) => document.getElementById(id);
-    const A = (el, kf, o) => el.animate(kf, { fill: "both", ...o });
-    const AF = (el, kf, o) => el.animate(kf, { fill: "forwards", ...o }); // Flug: kein Startzustand vor dem Beginn
-    const EASE = "cubic-bezier(.16,.7,.2,1)", INOUT = "cubic-bezier(.65,0,.35,1)";
+    // Nur CSS-Animationen (@keyframes), keine Web-Animations-API: laeuft auch in Vorschauen, die nur CSS abspielen
+    const total = TOTAL[v], EASE = "cubic-bezier(.16,.7,.2,1)", INOUT = "cubic-bezier(.65,0,.35,1)";
+    let css = "", n = 0;
+    const tl = (el, stops) => { // stops: [ms, "css", easing zum naechsten Halt]
+      const name = "k" + v + n++;
+      css += `@keyframes ${name} {` + stops.map(([t, p, e]) => `${(t / total * 100).toFixed(3)}% { ${p}${e ? `; animation-timing-function: ${e}` : ""} }`).join(" ") + "}\n";
+      el.style.animation = "none"; void el.offsetWidth;
+      el.style.animation = `${name} ${total}ms linear both`;
+    };
     const coin = $("coin"), shield = $("shield");
-    const fly = (t0) => {
-      const c = coin.getBoundingClientRect(), k = chip.getBoundingClientRect();
-      const dx = k.left + k.width / 2 - (c.left + c.width / 2), dy = k.top + k.height / 2 - (c.top + c.height / 2), sc = k.width / c.width;
-      AF(coin, [{ transform: "translate(0,0) scale(1)", opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(${sc})`, opacity: 1, offset: .9 }, { transform: `translate(${dx}px,${dy}px) scale(${sc})`, opacity: 0 }], { delay: t0, duration: 650, easing: INOUT });
-      AF($("tag"), [{ opacity: 1 }, { opacity: 0 }], { delay: t0 - 100, duration: 350 });
-      AF(veil, [{ opacity: 1 }, { opacity: 0 }], { delay: t0 + 80, duration: 560, easing: "ease-in" });
-      A(chip, [{ opacity: 0, transform: "scale(.6)" }, { opacity: 1, transform: "scale(1.15)" , offset: .6}, { opacity: 1, transform: "scale(1)" }], { delay: t0 + 560, duration: 380, easing: "ease-out" });
-    };
-    const checkAndShine = (t0) => {
-      A($("chk"), [{ strokeDashoffset: 60, strokeWidth: 0, opacity: 1 }, { strokeDashoffset: 54, strokeWidth: 8, offset: .08 }, { strokeDashoffset: 0, strokeWidth: 8 }], { delay: t0, duration: 480, easing: "cubic-bezier(.4,0,.2,1)" });
-      A($("pulse"), [{ opacity: .7, transform: "scale(.95)" }, { opacity: 0, transform: "scale(2.2)" }], { delay: t0 + 380, duration: 900, easing: "ease-out" });
-      A($("sheenr"), [{ transform: "translateX(0) skewX(-18deg)" }, { transform: "translateX(260px) skewX(-18deg)" }], { delay: t0 + 420, duration: 700, easing: "ease-in-out" });
-      A($("tag"), [{ opacity: 0, transform: "translate(-50%,6px)" }, { opacity: 1, transform: "translate(-50%,0)" }], { delay: t0 + 200, duration: 450, easing: "ease-out" });
-    };
-    A(veil, [{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: "ease-out" });
-    if (v === "B") { // Münze: dreht sich zweimal und bremst weich
-      A(coin, [{ transform: "scale(.55)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { delay: 60, duration: 420, easing: EASE });
-      A(shield, [{ transform: "perspective(700px) rotateY(0deg) scale(1)" }, { transform: "perspective(700px) rotateY(360deg) scale(1.1)", offset: .35 }, { transform: "perspective(700px) rotateY(720deg) scale(1)" }], { delay: 100, duration: 1500, easing: EASE });
-      $("chk").style.opacity = 0; checkAndShine(1450); fly(2900);
-    } else if (v === "D") { // Schild zeichnet seinen Rand, füllt sich von unten
-      A(coin, [{ transform: "scale(.7)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { delay: 60, duration: 380, easing: EASE });
+    const c = coin.getBoundingClientRect(), k = chip.getBoundingClientRect();
+    const dx = k.left + k.width / 2 - (c.left + c.width / 2), dy = k.top + k.height / 2 - (c.top + c.height / 2), sc = (k.width / c.width).toFixed(3);
+    const T0 = v === "B" ? 1450 : 1750;       // Beginn des Hakens
+    const TF = v === "B" ? 2900 : 3150;       // Beginn des Flugs zum Titel
+    const OP = (o, tr) => `opacity:${o}; transform:${tr}`;
+    const rest = "translate(0px,0px) scale(1)", gone = `translate(${dx}px,${dy}px) scale(${sc})`;
+    // Hintergrund
+    tl(veil, [[0, "opacity:0", "ease-out"], [320, "opacity:1"], [TF + 80, "opacity:1", "ease-in"], [TF + 640, "opacity:0"], [total, "opacity:0"]]);
+    // Schild: Auftritt (je Variante), dann Flug
+    const appear = v === "B" ? [[0, OP(0, "translate(0px,0px) scale(.55)")], [60, OP(0, "translate(0px,0px) scale(.55)"), EASE], [480, OP(1, rest)]]
+      : v === "D" ? [[0, OP(0, "translate(0px,0px) scale(.7)")], [60, OP(0, "translate(0px,0px) scale(.7)"), EASE], [440, OP(1, rest)]]
+      : [[0, OP(0, "translate(0px,0px) scale(.3)")], [1150, OP(0, "translate(0px,0px) scale(.3)"), EASE], [1480, OP(1, "translate(0px,0px) scale(1.15)"), "ease-out"], [1700, OP(1, rest)]];
+    tl(coin, [...appear, [TF, OP(1, rest), INOUT], [TF + 585, OP(1, gone)], [TF + 650, OP(0, gone)], [total, OP(0, gone)]]);
+    const rot = (d, s) => `transform: perspective(700px) rotateY(${d}deg) scale(${s})`;
+    if (v === "B") tl(shield, [[0, rot(0, 1)], [100, rot(0, 1), "cubic-bezier(.3,.5,.6,1)"], [625, rot(360, 1.1), EASE], [1600, rot(720, 1)], [total, rot(720, 1)]]);
+    else if (v === "D") tl(shield, [[0, rot(0, 1)], [150, rot(0, 1), EASE], [1450, rot(360, 1)], [total, rot(360, 1)]]);
+    else tl(shield, [[0, rot(-360, 1)], [1150, rot(-360, 1), EASE], [2050, rot(0, 1)], [total, rot(0, 1)]]);
+    if (v === "D") {
       $("shfill").setAttribute("clip-path", "url(#rise)");
-      A($("riserect"), [{ transform: "translateY(120px)" }, { transform: "translateY(0)" }], { delay: 1100, duration: 700, easing: INOUT });
-      A($("shline"), [{ strokeDasharray: 1, strokeDashoffset: 1 }, { strokeDasharray: 1, strokeDashoffset: 0 }], { delay: 150, duration: 1100, easing: INOUT });
-      A(shield, [{ transform: "perspective(700px) rotateY(0deg)" }, { transform: "perspective(700px) rotateY(360deg)" }], { delay: 150, duration: 1300, easing: EASE });
-      checkAndShine(1750); fly(3150);
-    } else { // E: die sieben Striche des Fortschritts fliegen ein und werden zum Schild
-      const pr = [...page.querySelectorAll(".prog i")].map((i) => i.getBoundingClientRect()), cc = coin.getBoundingClientRect();
-      const cx = cc.left + cc.width / 2, cy = cc.top + cc.height / 2;
+      tl($("riserect"), [[0, "transform: translateY(120px)"], [1100, "transform: translateY(120px)", INOUT], [1800, "transform: translateY(0px)"], [total, "transform: translateY(0px)"]]);
+      tl($("shline"), [[0, "stroke-dashoffset: 1"], [150, "stroke-dashoffset: 1", INOUT], [1250, "stroke-dashoffset: 0"], [total, "stroke-dashoffset: 0"]]);
+    }
+    if (v === "E") { // die sieben Striche des Fortschritts fliegen ein
+      const pr = [...page.querySelectorAll(".prog i")].map((i) => i.getBoundingClientRect()), cx = c.left + c.width / 2, cy = c.top + c.height / 2;
       pr.forEach((r, i) => {
         const bar = document.createElement("div"); bar.className = "flybar";
         Object.assign(bar.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
         veil.appendChild(bar);
-        const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
-        A(bar, [{ transform: "translate(0,0) rotate(0) scale(1,1)", opacity: 1 }, { transform: `translate(${dx * .55}px,${dy * .55 - 30}px) rotate(${i % 2 ? 200 : -200}deg) scale(.8,3)`, opacity: 1, offset: .55 }, { transform: `translate(${dx}px,${dy}px) rotate(${i % 2 ? 420 : -420}deg) scale(.15,.15)`, opacity: 0 }], { delay: 250 + i * 70, duration: 950, easing: INOUT });
+        const bx = cx - (r.left + r.width / 2), by = cy - (r.top + r.height / 2), s = 250 + i * 70, d = i % 2 ? 1 : -1;
+        const f = (x, y, rot2, sx, sy, o) => `opacity:${o}; transform: translate(${x}px,${y}px) rotate(${rot2}deg) scale(${sx},${sy})`;
+        tl(bar, [[0, f(0, 0, 0, 1, 1, 0)], [s, f(0, 0, 0, 1, 1, 1), INOUT], [s + 520, f(bx * .55, by * .55 - 30, 200 * d, .8, 3, 1), INOUT], [s + 950, f(bx, by, 420 * d, .15, .15, 0)], [total, f(bx, by, 420 * d, .15, .15, 0)]]);
       });
-      A(coin, [{ transform: "scale(.3)", opacity: 0 }, { transform: "scale(1.15)", opacity: 1, offset: .6 }, { transform: "scale(1)", opacity: 1 }], { delay: 1150, duration: 550, easing: EASE });
-      A(shield, [{ transform: "perspective(700px) rotateY(-360deg)" }, { transform: "perspective(700px) rotateY(0deg)" }], { delay: 1150, duration: 900, easing: EASE });
-      checkAndShine(1750); fly(3150);
     }
+    // Haken, Puls, Glanz, Text
+    tl($("chk"), [[0, "opacity:0; stroke-dashoffset:60; stroke-width:0"], [T0, "opacity:0; stroke-dashoffset:60; stroke-width:0"], [T0 + 40, "opacity:1; stroke-dashoffset:55; stroke-width:8", "cubic-bezier(.4,0,.2,1)"], [T0 + 480, "opacity:1; stroke-dashoffset:0; stroke-width:8"], [total, "opacity:1; stroke-dashoffset:0; stroke-width:8"]]);
+    tl($("pulse"), [[0, "opacity:0; transform:scale(.95)"], [T0 + 380, "opacity:.7; transform:scale(.95)", "ease-out"], [T0 + 1280, "opacity:0; transform:scale(2.2)"], [total, "opacity:0; transform:scale(2.2)"]]);
+    tl($("sheenr"), [[0, "transform:translateX(0px) skewX(-18deg)"], [T0 + 420, "transform:translateX(0px) skewX(-18deg)", "ease-in-out"], [T0 + 1120, "transform:translateX(260px) skewX(-18deg)"], [total, "transform:translateX(260px) skewX(-18deg)"]]);
+    tl($("tag"), [[0, "opacity:0; transform:translate(-50%,6px)"], [T0 + 200, "opacity:0; transform:translate(-50%,6px)", "ease-out"], [T0 + 650, "opacity:1; transform:translate(-50%,0px)"], [TF - 100, "opacity:1; transform:translate(-50%,0px)"], [TF + 250, "opacity:0; transform:translate(-50%,0px)"], [total, "opacity:0; transform:translate(-50%,0px)"]]);
+    tl(chip, [[0, "opacity:0; transform:scale(.6)"], [TF + 560, "opacity:0; transform:scale(.6)", "ease-out"], [TF + 800, "opacity:1; transform:scale(1.15)"], [TF + 940, "opacity:1; transform:scale(1)"], [total, "opacity:1; transform:scale(1)"]]);
+    const st = document.createElement("style"); st.id = "dyn"; st.textContent = css; document.head.appendChild(st);
   } else {
     let segs = "";
     const n = 7, gap = 14, len = (360 - n * gap) / n, R = 44, C = 2 * Math.PI * R;
