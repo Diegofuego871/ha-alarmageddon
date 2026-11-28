@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Einrichtung fertig</title>
+<style>
+:root { --bg:#1b1b1b; --card:#252525; --text:#e6e6e6; --t2:#9a9a9a; --line:#383838; --ok:#5fae6e; --ok2:#3f8a4f; --primary:#5b9a68; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui, sans-serif; }
+.page { position:relative; max-width:720px; margin:0 auto; padding:12px 24px 24px; min-height:100vh; overflow:hidden; }
+.top { display:flex; justify-content:space-between; align-items:center; }
+.top small { color:var(--t2); font-size:15px; }
+.later { border:1px solid var(--line); border-radius:999px; padding:10px 20px; background:#202020; display:flex; gap:8px; align-items:center; }
+.prog { display:flex; gap:4px; margin:12px 0 0; }
+.prog i { flex:1; height:5px; border-radius:3px; background:var(--ok); }
+.hero { height:132px; display:flex; align-items:center; justify-content:center; margin-top:6px; }
+.hero.none { height:0; }
+h2 { font-size:26px; margin:12px 0 6px; }
+.lead { color:var(--t2); margin:0 0 16px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:6px 16px; }
+.row { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--line); }
+.row:last-child { border:0; }
+.row .ic { width:44px; height:44px; border-radius:12px; background:#2d3b30; flex:none; }
+.row b { display:block; font-weight:500; } .row span { color:var(--t2); font-size:15px; }
+.foot { position:absolute; left:0; right:0; bottom:0; display:flex; gap:10px; padding:12px 24px; background:var(--card); border-top:1px solid var(--line); }
+.foot div { flex:1; text-align:center; padding:14px; border-radius:999px; border:1px solid var(--line); }
+.foot .go { background:var(--primary); border-color:var(--primary); color:#fff; }
+svg { overflow:visible; }
+.ring-track { fill:none; stroke:#3a3a3a; stroke-width:7; }
+.chk { opacity:0; fill:none; stroke:#fff; stroke-width:8; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:60; stroke-dashoffset:60; }
+.chk.g { stroke:var(--ok); }
+
+/* ===== A: Rad, das auslaeuft, dann Haken (im Seitenkopf, bleibt stehen) ===== */
+.page.run.A .spin { transform-origin:60px 60px; animation:aspin 1.3s cubic-bezier(.12,.6,.15,1) both; }
+@keyframes aspin { from { transform:rotate(0) } to { transform:rotate(720deg) } }
+.page.run.A .arc { fill:none; stroke:var(--ok); stroke-width:7; stroke-linecap:round; stroke-dasharray:70 207; animation:aclose .4s ease-in-out 1.15s both; }
+@keyframes aclose { from { stroke-dasharray:70 207 } to { stroke-dasharray:277 0 } }
+.page.run.A .disc { fill:var(--ok2); transform-origin:60px 60px; transform:scale(0); animation:adisc .35s cubic-bezier(.3,1.5,.5,1) 1.45s both; }
+@keyframes adisc { to { transform:scale(1) } }
+.page.run.A .chk { animation:draw .35s ease-out 1.65s both; }
+@keyframes draw { 0% { stroke-dashoffset:60; opacity:0 } 1% { opacity:1 } 100% { stroke-dashoffset:0; opacity:1 } }
+
+/* ===== B: Schild dreht sich ueber dem ganzen Bild, Haken, dann Schliessen ===== */
+.B .veil { position:absolute; inset:0; background:rgba(10,10,10,.78); display:flex; align-items:center; justify-content:center; z-index:5; animation:bveil 2.9s ease both; }
+@keyframes bveil { 0% { opacity:0 } 8% { opacity:1 } 84% { opacity:1 } 100% { opacity:0; visibility:hidden } }
+.B .coin { perspective:600px; }
+.B .shield { transform-style:preserve-3d; animation:bflip 1.3s cubic-bezier(.12,.6,.15,1) .15s both; }
+@keyframes bflip { from { transform:rotateY(0) } to { transform:rotateY(720deg) } }
+.B .sh { fill:var(--ok2); stroke:var(--ok); stroke-width:4; stroke-linejoin:round; }
+.B .chk { animation:draw .4s ease-out 1.5s both; }
+.B .pulse { fill:none; stroke:var(--ok); stroke-width:3; opacity:0; transform-origin:60px 60px; animation:bpulse .8s ease-out 1.75s both; }
+@keyframes bpulse { from { opacity:.7; transform:scale(.9) } to { opacity:0; transform:scale(2.1) } }
+.B .tag { position:absolute; left:50%; top:calc(50% + 92px); transform:translateX(-50%); font-size:20px; font-weight:600; opacity:0; animation:btag .4s ease 1.9s both; white-space:nowrap; }
+@keyframes btag { to { opacity:1 } }
+.chip { display:inline-flex; vertical-align:-4px; margin-right:8px; width:28px; height:28px; border-radius:50%; background:var(--ok2); align-items:center; justify-content:center; }
+.chip[hidden] { display:none; }
+
+/* ===== C: sieben Striche des Assistenten laufen als Ring, schliessen sich, Funken ===== */
+.page.run.C .wheel { transform-origin:60px 60px; animation:cspin 1.5s cubic-bezier(.12,.6,.15,1) both; }
+@keyframes cspin { from { transform:rotate(0) } to { transform:rotate(720deg) } }
+.page.run.C .seg { fill:none; stroke:#3a3a3a; stroke-width:8; stroke-linecap:round; animation:clight .2s ease both; }
+@keyframes clight { to { stroke:var(--ok) } }
+.C .seg.closing { animation:clight .2s ease both, cgrow .35s ease-in-out 1.35s both; }
+@keyframes cgrow { to { stroke-dasharray:80 0; } }
+.page.run.C .disc { fill:var(--ok2); transform-origin:60px 60px; transform:scale(0); animation:adisc .35s cubic-bezier(.3,1.5,.5,1) 1.7s both; }
+.page.run.C .chk { animation:draw .35s ease-out 1.85s both; }
+.page.run.C .sp { fill:var(--ok); opacity:0; transform-origin:60px 60px; animation:csp .7s ease-out 1.95s both; }
+@keyframes csp { 0% { opacity:1; transform:rotate(var(--a)) translateY(-34px) scale(1) } 100% { opacity:0; transform:rotate(var(--a)) translateY(-78px) scale(.3) } }
+
+.veil2 { position:fixed; inset:0; background:rgba(8,8,8,.8); display:flex; align-items:center; justify-content:center; z-index:5; opacity:0; }
+.coin2 { will-change:transform; } .shield2 { overflow:visible; will-change:transform; }
+.chk2 { fill:none; stroke:#fff; stroke-width:8; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:60; stroke-dashoffset:60; opacity:0; }
+.pulse2 { fill:none; stroke:var(--ok); stroke-width:3; opacity:0; transform-origin:60px 60px; }
+.tag2 { position:absolute; left:50%; top:calc(50% + 104px); transform:translate(-50%,0); font-size:20px; font-weight:600; opacity:0; white-space:nowrap; }
+.flybar { position:fixed; background:var(--ok); border-radius:3px; }
+#chip { opacity:0; }
+
+.bar { position:fixed; z-index:20; top:0; left:0; right:0; display:flex; gap:10px; align-items:center; padding:8px 12px; background:#101010; border-bottom:1px solid #333; font:14px system-ui; }
+.bar b { flex:1; font-weight:600; } .bar button { background:var(--primary); color:#fff; border:0; border-radius:999px; padding:8px 16px; font:inherit; }
+.page { padding-top:56px; }
+</style></head>
+<body><div class="bar"><b id="label"></b><button id="replay" type="button">&#9654; Abspielen</button></div><div class="page" id="p">
+<div class="top"><small>Geschafft</small><div class="later">&#128339; Später</div></div>
+<div class="prog"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<div class="hero" id="hero"></div>
+<h2 id="title"><span class="chip" id="chip" hidden><svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Die Anlage "Alarmanlage" ist bereit</h2>
+<p class="lead">Das Wichtigste ist eingerichtet. Probiere es aus, bevor du dich darauf verlässt.</p>
+<div class="card"><div class="row"><div class="ic"></div><div><b>Modi</b><span>Anwesend, Abwesend · Rauch, Wasser und Gas immer aktiv</span></div></div>
+<div class="row"><div class="ic"></div><div><b>Sensoren</b><span>30 Sensoren · Verlassen: 60 s · Deaktivieren: 30 s</span></div></div>
+<div class="row"><div class="ic"></div><div><b>Code</b><span>Kein Code</span></div></div></div>
+<div class="foot"><div>&#8249; Zurück</div><div class="go">&#10003; Fertig</div></div>
+</div>
+<script>
+
+const FORCED = "a"; // wird in den Dateien variante-*.html fest gesetzt
+const q = new URLSearchParams(location.search), v = (FORCED || q.get("v") || "a").toUpperCase(), T = q.get("t");
+const page = document.getElementById("p"), hero = document.getElementById("hero");
+page.classList.add(v);
+
+const NAMES = { A: "A · Rad im Seitenkopf", B: "B · Schild als Münze", C: "C · Sieben Striche als Ring", D: "D · Schild zeichnet sich selbst", E: "E · Aus den sieben Strichen wird das Schild" };
+const TOTAL = { A: 2300, B: 3500, C: 2900, D: 3600, E: 3600 };
+document.getElementById("label").textContent = "Variante " + NAMES[v];
+function init() {
+  // Alles zurücksetzen, damit sich die Animation beliebig oft neu starten lässt
+  document.getAnimations().forEach((a) => a.cancel());
+  page.querySelectorAll(".veil2").forEach((e) => e.remove());
+  page.classList.remove("run");
+  hero.className = "hero"; hero.innerHTML = "";
+  document.getElementById("chip").hidden = true; document.getElementById("chip").style.cssText = "";
+  void page.offsetWidth; // Neustart der CSS-Animationen
+  page.classList.add("run");
+const CHECK = '<path class="chk" d="M38 62l16 16 30-34"/>';
+  if (v === "A") {
+    hero.innerHTML = `<svg width="120" height="120" viewBox="0 0 120 120"><circle class="ring-track" cx="60" cy="60" r="44"/><g class="spin"><circle class="arc" cx="60" cy="60" r="44"/></g><circle class="disc" cx="60" cy="60" r="44"/>${CHECK}</svg>`;
+  } else if (v === "B" || v === "D" || v === "E") {
+    hero.className = "hero none"; // Anzeige liegt im Fenster, nicht im Seitenkopf
+    document.getElementById("chip").hidden = false;
+    const chip = document.getElementById("chip");
+    const veil = document.createElement("div"); veil.className = "veil2";
+    const SH = "M60 12l36 14v26c0 24-15 42-36 52C39 94 24 76 24 52V26z";
+    veil.innerHTML = `<div class="coin2" id="coin"><svg class="shield2" id="shield" width="170" height="170" viewBox="0 0 120 120">
+      <defs><linearGradient id="gr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fc27f"/><stop offset="1" stop-color="#3a8449"/></linearGradient>
+        <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+        <clipPath id="shclip"><path d="${SH}"/></clipPath><clipPath id="rise"><rect id="riserect" x="0" y="0" width="120" height="120"/></clipPath></defs>
+      <circle class="pulse2" id="pulse" cx="60" cy="60" r="44"/>
+      <path id="shfill" d="${SH}" fill="url(#gr)"/>
+      <path id="shline" d="${SH}" fill="none" stroke="#8fd69c" stroke-width="3.5" stroke-linejoin="round" pathLength="1"/>
+      <g clip-path="url(#shclip)"><rect id="sheenr" x="-60" y="0" width="50" height="120" fill="url(#sheen)" transform="skewX(-18)"/></g>
+      <path class="chk2" id="chk" d="M40 60l14 14 27-30"/></svg></div><div class="tag2" id="tag">Die Anlage ist bereit</div>`;
+    page.appendChild(veil);
+    const $ = (id) => document.getElementById(id);
+    const A = (el, kf, o) => el.animate(kf, { fill: "both", ...o });
+    const AF = (el, kf, o) => el.animate(kf, { fill: "forwards", ...o }); // Flug: kein Startzustand vor dem Beginn
+    const EASE = "cubic-bezier(.16,.7,.2,1)", INOUT = "cubic-bezier(.65,0,.35,1)";
+    const coin = $("coin"), shield = $("shield");
+    const fly = (t0) => {
+      const c = coin.getBoundingClientRect(), k = chip.getBoundingClientRect();
+      const dx = k.left + k.width / 2 - (c.left + c.width / 2), dy = k.top + k.height / 2 - (c.top + c.height / 2), sc = k.width / c.width;
+      AF(coin, [{ transform: "translate(0,0) scale(1)", opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(${sc})`, opacity: 1, offset: .9 }, { transform: `translate(${dx}px,${dy}px) scale(${sc})`, opacity: 0 }], { delay: t0, duration: 650, easing: INOUT });
+      AF($("tag"), [{ opacity: 1 }, { opacity: 0 }], { delay: t0 - 100, duration: 350 });
+      AF(veil, [{ opacity: 1 }, { opacity: 0 }], { delay: t0 + 80, duration: 560, easing: "ease-in" });
+      A(chip, [{ opacity: 0, transform: "scale(.6)" }, { opacity: 1, transform: "scale(1.15)" , offset: .6}, { opacity: 1, transform: "scale(1)" }], { delay: t0 + 560, duration: 380, easing: "ease-out" });
+    };
+    const checkAndShine = (t0) => {
+      A($("chk"), [{ strokeDashoffset: 60, strokeWidth: 0, opacity: 1 }, { strokeDashoffset: 54, strokeWidth: 8, offset: .08 }, { strokeDashoffset: 0, strokeWidth: 8 }], { delay: t0, duration: 480, easing: "cubic-bezier(.4,0,.2,1)" });
+      A($("pulse"), [{ opacity: .7, transform: "scale(.95)" }, { opacity: 0, transform: "scale(2.2)" }], { delay: t0 + 380, duration: 900, easing: "ease-out" });
+      A($("sheenr"), [{ transform: "translateX(0) skewX(-18deg)" }, { transform: "translateX(260px) skewX(-18deg)" }], { delay: t0 + 420, duration: 700, easing: "ease-in-out" });
+      A($("tag"), [{ opacity: 0, transform: "translate(-50%,6px)" }, { opacity: 1, transform: "translate(-50%,0)" }], { delay: t0 + 200, duration: 450, easing: "ease-out" });
+    };
+    A(veil, [{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: "ease-out" });
+    if (v === "B") { // Münze: dreht sich zweimal und bremst weich
+      A(coin, [{ transform: "scale(.55)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { delay: 60, duration: 420, easing: EASE });
+      A(shield, [{ transform: "perspective(700px) rotateY(0deg) scale(1)" }, { transform: "perspective(700px) rotateY(360deg) scale(1.1)", offset: .35 }, { transform: "perspective(700px) rotateY(720deg) scale(1)" }], { delay: 100, duration: 1500, easing: EASE });
+      $("chk").style.opacity = 0; checkAndShine(1450); fly(2900);
+    } else if (v === "D") { // Schild zeichnet seinen Rand, füllt sich von unten
+      A(coin, [{ transform: "scale(.7)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { delay: 60, duration: 380, easing: EASE });
+      $("shfill").setAttribute("clip-path", "url(#rise)");
+      A($("riserect"), [{ transform: "translateY(120px)" }, { transform: "translateY(0)" }], { delay: 1100, duration: 700, easing: INOUT });
+      A($("shline"), [{ strokeDasharray: 1, strokeDashoffset: 1 }, { strokeDasharray: 1, strokeDashoffset: 0 }], { delay: 150, duration: 1100, easing: INOUT });
+      A(shield, [{ transform: "perspective(700px) rotateY(0deg)" }, { transform: "perspective(700px) rotateY(360deg)" }], { delay: 150, duration: 1300, easing: EASE });
+      checkAndShine(1750); fly(3150);
+    } else { // E: die sieben Striche des Fortschritts fliegen ein und werden zum Schild
+      const pr = [...page.querySelectorAll(".prog i")].map((i) => i.getBoundingClientRect()), cc = coin.getBoundingClientRect();
+      const cx = cc.left + cc.width / 2, cy = cc.top + cc.height / 2;
+      pr.forEach((r, i) => {
+        const bar = document.createElement("div"); bar.className = "flybar";
+        Object.assign(bar.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+        veil.appendChild(bar);
+        const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+        A(bar, [{ transform: "translate(0,0) rotate(0) scale(1,1)", opacity: 1 }, { transform: `translate(${dx * .55}px,${dy * .55 - 30}px) rotate(${i % 2 ? 200 : -200}deg) scale(.8,3)`, opacity: 1, offset: .55 }, { transform: `translate(${dx}px,${dy}px) rotate(${i % 2 ? 420 : -420}deg) scale(.15,.15)`, opacity: 0 }], { delay: 250 + i * 70, duration: 950, easing: INOUT });
+      });
+      A(coin, [{ transform: "scale(.3)", opacity: 0 }, { transform: "scale(1.15)", opacity: 1, offset: .6 }, { transform: "scale(1)", opacity: 1 }], { delay: 1150, duration: 550, easing: EASE });
+      A(shield, [{ transform: "perspective(700px) rotateY(-360deg)" }, { transform: "perspective(700px) rotateY(0deg)" }], { delay: 1150, duration: 900, easing: EASE });
+      checkAndShine(1750); fly(3150);
+    }
+  } else {
+    let segs = "";
+    const n = 7, gap = 14, len = (360 - n * gap) / n, R = 44, C = 2 * Math.PI * R;
+    for (let i = 0; i < n; i++) {
+      const a = i * (360 / n);
+      segs += `<circle class="seg" style="animation-delay:${(0.25 + i * 0.14).toFixed(2)}s" cx="60" cy="60" r="${R}" stroke-dasharray="${(C * len / 360).toFixed(1)} ${(C).toFixed(1)}" transform="rotate(${a} 60 60)"/>`;
+    }
+    let sp = "";
+    for (let i = 0; i < 10; i++) sp += `<circle class="sp" style="--a:${i * 36}deg" cx="60" cy="60" r="3.2"/>`;
+    hero.innerHTML = `<svg width="120" height="120" viewBox="0 0 120 120"><g class="wheel">${segs}</g><circle class="disc" cx="60" cy="60" r="44"/>${CHECK}${sp}</svg>`;
+  }
+  
+}
+let timer = 0, started = false;
+function start() { clearTimeout(timer); init(); if (T === null) timer = setTimeout(start, TOTAL[v] + 2200); }
+document.getElementById("replay").addEventListener("click", () => { started = true; start(); });
+if (T !== null) { init(); requestAnimationFrame(() => requestAnimationFrame(() => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = +T; }))); }
+else {
+  // Start erst, wenn die Seite sichtbar ist (in Vorschauen laeuft sie sonst schon vor dem Betrachten ab)
+  const go = () => { if (started || document.hidden) return; started = true; start(); };
+  document.addEventListener("visibilitychange", go);
+  if ("IntersectionObserver" in window) new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && go()).observe(page);
+  setTimeout(go, 800);
+}
+</script></body></html>
