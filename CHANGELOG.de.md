@@ -11,6 +11,7 @@ die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Hinzugefügt
 
+- **Einrichtungsassistent: Animation auf der Seite "Fertig":** die sieben Striche des Fortschritts lösen sich, wirbeln zur Mitte und werden zum Schild, der Haken zeichnet sich, eine einzelne Welle in Schildform dehnt sich aus, und das Schild fliegt nach oben, wird kleiner und bleibt als kleines Schild mit Haken vor dem Titel stehen. Rund 4 Sekunden, läuft einmal je Aufruf der Seite (nicht bei jedem Neuzeichnen), hält nie einen Klick auf, endet sofort beim Verlassen der Seite und fehlt bei "Bewegung reduzieren" (das kleine Schild steht sofort da). Reine CSS-Animation (`panel/celebrate.js`).
 - **Einrichtungsassistent: Fusszeile mit Symbolen:** "Zurück" trägt auf jeder Seite einen Pfeil nach hinten davor, "Fertig" einen Haken (neben "Weiter" mit dem Pfeil nach vorn).
 - **Einrichtungsassistent: "Später" mit Uhr-Symbol:** der Knopf "Später" oben rechts trägt dasselbe Uhr-Symbol wie "Morgen wieder anzeigen" im Fenster danach (auch auf dem Handy).
 - **Einrichtungsassistent, Handy: die Striche der erledigten Schritte sind Knöpfe:** ein Tipp auf einen grünen Strich oben springt zu diesem Schritt zurück (die späteren Striche bleiben gesperrt, wie die Liste der Schritte am Computer).

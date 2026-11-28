@@ -2128,6 +2128,17 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz.narrow { flex-direction: column; }
 .ag-wz.narrow .ag-wz-head { padding: 12px 12px 0; }
 .ag-wz.narrow .ag-wz-kicker { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--ag-text2); font-size: 13px; }
+/* Seite "Fertig": Schild im Titel und Animation (1.95.0, celebrate.js; Mockup einrichtung-fertig-v1, Variante F). Der Schleier liegt über dem ganzen Fenster, fängt
+   nie einen Klick ab und verschwindet von selbst; das Schild im Titel ist bis zur Landung unsichtbar (platzhaltend), damit nichts springt. */
+.ag-wz-chip { display: inline-flex; vertical-align: -9px; margin: -8px 4px -8px 0; }
+.ag-wz-chip.pending { visibility: hidden; }
+.ag-wzcel { position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 8, .8); pointer-events: none; opacity: 0; }
+.ag-wzcel-coin, .ag-wzcel-shield { will-change: transform; }
+.ag-wzcel-shield { overflow: visible; }
+.ag-wzcel-wave { fill: none; stroke: var(--ag-success); stroke-width: 2.5; stroke-linejoin: round; opacity: 0; transform-origin: 60px 54px; }
+.ag-wzcel-check { fill: none; stroke: #fff; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 60; stroke-dashoffset: 60; opacity: 0; }
+.ag-wzcel-tag { position: absolute; left: 50%; top: calc(50% + 104px); transform: translate(-50%, 0); font-size: 20px; font-weight: 600; color: #fff; opacity: 0; white-space: nowrap; }
+.ag-wzcel-bar { position: absolute; background: var(--ag-success); border-radius: 3px; opacity: 0; }
 .ag-wz-prog { display: flex; gap: 4px; margin-top: 10px; }
 .ag-wz-prog button { flex: 1; height: 5px; padding: 0; border: 0; border-radius: 3px; background: color-mix(in srgb, var(--ag-text) 12%, transparent); position: relative; font: inherit; cursor: default; }
 .ag-wz-prog button::after { content: ""; position: absolute; inset: -14px 0; } /* grosse Trefferfläche für den Daumen (Wunsch des Nutzers 2026-11-28: frühere Schritte anklickbar) */

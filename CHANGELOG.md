@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Setup assistant: animation on the page "Done":** the seven bars of the progress come loose, whirl to the middle and become a shield, the check mark draws itself, one wave in the shape of the shield spreads out, and the shield flies up, shrinks and stays in front of the title as a small shield with a check mark. About 4 seconds, plays once each time the page is opened (not on every redraw), never blocks a tap, ends at once when you leave the page and is left out with "Reduce motion" (the small shield is there at once). Pure CSS animation (`panel/celebrate.js`).
 - **Setup assistant footer with symbols:** "Back" has an arrow pointing back in front of it on every page, "Done" a check mark (next to "Next" with its arrow forward).
 - **Setup assistant: "Later" with a clock symbol:** the button "Later" at the top right has the same clock symbol as "Show again tomorrow" in the window that follows (on the phone too).
 - **Setup assistant, phone: the bars of finished steps are buttons:** a tap on a green bar at the top jumps back to that step (the later bars stay locked, like the list of steps on the computer).

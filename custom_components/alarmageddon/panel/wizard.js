@@ -8,6 +8,7 @@
 const V = new URL(import.meta.url).search;
 const { ic, esc, onceBtn, DC, OPENINGS, MOTION, AIR, measureKind, MODE_KEY, MODE_ICON, errText, matchQuery, searchField, rowIcon } = await import(`./common.js${V}`);
 const { NOTIFY_ICON, NOTIFY_TONE } = await import(`./notify.js${V}`);
+const { celebrate, chipSvg, reducedMotion } = await import(`./celebrate.js${V}`);
 
 export const WZ_STEPS = ["welcome", "modes", "sensors", "zones", "code", "notify", "actions", "monitor", "done"];
 const ALL_MODES = ["home", "away", "night"];
@@ -169,6 +170,7 @@ export class WizardUi {
   close() {
     const h = this.host;
     this.active = false;
+    this._stopCelebrate();
     this.ask = null;
     if (this.prev) {
       h._tab = this.prev.tab;
@@ -374,6 +376,10 @@ export class WizardUi {
     }
     if (!this.steps().includes(this.step)) this.step = this.step === "monitor" ? "done" : this.step;
     root.dataset.step = this.step;
+    // Seite "Fertig": die Animation läuft einmal je Aufruf der Seite (nicht bei jedem Neuzeichnen), bei "Bewegung reduzieren" gar nicht
+    const firstDone = this.step === "done" && !this._doneShown;
+    if (firstDone) this._celebrating = !reducedMotion();
+    else if (this.step !== "done") this._stopCelebrate();
     const side = root.querySelector(".ag-wz-side");
     if (side) h._setHtml(side, this._sideHtml());
     h._setHtml(root.querySelector(".ag-wz-head"), this._headHtml());
@@ -395,6 +401,53 @@ export class WizardUi {
       h._setHtml(slot, this._ownHtml());
     }
     this._paintFoot();
+    if (firstDone) {
+      this._doneShown = true;
+      if (this._celebrating) this._startCelebrate(root);
+    }
+  }
+
+  // Animation der Seite "Fertig" (celebrate.js): nach dem Zeichnen starten, damit das Ziel vor dem Titel an seiner Stelle steht. Sie hält nie etwas auf
+  // (kein Eingriff in Klicks) und jeder Fehler darin lässt das Schild einfach sofort im Titel stehen.
+  _startCelebrate(root) {
+    const h = this.host;
+    const chip = root.querySelector("#ag-wz-chip");
+    if (!chip) return this._landCelebrate();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (!this._celebrating || this.step !== "done" || this._stopFn) return;
+      try {
+        const head = root.querySelector(".ag-wz-head");
+        const prog = [...root.querySelectorAll(".ag-wz-prog button")].map((b) => b.getBoundingClientRect());
+        let bars = prog;
+        if (!bars.length && head) { // Computer: sieben Striche unter der Kopfzeile, wie der Fortschritt auf dem Handy
+          const r = head.getBoundingClientRect(), w = (r.width - 80 - 6 * 6) / 7;
+          bars = Array.from({ length: 7 }, (_, i) => ({ left: r.left + 40 + i * (w + 6), top: r.top + 58, width: w, height: 5 }));
+        }
+        this._stopFn = celebrate(h._root, {
+          chip, bars, label: this._t("wzCele"),
+          onLand: () => this._landCelebrate(),
+          onEnd: () => { this._stopFn = null; this._landCelebrate(); },
+        });
+      } catch (_e) {
+        this._stopFn = null;
+        this._landCelebrate();
+      }
+    }));
+  }
+
+  _landCelebrate() {
+    this._celebrating = false;
+    this.host._content?.querySelector("#ag-wz-chip")?.classList.remove("pending");
+  }
+
+  _stopCelebrate() {
+    this._doneShown = false;
+    if (this._stopFn) {
+      const stop = this._stopFn;
+      this._stopFn = null;
+      stop();
+    }
+    this._celebrating = false;
   }
 
   // Live-Werte (Zustände): die eingebettete Zuordnung und "Bereit zum Scharfschalten" am Schluss
@@ -436,7 +489,7 @@ export class WizardUi {
     // Auf der Startseite ein Logo des Assistenten (Zauberstab im Farbverlauf, Wunsch des Nutzers 2026-11-21): derselbe Stab wie im Knopf im Kopf, damit man ihn wiedererkennt
     const badge = this.step === "welcome" ? `<span class="ag-wz-badge" aria-hidden="true">${ic("wand", narrow ? 24 : 28)}</span>` : "";
     return `<div class="ag-wz-top ${badge ? "has-badge" : ""}">${badge}<span class="ag-wz-kicker">${esc(label)}</span>${later}</div>${prog}
-      <h2>${esc(title)}</h2>${lead ? `<p class="ag-wz-lead">${esc(this._t(lead, { name: this.system?.title || "" }))}</p>` : ""}`;
+      <h2>${this.step === "done" ? `<span class="ag-wz-chip ${this._celebrating ? "pending" : ""}" id="ag-wz-chip">${chipSvg(36)}</span>` : ""}${esc(title)}</h2>${lead ? `<p class="ag-wz-lead">${esc(this._t(lead, { name: this.system?.title || "" }))}</p>` : ""}`;
   }
 
   _footHtml() {
