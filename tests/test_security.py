@@ -56,6 +56,7 @@ COMMANDS: dict[str, dict[str, Any]] = {
     "rename": {"entry_id": "ENTRY", "name": "Neuer Name"},
     "create_system": {"name": "Neue Anlage"},
     "delete_system": {"entry_id": "ENTRY", "name": "Haus"},
+    "reset_system": {"entry_id": "ENTRY"},
     "preview_system": {"name": "Neue Anlage"},
     "save_presets": {"presets": {}},
     "save_system": {"entry_id": "ENTRY"},

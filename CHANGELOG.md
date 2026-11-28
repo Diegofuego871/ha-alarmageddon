@@ -7,6 +7,21 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.93.0] - 2026-11-28
+
+### Added
+
+- **Danger Zone with "Reset":** the last chapter under Configuration › Alarm system is framed in red and called "Danger Zone" in every language. New above "Delete alarm system": "Reset" sets the system back to factory settings, as if you had just created it (sensors and zones, own sensor values, codes, actions, routines, monitoring, accent colour and all other settings go; the setup assistant starts again). Name, device, entities, log, recordings and the settings shared by all systems stay. A window warns first and, by default, makes a backup beforehand named "Before reset · date and time". Only while the system is disarmed (the server checks it too); new WebSocket command `reset_system` (administrators only).
+- **"Don't show again" on the card of the setup assistant:** Configuration › Alarm system offers "Continue", "Start over" and "Don't show again" in one row (the step number is no longer in the button; on the phone the buttons are symbols). "Don't show again" acts at once, without asking, and drops the current run.
+
+### Changed
+
+- **Times with coloured symbols:** the symbols of "Exit delay", "Entry delay" and the confirmation window are coloured as soon as the setting is on, like the other rows.
+- **HealthCheck tile turned around:** the green dot, slightly larger, and "All in order" are the focus; "1 of 5 services" stands below, small.
+- **Defaults per sensor type without "Always active":** that is a mode and you choose it per sensor (tab "Always active"). Existing defaults (smoke, water, gas) stay unchanged.
+- **"What is in a backup?" moved into the window "Show backups"** and opens below the list, like the explanation of the HealthCheck services.
+- **"View" on the phone:** the button in the overview is a rectangle with rounded corners and a symbol tile like on the computer, still only the symbol without text.
+
 ## [1.92.3] - 2026-11-26
 
 ### Changed
@@ -2476,6 +2491,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0
 [1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3
 [1.92.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.2
 [1.92.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.1

@@ -13,6 +13,9 @@ const SCOPES = [...ALL_MODES, "always"]; // Bereiche mit eigenen Werten: die Mod
 // Keine Voreinstellung der Sensorart, darum nicht in OPTIONS (die auch die Voreinstellungen füllt)
 // Schalter "Scharf in <Modus>: nur <Modus> zählt"; Name und Erklärung entstehen im Blatt (sie nennen den Modus und die Stellung)
 const ALWAYS_OFF = { key: "always_off", icon: "shieldOff" };
+// Voreinstellungen je Sensorart ohne "Immer aktiv" (seit 1.93.0, Wunsch des Nutzers 2026-11-26): das ist ein Modus und wird beim Sensor gewählt (Reiter
+// "Immer aktiv"), nicht je Art. Ein vorhandener Wert der Voreinstellung (Rauch, Wasser, Gas) bleibt unverändert bestehen und gilt weiter (auch "Auf Sensoren anwenden" vergleicht eigene Werte damit).
+const PRESET_OPTIONS = OPTIONS.filter((o) => o.key !== "always");
 const scopeOf = (key, mode) => (key === "always" ? "always" : mode);
 
 export class SensorsUi {
@@ -756,7 +759,7 @@ export class SensorsUi {
   presetsHtml() {
     const p = this.presetDraft;
     const rows = TYPES.map(([kind, icon, label]) => `<tr><td><div class="ag-nm"><span class="ag-av">${ic(icon, 18)}</span>${esc(this._t(label))}</div></td>
-      ${OPTIONS.map((o) => {
+      ${PRESET_OPTIONS.map((o) => {
         // Gilt nicht für diese Art (Bewegungsmelder: "Muss geschlossen sein"): kein Kästchen, die Voreinstellung bleibt, wie sie ist; ebenso ein
         // abhängiger Schalter (under), dessen übergeordneter für diese Art aus ist
         if (!optionShown(o, kind, (k) => (p[kind] || []).includes(k))) return `<td class="z"><span class="ag-t2" aria-hidden="true">–</span></td>`;
@@ -764,7 +767,7 @@ export class SensorsUi {
         return `<td class="z"><button class="ag-box ${on ? "on" : ""}" data-sen="preset" data-kind="${kind}" data-key="${o.key}" role="checkbox" aria-checked="${on}" aria-label="${esc(`${this._t(label)}: ${this._t(o.name)}`)}">${on ? ic("check", 18) : ""}</button></td>`;
       }).join("")}</tr>`).join("");
     return `<div class="ag-dlg-body"><h3>${esc(this._t("presetsTitle"))}</h3><div class="ag-t2">${esc(this._t("presetsText"))}</div>
-      <div class="ag-table-wrap"><table class="ag-table ag-ptable"><tr><th>${esc(this._t("colType"))}</th>${OPTIONS.map((o) => `<th class="z">${esc(this._t(o.name))}</th>`).join("")}</tr>${rows}</table></div>
+      <div class="ag-table-wrap"><table class="ag-table ag-ptable"><tr><th>${esc(this._t("colType"))}</th>${PRESET_OPTIONS.map((o) => `<th class="z">${esc(this._t(o.name))}</th>`).join("")}</tr>${rows}</table></div>
       ${this._applyRowHtml()}
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button class="ag-btn" data-sen="presets-restore" style="margin-right:auto">${esc(this._t("presetsRestore"))}</button>

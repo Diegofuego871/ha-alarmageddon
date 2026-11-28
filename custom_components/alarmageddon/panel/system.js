@@ -276,7 +276,7 @@ export class SystemUi {
     // Unteroption einer Schalter-Zeile (1.90.0, Wunsch des Nutzers 2026-11-25 zu "Höchstens" beim Nachalarm: "Option ohne den Strich, es gehört zu
     // Nachalarm"): ohne eigenes Symbol, ohne Linie dazwischen, eingerückt bis zum Text der Zeile darüber
     const sub = (title, hint, control) => `<div class="ag-setrow ag-rowsub"><div class="ag-settx"><b>${esc(this._t(title))}</b>${hint ? `<small>${esc(this._t(hint))}</small>` : ""}</div>${control}</div>`;
-    const row = (icon, title, hint, control) => `<div class="ag-setrow">${rowIcon(icon)}<div class="ag-settx"><b>${esc(this._t(title))}</b>${hint ? `<small>${esc(this._t(hint))}</small>` : ""}</div>${control}</div>`;
+    const row = (icon, title, hint, control) => `<div class="ag-setrow">${rowIcon(icon, true)}<div class="ag-settx"><b>${esc(this._t(title))}</b>${hint ? `<small>${esc(this._t(hint))}</small>` : ""}</div>${control}</div>`;
     // Seit 1.90.0 (Wunsch des Nutzers 2026-11-25): Kapitel "Zeiten", das Bestätigungsfenster in derselben Karte wie die Verzögerungen (bis 1.89.x
     // "Zeiten und Verhalten" mit zwei Karten und Untertiteln "Zeiten" und "Verhalten")
     const timesRows = row("timer", "sysExitDelay", "sysExitDelayHint", num("exit_delay", v.exit_delay)) + row("doorOpen", "sysEntryDelay", "sysEntryDelayHint", num("entry_delay", v.entry_delay))
@@ -472,7 +472,7 @@ export class SystemUi {
       <span class="ag-num ${bad.has(key) ? "bad" : ""}"><input type="number" min="1" max="${f.unit === "h" ? 24 : 1440}" step="1" inputmode="numeric" data-sys="st-value" data-st-which="${which}" value="${esc(Number.isFinite(f.value) ? f.value : "")}" aria-label="${esc(`${t("stEveryLabel")}: ${label}`)}">
         <select class="ag-input ag-unit" data-sys="st-unit" data-st-which="${which}" aria-label="${esc(`${t("stEveryLabel")}: ${label}, ${t("hcUnit")}`)}"><option value="min" ${f.unit === "min" ? "selected" : ""}>${esc(t("hcMinutes"))}</option><option value="h" ${f.unit === "h" ? "selected" : ""}>${esc(t("hcHours"))}</option></select></span></div>`;
     };
-    const hoursRow = `<div class="ag-setrow ag-sthours">${rowIcon("clock")}<div class="ag-settx"><b>${esc(t("stEveryLabel"))}</b><small>${esc(t("stEveryHint"))}</small></div>
+    const hoursRow = `<div class="ag-setrow ag-sthours">${rowIcon("clock", true)}<div class="ag-settx"><b>${esc(t("stEveryLabel"))}</b><small>${esc(t("stEveryHint"))}</small></div>
       <div class="ag-sthfs">${stLine("st.off", "stOff", t("ivOff"), "shieldOff")}${stLine("st.on", "stOn", t("ivOn"), "shield")}</div></div>`;
     // Zwei Kapitel mit je eigener Kachel (seit 1.75.4, Wunsch des Nutzers 2026-11-22): Selbsttest und HealthCheck sind nicht dasselbe
     return chapter(t("stTitle"), `<div class="ag-card ag-setlist ag-codes ag-selftestcard">${stRow}${hoursRow}</div>`, t("stChapHint"))
@@ -621,13 +621,16 @@ export class SystemUi {
     // Wie Routinen, eigene Töne und Codes (1.64.0, Wunsch des Nutzers): oben die Zeile mit "Letztes Backup", links "Backup erstellen", rechts
     // "Backups anzeigen"; der Hinweis steht über der Karte, darunter die automatischen Backups
     const has = Boolean(this.backups?.length);
-    // Was im Backup steht und was nicht (Wunsch des Nutzers 2026-11-19, etwa: das Protokoll ist nicht dabei); zum Aufklappen wie "Was prüft der Selbsttest?"
-    // Offen bleibt es auch, wenn die Seite neu gezeichnet wird (bkAboutOpen, gesetzt beim Klick auf die Zeile)
-    const about = `<details class="ag-st-about ag-bk-about" ${this.bkAboutOpen ? "open" : ""}><summary data-sys="bk-about">${ic("info", 16)}<span>${esc(this._t("bkAbout"))}</span></summary><ul class="ag-st-ul">${this._t("bkAboutText").split("\n").filter(Boolean).map((line) => `<li>${esc(line)}</li>`).join("")}</ul></details>`;
-    return chapter(this._t("bkTitle"), `${about}<div class="ag-card ag-setlist ag-codes">
+    return chapter(this._t("bkTitle"), `<div class="ag-card ag-setlist ag-codes">
       <div class="ag-setrow ag-rtsum ag-bklast"><span class="ag-oav ag-tint ag-tint-backup ${has ? "on" : ""}">${ic("archive", 20)}</span><div class="ag-settx ag-bklast-tx">${this._bkLastHtml()}</div>
         <div class="ag-btnrow"><button class="ag-btn" data-sys="bk-create">${ic("plus", 18)}${esc(this._t("bkSave"))}</button>
           <button class="ag-btn" data-sys="bk-open">${ic("archive", 18)}${esc(this._t("bkShow"))}</button></div></div>${autoRow}</div>`, this._t("bkHint"));
+  }
+
+  // Was im Backup steht und was nicht (Wunsch des Nutzers 2026-11-19; seit 1.93.0 im Fenster "Backups anzeigen" unter der Liste, wie bei den HealthCheck-Diensten):
+  // zum Aufklappen, offen bleibt es auch beim Neuzeichnen (bkAboutOpen, gesetzt beim Klick auf die Zeile)
+  _bkAbout() {
+    return `<details class="ag-st-about ag-bk-about" ${this.bkAboutOpen ? "open" : ""}><summary data-sys="bk-about">${ic("info", 16)}<span>${esc(this._t("bkAbout"))}</span></summary><ul class="ag-st-ul">${this._t("bkAboutText").split("\n").filter(Boolean).map((line) => `<li>${esc(line)}</li>`).join("")}</ul></details>`;
   }
 
   // "Letzte Sicherung: Datum, Name" (die Liste selbst steht im Popup)
@@ -656,7 +659,7 @@ export class SystemUi {
     dlg.innerHTML = `<div class="ag-dlg-body ag-bk-pop"><div class="ag-pop-head">${iconTitle("archive", TINT.backup, this._t("bkListTitle"))}
       <div class="ag-tools ag-pop-tools ag-bktools" ${this.backups?.length ? "" : "hidden"}>${searchField("data-sys", "bk-search", this.bkQ || "", this._t("bkFilter"), this._t("clearSearch"))}
         <button type="button" class="ag-chip ${this.bkAutoOnly ? "on" : ""}" data-sys="bk-auto-only" aria-pressed="${Boolean(this.bkAutoOnly)}">${ic("restore", 16)}${esc(this._t("bkFilterAuto"))}</button></div></div>
-      <div class="ag-bkbody">${this._bkBody()}</div>
+      <div class="ag-bkbody">${this._bkBody()}</div>${this._bkAbout()}
       <div class="ag-dlg-btns ag-bkfoot"><button class="ag-btn" data-sys="export">${ic("arrowDown", 18)}${esc(this._t("bkExport"))}</button>
         <button class="ag-btn" data-sys="import">${ic("arrowUp", 18)}${esc(this._t("bkImport"))}</button><input type="file" accept="application/json,.json" data-sys="import-file" hidden>
         <span class="ag-grow"></span><button class="ag-btn" data-sys="bk-close">${esc(this._t("close"))}</button></div></div>`;
@@ -715,20 +718,27 @@ export class SystemUi {
     const status = w.state === "done" ? this._t("wzState_done") : w.state === "later" ? this._t("wzState_later", { date, n }) : w.state === "hidden" ? this._t("wzState_hidden", { n })
       : this._t("wzState_open", { n, step: stepName });
     const resume = w.state !== "done" && w.step !== "welcome";
+    // "Nicht mehr anzeigen" gleich hier, ohne Rückfrage (Wunsch des Nutzers 2026-11-26): verwirft den laufenden Assistenten; auf dem Handy nur das Symbol, damit alle Knöpfe in einer Zeile bleiben
+    const hide = w.state === "open" || w.state === "later" ? `<button class="ag-btn ag-wz-hide" data-wz="hide-now" title="${esc(this._t("wzHideNow"))}" aria-label="${esc(this._t("wzHideNow"))}">${ic("eyeOff", 18)}<span class="ag-wz-hidetx">${esc(this._t("wzHideNow"))}</span></button>` : "";
     const btns = resume
-      ? `<button class="ag-btn" data-wz="run" data-step="welcome">${ic("refresh", 18)}${esc(this._t("wzRestart"))}</button><button class="ag-btn primary" data-wz="run" data-step="${esc(w.step)}">${ic("wand", 18)}${esc(this._t("wzResume", { n }))}</button>`
-      : `<button class="ag-btn" data-wz="run" data-step="welcome">${ic("wand", 18)}${esc(this._t("wzRun"))}</button>`;
+      ? `<button class="ag-btn" data-wz="run" data-step="welcome">${ic("refresh", 18)}${esc(this._t("wzRestart"))}</button><button class="ag-btn primary" data-wz="run" data-step="${esc(w.step)}">${ic("wand", 18)}${esc(this._t("wzResumeShort"))}</button>${hide}`
+      : `<button class="ag-btn" data-wz="run" data-step="welcome">${ic("wand", 18)}${esc(this._t("wzRun"))}</button>${hide}`;
     return chapter(this._t("wzChapter"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum ag-wzrow"><span class="ag-oav ag-tint ag-tint-wizard on">${ic("wand", 20)}</span>
       <div class="ag-settx"><b>${esc(status)}</b><small>${esc(this._t("wzChapterText"))}</small></div><div class="ag-btnrow">${btns}</div></div></div>`, this._t("wzChapterHint"));
   }
 
+  // Danger Zone (seit 1.93.0, Wunsch des Nutzers 2026-11-26): "Zurücksetzen" und "Anlage löschen" in einem roten Rahmen. Der Titel heisst in jeder Sprache
+  // "Danger Zone" (dzTitle, nicht übersetzt). Beides nur bei deaktivierter Anlage, das prüft der Server ebenso.
   _deleteHtml() {
     const sys = this.host._system();
     if (!sys) return "";
     const disarmed = this.host._state(sys.entity_id)?.state === "disarmed";
-    return chapter(this._t("delTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow">${rowIcon("trash", false, "ag-oav-danger")}<div class="ag-settx"><small>${esc(this._t("delHint", { name: sys.title }))}</small>
-      ${disarmed ? "" : `<small class="ag-delnote">${ic("alert", 14)} ${esc(this._t("delNotDisarmed"))}</small>`}</div>
-      <div class="ag-btnrow"><button class="ag-btn ag-btn-danger-text" data-sys="delete" ${disarmed ? "" : "disabled"}>${ic("trash", 18)}${esc(this._t("delButton", { name: sys.title }))}</button></div></div></div>`, "", "ag-chap-danger");
+    const note = (key) => (disarmed ? "" : `<small class="ag-delnote">${ic("alert", 14)} ${esc(this._t(key))}</small>`);
+    const row = (icon, title, hint, key, act, label) => `<div class="ag-setrow">${rowIcon(icon, false, "ag-oav-danger")}<div class="ag-settx"><b>${esc(title)}</b><small>${esc(hint)}</small>${note(key)}</div>
+      <div class="ag-btnrow"><button class="ag-btn ag-btn-danger-text" data-sys="${act}" ${disarmed ? "" : "disabled"}>${ic(icon, 18)}${esc(label)}</button></div></div>`;
+    return chapter(this._t("dzTitle"), `<div class="ag-card ag-setlist ag-codes ag-dangerzone">
+      ${row("restore", this._t("rsTitle"), this._t("rsHint", { name: sys.title }), "rsNotDisarmed", "reset", this._t("rsButton", { name: sys.title }))}
+      ${row("trash", this._t("delTitle"), this._t("delHint", { name: sys.title }), "delNotDisarmed", "delete", this._t("delButton", { name: sys.title }))}</div>`, "", "ag-chap-danger");
   }
 
   // Liste der Sicherungen als Tabelle: Datum, Anlagen, Herunterladen, Wiederherstellen, Löschen
@@ -1332,6 +1342,10 @@ export class SystemUi {
     }
     if (act === "delete") {
       this.host._openDelete();
+      return true;
+    }
+    if (act === "reset") {
+      this.host._guard(() => this.host._openReset());
       return true;
     }
     // Eigene Töne

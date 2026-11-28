@@ -323,6 +323,22 @@ export class WizardUi {
     window.requestAnimationFrame(() => wait());
   }
 
+  // "Nicht mehr anzeigen" in Konfiguration › Anlage: sofort, ohne Rückfrage; der laufende Assistent wird verworfen (Wunsch des Nutzers 2026-11-26)
+  async hideNow() {
+    const h = this.host;
+    const sys = h._system();
+    if (!sys) return;
+    try {
+      const res = await h._hass.callWS({ type: "alarmageddon/wizard", entry_id: sys.entry_id, action: "hide" });
+      sys.wizard = res.wizard;
+    } catch (err) {
+      h._toast(this._t("errGeneric", { message: errText(err) }));
+      return;
+    }
+    await h._fetch?.();
+    h._render?.();
+  }
+
   async later(action) {
     const h = this.host;
     try {
@@ -940,6 +956,10 @@ export class WizardUi {
     const h = this.host;
     if (act === "run") {
       this.start(el.dataset.step || "welcome");
+      return true;
+    }
+    if (act === "hide-now") {
+      this.hideNow();
       return true;
     }
     if (act === "ask-close") {

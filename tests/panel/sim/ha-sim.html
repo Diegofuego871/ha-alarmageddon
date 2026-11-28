@@ -1082,6 +1082,17 @@
       publish();
       return { ok: true };
     }
+    // 1.93.0: Zurücksetzen auf Werkseinstellungen (nur deaktiviert, auf Wunsch mit Backup; Name, Protokoll und gemeinsame Einstellungen bleiben)
+    if (msg.type === "alarmageddon/reset_system") {
+      if (states[sys.entity_id]?.state !== "disarmed") throw err("not_disarmed", "Disarm the alarm system first");
+      if (window.__resetFail) throw err("reset_failed", "Reset failed");
+      window.__resets = (window.__resets || []).concat([{ entry_id: sys.entry_id, title: sys.title, backup_name: msg.backup_name || "" }]);
+      if (msg.backup_name) window.__backupMade = (window.__backupMade || []).concat([msg.backup_name]);
+      sys.accent = "ha";
+      sys.wizard = { state: "open", until: null, step: "welcome" };
+      publish();
+      return { ok: true };
+    }
     if (msg.type === "alarmageddon/rename") {
       const name = String(msg.name || "").trim();
       if (!name) throw err("name_required", "empty");

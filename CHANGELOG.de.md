@@ -7,6 +7,21 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.93.0] - 2026-11-28
+
+### Hinzugefügt
+
+- **Danger Zone mit "Zurücksetzen":** das letzte Kapitel unter Konfiguration › Anlage ist rot umrahmt und heisst in jeder Sprache "Danger Zone". Neu über "Anlage löschen": "Zurücksetzen" stellt die Anlage auf die Werkseinstellungen zurück, wie eine eben angelegte (Sensoren und Zonen, eigene Sensorwerte, Codes, Aktionen, Routinen, Überwachung, Akzentfarbe und alle weiteren Einstellungen verschwinden; der Einrichtungsassistent beginnt wieder). Name, Gerät, Entitäten, Protokoll, Aufzeichnungen und die gemeinsamen Einstellungen aller Anlagen bleiben. Ein Fenster warnt zuerst und erstellt standardmässig vorher ein Backup mit dem Namen "Vor Reset · Datum und Uhrzeit". Nur bei deaktivierter Anlage (der Server prüft es ebenso); neuer WebSocket-Befehl `reset_system` (nur Administratoren).
+- **"Nicht mehr anzeigen" auf der Karte des Einrichtungsassistenten:** Konfiguration › Anlage bietet "Fortsetzen", "Von vorn" und "Nicht mehr anzeigen" in einer Zeile an (die Schrittnummer steht nicht mehr im Knopf; auf dem Handy sind die Knöpfe Symbole). "Nicht mehr anzeigen" wirkt sofort, ohne Rückfrage, und verwirft den aktuellen Durchlauf.
+
+### Geändert
+
+- **Zeiten mit farbigen Symbolen:** die Symbole von "Ausgangsverzögerung", "Eingangsverzögerung" und Bestätigungsfenster sind farbig, sobald die Einstellung an ist, wie bei den anderen Zeilen.
+- **Kachel HealthCheck umgedreht:** der grüne Punkt, etwas grösser, und "Alles in Ordnung" stehen im Vordergrund; "1 von 5 Diensten" steht klein darunter.
+- **Voreinstellungen je Sensorart ohne "Immer aktiv":** das ist ein Modus und wird je Sensor gewählt (Reiter "Immer aktiv"). Bestehende Voreinstellungen (Rauch, Wasser, Gas) bleiben unverändert.
+- **"Was ist im Backup?" ins Fenster "Backups anzeigen" verschoben** und unter der Liste aufklappbar, wie die Erklärung der HealthCheck-Dienste.
+- **"Ansicht" auf dem Handy:** der Knopf in der Übersicht ist wie am Computer ein Rechteck mit runden Ecken und Symbolkachel, weiterhin nur das Symbol ohne Text.
+
 ## [1.92.3] - 2026-11-26
 
 ### Geändert
@@ -2476,6 +2491,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0
 [1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3
 [1.92.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.2
 [1.92.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.1

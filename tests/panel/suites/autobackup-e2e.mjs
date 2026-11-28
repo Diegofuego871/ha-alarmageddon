@@ -17,10 +17,13 @@ for (const lang of ["de", "en"]) {
     const s = await open(browser, { mobile, lang, tab: "config" });
     await s.tap('[data-sub="system"]');
     check(`${tag}: Schalter "Automatisch sichern" steht an, Abstand wöchentlich`, await s.waitFor("return r.querySelector('[data-sys=\"ab-on\"]')?.getAttribute('aria-checked') === 'true' && r.querySelector('[data-sys=\"ab-every\"]').value === 'weekly' && !r.querySelector('[data-sys=\"ab-every\"]').disabled"));
-    // "Was ist im Backup?" (Wunsch des Nutzers 2026-11-19): Info-Zeile über der Karte, zu; ein Klick klappt auf, das Protokoll steht unter "Nicht enthalten"
-    const about = () => s.ev("const d=r.querySelector('.ag-bk-about'); const card=d && d.nextElementSibling; return d ? { open: d.open, text: d.innerText, svg: !!d.querySelector('summary svg'), above: !!card && card.classList.contains('ag-card') && card.querySelector('.ag-bklast') !== null } : null");
+    // "Was ist im Backup?" (Wunsch des Nutzers 2026-11-19): Info-Zeile unter der Liste im Fenster, zu; ein Klick klappt auf, das Protokoll steht unter "Nicht enthalten"
+    // Seit 1.93.0 im Fenster "Backups anzeigen", unter der Liste (Wunsch des Nutzers 2026-11-28, wie bei den HealthCheck-Diensten)
+    await s.tap('[data-sys="bk-open"]');
+    check(`${tag}: nicht mehr auf der Seite, nur im Fenster`, await s.ev("return r.querySelectorAll('.ag-bk-about').length === 1 && !!r.querySelector('#ag-bklist .ag-bk-about')"));
+    const about = () => s.ev("const d=r.querySelector('.ag-bk-about'); const prev=d && d.previousElementSibling; return d ? { open: d.open, text: d.innerText, svg: !!d.querySelector('summary svg'), above: !!prev && prev.classList.contains('ag-bkbody') } : null");
     let ab = await about();
-    check(`${tag}: Backup: "${t.about}" mit Info-Symbol über der Karte, zu`, ab && !ab.open && ab.svg && ab.above && ab.text.includes(t.about), JSON.stringify(ab));
+    check(`${tag}: Backup: "${t.about}" mit Info-Symbol unter der Liste, zu`, ab && !ab.open && ab.svg && ab.above && ab.text.includes(t.about), JSON.stringify(ab));
     await s.tap('.ag-bk-about summary');
     ab = await about();
     const line = ab?.text.split("\n").find((l) => l.startsWith(t.not)) || "";
@@ -30,6 +33,8 @@ for (const lang of ["de", "en"]) {
     await s.tap('.ag-bk-about summary');
     await s.ev("r.host._lastHtml = new WeakMap(); r.host.systemUi.render(); return 1");
     check(`${tag}: ein zweiter Klick klappt zu, auch nach dem Neuzeichnen`, await s.ev("return r.querySelector('.ag-bk-about')?.open === false"));
+    await s.tap('[data-sys="bk-close"]');
+    await s.waitFor("return !r.getElementById('ag-bklist').open");
     const opts = await s.ev("return [...r.querySelectorAll('[data-sys=\"ab-every\"] option')].map((o) => [o.value, o.textContent])");
     check(`${tag}: täglich, wöchentlich, monatlich`, JSON.stringify(opts) === JSON.stringify([["daily", t.every[0]], ["weekly", t.every[1]], ["monthly", t.every[2]]]), JSON.stringify(opts));
     check(`${tag}: Schalter links, Text rechts davon`, await s.ev("const b=r.querySelector('[data-sys=\"ab-on\"]'); const x=b.closest('.ag-setrow').querySelector('.ag-settx'); return b.getBoundingClientRect().right <= x.getBoundingClientRect().left"));

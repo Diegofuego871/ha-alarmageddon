@@ -7,13 +7,13 @@ import { check, done, launch, open } from "../lib.mjs";
 const T = {
   de: { moreTitles: ["Routinen", "Codes pro Person", "Eigene Töne", "HealthCheck", "Dashboard-Karte"], tAlarm: "Alarmmeldung", tMaint: "Wartungsmeldung", tMsgAlarm: "Testmeldung Alarm", tMsgMaint: "Testmeldung Wartung", monAdd: "Messwerte hinzufügen", monChosen: "gewählt", more: "Weitere Funktionen", openCfg: "Konfiguration öffnen", welcome: "Willkommen bei Alarmageddon", welcomeShort: "Willkommen", title: "Einrichtungsassistent", start: "Los geht's", next: "Weiter", finish: "Fertig", skipCode: "Ohne Code weiter",
     askTitle: "Assistent später fortsetzen?", later: "Später", stepOf: (n, total) => `Schritt ${n} von ${total}`, chapter: "Einrichtungsassistent", del: "Anlage löschen",
-    stDone: "Abgeschlossen", stLater: "Verschoben bis", stHidden: "Ausgeblendet, bei Schritt 3", run: "Assistent starten", resume: "Bei Schritt 3 fortsetzen", restart: "Von vorn",
+    stDone: "Abgeschlossen", stLater: "Verschoben bis", stHidden: "Ausgeblendet, bei Schritt 3", run: "Assistent starten", resume: "Fortsetzen", restart: "Von vorn",
     dirty: "Ungespeicherte Änderungen", chosen: (n, total) => `${n} von ${total} gewählt`, codeSome: "Codes dieser Anlage: Diego", codeAnna: "Codes dieser Anlage: Anna", codeWhen: "Wann der Code verlangt wird", sumCode: "Diego",
     siren: "Sirene 3 Minuten", sound: "Alarmton", sumZones: "3 Sensoren · Eingang: Haustür · Verlassen: 60 s · Deaktivieren: 45 s", sumNotify: "an diego · 8 von 9 Meldungen an",
     sumActions: "nur die Alarmmeldung", found: "Gefunden: 3 Sensoren", entry: "Eingangsverzögerung", modes: ["Anwesend", "Abwesend", "Nacht"] },
   en: { moreTitles: ["Routines", "Codes per person", "Your own sounds", "HealthCheck", "Dashboard card"], tAlarm: "Alarm notification", tMaint: "Maintenance notification", tMsgAlarm: "Test notification: alarm", tMsgMaint: "Test notification: maintenance", monAdd: "Add measurements", monChosen: "chosen", more: "More features", openCfg: "Open configuration", welcome: "Welcome to Alarmageddon", welcomeShort: "Welcome", title: "Setup assistant", start: "Let's go", next: "Next", finish: "Finish", skipCode: "Continue without code",
     askTitle: "Continue the assistant later?", later: "Later", stepOf: (n, total) => `Step ${n} of ${total}`, chapter: "Setup assistant", del: "Delete alarm system",
-    stDone: "Completed", stLater: "Postponed until", stHidden: "Hidden, at step 3", run: "Start assistant", resume: "Continue at step 3", restart: "Start over",
+    stDone: "Completed", stLater: "Postponed until", stHidden: "Hidden, at step 3", run: "Start assistant", resume: "Continue", restart: "Start over",
     dirty: "Unsaved changes", chosen: (n, total) => `${n} of ${total} chosen`, codeSome: "Codes of this alarm system: Diego", codeAnna: "Codes of this alarm system: Anna", codeWhen: "When the code is needed", sumCode: "Diego",
     siren: "Siren 3 minutes", sound: "Alarm sound", sumZones: "3 sensors · entry: Haustür · leave: 60 s · disarm: 45 s", sumNotify: "to diego · 8 of 9 notifications on",
     sumActions: "only the alarm notification", found: "Found: 3 sensors", entry: "Entry delay", modes: ["Home", "Away", "Night"] },
@@ -441,7 +441,7 @@ for (const lang of ["de", "en"]) {
     // ----- Konfiguration › Anlage: Kapitel vor "Anlage löschen" -----
     s = await open(browser, { mobile, lang, tab: "config", prefs: { sub: "system" }, query: "&wizard=later&wzstep=zones&wzuntil=2999-01-01" });
     H = helpers(s);
-    check(`${tag}: Kapitel "${t.chapter}" direkt vor "${t.del}"`, await s.waitFor(`const c=r.querySelector('.ag-wzrow')?.closest('.ag-chap'); return !!c && c.querySelector('.ag-chap-t').textContent === ${J(t.chapter)} && c.nextElementSibling?.querySelector('.ag-chap-t')?.textContent.startsWith(${J(t.del)})`));
+    check(`${tag}: Kapitel "${t.chapter}" direkt vor "Danger Zone"`, await s.waitFor(`const c=r.querySelector('.ag-wzrow')?.closest('.ag-chap'); return !!c && c.querySelector('.ag-chap-t').textContent === ${J(t.chapter)} && c.nextElementSibling?.querySelector(".ag-chap-t")?.textContent.startsWith("Danger Zone")`));
     check(`${tag}: verschoben: Stand, "${t.restart}" und "${t.resume}"`, await s.ev(`const row=r.querySelector('.ag-wzrow'); const b=[...row.querySelectorAll('[data-wz="run"]')].map((x) => x.innerText.trim());
       return row.innerText.includes(${J(t.stLater)}) && JSON.stringify(b) === ${J(J([t.restart, t.resume]))}`), await s.ev("return r.querySelector('.ag-wzrow')?.innerText"));
     await s.tap('.ag-wzrow [data-wz="run"][data-step="zones"]');

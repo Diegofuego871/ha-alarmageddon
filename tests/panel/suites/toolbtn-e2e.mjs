@@ -1,7 +1,7 @@
 // Knöpfe neben Filter-Pillen (1.92.0, Wunsch des Nutzers 2026-11-26: "wie dieser Button sich etwas mehr von den Pillen unterscheiden könnte? ohne grösser
 // zu werden. inkl mobile", Mockup docs/mockups/voreinstellungen-knopf-v1, Entscheid "mach A", "Ansicht" am Computer auch). "Voreinstellungen" (Sensoren)
 // und "Ansicht" (Übersicht, am Computer) sind eckig (12 px statt runder Enden) mit dem Symbol in einer Kachel; Höhe wie jeder Knopf, nicht breiter als
-// mit der früheren Form. Die Pillen bleiben rund. Auf dem Handy bleibt "Ansicht" der runde Symbolknopf neben der Suche, ohne Kachel. Je Sprache,
+// mit der früheren Form. Die Pillen bleiben rund. Auf dem Handy bleibt "Ansicht" nur das Symbol neben der Suche, seit 1.93.0 eckig mit Kachel wie am Computer. Je Sprache,
 // Desktop und Handy.
 import { check, done, launch, open } from "../lib.mjs";
 
@@ -47,8 +47,8 @@ for (const lang of ["de", "en"]) {
           m && m.cls && m.radius === 12 && m.chipRadius >= 17 && m.tile[1] === 28 && !transparent(m.tileBg) && m.tileRadius === 8, J(m));
         check(`${tag}: "Ansicht" nicht grösser (38 px hoch, nicht breiter als mit runden Enden)`, m && m.size[1] === 38 && m.size[0] <= m.before[0], J(m));
       } else {
-        check(`${tag}: "Ansicht" bleibt der runde Symbolknopf neben der Suche, ohne Kachel`,
-          m && m.radius >= 19 && m.size[0] === 44 && m.size[1] === 38 && transparent(m.tileBg) && m.tile[0] === 20, J(m));
+        check(`${tag}: "Ansicht" bleibt nur das Symbol neben der Suche, aber eckig (12 px) mit Kachel wie am Computer`,
+          m && m.radius === 12 && m.size[0] === 44 && m.size[1] === 38 && !transparent(m.tileBg) && m.tileRadius === 8 && m.tile[1] === 28, J(m));
       }
       await s.tap('[data-list="view"]');
       check(`${tag}: "Ansicht" öffnet das Fenster`, await s.waitFor("return r.getElementById('ag-view').open"));

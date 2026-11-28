@@ -151,6 +151,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_create_system)
     websocket_api.async_register_command(hass, ws_preview_system)
     websocket_api.async_register_command(hass, ws_delete_system)
+    websocket_api.async_register_command(hass, ws_reset_system)
     websocket_api.async_register_command(hass, ws_save_presets)
     websocket_api.async_register_command(hass, ws_save_system)
     websocket_api.async_register_command(hass, ws_save_notify)
@@ -680,6 +681,44 @@ async def ws_delete_system(hass: HomeAssistant, connection, msg: dict[str, Any])
     # Das Entfernen wartet das Entladen der Anlage selbst ab. Kein hass.async_block_till_done() (bis 1.57.0): es wartet auf jede laufende
     # Aufgabe von Home Assistant (eine Automation mit langer Wartezeit), die Antwort käme dann nie und das Fenster im Panel bliebe stehen.
     await hass.config_entries.async_remove(entry.entry_id)
+    connection.send_result(msg["id"], {"ok": True})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/reset_system",
+        vol.Required("entry_id"): str,
+        vol.Optional("backup_name", default=""): vol.All(str, vol.Length(max=60)),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_reset_system(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """
+    Setzt eine Anlage auf die Werkseinstellungen zurück (1.93.0, Wunsch des Nutzers 2026-11-26): alle Optionen wie bei einer neuen Anlage
+    (Zonen, Sensorwerte, Codes, Aktionen, Routinen, Überwachung, Farbe), der Einrichtungsassistent beginnt wieder. Name, Gerät und Entitäten
+    bleiben; Protokoll und Aufzeichnungen sowie die gemeinsamen Einstellungen (Voreinstellungen, Meldungen, HealthCheck, Töne, Backups) auch.
+
+    Nur im deaktivierten Zustand (eine scharfe Anlage verliert nie still ihre Sensoren und Codes). Mit `backup_name` legt der Server
+    vorher ein Backup an; es kommt nie ein Code hinein (Backups tragen keine Codes) und ist mit "Wiederherstellen" zurückzuholen.
+    """
+    from .config_flow import default_options
+
+    if (entry := _entry(hass, connection, msg)) is None:
+        return
+    if entry.runtime_data.controller.state != AlarmControlPanelState.DISARMED:
+        connection.send_error(msg["id"], "not_disarmed", "Disarm the alarm system first")
+        return
+    if msg["backup_name"].strip():
+        await backup.async_create_backup(hass, entry.runtime_data.version, " ".join(msg["backup_name"].split()))
+        # Das Backup wartet auf die Ablage: wurde die Anlage inzwischen scharf geschaltet oder löste aus, bleibt sie, wie sie ist
+        if entry.runtime_data.controller.state != AlarmControlPanelState.DISARMED:
+            connection.send_error(msg["id"], "not_disarmed", "Disarm the alarm system first")
+            return
+    settings = await async_get_settings(hass)
+    # Zuerst der Assistent, dann die Optionen: die Optionen laden die Anlage neu, und das Panel liest danach beides
+    await settings.async_set_wizard(entry.entry_id, "start")
+    hass.config_entries.async_update_entry(entry, options=default_options())
     connection.send_result(msg["id"], {"ok": True})
 
 

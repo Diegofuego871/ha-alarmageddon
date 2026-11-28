@@ -105,7 +105,7 @@ class AlarmageddonPanel extends HTMLElement {
 
   _init() {
     this._root.innerHTML = `<style>${CSS}</style><div class="ag-root"><div class="ag-content"></div>
-      <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg ag-wide" id="ag-accent"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
+      <dialog class="ag-dlg" id="ag-code"></dialog><dialog class="ag-dlg" id="ag-rename"></dialog><dialog class="ag-dlg" id="ag-add"></dialog><dialog class="ag-dlg ag-wide" id="ag-accent"></dialog><dialog class="ag-dlg" id="ag-reset"></dialog><dialog class="ag-dlg" id="ag-delete"></dialog><dialog class="ag-dlg" id="ag-discard"></dialog><dialog class="ag-dlg" id="ag-view"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-presets"></dialog><dialog class="ag-dlg ag-wide" id="ag-papply"></dialog><dialog class="ag-dlg ag-wide" id="ag-rtlist"></dialog><dialog class="ag-dlg ag-wide" id="ag-bklist"></dialog><dialog class="ag-dlg ag-wide" id="ag-cslist"></dialog><dialog class="ag-dlg ag-wide" id="ag-codelist"></dialog><dialog class="ag-dlg ag-sheetdlg" id="ag-sheet"></dialog>
       <dialog class="ag-dlg ag-wide" id="ag-step"></dialog><dialog class="ag-dlg ag-wide" id="ag-xfer"></dialog><dialog class="ag-dlg ag-wide" id="ag-mon"></dialog><dialog class="ag-dlg ag-wide" id="ag-monstep"></dialog><dialog class="ag-dlg" id="ag-codes"></dialog><dialog class="ag-dlg" id="ag-confirm"></dialog><dialog class="ag-dlg ag-wide" id="ag-pick"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-sensor"></dialog><dialog class="ag-dlg ag-wide" id="ag-selftest"></dialog><dialog class="ag-dlg ag-wide" id="ag-stchecked"></dialog><dialog class="ag-dlg ag-wide" id="ag-hclist"></dialog><dialog class="ag-dlg ag-wide ag-svdlg" id="ag-hclog"></dialog><dialog class="ag-dlg ag-wide" id="ag-hcform"></dialog><dialog class="ag-dlg" id="ag-wzask"></dialog><dialog class="ag-dlg ag-wide" id="ag-ntkind"></dialog><dialog class="ag-dlg ag-wide" id="ag-wzpick"></dialog></div>`;
     this._content = this._root.querySelector(".ag-content");
@@ -1438,6 +1438,53 @@ class AlarmageddonPanel extends HTMLElement {
     dlg.querySelector("input").focus({ preventScroll: true }); // kein Runterscrollen beim Fokus (1.73.0)
   }
 
+  // Zurücksetzen auf Werkseinstellungen (1.93.0, Wunsch des Nutzers 2026-11-26): Warnung, auf Wunsch vorher ein Backup ("Vor Reset · Zeit"), dann der Server.
+  // Kein Namenseintippen wie beim Löschen: die Anlage selbst bleibt, nur ihre Einstellungen gehen, und ein Backup holt sie zurück.
+  _openReset() {
+    const s = this._system();
+    if (!s) return;
+    if (this._state(s.entity_id)?.state !== "disarmed") {
+      this._toast(this._t("rsNotDisarmed"));
+      return;
+    }
+    const dlg = this._root.getElementById("ag-reset");
+    const li = (key) => `<li>${esc(this._t(key))}</li>`;
+    dlg.innerHTML = `<form class="ag-dlg-body" data-form="reset" data-entry="${esc(s.entry_id)}" data-name="${esc(s.title)}">
+      <h3 class="ag-deltitle">${ic("alert", 22)}<span>${esc(this._t("rsDialogTitle", { name: s.title }))}</span></h3>
+      <div class="ag-delwarn">${esc(this._t("rsWarn"))}</div>
+      <div class="ag-delbox"><b>${esc(this._t("rsGoes"))}</b><ul>${li("rsGoes1")}${li("rsGoes2")}${li("rsGoes3")}</ul>
+        <b>${esc(this._t("rsStays"))}</b><ul>${li("rsStays1")}${li("rsStays2")}</ul></div>
+      <label class="ag-orow ag-rename-ids"><div class="ag-otx"><b>${esc(this._t("rsBackup"))}</b><small>${esc(this._t("rsBackupHint"))}</small></div>
+        <button type="button" class="ag-toggle on" data-act="reset-backup" role="switch" aria-checked="true" aria-label="${esc(this._t("rsBackup"))}"></button></label>
+      <div class="ag-dlg-err" aria-live="polite"></div>
+      <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-act="close-reset">${esc(this._t("cancel"))}</button><button class="ag-btn danger" type="submit">${ic("restore", 18)}${esc(this._t("rsConfirm"))}</button></div></form>`;
+    dlg.showModal();
+  }
+
+  async _resetSystem(form) {
+    const dlg = this._root.getElementById("ag-reset");
+    const err = dlg.querySelector(".ag-dlg-err");
+    const submit = form.querySelector('button[type="submit"]');
+    if (submit.disabled) return;
+    const backup = form.querySelector('[data-act="reset-backup"]').classList.contains("on");
+    const time = new Date().toLocaleString(this._lang || "en", { dateStyle: "medium", timeStyle: "short" });
+    submit.disabled = true;
+    try {
+      await this._hass.callWS({ type: "alarmageddon/reset_system", entry_id: form.dataset.entry, ...(backup ? { backup_name: this._t("rsBackupName", { time }).slice(0, 60) } : {}) });
+    } catch (e) {
+      err.textContent = e?.code === "not_disarmed" ? this._t("rsNotDisarmed") : this._t("rsFailed", { message: errText(e) });
+      submit.disabled = false;
+      return;
+    }
+    this._closeDialog("ag-reset");
+    // Entwürfe sind gegenstandslos: die Anlage hat jetzt wieder die Werkseinstellungen
+    this._resetConfig();
+    this.systemUi.backups = null;
+    await this._fetch();
+    this._render();
+    this._toast(this._t("rsDone", { name: form.dataset.name }));
+  }
+
   // Frei erst, wenn der Name genau stimmt (Gross-/Kleinschreibung zählt, mehrere Leerzeichen nicht)
   _checkDelete(input) {
     const form = input.closest("form");
@@ -1982,6 +2029,12 @@ class AlarmageddonPanel extends HTMLElement {
       copyValue(el, this._root.ownerDocument);
     } else if (act === "close-delete") {
       this._closeDialog("ag-delete");
+    } else if (act === "close-reset") {
+      this._closeDialog("ag-reset");
+    } else if (act === "reset-backup") {
+      const on = !el.classList.contains("on");
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-checked", String(on));
     } else if (act === "delete-backup") {
       const on = !el.classList.contains("on");
       el.classList.toggle("on", on);
@@ -2093,6 +2146,12 @@ class AlarmageddonPanel extends HTMLElement {
     if (bform) {
       ev.preventDefault();
       this.systemUi.createBackup(bform.querySelector("input").value);
+      return;
+    }
+    const rsform = ev.target.closest('[data-form="reset"]');
+    if (rsform) {
+      ev.preventDefault();
+      this._resetSystem(rsform);
       return;
     }
     const dform = ev.target.closest('[data-form="delete"]');

@@ -86,8 +86,8 @@ for (const lang of ["de", "en"]) {
     await one.waitFor("return !r.getElementById('ag-hclog').open");
     await one.tap('#ag-hclist .ag-dlg-x');
     await one.waitFor("return !r.getElementById('ag-hclist').open");
-    const lampOk = await one.ev("const sm=r.querySelector('.ag-hcsum .ag-hclamp'); const dot=sm.querySelector('.ag-sv-dot'); const bs=[...r.querySelectorAll('.ag-hcsum .ag-btnrow .ag-btn')].map((b) => b.getBoundingClientRect()); return { dot: dot?.className, text: sm.innerText.trim(), color: getComputedStyle(sm.querySelector('span:not(.ag-sv-dot)')).color, plain: getComputedStyle(sm).color, sideBySide: bs.length === 2 && Math.abs(bs[0].top - bs[1].top) < 4 }");
-    check(`${tag}: Ampel grün: kleiner grüner Punkt und schlichter Text "${t.allOk}"`, lampOk.dot?.includes("ok") && lampOk.text === t.allOk && lampOk.color === lampOk.plain, JSON.stringify(lampOk));
+    const lampOk = await one.ev("const sm=r.querySelector('.ag-hcsum .ag-hcstate'); const dot=sm.querySelector('.ag-sv-dot'); const bs=[...r.querySelectorAll('.ag-hcsum .ag-btnrow .ag-btn')].map((b) => b.getBoundingClientRect()); return { dot: dot?.className, text: sm.innerText.trim(), color: getComputedStyle(sm.querySelector('span:not(.ag-sv-dot)')).color, plain: getComputedStyle(sm).color, sideBySide: bs.length === 2 && Math.abs(bs[0].top - bs[1].top) < 4 }");
+    check(`${tag}: Ampel grün: grüner Punkt vorn und schlichter Text "${t.allOk}"`, lampOk.dot?.includes("ok") && lampOk.text === t.allOk && lampOk.color === lampOk.plain, JSON.stringify(lampOk));
     await one.ctx.close();
     const many = await open(browser, { mobile, lang, tab: "config", prefs: { sub: "system" }, query: "&hc=sample" });
     await many.waitFor("return !!r.querySelector('.ag-hcsum [data-hc=\"open\"]')");

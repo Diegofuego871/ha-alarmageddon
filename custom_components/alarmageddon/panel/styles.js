@@ -1234,7 +1234,7 @@ ${WAVE_STARS}
 :host([narrow]) select.ag-select[data-act="system"] { font-size: 20px; height: 44px; min-width: 0; flex: 1 1 auto; max-width: 100%; }
 /* Anlage löschen (1.32.0): roter Strich am Kapitel, roter Textknopf ohne Füllung, Warnkasten im Dialog */
 /* Lange Dialoge scrollen, ihre Felder werden nie zusammengedrückt (auf dem Handy sonst ein halbhohes Eingabefeld) */
-#ag-delete .ag-dlg-body > *, #ag-add .ag-dlg-body > * { flex-shrink: 0; }
+#ag-delete .ag-dlg-body > *, #ag-reset .ag-dlg-body > *, #ag-add .ag-dlg-body > * { flex-shrink: 0; }
 /* eigener Hinweis (nicht .ag-warntext: den zählen andere Prüfungen als Warnung zu "Immer aktiv") */
 .ag-delnote { color: var(--ag-warning-text) !important; display: flex !important; gap: 8px; margin-top: 4px !important; align-items: center; }
 /* Wiederherstellen (1.33.0): je Anlage der Sicherung eine Karte mit Wahl des Ziels */
@@ -1246,6 +1246,8 @@ ${WAVE_STARS}
 .ag-rrow > .ag-input { width: 100%; box-sizing: border-box; }
 :host([narrow]) .ag-rrow > select.ag-input { height: 50px; min-height: 50px; }
 #ag-codes .ag-dlg-body > * { flex-shrink: 0; }
+.ag-card.ag-dangerzone { border: 2px solid color-mix(in srgb, var(--ag-error) 55%, var(--ag-divider)); }
+.ag-chap-danger .ag-chap-t { color: var(--ag-error); }
 .ag-chap-danger .ag-chap-t::before { background: var(--ag-error); }
 .ag-btn-danger-text { background: transparent; border-color: color-mix(in srgb, var(--ag-error) 45%, var(--ag-divider)); color: var(--ag-error); }
 .ag-btn-danger-text:hover:not(:disabled) { background: color-mix(in srgb, var(--ag-error) 10%, var(--ag-card)); }
@@ -1284,9 +1286,8 @@ ${WAVE_STARS}
 :host([narrow]) .ag-ov-tools .ag-list-head { display: none; }
 :host([narrow]) .ag-ov-tools .ag-tools { gap: 8px; padding: 8px 0; }
 :host([narrow]) .ag-ov-tools .list-search { flex: 1 1 0; min-width: 0; order: 1; }
-:host([narrow]) .ag-ov-tools [data-list="view"] { order: 2; font-size: 0; gap: 0; width: 44px; padding: 0; justify-content: center; flex: none; border-radius: 999px; }
-/* Auf dem Handy steht "Ansicht" als runder Symbolknopf neben der Suche, nicht bei den Pillen: ohne Kachel (1.92.0, Entscheid des Nutzers) */
-:host([narrow]) .ag-ov-tools [data-list="view"].ag-toolbtn > svg { padding: 0; background: none; color: inherit; }
+:host([narrow]) .ag-ov-tools [data-list="view"] { order: 2; font-size: 0; gap: 0; width: 44px; padding: 0; justify-content: center; flex: none; }
+/* Auf dem Handy steht "Ansicht" neben der Suche, nicht bei den Pillen, nur als Symbol: eckig mit 12 px Ecken und Kachel wie am Computer (1.93.0, Wunsch des Nutzers 2026-11-26; bis 1.92.x rund ohne Kachel) */
 :host([narrow]) .ag-ov-tools .ag-lchips { order: 3; flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; gap: 8px; scrollbar-width: none; }
 :host([narrow]) .ag-ov-tools .ag-lchips::-webkit-scrollbar { display: none; }
 :host([narrow]) .ag-ov-tools .ag-lchips .ag-chip { flex: none; }
@@ -1655,7 +1656,10 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 :host([narrow]) .ag-rtsum .ag-btnrow { flex: 1 1 100%; margin-left: 0; }
 :host([narrow]) .ag-rtsum .ag-btnrow > .ag-btn { flex: 1 1 0; justify-content: center; } /* gleich breit in jeder Zeile (Routinen, eigene Töne, Codes; 1.64.0): reicht der Platz nicht, behält der längere seinen Text */
 :host([narrow]) .ag-wzrow .ag-btnrow, :host([narrow]) .ag-accrow .ag-btnrow { justify-content: flex-start; }
-:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn, :host([narrow]) .ag-accrow .ag-btnrow > .ag-btn { flex: 0 0 auto; } /* Assistent starten: linksbündig und so gross wie "Anlage löschen" darunter, nicht über die ganze Breite (Wunsch des Nutzers 2026-11-21) */
+:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn, :host([narrow]) .ag-accrow .ag-btnrow > .ag-btn { flex: 0 0 auto; }
+:host([narrow]) .ag-wzrow .ag-btnrow { flex-wrap: nowrap; }
+:host([narrow]) .ag-wz-hidetx { display: none; }
+:host([narrow]) .ag-wz-hide { padding-left: 12px; padding-right: 12px; } /* Assistent starten: linksbündig und so gross wie "Anlage löschen" darunter, nicht über die ganze Breite (Wunsch des Nutzers 2026-11-21) */
 /* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */
 :host([narrow]) .ag-cs-pop .ag-csrow { flex-wrap: wrap; }
 :host([narrow]) .ag-cs-pop .ag-csrow .ag-settx { flex: 1 1 0; min-width: 0; }
@@ -1800,7 +1804,7 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-st-about[open] > summary { margin-bottom: 8px; }
 .ag-st-about p { margin: 8px 0 0; }
 /* Backup: "Was ist im Backup?" über der Karte, sonst wie beim Selbsttest */
-.ag-bk-about { margin: 0 0 10px; }
+.ag-bk-about { margin: 14px 0 4px; }
 .ag-hc-about { margin-top: 14px; }
 .ag-hc-about .ag-hc-exh { margin: 10px 0 4px; font-weight: 500; }
 .ag-hc-about a { color: var(--ag-primary); }
@@ -2200,4 +2204,7 @@ button.ag-wf-prob { cursor: pointer; } button.ag-wf-prob:hover { background: col
 .ag-tabmark { position: absolute; top: -5px; right: -3px; z-index: 2; min-width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--ag-error); color: #fff; font-size: 12px; font-weight: 800; line-height: 1; border: 2px solid var(--ag-card); }
 .ag-tabmark.warn { background: var(--ag-warning); }
 .ag-modeseg button { position: relative; }
+/* HealthCheck in Konfiguration › Anlage: der Zustand ist der Titel, mit etwas grösserem Punkt davor; die Zahl der Dienste steht klein darunter (2026-11-26) */
+.ag-hcsum .ag-hcstate { display: flex; align-items: center; gap: 8px; }
+.ag-hcsum .ag-hcstate .ag-sv-dot { width: 12px; height: 12px; flex: none; }
 `;

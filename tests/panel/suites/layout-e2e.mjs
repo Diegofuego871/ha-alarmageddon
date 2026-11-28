@@ -302,7 +302,7 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: X ohne Änderung schliesst sofort`, await s.waitFor("return !r.getElementById('ag-presets').open && !r.getElementById('ag-confirm').open"));
       await s.tap('[data-sen="presets"]');
       await s.waitFor("return r.getElementById('ag-presets').open");
-      await s.tap('#ag-presets [data-sen="preset"][data-kind="door"][data-key="always"]');
+      await s.tap('#ag-presets [data-sen="preset"][data-kind="door"][data-key="reachable"]');
       await s.tap('#ag-presets .ag-dlg-x');
       check(`${tag}: X mit Änderung fragt vor dem Verwerfen`, await s.waitFor("return r.getElementById('ag-confirm').open && r.getElementById('ag-presets').open"));
       await s.tap('#ag-confirm [data-c="no"]');
