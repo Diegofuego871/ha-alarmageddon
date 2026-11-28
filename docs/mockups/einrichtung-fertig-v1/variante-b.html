@@ -120,7 +120,7 @@ const CHECK = '<path class="chk" d="M38 62l16 16 30-34"/>';
       <defs><linearGradient id="gr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fc27f"/><stop offset="1" stop-color="#3a8449"/></linearGradient>
         <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
         <clipPath id="shclip"><path d="${SH}"/></clipPath><clipPath id="rise"><rect id="riserect" x="0" y="0" width="120" height="120"/></clipPath></defs>
-      ${v === "F" ? `<path class="wave" id="wave1" d="${SH}"/><path class="wave" id="wave2" d="${SH}"/>` : `<circle class="pulse2" id="pulse" cx="60" cy="60" r="44"/>`}
+      ${v === "F" ? `<path class="wave" id="wave1" d="${SH}"/>` : `<circle class="pulse2" id="pulse" cx="60" cy="60" r="44"/>`}
       <path id="shfill" d="${SH}" fill="url(#gr)"/>
       <path id="shline" d="${SH}" fill="none" stroke="#8fd69c" stroke-width="3.5" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="${v === "D" ? 1 : 0}"/>
       <g clip-path="url(#shclip)"><rect id="sheenr" x="-60" y="0" width="50" height="120" fill="url(#sheen)"/></g>
@@ -173,7 +173,7 @@ const CHECK = '<path class="chk" d="M38 62l16 16 30-34"/>';
     // Haken, Puls, Glanz, Text
     tl($("chk"), [[0, "opacity:0; stroke-dashoffset:60; stroke-width:0"], [T0, "opacity:0; stroke-dashoffset:60; stroke-width:0"], [T0 + 40, "opacity:1; stroke-dashoffset:55; stroke-width:8", "cubic-bezier(.4,0,.2,1)"], [T0 + 480, "opacity:1; stroke-dashoffset:0; stroke-width:8"], [total, "opacity:1; stroke-dashoffset:0; stroke-width:8"]]);
     if (v === "F") { // das Schild dehnt sich als Welle aus und blendet aus (kein Kreis)
-      [["wave1", 0, 1.75], ["wave2", 200, 2.5]].forEach(([id, d, z]) => tl($(id), [[0, "opacity:0; transform:scale(1)"], [T0 + 350 + d, "opacity:.75; transform:scale(1)", "cubic-bezier(.2,.6,.3,1)"], [T0 + 1250 + d, `opacity:0; transform:scale(${z})`], [total, `opacity:0; transform:scale(${z})`]]));
+      [["wave1", 0, 2.1]].forEach(([id, d, z]) => tl($(id), [[0, "opacity:0; transform:scale(1)"], [T0 + 350 + d, "opacity:.75; transform:scale(1)", "cubic-bezier(.2,.6,.3,1)"], [T0 + 1250 + d, `opacity:0; transform:scale(${z})`], [total, `opacity:0; transform:scale(${z})`]]));
     } else
     tl($("pulse"), [[0, "opacity:0; transform:scale(.95)"], [T0 + 380, "opacity:.7; transform:scale(.95)", "ease-out"], [T0 + 1280, "opacity:0; transform:scale(2.2)"], [total, "opacity:0; transform:scale(2.2)"]]);
     tl($("sheenr"), [[0, "transform:translateX(0px) skewX(-18deg)"], [T0 + 420, "transform:translateX(0px) skewX(-18deg)", "ease-in-out"], [T0 + 1120, "transform:translateX(260px) skewX(-18deg)"], [total, "transform:translateX(260px) skewX(-18deg)"]]);

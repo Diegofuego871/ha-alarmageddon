@@ -12,7 +12,7 @@ sich zweimal, wird langsamer, bleibt stehen, ein grüner Haken zeichnet sich. Dr
 | D | **Schild zeichnet sich selbst** | Der Rand des Schilds wird gezeichnet, während es sich einmal dreht, dann füllt es sich von unten grün, Haken, Glanz, Flug zum Titel. | 3,6 s |
 | E | **Aus den sieben Strichen wird das Schild** | Die sieben grünen Striche oben lösen sich, wirbeln zur Mitte und werden zum Schild (kurzes Aufpoppen mit Drehung), Haken, Glanz, Flug zum Titel. | 3,6 s |
 
-| F | **Wie E, Schild als Welle** | Wie E, aber statt des Kreises dehnen sich zwei Umrisse in Schildform nacheinander aus und blenden aus (Wunsch des Nutzers nach E, 2026-11-28). Dauer 3,9 s. | 3,9 s |
+| F | **Wie E, Schild als Welle** | Wie E, aber statt des Kreises dehnen sich ein Umriss in Schildform aus und blenden aus (Wunsch des Nutzers nach E, 2026-11-28). Dauer 3,9 s. | 3,9 s |
 
 B, D, E und F sind Schild-Varianten (Wunsch des Nutzers: das Schild gefällt); alle enden gleich: das Schild landet als kleiner Haken vor dem Titel.
 
