@@ -1316,7 +1316,9 @@ class AlarmageddonPanel extends HTMLElement {
     // Den Knopf "Integration in HA öffnen" gibt es seit 1.82.0 nicht mehr (Wunsch des Nutzers 2026-11-22)
     const add = this._t("addSystem");
     const text = this.hasAttribute("narrow") ? "" : esc(add);
-    return `${title}<button class="ag-iconbtn" data-act="rename" title="${esc(this._t("renameTip"))}" aria-label="${esc(this._t("renameTip"))}">${ic("pencil", 22)}</button>${this._alarmBtn(cur)}${this._wizardBtn(cur)}<span class="ag-grow"></span>
+    // Den Bleistift zum Umbenennen gibt es seit 1.94.0 nicht mehr (Wunsch des Nutzers 2026-11-28: selten gebraucht, aber ein fester Platz in jeder Ansicht):
+    // "Umbenennen" steht unter Konfiguration › Anlage › Allgemein
+    return `${title}${this._alarmBtn(cur)}${this._wizardBtn(cur)}<span class="ag-grow"></span>
       <button class="ag-btn ${text ? "" : "ag-btn-ic"}" data-act="add" aria-label="${esc(add)}" title="${esc(add)}">${ic("plus", 18)}${text}</button>`;
   }
 
@@ -1456,6 +1458,10 @@ class AlarmageddonPanel extends HTMLElement {
         <b>${esc(this._t("rsStays"))}</b><ul>${li("rsStays1")}${li("rsStays2")}</ul></div>
       <label class="ag-orow ag-rename-ids"><div class="ag-otx"><b>${esc(this._t("rsBackup"))}</b><small>${esc(this._t("rsBackupHint"))}</small></div>
         <button type="button" class="ag-toggle on" data-act="reset-backup" role="switch" aria-checked="true" aria-label="${esc(this._t("rsBackup"))}"></button></label>
+      <label class="ag-orow ag-rename-ids"><div class="ag-otx"><b>${esc(this._t("rsClearLog"))}</b><small>${esc(this._t("rsClearLogHint"))}</small></div>
+        <button type="button" class="ag-toggle" data-act="reset-log" role="switch" aria-checked="false" aria-label="${esc(this._t("rsClearLog"))}"></button></label>
+      ${this._systems().length === 1 ? `<label class="ag-orow ag-rename-ids"><div class="ag-otx"><b>${esc(this._t("rsClearShared"))}</b><small>${esc(this._t("rsClearSharedHint"))}</small></div>
+        <button type="button" class="ag-toggle" data-act="reset-shared" role="switch" aria-checked="false" aria-label="${esc(this._t("rsClearShared"))}"></button></label>` : ""}
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-act="close-reset">${esc(this._t("cancel"))}</button><button class="ag-btn danger" type="submit">${ic("restore", 18)}${esc(this._t("rsConfirm"))}</button></div></form>`;
     dlg.showModal();
@@ -1466,11 +1472,12 @@ class AlarmageddonPanel extends HTMLElement {
     const err = dlg.querySelector(".ag-dlg-err");
     const submit = form.querySelector('button[type="submit"]');
     if (submit.disabled) return;
-    const backup = form.querySelector('[data-act="reset-backup"]').classList.contains("on");
+    const on = (act) => !!form.querySelector(`[data-act="${act}"]`)?.classList.contains("on");
+    const backup = on("reset-backup");
     const time = new Date().toLocaleString(this._lang || "en", { dateStyle: "medium", timeStyle: "short" });
     submit.disabled = true;
     try {
-      await this._hass.callWS({ type: "alarmageddon/reset_system", entry_id: form.dataset.entry, ...(backup ? { backup_name: this._t("rsBackupName", { time }).slice(0, 60) } : {}) });
+      await this._hass.callWS({ type: "alarmageddon/reset_system", entry_id: form.dataset.entry, ...(backup ? { backup_name: this._t("rsBackupName", { time }).slice(0, 60) } : {}), ...(on("reset-log") ? { clear_log: true } : {}), ...(on("reset-shared") ? { clear_shared: true } : {}) });
     } catch (e) {
       err.textContent = e?.code === "not_disarmed" ? this._t("rsNotDisarmed") : this._t("rsFailed", { message: errText(e) });
       submit.disabled = false;
@@ -2031,7 +2038,7 @@ class AlarmageddonPanel extends HTMLElement {
       this._closeDialog("ag-delete");
     } else if (act === "close-reset") {
       this._closeDialog("ag-reset");
-    } else if (act === "reset-backup") {
+    } else if (act === "reset-backup" || act === "reset-log" || act === "reset-shared") {
       const on = !el.classList.contains("on");
       el.classList.toggle("on", on);
       el.setAttribute("aria-checked", String(on));

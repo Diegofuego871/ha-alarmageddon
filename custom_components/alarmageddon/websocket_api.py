@@ -689,6 +689,8 @@ async def ws_delete_system(hass: HomeAssistant, connection, msg: dict[str, Any])
         vol.Required("type"): f"{DOMAIN}/reset_system",
         vol.Required("entry_id"): str,
         vol.Optional("backup_name", default=""): vol.All(str, vol.Length(max=60)),
+        vol.Optional("clear_log", default=False): bool,
+        vol.Optional("clear_shared", default=False): bool,
     }
 )
 @websocket_api.require_admin
@@ -699,15 +701,23 @@ async def ws_reset_system(hass: HomeAssistant, connection, msg: dict[str, Any]) 
     (Zonen, Sensorwerte, Codes, Aktionen, Routinen, Überwachung, Farbe), der Einrichtungsassistent beginnt wieder. Name, Gerät und Entitäten
     bleiben; Protokoll und Aufzeichnungen sowie die gemeinsamen Einstellungen (Voreinstellungen, Meldungen, HealthCheck, Töne, Backups) auch.
 
+    Zwei Schalter, beide standardmässig aus (1.94.0, Wunsch des Nutzers 2026-11-28): `clear_log` löscht Protokoll, Aufzeichnungen und den Stand der
+    Anlage; `clear_shared` setzt die gemeinsamen Einstellungen und Verläufe zurück und gilt nur, wenn es genau eine Anlage gibt (sonst träfe es
+    die anderen mit; Server und Panel prüfen es beide). **Backups bleiben immer**, auch das eben angelegte "Vor Reset".
+
     Nur im deaktivierten Zustand (eine scharfe Anlage verliert nie still ihre Sensoren und Codes). Mit `backup_name` legt der Server
     vorher ein Backup an; es kommt nie ein Code hinein (Backups tragen keine Codes) und ist mit "Wiederherstellen" zurückzuholen.
     """
+    from . import async_erase_entry_log, async_erase_shared_history, _entry_sensors
     from .config_flow import default_options
 
     if (entry := _entry(hass, connection, msg)) is None:
         return
     if entry.runtime_data.controller.state != AlarmControlPanelState.DISARMED:
         connection.send_error(msg["id"], "not_disarmed", "Disarm the alarm system first")
+        return
+    if msg["clear_shared"] and len(hass.config_entries.async_entries(DOMAIN)) != 1:
+        connection.send_error(msg["id"], "shared_needs_single_system", "Shared data can only be reset when there is exactly one alarm system")
         return
     if msg["backup_name"].strip():
         await backup.async_create_backup(hass, entry.runtime_data.version, " ".join(msg["backup_name"].split()))
@@ -718,7 +728,31 @@ async def ws_reset_system(hass: HomeAssistant, connection, msg: dict[str, Any]) 
     settings = await async_get_settings(hass)
     # Zuerst der Assistent, dann die Optionen: die Optionen laden die Anlage neu, und das Panel liest danach beides
     await settings.async_set_wizard(entry.entry_id, "start")
-    hass.config_entries.async_update_entry(entry, options=default_options())
+    if not (msg["clear_log"] or msg["clear_shared"]):
+        hass.config_entries.async_update_entry(entry, options=default_options())
+        connection.send_result(msg["id"], {"ok": True})
+        return
+    # Mit Löschen von Daten: die Anlage zuerst entladen (sie schreibt beim Beenden ihren Stand), dann löschen, dann mit den Werkseinstellungen neu laden
+    sensors = _entry_sensors(entry)
+    if not await hass.config_entries.async_unload(entry.entry_id):
+        connection.send_error(msg["id"], "unload_failed", "The alarm system could not be stopped")
+        return
+    try:
+        if msg["clear_log"]:
+            await async_erase_entry_log(hass, entry)
+            settings.forget_changes(sensors)
+        if msg["clear_shared"]:
+            await async_erase_shared_history(hass)
+            await settings.async_reset_shared()
+            if (healthcheck := hass.data.get(DATA_HEALTHCHECK)) is not None:
+                healthcheck.async_reconfigure()
+            if (registry := hass.data.get(DATA_CUSTOM_SOUNDS)) is not None:
+                for sound in registry.listing():
+                    await registry.async_delete(sound["id"])
+    finally:
+        # Auch bei einem Fehler beim Löschen läuft die Anlage mit den Werkseinstellungen weiter, nie halb zurückgesetzt und ausgeschaltet
+        hass.config_entries.async_update_entry(entry, options=default_options())
+        await hass.config_entries.async_setup(entry.entry_id)
     connection.send_result(msg["id"], {"ok": True})
 
 

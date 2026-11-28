@@ -185,7 +185,7 @@ for (const lang of ["de", "en"]) {
     await s.tap('#ag-hclist [data-hc="close"]');
     check(`${tag}: Kapitel zeigt "${t.failedRow}"`, await s.waitFor(`return r.querySelector('.ag-hcsum').innerText.includes(${JSON.stringify(t.failedRow)})`));
     // Ampel (1.76.2, Wunsch des Nutzers 2026-11-22): ein gescheitertes Lebenszeichen = roter Punkt und roter Text
-    const lamp = await s.ev("const sm=r.querySelector('.ag-hcsum .ag-hcstate'); const dot=sm.querySelector('.ag-sv-dot'); return { dot: dot.className, size: Math.round(dot.getBoundingClientRect().width), text: getComputedStyle(sm.querySelector('span:not(.ag-sv-dot)')).color, plain: getComputedStyle(sm).color }");
+    const lamp = await s.ev("const sm=r.querySelector('.ag-hcsum .ag-hcnow'); const dot=sm.querySelector('.ag-sv-dot'); return { dot: dot.className, size: Math.round(dot.getBoundingClientRect().width), text: getComputedStyle(sm.querySelector('span:not(.ag-sv-dot)')).color, plain: getComputedStyle(sm).color }");
     check(`${tag}: Ampel rot: etwas grösserer roter Punkt (12 px, vorn), der Text schlicht (nicht eingefärbt)`, lamp.dot.includes("fail") && lamp.size >= 11 && lamp.size <= 14 && lamp.text === lamp.plain, JSON.stringify(lamp));
 
     // ----- Bearbeiten: Werte da, der eigene Zusatz bleibt -----

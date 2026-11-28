@@ -4,8 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const T = {
-  de: { reset: "Zurücksetzen", backup: "Vorher ein Backup erstellen", prefix: "Vor Reset", goes: "Das wird entfernt", stays: "Das bleibt", confirm: "Zurücksetzen", notDisarmed: "Zuerst die Anlage deaktivieren" },
-  en: { reset: "Reset", backup: "Make a backup first", prefix: "Before reset", goes: "What is removed", stays: "What stays", confirm: "Reset", notDisarmed: "Disarm the alarm system first" },
+  de: { reset: "Zurücksetzen", backup: "Vorher ein Backup erstellen", prefix: "Vor Reset", goes: "Das wird entfernt", stays: "Das bleibt", confirm: "Zurücksetzen", notDisarmed: "Zuerst die Anlage deaktivieren", clearLog: "Auch Protokoll und Aufzeichnungen löschen", clearShared: "Auch gemeinsame Daten zurücksetzen" },
+  en: { reset: "Reset", backup: "Make a backup first", prefix: "Before reset", goes: "What is removed", stays: "What stays", confirm: "Reset", notDisarmed: "Disarm the alarm system first", clearLog: "Also delete log and recordings", clearShared: "Also reset shared data" },
 };
 
 const browser = await launch();
@@ -32,6 +32,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: deaktivierte Anlage: beide Knöpfe frei, roter Text`, await s.ev("const c=r.querySelector('.ag-dangerzone'); return [...c.querySelectorAll('button[data-sys]')].every((b) => !b.disabled && b.classList.contains('ag-btn-danger-text'))"));
     await s.tap('[data-sys="reset"]');
     check(`${tag}: Warn-Dialog nennt die Anlage, "${t.goes}" und "${t.stays}", Backup-Schalter ist an`, await s.waitFor(`const d=r.getElementById('ag-reset'); const x=d.innerText; const tg=d.querySelector('[data-act="reset-backup"]'); return d.open && x.includes('Garage') && x.includes(${JSON.stringify(t.goes)}) && x.includes(${JSON.stringify(t.stays)}) && x.includes(${JSON.stringify(t.backup)}) && tg.getAttribute('aria-checked') === 'true'`));
+    check(`${tag}: zwei Anlagen: "${t.clearLog}" (aus) da, "${t.clearShared}" gar nicht angezeigt (nicht ausgegraut)`, await s.ev(`const d=r.getElementById('ag-reset'); const l=d.querySelector('[data-act="reset-log"]'); return !!l && l.getAttribute('aria-checked') === 'false' && d.innerText.includes(${JSON.stringify(t.clearLog)}) && !d.querySelector('[data-act="reset-shared"]') && !d.innerText.includes(${JSON.stringify(t.clearShared)})`));
     check(`${tag}: Schalter links, Text rechts (Grundregel)`, await s.ev("const l=r.querySelector('#ag-reset .ag-rename-ids'); const tg=l.querySelector('.ag-toggle').getBoundingClientRect(); const tx=l.querySelector('.ag-otx').getBoundingClientRect(); return tg.right <= tx.left"));
     if (mobile) check(`${tag}: Handy: Knöpfe des Dialogs liegen im Bild`, await s.ev("const d=r.getElementById('ag-reset'); const w=r.host.getBoundingClientRect(); return [...d.querySelectorAll('.ag-dlg-btns button')].every((x) => { const b=x.getBoundingClientRect(); return b.left >= w.left && b.right <= w.right && b.bottom <= w.bottom && b.top >= 0 })"));
 
@@ -48,11 +49,13 @@ for (const lang of ["de", "en"]) {
     // Zurücksetzen mit Backup (Standard)
     await toEnd();
     await s.tap('[data-sys="reset"]');
+    await s.tap('#ag-reset [data-act="reset-log"]');
     await s.tap('#ag-reset button[type="submit"]');
-    check(`${tag}: Zurücksetzen schliesst den Dialog, Server bekam Backup "${t.prefix} · Zeit" und die Anlage bleibt`, await s.waitFor(`return !r.getElementById('ag-reset').open`) && (await s.sim(`const d=window.__resets || []; return d.length === 1 && d[0].title === 'Garage' && d[0].backup_name.startsWith(${JSON.stringify(t.prefix + " · ")}) && d[0].backup_name.length <= 60 && !!window.__systems.find((x) => x.title === 'Garage')`)));
+    check(`${tag}: Zurücksetzen schliesst den Dialog, Server bekam Backup "${t.prefix} · Zeit" und die Anlage bleibt`, await s.waitFor(`return !r.getElementById('ag-reset').open`) && (await s.sim(`const d=window.__resets || []; return d.length === 1 && d[0].title === 'Garage' && d[0].backup_name.startsWith(${JSON.stringify(t.prefix + " · ")}) && d[0].backup_name.length <= 60 && d[0].clear_log === true && d[0].clear_shared === false && !!window.__systems.find((x) => x.title === 'Garage')`)));
 
     check(`${tag}: keine Fehler der Seite`, s.errors.length === 0, s.errors.join(" | "));
     // Nach dem Zurücksetzen beginnt der Einrichtungsassistent wieder (Zustand "offen"), wie bei einer neuen Anlage
+    check(`${tag}: der Einrichtungsassistent startet sofort im Panel (Desktop: Fenster, Handy: im Inhalt), beim Schritt "Willkommen"`, await s.waitFor("return !!r.querySelector('.ag-wz') && r.querySelector('.ag-wz')?.dataset.step === 'welcome' && (r.host.hasAttribute('narrow') || !!r.querySelector('.ag-wzpop'))", 8000));
     check(`${tag}: der Einrichtungsassistent ist wieder offen`, await s.sim("return window.__systems.find((x) => x.title === 'Garage').wizard.state === 'open'"));
     await s.ctx.close();
 
@@ -69,6 +72,21 @@ for (const lang of ["de", "en"]) {
       await s2.tap('#ag-reset button[type="submit"]');
       check(`${tag}: ohne Backup geht kein Name mit`, await s2.waitFor("return !r.getElementById('ag-reset').open") && (await s2.sim("const d=window.__resets || []; return d.length === 1 && d[0].backup_name === ''")));
       await s2.ctx.close();
+    }
+
+    // Einzige Anlage: der Schalter "gemeinsame Daten" erscheint (aus), mit dem Hinweis "Backups bleiben immer"; eingeschaltet geht er an den Server
+    {
+      const s3 = await open(browser, { mobile, lang, tab: "config", query: "&single=e_garage" });
+      await s3.tap('[data-sub="system"]');
+      await s3.waitFor("return !!r.querySelector('[data-sys=\"reset\"]')");
+      await s3.ev("r.querySelector('[data-sys=\"reset\"]').scrollIntoView({ block: 'center' })");
+      await s3.tap('[data-sys="reset"]');
+      check(`${tag}: einzige Anlage: "${t.clearShared}" ist da und aus, Schalter links, Text rechts`, await s3.ev(`const d=r.getElementById('ag-reset'); const b=d.querySelector('[data-act="reset-shared"]'); if (!b) return false; const l=b.closest('label'); return b.getAttribute('aria-checked') === 'false' && d.innerText.includes(${JSON.stringify(t.clearShared)}) && b.getBoundingClientRect().right <= l.querySelector('.ag-otx').getBoundingClientRect().left`));
+      await s3.tap('#ag-reset [data-act="reset-shared"]');
+      check(`${tag}: Schalter an (aria-checked)`, await s3.ev("return r.querySelector('#ag-reset [data-act=\"reset-shared\"]').getAttribute('aria-checked') === 'true'"));
+      await s3.tap('#ag-reset button[type="submit"]');
+      check(`${tag}: gemeinsame Daten gehen an den Server (clear_shared), Protokoll nicht`, await s3.waitFor("return !r.getElementById('ag-reset').open") && (await s3.sim("const d=window.__resets || []; return d.length === 1 && d[0].clear_shared === true && d[0].clear_log === false")));
+      await s3.ctx.close();
     }
   }
 }

@@ -1658,8 +1658,8 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 :host([narrow]) .ag-wzrow .ag-btnrow, :host([narrow]) .ag-accrow .ag-btnrow { justify-content: flex-start; }
 :host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn, :host([narrow]) .ag-accrow .ag-btnrow > .ag-btn { flex: 0 0 auto; }
 :host([narrow]) .ag-wzrow .ag-btnrow { flex-wrap: nowrap; }
-:host([narrow]) .ag-wz-hidetx { display: none; }
-:host([narrow]) .ag-wz-hide { padding-left: 12px; padding-right: 12px; } /* Assistent starten: linksbündig und so gross wie "Anlage löschen" darunter, nicht über die ganze Breite (Wunsch des Nutzers 2026-11-21) */
+:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn { padding-left: 12px; padding-right: 12px; } /* "Fortsetzen" und "Nicht mehr anzeigen" mit Symbol und Text passen so auch in 390 px (1.93.0) */
+/* Assistent starten: linksbündig und so gross wie "Anlage löschen" darunter, nicht über die ganze Breite (Wunsch des Nutzers 2026-11-21) */
 /* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */
 :host([narrow]) .ag-cs-pop .ag-csrow { flex-wrap: wrap; }
 :host([narrow]) .ag-cs-pop .ag-csrow .ag-settx { flex: 1 1 0; min-width: 0; }
@@ -2205,6 +2205,6 @@ button.ag-wf-prob { cursor: pointer; } button.ag-wf-prob:hover { background: col
 .ag-tabmark.warn { background: var(--ag-warning); }
 .ag-modeseg button { position: relative; }
 /* HealthCheck in Konfiguration › Anlage: der Zustand ist der Titel, mit etwas grösserem Punkt davor; die Zahl der Dienste steht klein darunter (2026-11-26) */
-.ag-hcsum .ag-hcstate { display: flex; align-items: center; gap: 8px; }
-.ag-hcsum .ag-hcstate .ag-sv-dot { width: 12px; height: 12px; flex: none; }
+.ag-hcsum .ag-hcnow { display: flex; align-items: center; gap: 8px; }
+.ag-hcsum .ag-hcnow .ag-sv-dot { width: 12px; height: 12px; flex: none; }
 `;

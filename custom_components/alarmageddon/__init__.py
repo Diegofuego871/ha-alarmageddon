@@ -406,13 +406,36 @@ def _entry_sensors(entry: ConfigEntry) -> set[str]:
     return sensors
 
 
-async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry) -> None:
+async def async_erase_entry_log(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """
+    Die Laufzeitdaten einer Anlage löschen (Protokoll, Aufzeichnungen, Stand der Aktionen und der Überwachung, gespeicherter Zustand): beim Entfernen der
+    Anlage und beim Zurücksetzen mit "Protokoll und Aufzeichnungen löschen" (1.94.0). Die Anlage ist dabei nicht geladen.
+    """
     await async_remove_events(hass, entry.entry_id)
     await async_remove_recordings(hass, entry.entry_id)
     await async_remove_workflow_store(hass, entry.entry_id)
     await async_remove_monitor_store(hass, entry.entry_id)
     # Dieselbe Ablage wie die der Anlage (1.87.0): ein ausstehender Schreibvorgang legte die Datei sonst nach dem Löschen wieder an
     await (hass.data.get(DATA_STATE_STORES, {}).pop(entry.entry_id, None) or Store(hass, 1, f"{STATE_STORE_KEY}.{entry.entry_id}")).async_remove()
+
+
+async def async_erase_shared_history(hass: HomeAssistant) -> None:
+    """
+    Die gemeinsamen Verläufe und Stände löschen (Selbsttest, HealthCheck, sein Protokoll, Wartungsstand, Sensorstatistik, Empfangsverlauf): mit der letzten
+    Anlage (1.82.0) und beim Zurücksetzen der einzigen Anlage mit "Gemeinsame Daten zurücksetzen" (1.94.0). Die Instanzen im Speicher gehen zuerst, damit sie
+    nichts mehr schreiben (Empfang beim Beenden von Home Assistant). Backups, Einstellungen und eigene Töne bleiben.
+    """
+    await Store(hass, 1, SELFTEST_STORE_KEY).async_remove()
+    await Store(hass, 1, HEALTHCHECK_STORE_KEY).async_remove()
+    if (log := hass.data.pop(DATA_RECEPTION, None)) is not None:
+        log.async_discard()
+    hass.data.pop(DATA_STATS, None)
+    for key in (HEALTHLOG_STORE_KEY, MAINTENANCE_STORE_KEY, STATS_STORE_KEY, RECEPTION_STORE_KEY):
+        await Store(hass, 1, key).async_remove()
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry) -> None:
+    await async_erase_entry_log(hass, entry)
     # Einrichtungsassistent (1.69.0): der Zustand der Anlage verschwindet mit ihr
     (await async_get_settings(hass)).forget_wizard(entry.entry_id)
     # Selbsttest: die Meldung der Anlage unter "Reparaturen" verschwindet mit ihr; die übrigen Anlagen prüft er kurz danach neu
@@ -422,15 +445,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: AlarmageddonConfigEntry
     (await async_get_settings(hass)).forget_changes(None if not others else _entry_sensors(entry) - set().union(*(_entry_sensors(e) for e in others)))
     if not others:
         ir.async_delete_issue(hass, DOMAIN, ISSUE_GLOBAL)
-        await Store(hass, 1, SELFTEST_STORE_KEY).async_remove()
-        await Store(hass, 1, HEALTHCHECK_STORE_KEY).async_remove()
-        # Gemeinsame Verläufe und Wartungsstand (1.82.0, Wunsch des Nutzers): ohne Anlage braucht sie niemand. Die Instanzen im Speicher gehen zuerst, damit sie nichts mehr
-        # schreiben (Empfang beim Beenden von Home Assistant). Backups, Einstellungen und eigene Töne bleiben, damit eine neue Anlage nichts verliert.
-        if (log := hass.data.pop(DATA_RECEPTION, None)) is not None:
-            log.async_discard()
-        hass.data.pop(DATA_STATS, None)
-        for key in (HEALTHLOG_STORE_KEY, MAINTENANCE_STORE_KEY, STATS_STORE_KEY, RECEPTION_STORE_KEY):
-            await Store(hass, 1, key).async_remove()
+        await async_erase_shared_history(hass)
         async_remove_panel(hass)
     elif (selftest := hass.data.get(DATA_SELFTEST)) is not None and hass.state is CoreState.running:
         selftest.async_schedule()

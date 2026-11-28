@@ -7,7 +7,26 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.94.0] - 2026-11-28
+
+### Hinzugefügt
+
+- **Zurücksetzen mit zwei weiteren Schaltern:** das Fenster "Zurücksetzen" bietet jetzt "Auch Protokoll und Aufzeichnungen löschen" (Protokoll, Alarmaufzeichnungen und gemerkter Stand dieser Anlage; immer angeboten) und "Auch gemeinsame Daten zurücksetzen" (Voreinstellungen je Sensorart, Meldungen, Anzeige der Namen, HealthCheck-Dienste, eigene Töne und die gemeinsamen Verläufe: Selbsttest, Protokoll der HealthCheck-Dienste, Wartung, Sensorstatistik, Empfang). Der zweite Schalter erscheint nur, wenn es genau eine Anlage gibt, weil er sonst alle anderen mittreffen würde; bei mehreren Anlagen wird er gar nicht angezeigt, und der Server lehnt ihn ebenfalls ab. Beide sind standardmässig aus. Backups bleiben immer, auch das eben angelegte Backup "Vor Reset". Neue Felder `clear_log` und `clear_shared` des Befehls `reset_system`.
+- **Akku- und Empfangssymbol mit Füllstand:** in der Sensoransicht zeigt die Kachel "Batterie" einen nach Prozent gefüllten Akku (unter der Warnschwelle orange, ab der Hälfte rot) und die Kachel "Empfang" vier Balken, so viele in der Akzentfarbe, wie der Wert hergibt (dBm nach den Zonen der Grafik: gut ab -65, mittel bis -80, schwach darunter; LQI und Prozent in Vierteln).
+
+### Geändert
+
+- **Kapitel "Allgemein" mit dem Namen der Anlage:** das Kapitel "Akzentfarbe" unter Konfiguration › Anlage heisst jetzt "Allgemein" und enthält über der Akzentfarbe die Zeile "Name" mit dem Knopf "Umbenennen". Der Bleistift neben dem Namen im Kopf entfällt (Umbenennen ist selten, der Bleistift hatte aber einen festen Platz in jeder Ansicht).
+- **Karte des Einrichtungsassistenten:** "Von vorn" entfällt; "Fortsetzen" und "Nicht mehr anzeigen" stehen in einer Zeile mit Symbol und Text, auch auf dem Handy.
+- **Sensoransicht, Reiter "Gerät":** "In der Konfiguration zeigen" hat dieselbe Form wie "Voreinstellungen" (Ecken von 12 px, Symbol in einer Kachel) statt einer Pille.
+
+### Behoben
+
+- **Kachel HealthCheck:** vor dem grünen Punkt stand ein grauer (eine Klasse des Fensters der Dienste zeichnete ihn zusätzlich).
+
 ## [1.93.1] - 2026-11-28
+
+Nicht veröffentlicht; enthalten in 1.94.0.
 
 ### Behoben
 
@@ -2497,7 +2516,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
-[1.93.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.1
+[1.94.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.94.0
 [1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0
 [1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3
 [1.92.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.2

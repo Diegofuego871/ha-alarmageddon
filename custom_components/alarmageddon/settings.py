@@ -612,6 +612,18 @@ class Settings:
         await self._async_write()
         return True
 
+    async def async_reset_shared(self) -> None:
+        """
+        Die gemeinsamen Einstellungen auf Werkseinstellungen zurücksetzen (1.94.0, Zurücksetzen der einzigen Anlage mit "Gemeinsame Daten zurücksetzen"):
+        Voreinstellungen je Sensorart, Benachrichtigungen, Anzeige der Namen und die HealthCheck-Dienste. Die automatische Sicherung, der Stand des
+        Einrichtungsassistenten und die gemerkten Änderungen bleiben (eigene Töne und Backups verwaltet der Aufrufer bzw. nie).
+        """
+        self.data["presets"] = valid_presets(copy.deepcopy(DEFAULT_PRESETS))
+        self.data["notify"] = valid_notify({})
+        self.data["names_with_device"] = True
+        self.data["healthchecks"] = []
+        await self._async_write()
+
     @callback
     def async_notify_listeners(self, skip: set[str] | frozenset[str] = frozenset()) -> None:
         """Anlagen neu laden lassen (neue Voreinstellungen); `skip`: Anlagen, die wegen geänderter Optionen ohnehin neu laden."""

@@ -7,7 +7,26 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.94.0] - 2026-11-28
+
+### Added
+
+- **Reset with two extra switches:** the window "Reset" now offers "Also delete log and recordings" (log, alarm recordings and the remembered state of this alarm system; always offered) and "Also reset shared data" (presets per sensor type, notifications, how names are shown, HealthCheck services, your own sounds and the shared histories: self-test, HealthCheck log, maintenance, sensor statistics, reception). The second switch appears only when there is exactly one alarm system, because it would affect all others otherwise; with several systems it is not shown at all, and the server refuses it too. Both are off by default. Backups always stay, including the "Before reset" backup that was just made. New fields `clear_log` and `clear_shared` of the command `reset_system`.
+- **Battery and reception symbols with a level:** in the sensor view the tile "Battery" shows a battery filled by the percentage (orange below the warning threshold, red from half of it) and the tile "Reception" four bars, as many lit in the accent colour as the value gives (dBm by the zones of the chart: good from -65, medium to -80, weak below; LQI and percent in quarters).
+
+### Changed
+
+- **Chapter "General" with the name of the alarm system:** the chapter "Accent colour" under Configuration › Alarm system is now called "General" and holds the row "Name" with the button "Rename" above the accent colour. The pencil beside the name in the header is gone (renaming is rare, but the pencil took a permanent place in every view).
+- **Setup assistant card:** "Start over" is gone; "Continue" and "Don't show again" stand in one row with symbol and text, on the phone too.
+- **Sensor view, tab "Device":** "Show in the configuration" has the same shape as "Defaults" (corners of 12 px, symbol in a tile) instead of a pill.
+
+### Fixed
+
+- **HealthCheck tile:** a grey dot stood in front of the green one (a class of the window of the services drew it too).
+
 ## [1.93.1] - 2026-11-28
+
+Not released; included in 1.94.0.
 
 ### Fixed
 
@@ -2497,7 +2516,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
-[1.93.1]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.1
+[1.94.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.94.0
 [1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0
 [1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3
 [1.92.2]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.2

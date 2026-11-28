@@ -55,6 +55,21 @@ for (const lang of ["de", "en"]) {
       check(`${tag}: Übersicht: keine Fehler der Seite`, s.errors.length === 0, s.errors.join(" | "));
       await s.ctx.close();
     }
+
+    // ----- Sensoransicht, Reiter "Gerät": "In der Konfiguration zeigen" wie "Voreinstellungen" (Wunsch des Nutzers 2026-11-28) -----
+    {
+      const s = await open(browser, { mobile, lang, tab: "overview" });
+      await s.waitFor("return !!r.querySelector('[data-act=\"more\"][data-entity=\"binary_sensor.haustuer\"]')", 8000);
+      await s.tap('[data-act="more"][data-entity="binary_sensor.haustuer"]');
+      await s.waitFor("const d=r.getElementById('ag-sensor'); return d.open && !!d.querySelector('.ag-sv-chart svg')", 8000);
+      await s.tap('#ag-sensor [data-sv="tab"][data-tab="device"]');
+      await s.waitFor("return !!r.querySelector('#ag-sensor [data-sv=\"config\"]')", 8000);
+      const m = await s.ev(MEASURE('#ag-sensor [data-sv="config"]'));
+      check(`${tag}: "In der Konfiguration zeigen" eckig (12 px) mit Symbolkachel, nicht rund`,
+        m && m.cls && m.radius === 12 && m.tile[1] === 28 && !transparent(m.tileBg) && m.tileRadius === 8 && m.size[1] === 38, J(m));
+      check(`${tag}: Sensoransicht: keine Fehler der Seite`, s.errors.length === 0, s.errors.join(" | "));
+      await s.ctx.close();
+    }
   }
 }
 await browser.close();

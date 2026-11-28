@@ -6,7 +6,7 @@
 // Benennung wie überall im Panel "Regeln" (Entscheid des Nutzers, 2026-11-18, 19:47; eine erste Fassung hiess dort "Aktionen").
 // Die Daten kommen ausgewertet vom Server (sensor_history.py); hier wird nur gezeichnet.
 const V = new URL(import.meta.url).search;
-const { DC, MODE_ICON, MODE_KEY, TYPES, copyBtn, copyValue, errText, esc, ic, matchQuery, searchField } = await import(`./common.js${V}`);
+const { DC, MODE_ICON, MODE_KEY, TYPES, batteryIc, copyBtn, copyValue, errText, esc, ic, matchQuery, searchField, signalBars, signalIc } = await import(`./common.js${V}`);
 const { loaderHtml, loaderStart } = await import(`./loader.js${V}`);
 const { normMonitor } = await import(`./monitor.js${V}`);
 
@@ -258,7 +258,7 @@ export class SensorView {
       device: () => [info.manufacturer, info.model].filter(Boolean).join(" ") || this._t("svDeviceNone"),
     };
     const tiles = this.tabs().map((tab) => `<button type="button" class="ag-sv-tile ${tab === this.tab ? "on" : ""}" data-sv="tab" data-tab="${tab}" role="tab" aria-selected="${tab === this.tab}">
-        <span class="ag-sv-ti">${ic(TAB_ICON[tab], 22)}</span><span class="ag-sv-tx"><small>${esc(this._t(`svTab_${tab}`))}</small><b>${esc(tileValue[tab]())}</b></span></button>`).join("");
+        <span class="ag-sv-ti">${this._tileIcon(tab, info)}</span><span class="ag-sv-tx"><small>${esc(this._t(`svTab_${tab}`))}</small><b>${esc(tileValue[tab]())}</b></span></button>`).join("");
     const body = this.tab === "device" ? this._deviceHtml() : this._tabHtml();
     this.host._setHtml(dlg, `<div class="ag-sv" data-flavor="${this.flavor()}" ${body.busy ? "data-busy" : ""}>
       <div class="ag-sv-fix">
@@ -290,6 +290,26 @@ export class SensorView {
     // ist nach einer Unterbrechung im alten Zustand zurück
     if (s.state === "gone" && cur === s.real) return s.real_t;
     return st.last_changed;
+  }
+
+  // Symbol der Kachel (1.94.0, Wunsch des Nutzers 2026-11-28): Akku mit Füllstand, Empfang mit Balken in der Akzentfarbe; alle anderen wie bisher
+  _tileIcon(tab, info) {
+    if (tab === "battery") {
+      const st = info.battery ? this.host._hass?.states?.[info.battery] : null;
+      const v = st && st.state !== "unavailable" && st.state !== "unknown" ? Number(st.state) : NaN;
+      return batteryIc(v, 22, this.host._lowBattery?.() ?? 20);
+    }
+    if (tab === "signal") {
+      if (info.signal_live) {
+        const live = info.signal_live;
+        return signalIc(signalBars(live.value === null || live.value === undefined ? NaN : Number(live.value), live.kind === "dbm" ? "dBm" : "LQI"), 22);
+      }
+      const st = info.signal ? this.host._hass?.states?.[info.signal] : null;
+      const v = st && st.state !== "unavailable" && st.state !== "unknown" ? Number(st.state) : NaN;
+      const unit = st?.attributes?.unit_of_measurement;
+      return signalIc(signalBars(v, unit === "dBm" || unit === "dB" ? "dBm" : unit === "%" ? "%" : v < 0 ? "dBm" : "LQI"), 22);
+    }
+    return ic(TAB_ICON[tab], 22);
   }
 
   // Empfang von ZHA oder Bluetooth: der Wert kommt vom Server (1.41.0)
@@ -903,6 +923,6 @@ export class SensorView {
     }).join("");
     return { fix: "", list: `<div class="ag-sv-device"><div class="ag-label">${esc(this._t("svDevDevice"))}</div><div class="ag-card ag-sv-dcard">${facts || `<div class="ag-sv-msg ag-t2">${esc(this._t("svDeviceNone"))}</div>`}</div>
       <div class="ag-label">${esc(this._t("svDevWatched"))}</div><div class="ag-card ag-sv-dcard">${systems || `<div class="ag-sv-msg ag-t2">${esc(this._t("svDevNowhere"))}</div>`}</div>
-      <button type="button" class="ag-btn ag-sv-config" data-sv="config">${ic("tune", 18)}${esc(this._t("svDevConfig"))}</button></div>` };
+      <button type="button" class="ag-btn ag-toolbtn ag-sv-config" data-sv="config">${ic("tune", 20)}${esc(this._t("svDevConfig"))}</button></div>` };
   }
 }

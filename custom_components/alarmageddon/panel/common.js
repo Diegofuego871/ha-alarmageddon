@@ -143,6 +143,33 @@ export const fmtDur = (seconds) => {
 export const ic = (name, size = 18) =>
   `<svg class="ag-ic" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">${RAW[name] || `<path fill="currentColor" d="${P[name]}"/>`}</svg>`;
 
+// Akku- und Empfangssymbol mit Füllstand (Wunsch des Nutzers 2026-11-28: "Akku zeigt bei voll einen gefüllten Akku, Empfang übernimmt die Balken, zum Beispiel in der Akzentfarbe").
+// Akku: Umriss wie "battery", innen von unten gefüllt nach Prozent (unter der Schwelle orange, ab der Hälfte der Schwelle rot, sonst Akzentfarbe); ohne Wert nur der Umriss.
+// Empfang: vier Balken, so viele in der Akzentfarbe wie die Stufe sagt, die übrigen gedimmt; ohne Wert alle gedimmt.
+export const batteryLevel = (pct) => (Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : null);
+export const batteryIc = (pct, size = 22, low = 20) => {
+  const v = batteryLevel(pct);
+  const h = v === null ? 0 : (14 * v) / 100;
+  const colour = v === null ? "currentColor" : v <= low / 2 ? "var(--ag-error)" : v <= low ? "var(--ag-warning)" : "var(--ag-primary)";
+  return `<svg class="ag-ic ag-ic-battery" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" data-level="${v === null ? "" : Math.round(v)}"><path fill="currentColor" d="${P.battery}"/>${h > 0 ? `<rect class="ag-ic-fill" x="8" y="${(20 - h).toFixed(2)}" width="8" height="${h.toFixed(2)}" fill="${colour}"/>` : ""}</svg>`;
+};
+// Stufe 0 bis 4: dBm nach den Zonen der Grafik (gut ab -65, mittel bis -80, schwach darunter), LQI (0 bis 255) und Prozent in Vierteln
+export const signalBars = (value, unit) => {
+  if (!Number.isFinite(value)) return null;
+  if (unit === "dBm") return value >= -55 ? 4 : value >= -65 ? 3 : value >= -80 ? 2 : 1;
+  const max = unit === "LQI" ? 255 : 100;
+  const f = value / max;
+  return f >= 0.75 ? 4 : f >= 0.5 ? 3 : f >= 0.25 ? 2 : f > 0 ? 1 : 0;
+};
+export const signalIc = (bars, size = 22) => {
+  const heights = [6, 10, 14, 18];
+  const rects = heights.map((h, i) => {
+    const lit = bars !== null && i < bars;
+    return `<rect x="${3 + i * 5}" y="${21 - h}" width="3.4" height="${h}" rx="0.8" fill="${lit ? "var(--ag-primary)" : "currentColor"}"${lit ? "" : ' opacity=".28"'}/>`;
+  }).join("");
+  return `<svg class="ag-ic ag-ic-signal" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" data-bars="${bars === null ? "" : bars}">${rects}</svg>`;
+};
+
 // Play-Knöpfe (Vorgabe des Nutzers, 2026-11-17): Jeder Play-Knopf im Panel wird beim Drücken rot und zum Stopp-Knopf, überall gleich
 // (Klasse "ag-running" in styles.js). Läuft etwas, das sich anhalten lässt (Test der Aktionen, Ton), stoppt der Knopf es. Einmalige Tests
 // (Testmeldung, ein Schritt der Überwachung) sind nach dem Senden schon fertig: der Knopf bleibt rot, bis der Server geantwortet hat, mindestens

@@ -101,3 +101,78 @@ async def test_reset_leaves_other_systems_alone(hass: HomeAssistant, hass_ws_cli
     assert (await _reset(client, entry))["success"]
     await hass.async_block_till_done()
     assert garage.options[CONF_ACCENT] == "teal"
+
+
+# ----- 1.94.0: Schalter "Protokoll löschen" und "Gemeinsame Daten zurücksetzen" -----
+
+
+def _log_kinds(entry) -> list[str]:
+    return [e["kind"] for e in entry.runtime_data.events.events]
+
+
+async def test_reset_keeps_log_and_shared_settings_by_default(hass: HomeAssistant, hass_ws_client) -> None:
+    from homeassistant.config_entries import ConfigEntryState
+
+    entry = await setup_alarm(hass)
+    settings = await async_get_settings(hass)
+    await settings.async_set_names_with_device(False)
+    entry.runtime_data.controller.emit("routine_skipped", routine="x", action="off", reason="state", at="armed")
+    client = await hass_ws_client(hass)
+    assert (await _reset(client, entry))["success"]
+    await hass.async_block_till_done()
+    assert settings.names_with_device is False  # gemeinsame Einstellungen bleiben
+    assert "routine_skipped" in _log_kinds(entry)  # Protokoll bleibt
+    assert entry.state is ConfigEntryState.LOADED
+
+
+async def test_reset_can_clear_the_log(hass: HomeAssistant, hass_ws_client) -> None:
+    from homeassistant.config_entries import ConfigEntryState
+
+    entry = await setup_alarm(hass)
+    settings = await async_get_settings(hass)
+    await settings.async_set_names_with_device(False)
+    entry.runtime_data.controller.emit("routine_skipped", routine="x", action="off", reason="state", at="armed")
+    assert "routine_skipped" in _log_kinds(entry)
+    client = await hass_ws_client(hass)
+    assert (await _reset(client, entry, clear_log=True))["success"]
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED and state(hass) == AlarmControlPanelState.DISARMED
+    assert "routine_skipped" not in _log_kinds(entry)  # Protokoll weg
+    assert settings.names_with_device is False  # gemeinsame Einstellungen bleiben
+    assert dict(entry.options) == default_options()
+
+
+async def test_reset_can_reset_shared_settings_for_the_only_system(hass: HomeAssistant, hass_ws_client) -> None:
+    from custom_components.alarmageddon.const import DEFAULT_PRESETS
+    from homeassistant.config_entries import ConfigEntryState
+
+    entry = await setup_alarm(hass)
+    settings = await async_get_settings(hass)
+    await settings.async_set_names_with_device(False)
+    await settings.async_store_presets({**DEFAULT_PRESETS, "door": []})
+    client = await hass_ws_client(hass)
+    assert (await _reset(client, entry, clear_shared=True, backup_name="Vor Reset"))["success"]
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED and dict(entry.options) == default_options()
+    assert settings.names_with_device is True
+    assert settings.data["presets"]["door"] == DEFAULT_PRESETS["door"]
+    # Backups bleiben immer, auch das eben angelegte
+    backups = (await _ws(client, type=f"{DOMAIN}/backups"))["result"]["backups"]
+    assert [b["name"] for b in backups] == ["Vor Reset"]
+
+
+async def test_reset_shared_is_refused_with_several_systems(hass: HomeAssistant, hass_ws_client) -> None:
+    """Mit mehreren Anlagen träfe es die anderen mit: der Server lehnt ab (das Panel zeigt den Schalter dann gar nicht), nichts ändert sich, kein Backup."""
+    entry = await setup_alarm(hass)
+    client = await hass_ws_client(hass)
+    created = await _ws(client, type=f"{DOMAIN}/create_system", name="Garage")
+    assert created["success"]
+    settings = await async_get_settings(hass)
+    await settings.async_set_names_with_device(False)
+    before = dict(entry.options)
+    result = await _reset(client, entry, clear_shared=True, backup_name="x")
+    assert result["success"] is False and result["error"]["code"] == "shared_needs_single_system", result
+    assert settings.names_with_device is False and dict(entry.options) == before
+    assert (await _ws(client, type=f"{DOMAIN}/backups"))["result"]["backups"] == []
+    # Das Protokoll dieser Anlage allein darf auch bei mehreren Anlagen gelöscht werden
+    assert (await _reset(client, entry, clear_log=True))["success"]

@@ -24,7 +24,7 @@ for (const lang of ["de", "en"]) {
     let s = await open(browser, { mobile, lang, query: `${LATER}&wzstep=notify`, context: mobile ? { reducedMotion: "reduce" } : {} });
     const t0 = Date.now();
     check(`${tag}: der Assistent öffnet sich nicht von selbst (verschoben)`, await s.ev("return !r.querySelector('.ag-wz')"));
-    check(`${tag}: runder Knopf direkt rechts neben dem Stift, 40 px, mit Zauberstab und blauem Punkt`, await s.waitFor(`const b=r.querySelector('${BTN}'); if (!b) return false; const pen=r.querySelector('[data-act="rename"]');
+    check(`${tag}: runder Knopf direkt rechts neben dem Anlagennamen (seit 1.94.0 ohne Stift), 40 px, mit Zauberstab und blauem Punkt`, await s.waitFor(`const b=r.querySelector('${BTN}'); if (!b) return false; const pen=r.querySelector('.ag-headsys select[data-act="system"], .ag-headsys h2');
       const rc=b.getBoundingClientRect(); const dot=b.querySelector('.ag-wzbtn-dot'); const cs=getComputedStyle(b);
       return pen.nextElementSibling === b && Math.round(rc.width) === 40 && Math.round(rc.height) === 40 && cs.borderRadius === '50%' && b.querySelectorAll('.ag-wzstar').length === 3 && !!b.querySelector('.ag-wzstick')
         && !!dot && dot.offsetWidth > 0 && getComputedStyle(dot).backgroundColor === getComputedStyle(b).color && rc.left >= pen.getBoundingClientRect().right`));
@@ -74,7 +74,7 @@ for (const lang of ["de", "en"]) {
     await s.tap('[data-wz="later"]');
     await s.waitFor("return r.getElementById('ag-wzask').open");
     await s.tap('#ag-wzask [data-wz="ask-hide"]');
-    check(`${tag}: nach "Nicht mehr anzeigen" ist der Knopf im Kopf weg (Server: hidden)`, await s.waitFor(`return !r.querySelector('.ag-wz') && !!r.querySelector('[data-act="rename"]') && !r.querySelector('${BTN}')`, 8000)
+    check(`${tag}: nach "Nicht mehr anzeigen" ist der Knopf im Kopf weg (Server: hidden)`, await s.waitFor(`return !r.querySelector('.ag-wz') && !!r.querySelector('[data-act="add"]') && !r.querySelector('${BTN}')`, 8000)
       && (await s.sim("return window.__systems[0].wizard.state")) === "hidden");
     await s.tap('[data-tab="config"]');
     check(`${tag}: ausgeblendet: auch unter Konfiguration kein Knopf im Kopf`, await s.waitFor(`return !!r.querySelector('.ag-cfg, [data-sub]') && !r.querySelector('${BTN}')`));
@@ -92,13 +92,13 @@ for (const lang of ["de", "en"]) {
 
     // ----- Ausgeblendet (Nicht mehr anzeigen): schon beim Laden kein Knopf -----
     s = await open(browser, { mobile, lang, query: "&wizard=hidden&wzstep=notify" });
-    check(`${tag}: ausgeblendet: kein Knopf im Kopf`, await s.waitFor(`return !!r.querySelector('[data-act="rename"]') && !r.querySelector('${BTN}')`));
+    check(`${tag}: ausgeblendet: kein Knopf im Kopf`, await s.waitFor(`return !!r.querySelector('[data-act="add"]') && !r.querySelector('${BTN}')`));
     await s.ctx.close();
 
-    // ----- Konfiguration › Anlage: "Von vorn" trägt wie "Fortsetzen" ein Symbol (Wunsch des Nutzers 2026-11-23) -----
+    // ----- Konfiguration › Anlage: "Fortsetzen" und "Nicht mehr anzeigen" tragen ein Symbol gleicher Grösse (Wunsch des Nutzers 2026-11-23, 2026-11-28; "Von vorn" entfällt) -----
     s = await open(browser, { mobile, lang, query: "&wizard=later&wzuntil=2999-01-01&wzstep=notify", tab: "config" });
     await s.tap('[data-sub="system"]');
-    check(`${tag}: "Von vorn" hat ein Symbol, gleich gross wie das von "Fortsetzen"`, await s.waitFor("const b=[...r.querySelectorAll('[data-wz=\"run\"][data-step=\"welcome\"]')].find((x) => x.classList.contains('ag-btn')); const c=r.querySelector('.ag-btn.primary[data-wz=\"run\"]'); return !!b && !!c && !!b.querySelector('svg') && b.querySelector('svg').getBoundingClientRect().width === c.querySelector('svg').getBoundingClientRect().width", 8000));
+    check(`${tag}: "Fortsetzen" und "Nicht mehr anzeigen" haben ein Symbol gleicher Grösse, kein "Von vorn"`, await s.waitFor("const row=r.querySelector('.ag-wzrow'); const b=row?.querySelector('[data-wz=\"hide-now\"]'); const c=row?.querySelector('.ag-btn.primary[data-wz=\"run\"]'); return !!b && !!c && !!b.querySelector('svg') && b.querySelector('svg').getBoundingClientRect().width === c.querySelector('svg').getBoundingClientRect().width && row.querySelectorAll('[data-wz=\"run\"][data-step=\"welcome\"]').length === 0", 8000));
     await s.ctx.close();
 
     // ----- Später bei "Fertig": Klick, "Fertig" schliesst ab, danach kein Knopf mehr (auch nicht unter Konfiguration) -----
@@ -107,17 +107,17 @@ for (const lang of ["de", "en"]) {
     await s.tap(BTN);
     check(`${tag}: Klick öffnet den Schritt "${t.done}"`, await s.waitFor("return r.querySelector('.ag-wz')?.dataset.step === 'done' && !r.querySelector('.ag-wz-next[disabled]')", 8000));
     await s.tap('[data-wz="next"]');
-    check(`${tag}: nach "Fertig" kein Knopf mehr (Server: done)`, await s.waitFor(`return !r.querySelector('.ag-wz') && !!r.querySelector('[data-act="rename"]') && !r.querySelector('.ag-wzbtn')`, 8000)
+    check(`${tag}: nach "Fertig" kein Knopf mehr (Server: done)`, await s.waitFor(`return !r.querySelector('.ag-wz') && !!r.querySelector('[data-act="add"]') && !r.querySelector('.ag-wzbtn')`, 8000)
       && (await s.sim("return window.__systems[0].wizard.state")) === "done");
     await s.tap('[data-tab="config"]');
-    check(`${tag}: auch unter Konfiguration kein Knopf`, await s.waitFor(`return !!r.querySelector('.ag-cfg, [data-sub]') && !!r.querySelector('[data-act="rename"]') && !r.querySelector('.ag-wzbtn')`));
+    check(`${tag}: auch unter Konfiguration kein Knopf`, await s.waitFor(`return !!r.querySelector('.ag-cfg, [data-sub]') && !!r.querySelector('[data-act="add"]') && !r.querySelector('.ag-wzbtn')`));
     check(`${tag}: keine Fehler in der Konsole (Fertig)`, s.errors.length === 0, s.errors.join(" | "));
     await s.ctx.close();
 
     // ----- Eingerichtete Anlage (Standard im Nachbau): nie ein Knopf, nichts geplant -----
     s = await open(browser, { mobile, lang });
     await s.page.waitForTimeout(400);
-    check(`${tag}: eingerichtete Anlage: kein Knopf, kein Schwung geplant`, await s.ev("return !!r.querySelector('[data-act=\"rename\"]') && !r.querySelector('.ag-wzbtn') && !r.host._wzWaveTimer"));
+    check(`${tag}: eingerichtete Anlage: kein Knopf, kein Schwung geplant`, await s.ev("return !!r.querySelector('[data-act=\"add\"]') && !r.querySelector('.ag-wzbtn') && !r.host._wzWaveTimer"));
     await s.ctx.close();
 
     // ----- Noch nicht begonnen (verschoben beim Willkommen): "starten"; offene Änderungen fragen vorher -----

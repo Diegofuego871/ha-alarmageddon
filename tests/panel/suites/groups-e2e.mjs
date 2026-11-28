@@ -112,12 +112,15 @@ for (const lang of ["de", "en"]) {
     await s.ev(`const sel=r.querySelector('[data-act="system"]'); sel.value="e_garage"; sel.dispatchEvent(new Event("change", { bubbles: true }));`);
     check(`${tag}: Garage ohne Nacht`, await s.waitFor(`return r.querySelectorAll('.ag-table th').length === 6`));
     // Name der Anlage oben: grosses Dropdown (mehrere Anlagen), Stift, Sprung nach HA, Umbenennen
-    check(`${tag}: Anlagenname gross als Dropdown mit Stift ganz oben, ohne HA-Knopf`, await s.ev(`const b=r.querySelector('.ag-head .ag-headsys'); const sel=b.querySelector('select[data-act="system"]'); return !!sel && parseFloat(getComputedStyle(sel).fontSize) >= 20 && sel.offsetHeight >= 44 && !!b.querySelector('[data-act="rename"]') && !b.querySelector('[data-act="open-ha"]')`));
+    check(`${tag}: Anlagenname gross als Dropdown ganz oben, ohne Stift und ohne HA-Knopf`, await s.ev(`const b=r.querySelector('.ag-head .ag-headsys'); const sel=b.querySelector('select[data-act="system"]'); return !!sel && parseFloat(getComputedStyle(sel).fontSize) >= 20 && sel.offsetHeight >= 44 && !b.querySelector('[data-act="rename"]') && !b.querySelector('[data-act="open-ha"]')`));
     await s.tap('[data-sub="notify"]');
-    check(`${tag}: Anlagenname bleibt auch bei Benachrichtigungen oben`, await s.waitFor(`return !!r.querySelector('.ag-headsys select[data-act="system"]') && !!r.querySelector('.ag-headsys [data-act="rename"]')`));
+    check(`${tag}: Anlagenname bleibt auch bei Benachrichtigungen oben`, await s.waitFor(`return !!r.querySelector('.ag-headsys select[data-act="system"]') && !r.querySelector('.ag-headsys [data-act="rename"]')`));
     await s.tap('[data-sub="sensors"]');
     await s.waitFor(`return !!r.querySelector('.ag-headsys select, .ag-headsys h2')`);
-    await s.tap('[data-act="rename"]');
+    // Umbenennen steht seit 1.94.0 unter Konfiguration › Anlage › Allgemein (nicht mehr als Bleistift im Kopf)
+    await s.tap('[data-sub="system"]');
+    await s.waitFor(`return !!r.querySelector('.ag-namerow [data-sys="rename"]') && r.querySelector('.ag-namerow .ag-sysname')?.textContent === "Garage"`);
+    await s.tap('[data-sys="rename"]');
     check(`${tag}: Dialog Umbenennen mit Name und Schalter für neue IDs (aus)`, await s.waitFor(`const d=r.getElementById("ag-rename"); return d.open && d.querySelector("input").value === "Garage" && d.querySelector('[data-act="rename-ids"]').getAttribute("aria-checked") === "false"`));
     await s.ev(`const i=r.getElementById("ag-rename").querySelector("input"); i.value="Haus"; r.getElementById("ag-rename").querySelector("form").requestSubmit();`);
     check(`${tag}: doppelter Name wird abgelehnt`, await s.waitFor(`const d=r.getElementById("ag-rename"); return d.open && d.querySelector(".ag-dlg-err").textContent.length > 5`));
@@ -128,7 +131,7 @@ for (const lang of ["de", "en"]) {
     // Kopfzeile in jedem Reiter gleich (Name, Stift, HA-Knopf), auch in Übersicht und Protokoll
     for (const tab of ["overview", "log", "config"]) {
       await s.tap(`[data-tab="${tab}"]`);
-      check(`${tag}: Kopfzeile mit Anlagenname und Stift im Reiter ${tab}`, await s.waitFor(`const h=r.querySelector('.ag-head .ag-headsys'); return !!h && !!h.querySelector('[data-act="system"]') && !!h.querySelector('[data-act="rename"]')`));
+      check(`${tag}: Kopfzeile mit Anlagenname (ohne Stift) im Reiter ${tab}`, await s.waitFor(`const h=r.querySelector('.ag-head .ag-headsys'); return !!h && !!h.querySelector('[data-act="system"]') && !h.querySelector('[data-act="rename"]')`));
     }
     // Breites Fenster: Blatt der Sensor-Optionen und Knöpfe oben rechts enden auf derselben Linie
     await s.page.setViewportSize({ width: 2200, height: 950 });

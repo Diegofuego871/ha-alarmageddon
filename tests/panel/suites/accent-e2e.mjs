@@ -4,7 +4,8 @@
 import { check, done, launch, open } from "../lib.mjs";
 
 const NAMES = { de: ["Home Assistant", "Himmelblau", "Ozeanblau", "Türkis", "Indigo", "Rosa", "Orange", "Rot", "Tannengrün", "Graphit"], en: ["Home Assistant", "Sky blue", "Ocean blue", "Turquoise", "Indigo", "Pink", "Orange", "Red", "Fir green", "Graphite"] };
-const TITLE = { de: "Akzentfarbe", en: "Accent colour" };
+const TITLE = { de: "Allgemein", en: "General" }; // Kapitel unter Konfiguration › Anlage (seit 1.94.0, vorher "Akzentfarbe")
+const ADD_TITLE = { de: "Akzentfarbe", en: "Accent colour" }; // Kapitel im Fenster "Anlage hinzufügen"
 const browser = await launch();
 for (const lang of ["de", "en"]) {
   for (const mobile of [false, true]) {
@@ -14,7 +15,7 @@ for (const lang of ["de", "en"]) {
     const prim = () => s.ev("return r.host.style.getPropertyValue('--ag-primary')");
     check(`${tag}: ohne eigene Farbe gilt die Farbe des Themes (kein Wert am Panel)`, (await prim()) === "");
     const chap = await s.ev(`const cs=[...r.querySelectorAll('.ag-chap')]; const i=cs.findIndex((c) => c.querySelector('.ag-chap-t')?.textContent === ${JSON.stringify(TITLE[lang])}); const wz=cs.findIndex((c) => c.querySelector('.ag-wzrow')); return { i, wz, btn: !!cs[i]?.querySelector('[data-sys="acc-open"]'), tint: !!cs[i]?.querySelector('.ag-tint-accent'), grid: cs[i]?.querySelectorAll('.ag-accbtn').length, name: cs[i]?.querySelector('.ag-accname')?.textContent.trim(), dot: cs[i]?.querySelector('.ag-accdot')?.getBoundingClientRect().width, chips: !!cs[i]?.querySelector('.ag-accchips') }`);
-    check(`${tag}: Kapitel "${TITLE[lang]}" direkt über dem Einrichtungsassistenten: Zeile mit eigenem Symbol und Knopf, die Farben stehen nicht auf der Seite`, chap.i >= 0 && chap.wz === chap.i + 1 && chap.btn && chap.tint && !chap.grid && chap.name === NAMES[lang][0] && chap.dot >= 14, JSON.stringify(chap));
+    check(`${tag}: Kapitel "${TITLE[lang]}" (Name und Akzentfarbe, seit 1.94.0) direkt über dem Einrichtungsassistenten: Zeile mit eigenem Symbol und Knopf, die Farben stehen nicht auf der Seite`, chap.i >= 0 && chap.wz === chap.i + 1 && chap.btn && chap.tint && !chap.grid && chap.name === NAMES[lang][0] && chap.dot >= 14, JSON.stringify(chap));
     await s.tap('[data-sys="acc-open"]');
     await s.waitFor("return r.getElementById('ag-accent').open");
     // Das Fenster ist am Computer so breit wie die Fenster der Listen (Dienste, Töne, Backups), Wunsch des Nutzers 2026-11-23
@@ -77,7 +78,7 @@ for (const lang of ["de", "en"]) {
     await a.tap('.ag-headsys [data-act="add"]');
     await a.waitFor("return r.getElementById('ag-add').open");
     const grid = await a.ev(`const d=r.getElementById('ag-add'); return { n: d.querySelectorAll('.ag-accbtn').length, on: d.querySelector('.ag-accbtn.on')?.dataset.key, chap: [...d.querySelectorAll('.ag-chap-t')].map((e) => e.textContent) }`);
-    check(`${tag}: Fenster "Anlage hinzufügen": zehn Farben, "Home Assistant" vorgewählt, Kapitel "${TITLE[lang]}"`, grid.n === 10 && grid.on === "ha" && grid.chap.includes(TITLE[lang]), JSON.stringify(grid));
+    check(`${tag}: Fenster "Anlage hinzufügen": zehn Farben, "Home Assistant" vorgewählt, Kapitel "${ADD_TITLE[lang]}"`, grid.n === 10 && grid.on === "ha" && grid.chap.includes(ADD_TITLE[lang]), JSON.stringify(grid));
     await a.tap('#ag-add [data-act="add-accent"][data-key="red"]');
     check(`${tag}: Wahl im Fenster markiert die Farbe`, await a.ev("return r.getElementById('ag-add').querySelector('.ag-accbtn.on')?.dataset.key === 'red'"));
     await (await a.el("#ag-add-input")).fill("Farbtest");

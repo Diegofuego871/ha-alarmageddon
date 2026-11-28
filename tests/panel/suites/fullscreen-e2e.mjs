@@ -48,12 +48,17 @@ for (const lang of ["de", "en"]) {
     expectFull("Sensoransicht", await probe("ag-sensor"), { bar: false });
     await closeX("ag-sensor");
 
-    await s.tap('[data-act="rename"]');
+    // Seit 1.94.0 steht "Umbenennen" unter Konfiguration › Anlage › Allgemein (der Bleistift im Kopf entfällt)
+    await s.tap('[data-tab="config"]');
+    await s.tap('[data-sub="system"]');
+    await s.waitFor("return !!r.querySelector('[data-sys=\"rename\"]')");
+    await s.tap('[data-sys="rename"]');
     await opened("ag-rename");
     expectFull('"Umbenennen"', await probe("ag-rename"), { form: true });
     await closeX("ag-rename");
 
     await s.tap('[data-tab="config"]');
+    await s.tap('[data-sub="sensors"]');
     await s.waitFor("return !!r.querySelector('[data-sen=\"presets\"]')");
     await s.tap('[data-sen="presets"]');
     await opened("ag-presets");

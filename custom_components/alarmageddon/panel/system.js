@@ -675,8 +675,12 @@ export class SystemUi {
   _accentHtml(d) {
     const t = (k, v) => this._t(k, v);
     const hex = accentColor(d.accent);
-    return chapter(t("accTitle"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum ag-accrow"><span class="ag-oav ag-tint ag-tint-accent on">${ic("palette", 20)}</span>
-      <div class="ag-settx"><b class="ag-accname"><span class="ag-accdot ag-accdot-s ag-accdot-ring" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span>${esc(t(`acc_${d.accent}`))}</b>${d.accent !== this.base().accent ? `<small class="ag-t2 ag-unsaved">${esc(t("unsavedOne"))}</small>` : ""}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="acc-open">${ic("palette", 18)}${esc(t("accChange"))}</button></div></div></div>`, t("accHint"));
+    const sys = this.system;
+    // Kapitel "Allgemein" (seit 1.94.0, Wunsch des Nutzers 2026-11-28): Name der Anlage (Umbenennen, früher der Bleistift im Kopf) und Akzentfarbe
+    const nameRow = `<div class="ag-setrow ag-rtsum ag-namerow"><span class="ag-oav ag-tint ag-tint-accent on">${ic("pencil", 20)}</span>
+      <div class="ag-settx"><b class="ag-sysname">${esc(sys?.title || "")}</b><small>${esc(t("genNameHint"))}</small></div><div class="ag-btnrow"><button class="ag-btn" data-sys="rename">${ic("pencil", 18)}${esc(t("renameTip"))}</button></div></div>`;
+    return chapter(t("genTitle"), `<div class="ag-card ag-setlist ag-codes">${nameRow}<div class="ag-setrow ag-rtsum ag-accrow"><span class="ag-oav ag-tint ag-tint-accent on">${ic("palette", 20)}</span>
+      <div class="ag-settx"><b class="ag-accname"><span class="ag-accdot ag-accdot-s ag-accdot-ring" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span>${esc(t(`acc_${d.accent}`))}</b>${d.accent !== this.base().accent ? `<small class="ag-t2 ag-unsaved">${esc(t("unsavedOne"))}</small>` : ""}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="acc-open">${ic("palette", 18)}${esc(t("accChange"))}</button></div></div></div>`, t("genHint"));
   }
 
   accentDlg() {
@@ -718,10 +722,11 @@ export class SystemUi {
     const status = w.state === "done" ? this._t("wzState_done") : w.state === "later" ? this._t("wzState_later", { date, n }) : w.state === "hidden" ? this._t("wzState_hidden", { n })
       : this._t("wzState_open", { n, step: stepName });
     const resume = w.state !== "done" && w.step !== "welcome";
-    // "Nicht mehr anzeigen" gleich hier, ohne Rückfrage (Wunsch des Nutzers 2026-11-26): verwirft den laufenden Assistenten; auf dem Handy nur das Symbol, damit alle Knöpfe in einer Zeile bleiben
-    const hide = w.state === "open" || w.state === "later" ? `<button class="ag-btn ag-wz-hide" data-wz="hide-now" title="${esc(this._t("wzHideNow"))}" aria-label="${esc(this._t("wzHideNow"))}">${ic("eyeOff", 18)}<span class="ag-wz-hidetx">${esc(this._t("wzHideNow"))}</span></button>` : "";
+    // "Nicht mehr anzeigen" gleich hier, ohne Rückfrage (Wunsch des Nutzers 2026-11-26): verwirft den laufenden Assistenten. Seit 1.93.0 mit Symbol und
+    // Text auch auf dem Handy; "Von vorn" entfällt (Wunsch des Nutzers 2026-11-28), damit beide Knöpfe mit Symbol und Text in eine Zeile passen
+    const hide = w.state === "open" || w.state === "later" ? `<button class="ag-btn ag-wz-hide" data-wz="hide-now">${ic("eyeOff", 18)}${esc(this._t("wzHideNow"))}</button>` : "";
     const btns = resume
-      ? `<button class="ag-btn" data-wz="run" data-step="welcome">${ic("refresh", 18)}${esc(this._t("wzRestart"))}</button><button class="ag-btn primary" data-wz="run" data-step="${esc(w.step)}">${ic("wand", 18)}${esc(this._t("wzResumeShort"))}</button>${hide}`
+      ? `<button class="ag-btn primary" data-wz="run" data-step="${esc(w.step)}">${ic("wand", 18)}${esc(this._t("wzResumeShort"))}</button>${hide}`
       : `<button class="ag-btn" data-wz="run" data-step="welcome">${ic("wand", 18)}${esc(this._t("wzRun"))}</button>${hide}`;
     return chapter(this._t("wzChapter"), `<div class="ag-card ag-setlist ag-codes"><div class="ag-setrow ag-rtsum ag-wzrow"><span class="ag-oav ag-tint ag-tint-wizard on">${ic("wand", 20)}</span>
       <div class="ag-settx"><b>${esc(status)}</b><small>${esc(this._t("wzChapterText"))}</small></div><div class="ag-btnrow">${btns}</div></div></div>`, this._t("wzChapterHint"));
@@ -1342,6 +1347,10 @@ export class SystemUi {
     }
     if (act === "delete") {
       this.host._openDelete();
+      return true;
+    }
+    if (act === "rename") {
+      this.host._openRename();
       return true;
     }
     if (act === "reset") {

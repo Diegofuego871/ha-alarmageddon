@@ -122,6 +122,8 @@
       night_enabled: false, sensor_options: {}, workflows: {}, workflow_running: null, workflow_test: false,
       events: [ { t: iso(20 * 60e3), state: "disarmed", mode: null, by: "Automation" } ] },
   ];
+  // ?single=e_garage: nur diese Anlage (der Schalter "Gemeinsame Daten zurücksetzen" erscheint nur bei genau einer Anlage, 1.94.0)
+  if (params.get("single")) window.__systems = window.__systems.filter((x) => x.entry_id === params.get("single"));
   // Einrichtungsassistent (1.69.0): wie der Server je Anlage ein Zustand. Bestehende Anlagen sind eingerichtet; ?wizard=open öffnet ihn für "Haus"
   // (?wzstep=zones: bei diesem Schritt), neue Anlagen (create_system) bekommen ihn. "Heute" lässt sich mit window.__wzToday ("JJJJ-MM-TT") setzen.
   for (const sys of window.__systems) sys.wizard = { state: "done", until: null, step: "welcome" };
@@ -1086,7 +1088,8 @@
     if (msg.type === "alarmageddon/reset_system") {
       if (states[sys.entity_id]?.state !== "disarmed") throw err("not_disarmed", "Disarm the alarm system first");
       if (window.__resetFail) throw err("reset_failed", "Reset failed");
-      window.__resets = (window.__resets || []).concat([{ entry_id: sys.entry_id, title: sys.title, backup_name: msg.backup_name || "" }]);
+      if (msg.clear_shared && window.__systems.length !== 1) throw err("shared_needs_single_system", "Shared data can only be reset when there is exactly one alarm system");
+      window.__resets = (window.__resets || []).concat([{ entry_id: sys.entry_id, title: sys.title, backup_name: msg.backup_name || "", clear_log: !!msg.clear_log, clear_shared: !!msg.clear_shared }]);
       if (msg.backup_name) window.__backupMade = (window.__backupMade || []).concat([msg.backup_name]);
       sys.accent = "ha";
       sys.wizard = { state: "open", until: null, step: "welcome" };

@@ -178,7 +178,10 @@ for (const lang of ["de", "en"]) {
     await o.waitFor("return r.getElementById('ag-view').open");
     await auditO('Fenster "Ansicht"');
     await o.ev("for (const d of r.querySelectorAll('dialog[open]')) d.close(); return 1");
-    await o.tap('[data-act="rename"]');
+    await o.tap('[data-tab="config"]');
+    await o.tap('[data-sub="system"]');
+    await o.waitFor("return !!r.querySelector('[data-sys=\"rename\"]')");
+    await o.tap('[data-sys="rename"]');
     await o.waitFor("return r.getElementById('ag-rename').open");
     await auditO('Fenster "Umbenennen"');
     check(`${tag}: kein Überlauf, keine Fehler im Browser`, (await o.ev("return document.documentElement.scrollWidth <= window.innerWidth")) && o.errors.length === 0 && s.errors.length === 0, [...o.errors, ...s.errors].join(" | "));

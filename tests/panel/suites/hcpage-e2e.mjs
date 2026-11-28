@@ -86,7 +86,9 @@ for (const lang of ["de", "en"]) {
     await one.waitFor("return !r.getElementById('ag-hclog').open");
     await one.tap('#ag-hclist .ag-dlg-x');
     await one.waitFor("return !r.getElementById('ag-hclist').open");
-    const lampOk = await one.ev("const sm=r.querySelector('.ag-hcsum .ag-hcstate'); const dot=sm.querySelector('.ag-sv-dot'); const bs=[...r.querySelectorAll('.ag-hcsum .ag-btnrow .ag-btn')].map((b) => b.getBoundingClientRect()); return { dot: dot?.className, text: sm.innerText.trim(), color: getComputedStyle(sm.querySelector('span:not(.ag-sv-dot)')).color, plain: getComputedStyle(sm).color, sideBySide: bs.length === 2 && Math.abs(bs[0].top - bs[1].top) < 4 }");
+    const lampOk = await one.ev("const sm=r.querySelector('.ag-hcsum .ag-hcnow'); const dot=sm.querySelector('.ag-sv-dot'); const bs=[...r.querySelectorAll('.ag-hcsum .ag-btnrow .ag-btn')].map((b) => b.getBoundingClientRect()); return { dot: dot?.className, text: sm.innerText.trim(), color: getComputedStyle(sm.querySelector('span:not(.ag-sv-dot)')).color, plain: getComputedStyle(sm).color, sideBySide: bs.length === 2 && Math.abs(bs[0].top - bs[1].top) < 4 }");
+    // Meldung des Nutzers 2026-11-28: vor dem grünen Punkt stand ein grauer (die Klasse "ag-hcstate" des Fensters der Dienste zeichnet selbst einen)
+    check(`${tag}: Kachel: genau ein Punkt vor dem Zustand (kein zusätzlicher grauer Punkt)`, await one.ev("const t=r.querySelector('.ag-hcsum .ag-hcnow'); return t.querySelectorAll('.ag-sv-dot').length === 1 && getComputedStyle(t, '::before').content === 'none'"));
     check(`${tag}: Ampel grün: grüner Punkt vorn und schlichter Text "${t.allOk}"`, lampOk.dot?.includes("ok") && lampOk.text === t.allOk && lampOk.color === lampOk.plain, JSON.stringify(lampOk));
     await one.ctx.close();
     const many = await open(browser, { mobile, lang, tab: "config", prefs: { sub: "system" }, query: "&hc=sample" });

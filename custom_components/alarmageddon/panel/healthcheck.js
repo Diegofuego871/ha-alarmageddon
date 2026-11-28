@@ -133,7 +133,7 @@ export class HealthCheckUi {
     const sub = !n ? this._t("hcNoneHint") : failed ? this._t(failed === 1 ? "hcFailedOne" : "hcFailed", { count: failed }) : this._t("hcAllOk");
     return `<div class="ag-setrow ag-rtsum ag-hcsum"><span class="ag-oav ag-tint ag-tint-health ${n ? "on" : ""}">${ic("heartPulse", 20)}</span><div class="ag-settx">${n
         // Der Zustand steht vorn (Wunsch des Nutzers 2026-11-26): grosser Punkt, "Alles in Ordnung" als Titel, darunter klein "1 von 5 Diensten"
-        ? `<b class="ag-hcstate"><span class="ag-sv-dot ${failed ? "fail" : "ok"}" aria-hidden="true"></span><span>${esc(sub)}</span></b><small class="ag-hclamp"><span>${esc(text)}</span></small>`
+        ? `<b class="ag-hcnow"><span class="ag-sv-dot ${failed ? "fail" : "ok"}" aria-hidden="true"></span><span>${esc(sub)}</span></b><small class="ag-hclamp"><span>${esc(text)}</span></small>`
         : `<b>${esc(text)}</b><small class="ag-hclamp"><span>${esc(sub)}</span></small>`}</div>
       <div class="ag-btnrow"><button class="ag-btn" data-hc="add" ${n >= this.max ? "disabled" : ""}>${ic("plus", 18)}${esc(this._t("hcAdd"))}</button>
         <button class="ag-btn" data-hc="open">${ic("heartPulse", 18)}${esc(this._t("hcShow"))}</button></div></div>`;
