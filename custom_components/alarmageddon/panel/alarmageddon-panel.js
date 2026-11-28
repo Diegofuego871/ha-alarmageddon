@@ -325,6 +325,7 @@ class AlarmageddonPanel extends HTMLElement {
       const untouched = new Set(drafts.filter((ui) => !ui.pinned?.() && !ui.dirtyCount()));
       this._data = data;
       this._connError = false;
+      this._fetchFails = 0;
       if (!this._systems().some((s) => s.entry_id === this._sel)) this._sel = this._systems()[0]?.entry_id || null;
       for (const ui of drafts) if (!ui.pinned?.() && (untouched.has(ui) || !ui.dirtyCount())) ui.draft = null;
       [this._sig, this._softSig] = this._stateSigs();
@@ -355,6 +356,14 @@ class AlarmageddonPanel extends HTMLElement {
           this._retryTimer = 0;
           this._fetch();
         }, 5000);
+      } else if ((this._fetchFails = (this._fetchFails || 0) + 1) < 2) {
+        // Ein einzelner unbekannter Fehler direkt nach dem Wiederöffnen der App (Verbindung noch im Aufbau) zeigt keine Meldung: einmal still
+        // wiederholen, erst der zweite Fehler hintereinander wird gezeigt (1.95.0, Meldung des Nutzers 2026-11-28)
+        clearTimeout(this._retryTimer);
+        this._retryTimer = setTimeout(() => {
+          this._retryTimer = 0;
+          this._fetch();
+        }, 3000);
       } else {
         this._toast(this._t("errGeneric", { message: errText(err) }));
       }
@@ -1453,9 +1462,7 @@ class AlarmageddonPanel extends HTMLElement {
     const li = (key) => `<li>${esc(this._t(key))}</li>`;
     dlg.innerHTML = `<form class="ag-dlg-body" data-form="reset" data-entry="${esc(s.entry_id)}" data-name="${esc(s.title)}">
       <h3 class="ag-deltitle">${ic("alert", 22)}<span>${esc(this._t("rsDialogTitle", { name: s.title }))}</span></h3>
-      <div class="ag-delwarn">${esc(this._t("rsWarn"))}</div>
-      <div class="ag-delbox"><b>${esc(this._t("rsGoes"))}</b><ul>${li("rsGoes1")}${li("rsGoes2")}${li("rsGoes3")}</ul>
-        <b>${esc(this._t("rsStays"))}</b><ul>${li("rsStays1")}${li("rsStays2")}</ul></div>
+      <div class="ag-resetplan"></div>
       <label class="ag-orow ag-rename-ids"><div class="ag-otx"><b>${esc(this._t("rsBackup"))}</b><small>${esc(this._t("rsBackupHint"))}</small></div>
         <button type="button" class="ag-toggle on" data-act="reset-backup" role="switch" aria-checked="true" aria-label="${esc(this._t("rsBackup"))}"></button></label>
       <label class="ag-orow ag-rename-ids"><div class="ag-otx"><b>${esc(this._t("rsClearLog"))}</b><small>${esc(this._t("rsClearLogHint"))}</small></div>
@@ -1464,7 +1471,39 @@ class AlarmageddonPanel extends HTMLElement {
         <button type="button" class="ag-toggle" data-act="reset-shared" role="switch" aria-checked="false" aria-label="${esc(this._t("rsClearShared"))}"></button></label>` : ""}
       <div class="ag-dlg-err" aria-live="polite"></div>
       <div class="ag-dlg-btns"><button type="button" class="ag-btn" data-act="close-reset">${esc(this._t("cancel"))}</button><button class="ag-btn danger" type="submit">${ic("restore", 18)}${esc(this._t("rsConfirm"))}</button></div></form>`;
+    this._resetPlan(dlg.querySelector("form"));
     dlg.showModal();
+  }
+
+  // Der Text oben zeigt genau, was mit den gewählten Schaltern passiert: Zahlen aus den Daten dieser Anlage, nur was es gibt (Wunsch des Nutzers 2026-11-28)
+  _resetPlan(form) {
+    const s = this._system(form.dataset.entry);
+    const on = (act) => !!form.querySelector(`[data-act="${act}"]`)?.classList.contains("on");
+    const single = this._systems().length === 1;
+    const backup = on("reset-backup");
+    const log = on("reset-log");
+    const shared = single && on("reset-shared");
+    const t = (k, v) => this._t(k, v);
+    const count = (v) => (Array.isArray(v) ? v.length : 0);
+    const steps = ["workflows", "workflows_after", "workflows_armed", "workflows_arming", "workflows_entry", "workflows_disarmed", "workflows_report"].reduce(
+      (n, key) => n + Object.values(s?.[key] || {}).reduce((m, list) => m + count(list), 0),
+      0,
+    );
+    const li = (key, n) => (n === undefined || n > 0 ? `<li>${esc(t(key, { n }))}</li>` : "");
+    const goes = [
+      li("rsGSensors", count(s?.sensors)), li("rsGCodes", count(s?.codes)), li("rsGSteps", steps), li("rsGRoutines", count(s?.routines)),
+      li("rsGMonitors", count(s?.monitors) + count(s?.monitor_sensors)), li("rsGSettings"),
+      log ? li("rsGLog") : "",
+      shared ? li("rsGPresets") + li("rsGChecks", count(this._data?.healthchecks)) + li("rsGSounds", count(this._data?.custom_sounds)) : "",
+    ].join("");
+    const stays = [
+      li("rsSName"), li("rsSBackups"),
+      log ? "" : li("rsSLog"),
+      single && !shared ? li("rsSShared") : "",
+    ].join("");
+    form.querySelector(".ag-resetplan").innerHTML = `<div class="ag-delwarn">${esc(t(backup ? "rsWarnBackup" : "rsWarnNoBackup"))}</div>
+      <div class="ag-delbox"><b>${esc(t("rsGoes"))}</b><ul>${goes}</ul><b>${esc(t("rsStays"))}</b><ul>${stays}</ul>
+        <b>${esc(t("rsAfter"))}</b><ul>${li("rsAWizard")}</ul></div>`;
   }
 
   async _resetSystem(form) {
@@ -2042,6 +2081,7 @@ class AlarmageddonPanel extends HTMLElement {
       const on = !el.classList.contains("on");
       el.classList.toggle("on", on);
       el.setAttribute("aria-checked", String(on));
+      this._resetPlan(el.closest("form"));
     } else if (act === "delete-backup") {
       const on = !el.classList.contains("on");
       el.classList.toggle("on", on);

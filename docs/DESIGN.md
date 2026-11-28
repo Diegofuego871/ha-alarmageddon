@@ -273,3 +273,9 @@ Mockups `docs/mockups/einrichtungsassistent-v1/`, Variante B "Seite mit Schrittl
   das den Assistenten wie "Fertig" abschliesst und Konfiguration › Anlage öffnet. Keine Kachel und keine Zeile ist klickbar. Seit 1.72.0 (Wunsch des
   Nutzers 2026-11-20, 14:00): Routinen, Codes pro Person, Eigene Töne, HealthCheck (Reihenfolge der Kapitel), Dashboard-Karte; Symbole in der Farbe
   ihres Kapitels (`ag-tint-routines`, `-codes`, `-sounds`, `-health`; Karte `ag-tint-card`, hellblau).
+
+## Knöpfe in einer Zeile (seit 1.95.0, Wunsch des Nutzers 2026-11-28)
+
+Zwei oder mehr Knöpfe in einer Zeile teilen sich auf dem Handy die Breite zu gleichen Teilen (`.ag-rtsum .ag-btnrow > .ag-btn { flex: 1 1 0 }`), überall gleich,
+auch auf der Karte des Assistenten. Keine eigenen Breiten oder Ausrichtungen je Zeile; der Text bricht bei sehr breiter Schrift um, ragt nie über den Rand.
+Einzelne Knöpfe untereinander (Umbenennen, Akzentfarbe) sind linksbündig und gleich breit.

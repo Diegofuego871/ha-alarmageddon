@@ -51,6 +51,7 @@ for (const lang of ["de", "en"]) {
       && r.querySelectorAll('.ag-wz-grid .ag-wz-tile').length === 7 && !!r.querySelector('.ag-wz-info')`));
     if (mobile) {
       check(`${tag}: Handy: keine Schrittliste, oben "${t.title}" und "Später"`, await s.ev(`return !r.querySelector('.ag-wz-side') && r.querySelector('.ag-wz-kicker').textContent === ${J(t.title)} && r.querySelector('[data-wz="later"]').innerText.trim() === ${J(t.later)}`));
+      check(`${tag}: Handy: "Später" hat ein Uhr-Symbol davor (wie "Morgen wieder anzeigen")`, await s.ev("const b=r.querySelector('[data-wz=\"later\"]'); const v=b.querySelector('svg'); return !!v && v.getBoundingClientRect().right <= b.getBoundingClientRect().right && b.firstElementChild === v"));
       check(`${tag}: Handy: Fusszeile am unteren Rand, Knöpfe gross genug`, await s.ev("const f=r.querySelector('.ag-wz-foot').getBoundingClientRect(); const b=r.querySelector('[data-wz=\"next\"]').getBoundingClientRect(); return Math.abs(f.bottom - innerHeight) <= 1 && b.height >= 40 && b.right <= innerWidth"));
     } else {
       check(`${tag}: Desktop: Schrittliste links mit allen Schritten (Überwachung: es gibt Messwerte), nur der aktuelle wählbar`, await s.waitFor(`const li=[...r.querySelectorAll('.ag-wz-steps li')]; return li.length === 9 && li[0].classList.contains('cur')
@@ -117,7 +118,15 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: "später" ab dem Tag: der Assistent öffnet beim Schritt "Meldungen", ${t.stepOf(5, 7)}`, await H.waitStep("notify")
       && (await s.waitFor(`return r.querySelector('.ag-wz-kicker').textContent.startsWith(${J(t.stepOf(5, 7))})`)));
     if (mobile) {
-      check(`${tag}: Handy: Fortschritt mit 7 Strichen, 4 fertig, 1 aktuell`, await s.ev("const p=[...r.querySelectorAll('.ag-wz-prog span')]; return p.length === 7 && p.filter((x) => x.classList.contains('done')).length === 4 && p[4].classList.contains('cur')"));
+      check(`${tag}: Handy: Fortschritt mit 7 Strichen, 4 fertig, 1 aktuell`, await s.ev("const p=[...r.querySelectorAll('.ag-wz-prog button')]; return p.length === 7 && p.filter((x) => x.classList.contains('done')).length === 4 && p[4].classList.contains('cur')"));
+      check(`${tag}: Handy: die Striche der erledigten Schritte sind Knöpfe, aktueller und spätere gesperrt, Trefferfläche mindestens 28 px hoch`, await s.ev("const p=[...r.querySelectorAll('.ag-wz-prog button')]; const hit=(b) => { const x=getComputedStyle(b, '::after'); return parseFloat(x.height) >= 28; }; return p.slice(0, 4).every((b) => !b.disabled && b.dataset.step && hit(b)) && p.slice(4).every((b) => b.disabled)"));
+      await s.tap('.ag-wz-prog button:nth-child(2)');
+      check(`${tag}: Handy: Tipp auf den zweiten Strich springt zu Schritt 2 (${t.stepOf(2, 7)})`, await s.waitFor(`return r.querySelector('.ag-wz-kicker').textContent.startsWith(${J(t.stepOf(2, 7))})`));
+      await s.ev("r.querySelector('.ag-wz-prog button:nth-child(5)').click()");
+      await s.page.waitForTimeout(300);
+      check(`${tag}: Handy: ein Strich nach vorn ist wirkungslos (gesperrt)`, await s.ev(`return r.querySelector('.ag-wz-kicker').textContent.startsWith(${J(t.stepOf(2, 7))})`));
+      for (let k = 0; k < 3; k++) { await s.tap('[data-wz="next"]'); await s.page.waitForTimeout(500); }
+      check(`${tag}: Handy: mit "Weiter" zurück bei Schritt 5`, await s.waitFor(`return r.querySelector('.ag-wz-kicker').textContent.startsWith(${J(t.stepOf(5, 7))})`));
     } else {
       check(`${tag}: Desktop: Schritte davor erledigt und wählbar, danach gesperrt`, await s.ev("const li=[...r.querySelectorAll('.ag-wz-steps li')]; const i=li.findIndex((x) => x.classList.contains('cur')); return i === 5 && li.slice(0, 5).every((x) => x.classList.contains('done') && !x.querySelector('button').disabled) && li.slice(6).every((x) => x.querySelector('button').disabled)"));
     }
@@ -177,7 +186,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: Modi: Anwesend und Abwesend an, Nacht aus (Standard der neuen Anlage); der Server merkt den Schritt`, await H.waitStep("modes")
       && (await s.waitFor("const b=[...r.querySelectorAll('[data-wz=\"mode\"]')]; return b.length === 3 && b[0].classList.contains('on') && b[1].classList.contains('on') && !b[2].classList.contains('on')"))
       && (await H.calls()).at(-1)?.action === "step" && (await H.calls()).at(-1)?.step === "modes");
-    if (mobile) check(`${tag}: Handy: "${t.stepOf(1, 7)} · …" und Fortschritt`, await s.ev(`return r.querySelector('.ag-wz-kicker').textContent.startsWith(${J(t.stepOf(1, 7))} + ' · ') && r.querySelectorAll('.ag-wz-prog span').length === 7`));
+    if (mobile) check(`${tag}: Handy: "${t.stepOf(1, 7)} · …" und Fortschritt`, await s.ev(`return r.querySelector('.ag-wz-kicker').textContent.startsWith(${J(t.stepOf(1, 7))} + ' · ') && r.querySelectorAll('.ag-wz-prog button').length === 7`));
     await s.tap('[data-wz="mode"][data-mode="night"]');
     check(`${tag}: Schalter "Nacht" geht an (Entwurf)`, await s.waitFor("return r.querySelector('[data-wz=\"mode\"][data-mode=\"night\"]').classList.contains('on')"));
     await s.tap('[data-wz="next"]');
@@ -379,6 +388,7 @@ for (const lang of ["de", "en"]) {
       await H.waitStep(st);
     }
     check(`${tag}: ohne Änderung durch die Schritte zurück zu "Fertig"`, (await H.step()) === "done" && (await s.ev(`return r.querySelector('[data-wz="next"]').innerText.trim() === ${J(t.finish)}`)));
+    check(`${tag}: Fusszeile durchgängig mit Symbol vor dem Text: "Zurück" mit Pfeil nach hinten, "Fertig" mit Haken (ohne Pfeil nach vorn)`, await s.ev("const b=r.querySelector('[data-wz=\"back\"]'); const n=r.querySelector('[data-wz=\"next\"]'); return b.firstElementChild?.tagName === 'svg' && n.firstElementChild?.tagName === 'svg' && n.querySelectorAll('svg').length === 1 && n.lastChild?.nodeType === 3"));
     await s.tap('[data-wz="next"]');
     check(`${tag}: "Fertig": Server merkt "abgeschlossen", das Panel zeigt die Übersicht der neuen Anlage`, await s.waitFor("return !r.querySelector('.ag-wz') && r.querySelector('[data-seg=\"tabs\"] [data-tab=\"overview\"]')?.classList.contains('on') && r.querySelector('select[data-act=\"system\"]')?.value === 'e_ferienhaus'", 8000)
       && (await H.sys("e_ferienhaus")).wizard.state === "done" && (await H.calls()).at(-1)?.action === "done");

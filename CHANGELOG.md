@@ -7,6 +7,25 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.95.0] - 2026-11-28
+
+### Added
+
+- **Setup assistant footer with symbols:** "Back" has an arrow pointing back in front of it on every page, "Done" a check mark (next to "Next" with its arrow forward).
+- **Setup assistant: "Later" with a clock symbol:** the button "Later" at the top right has the same clock symbol as "Show again tomorrow" in the window that follows (on the phone too).
+- **Setup assistant, phone: the bars of finished steps are buttons:** a tap on a green bar at the top jumps back to that step (the later bars stay locked, like the list of steps on the computer).
+
+### Changed
+
+- **Colours of the mode rows (Configuration › Alarm system):** the symbols of "Present", "Away", "Night" and "Always active" are red and the one of "Monitoring" orange, like the tabs of the modes under Actions; a switched-off mode is grey.
+- **Reset window shows exactly what happens:** the lists "What is removed", "What stays" and "Afterwards" follow the switches (backup, log and recordings, shared data) and show the real numbers of this alarm system (sensors, codes, action steps, routines, monitoring rules, and with shared data HealthCheck services and own sounds). The warning above says whether a backup is made.
+- **Two buttons in one row share the width on the phone:** "Continue" and "Don't show again" on the setup assistant card now take half of the row each, like all other rows. Rule in the design notes.
+- **General chapter:** "Rename" and "Change accent colour" are left-aligned and equally wide on the phone; the rename row has its own colour and the accent row a neutral palette symbol with colour dots.
+
+### Fixed
+
+- **"That did not work: [object Object]" after reopening the app:** an unknown error right after the app comes back (connection still being set up) no longer shows a message; the panel retries once quietly and only shows a second error in a row. An error object without a text is never shown as "[object Object]" any more.
+
 ## [1.94.0] - 2026-11-28
 
 ### Added
@@ -2516,6 +2535,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.95.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.95.0
 [1.94.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.94.0
 [1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0
 [1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3

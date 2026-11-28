@@ -7,6 +7,25 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.95.0] - 2026-11-28
+
+### Hinzugefügt
+
+- **Einrichtungsassistent: Fusszeile mit Symbolen:** "Zurück" trägt auf jeder Seite einen Pfeil nach hinten davor, "Fertig" einen Haken (neben "Weiter" mit dem Pfeil nach vorn).
+- **Einrichtungsassistent: "Später" mit Uhr-Symbol:** der Knopf "Später" oben rechts trägt dasselbe Uhr-Symbol wie "Morgen wieder anzeigen" im Fenster danach (auch auf dem Handy).
+- **Einrichtungsassistent, Handy: die Striche der erledigten Schritte sind Knöpfe:** ein Tipp auf einen grünen Strich oben springt zu diesem Schritt zurück (die späteren Striche bleiben gesperrt, wie die Liste der Schritte am Computer).
+
+### Geändert
+
+- **Farben der Modi-Zeilen (Konfiguration › Anlage):** die Symbole von "Anwesend", "Abwesend", "Nacht" und "Immer aktiv" sind rot, das von "Überwachung" orange, wie die Reiter der Modi bei den Aktionen; ein ausgeschalteter Modus ist grau.
+- **Das Fenster "Zurücksetzen" zeigt genau, was passiert:** die Listen "Das wird entfernt", "Das bleibt" und "Danach" folgen den Schaltern (Backup, Protokoll und Aufzeichnungen, gemeinsame Daten) und nennen die echten Zahlen dieser Anlage (Sensoren, Codes, Schritte der Aktionen, Routinen, Regeln der Überwachung, mit gemeinsamen Daten auch HealthCheck-Dienste und eigene Töne). Die Warnung darüber sagt, ob ein Backup entsteht.
+- **Zwei Knöpfe in einer Zeile teilen sich auf dem Handy die Breite:** "Fortsetzen" und "Nicht mehr anzeigen" auf der Karte des Assistenten nehmen je die Hälfte der Zeile, wie alle anderen Zeilen. Regel in den Gestaltungsregeln.
+- **Kapitel Allgemein:** "Umbenennen" und "Akzentfarbe ändern" stehen auf dem Handy linksbündig und gleich breit; die Zeile "Name" hat eine eigene Farbe, die Akzentzeile ein neutrales Palettensymbol mit Farbpunkten.
+
+### Behoben
+
+- **"Das hat nicht geklappt: [object Object]" nach dem Wiederöffnen der App:** ein unbekannter Fehler direkt nach der Rückkehr in die App (Verbindung noch im Aufbau) zeigt keine Meldung mehr; das Panel wiederholt einmal still und zeigt erst einen zweiten Fehler hintereinander. Ein Fehlerobjekt ohne Text steht nie mehr als "[object Object]" da.
+
 ## [1.94.0] - 2026-11-28
 
 ### Hinzugefügt
@@ -2516,6 +2535,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.95.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.95.0
 [1.94.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.94.0
 [1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0
 [1.92.3]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.92.3

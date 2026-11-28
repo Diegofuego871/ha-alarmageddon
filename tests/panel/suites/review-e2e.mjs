@@ -95,10 +95,19 @@ for (const lang of ["de", "en"]) {
         check(`${tag}: Verbindungsfehler (${name}): Hinweis, Anlagen bleiben stehen`, text.includes(t.conn) && !text.includes("[object") && (await cards()) === before, text);
       }
       await s.sim(`window.__wsFail = Object.assign(new Error("kaputt"), { code: "boom" })`);
-      await s.ev("r.querySelector('.ag-toast')?.remove()");
+      await s.ev("r.querySelector('.ag-toast')?.remove(); document.querySelector('alarmageddon-panel')._fetchFails = 0");
+      await refetch();
+      check(`${tag}: ein einzelner unbekannter Fehler (App wieder geöffnet) zeigt keine Meldung, die Wiederholung klappt still`, !(await toast()).includes(t.failed));
+      await s.ev("clearTimeout(document.querySelector('alarmageddon-panel')._retryTimer)");
+      await s.sim(`window.__wsFail = Object.assign(new Error("kaputt"), { code: "boom" })`);
       await refetch();
       check(`${tag}: anderer Fehler: Meldung mit dem Text des Fehlers, Anlagen bleiben stehen`, (await toast()).includes(t.failed) && (await toast()).includes("kaputt") && (await cards()) === before, await toast());
       await s.page.screenshot({ path: `${outDir}review-overview-${lang}-${mobile ? "mobile" : "desktop"}.png` });
+      await s.sim(`window.__wsFail = { type: "result", success: false }`);
+      await s.ev("r.querySelector('.ag-toast')?.remove(); document.querySelector('alarmageddon-panel')._fetchFails = 1");
+      await refetch();
+      check(`${tag}: Fehlerobjekt ohne Text: nie "[object Object]"`, !(await toast()).includes("[object") && (await toast()).includes(t.failed), await toast());
+      await s.sim("window.__wsFail = null");
       check(`${tag}: Übersicht ohne Fehler im Browser`, s.errors.length === 0, s.errors.join(" | "));
       await s.ctx.close();
     }

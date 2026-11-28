@@ -586,6 +586,7 @@ Klassen und Präfix (`--ag-`) für Alarmageddon neu. Details in
   Nutzers 2026-11-25: "überall das gleiche Icon", "in dem gleichen Stil, mit den gleichen Icons"): jede Zeile seiner Karten beginnt mit
   `rowIcon`; Meldungen nehmen Symbol und Farbe aus `notify.js` (`NOTIFY_ICON`, `NOTIFY_TONE`, Kachel `.ag-ntone`), nie eine eigene Tabelle; das Schloss
   der Alarmmeldung steht an der Stelle des Schalters (`.ag-wz-lock`). Suite `wzicons-e2e.mjs`; eine neue Zeile im Assistenten kommt dort dazu.
+- **Knöpfe in einer Zeile (seit 1.95.0, Wunsch des Nutzers 2026-11-28):** mehrere Knöpfe in einer Zeile teilen sich auf dem Handy die Breite zu gleichen Teilen (`.ag-rtsum .ag-btnrow > .ag-btn`), überall gleich, nie eigene Breiten je Zeile (`docs/DESIGN.md`).
 - **Knöpfe neben Filter-Pillen (seit 1.92.0, Wunsch des Nutzers 2026-11-26, Mockup `docs/mockups/voreinstellungen-knopf-v1`, Entscheid "mach A"):** ein
   Knopf, der neben Pillen (`.ag-chip`) steht, trägt `.ag-btn.ag-toolbtn`: Ecken 12 px wie das Suchfeld statt runder Enden, das Symbol in einer Kachel
   (`--ag-primary-soft`) wie in den Zeilen der Einstellungen; Höhe wie jeder Knopf, nicht breiter. Heute "Voreinstellungen" (Sensoren) und am Computer

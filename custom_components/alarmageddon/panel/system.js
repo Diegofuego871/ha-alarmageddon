@@ -265,11 +265,11 @@ export class SystemUi {
     const card = (rows) => `<div class="ag-card ag-setlist">${rows}</div>`;
     // Je Modus ein Schalter (1.17.12), dazu "Immer aktiv". Seit 1.90.0 steht das Symbol oben links vor dem Schalter (CSS `order` in styles.js), dann Titel
     // und Beschreibung
-    const modeRow = (attr, on, icon, title, hint) => `<div class="ag-orow ag-moderow"><span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(hint)}</small></div>
+    const modeRow = (attr, on, icon, title, hint, tone = "") => `<div class="ag-orow ag-moderow"><span class="ag-oav ${tone ? `ag-tint ag-tint-${tone}` : ""} ${on ? "on" : ""}">${ic(icon, 20)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(hint)}</small></div>
         <button class="ag-toggle ${on ? "on" : ""}" ${attr} role="switch" aria-checked="${on}" aria-label="${esc(title)}"></button></div>`;
-    const modesRow = ALL_MODES.map((m) => modeRow(`data-sys="mode" data-mode="${m}"`, d.modes[m], MODE_ICON[m], this._t(MODE_KEY[m]), this._t(MODE_HINT[m]))).join("")
-      + modeRow('data-sys="always"', d.always, "flash", this._t("wfAlways"), this._t("sysModeAlwaysHint"))
-      + modeRow('data-sys="monitor"', d.monitor, "eye", this._t("wfMonitor"), this._t("sysModeMonitorHint"))
+    const modesRow = ALL_MODES.map((m) => modeRow(`data-sys="mode" data-mode="${m}"`, d.modes[m], MODE_ICON[m], this._t(MODE_KEY[m]), this._t(MODE_HINT[m]), "alarm")).join("")
+      + modeRow('data-sys="always"', d.always, "flash", this._t("wfAlways"), this._t("sysModeAlwaysHint"), "alarm")
+      + modeRow('data-sys="monitor"', d.monitor, "eye", this._t("wfMonitor"), this._t("sysModeMonitorHint"), "monitor")
       + (d.always && !bad.has("modes") ? "" : `<div class="ag-modenote">${d.always ? "" : `<small class="ag-warntext">${ic("alert", 14)} ${esc(this._t("sysAlwaysOff"))}</small>`}
           ${bad.has("modes") ? `<small class="ag-err">${esc(this._t("sysModesNone"))}</small>` : ""}</div>`);
     // Zeile mit Symbol oben links (1.90.0), Text, rechts das Feld
@@ -677,9 +677,9 @@ export class SystemUi {
     const hex = accentColor(d.accent);
     const sys = this.system;
     // Kapitel "Allgemein" (seit 1.94.0, Wunsch des Nutzers 2026-11-28): Name der Anlage (Umbenennen, früher der Bleistift im Kopf) und Akzentfarbe
-    const nameRow = `<div class="ag-setrow ag-rtsum ag-namerow"><span class="ag-oav ag-tint ag-tint-accent on">${ic("pencil", 20)}</span>
+    const nameRow = `<div class="ag-setrow ag-rtsum ag-namerow"><span class="ag-oav ag-tint ag-tint-name on">${ic("pencil", 20)}</span>
       <div class="ag-settx"><b class="ag-sysname">${esc(sys?.title || "")}</b><small>${esc(t("genNameHint"))}</small></div><div class="ag-btnrow"><button class="ag-btn" data-sys="rename">${ic("pencil", 18)}${esc(t("renameTip"))}</button></div></div>`;
-    return chapter(t("genTitle"), `<div class="ag-card ag-setlist ag-codes">${nameRow}<div class="ag-setrow ag-rtsum ag-accrow"><span class="ag-oav ag-tint ag-tint-accent on">${ic("palette", 20)}</span>
+    return chapter(t("genTitle"), `<div class="ag-card ag-setlist ag-codes">${nameRow}<div class="ag-setrow ag-rtsum ag-accrow"><span class="ag-oav ag-tint ag-tint-neutral on">${ic("paletteDots", 20)}</span>
       <div class="ag-settx"><b class="ag-accname"><span class="ag-accdot ag-accdot-s ag-accdot-ring" style="background:${hex || "var(--primary-color, #03a9f4)"}"></span>${esc(t(`acc_${d.accent}`))}</b>${d.accent !== this.base().accent ? `<small class="ag-t2 ag-unsaved">${esc(t("unsavedOne"))}</small>` : ""}</div><div class="ag-btnrow"><button class="ag-btn" data-sys="acc-open">${ic("palette", 18)}${esc(t("accChange"))}</button></div></div></div>`, t("genHint"));
   }
 

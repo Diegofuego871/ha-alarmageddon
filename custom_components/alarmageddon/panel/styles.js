@@ -459,12 +459,18 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-tint-health { --ag-tint: #d81b60; }
 .ag-tint-backup { --ag-tint: #8d6e63; }
 .ag-tint-accent { --ag-tint: #ef6c00; }
+.ag-tint-name { --ag-tint: #039be5; }
+.ag-tint-neutral { --ag-tint: #78909c; }
+.ag-tint-alarm { --ag-tint: var(--ag-seg-alarm); } /* Modi wie die Reiter der Aktionen (Wunsch des Nutzers 2026-11-28): Rot, Überwachung orange, ausgeschaltet grau */
+.ag-tint-monitor { --ag-tint: var(--ag-seg-monitor); }
 :host([dark]) .ag-tint-routines { --ag-tint: #b39ddb; }
 :host([dark]) .ag-tint-codes { --ag-tint: #4db6ac; }
 :host([dark]) .ag-tint-sounds { --ag-tint: #9fa8da; }
 :host([dark]) .ag-tint-health { --ag-tint: #f48fb1; }
 :host([dark]) .ag-tint-backup { --ag-tint: #bcaaa4; }
 :host([dark]) .ag-tint-accent { --ag-tint: #ffb74d; }
+:host([dark]) .ag-tint-name { --ag-tint: #4fc3f7; }
+:host([dark]) .ag-tint-neutral { --ag-tint: #b0bec5; }
 .ag-otx { flex: 1; min-width: 0; }
 .ag-otx b { font-weight: 500; display: block; }
 .ag-otx small { display: block; color: var(--ag-text2); font-size: 12.5px; margin-top: 2px; line-height: 1.35; }
@@ -1655,11 +1661,12 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-rtsum .ag-btnrow { margin-left: auto; }
 :host([narrow]) .ag-rtsum .ag-btnrow { flex: 1 1 100%; margin-left: 0; }
 :host([narrow]) .ag-rtsum .ag-btnrow > .ag-btn { flex: 1 1 0; justify-content: center; } /* gleich breit in jeder Zeile (Routinen, eigene Töne, Codes; 1.64.0): reicht der Platz nicht, behält der längere seinen Text */
-:host([narrow]) .ag-wzrow .ag-btnrow, :host([narrow]) .ag-accrow .ag-btnrow { justify-content: flex-start; }
-:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn, :host([narrow]) .ag-accrow .ag-btnrow > .ag-btn { flex: 0 0 auto; }
-:host([narrow]) .ag-wzrow .ag-btnrow { flex-wrap: wrap; row-gap: 8px; } /* eine Zeile, solange sie reicht; bei sehr breiter Schrift rutscht der zweite Knopf darunter statt über den Rand zu ragen */
-:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn > svg { width: 16px; height: 16px; }
-:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn { padding-left: 9px; padding-right: 9px; gap: 6px; font-size: 14px; white-space: nowrap; } /* "Fortsetzen" und "Nicht mehr anzeigen" mit Symbol und Text passen so auch in 390 px und mit breiterer Schrift (1.94.0; die CI-Schrift ist breiter als die lokale) */
+:host([narrow]) .ag-accrow .ag-btnrow, :host([narrow]) .ag-namerow .ag-btnrow { justify-content: flex-start; }
+:host([narrow]) .ag-accrow .ag-btnrow > .ag-btn, :host([narrow]) .ag-namerow .ag-btnrow > .ag-btn { flex: 0 0 auto; }
+/* "Umbenennen" und "Akzentfarbe ändern" untereinander gleich gross, linksbündig (Wunsch des Nutzers 2026-11-28); die Breite deckt beide Sprachen */
+:host([narrow]) .ag-namerow .ag-btnrow > .ag-btn, :host([narrow]) .ag-accrow .ag-btnrow > .ag-btn { min-width: 220px; justify-content: center; }
+:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn > svg { width: 16px; height: 16px; flex: none; }
+:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn { min-width: 0; padding-left: 8px; padding-right: 8px; gap: 6px; font-size: 14px; } /* "Fortsetzen" und "Nicht mehr anzeigen" teilen sich die Zeile je zur Hälfte wie überall (Wunsch des Nutzers 2026-11-28); bei sehr breiter Schrift bricht der Text um statt über den Rand zu ragen */
 /* Assistent starten: linksbündig und so gross wie "Anlage löschen" darunter, nicht über die ganze Breite (Wunsch des Nutzers 2026-11-21) */
 /* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */
 :host([narrow]) .ag-cs-pop .ag-csrow { flex-wrap: wrap; }
@@ -2122,9 +2129,10 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .ag-wz.narrow .ag-wz-head { padding: 12px 12px 0; }
 .ag-wz.narrow .ag-wz-kicker { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--ag-text2); font-size: 13px; }
 .ag-wz-prog { display: flex; gap: 4px; margin-top: 10px; }
-.ag-wz-prog span { flex: 1; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--ag-text) 12%, transparent); }
-.ag-wz-prog span.done { background: var(--ag-success); }
-.ag-wz-prog span.cur { background: var(--ag-primary); }
+.ag-wz-prog button { flex: 1; height: 5px; padding: 0; border: 0; border-radius: 3px; background: color-mix(in srgb, var(--ag-text) 12%, transparent); position: relative; font: inherit; cursor: default; }
+.ag-wz-prog button::after { content: ""; position: absolute; inset: -14px 0; } /* grosse Trefferfläche für den Daumen (Wunsch des Nutzers 2026-11-28: frühere Schritte anklickbar) */
+.ag-wz-prog button.done { background: var(--ag-success); cursor: pointer; }
+.ag-wz-prog button.cur { background: var(--ag-primary); }
 .ag-wz.narrow .ag-wz-head h2 { font-size: 22px; margin-top: 12px; }
 .ag-wz.narrow .ag-wz-lead { font-size: 14px; }
 .ag-wz.narrow .ag-wz-body { padding: 14px 12px 20px; gap: 14px; }

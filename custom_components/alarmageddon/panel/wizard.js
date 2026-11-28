@@ -430,8 +430,8 @@ export class WizardUi {
     const kicker = this.step === "welcome" ? this._t("wzTitle") : this.step === "done" ? this._t("wzDoneKicker") : this._t("wzStepOf", { n, total: list.length });
     const title = this._t(this.step === "welcome" && narrow ? "wzH_welcomeShort" : `wzH_${this.step}`, { name: this.system?.title || "" });
     const lead = { welcome: "wzL_welcome", modes: "wzL_modes", sensors: "wzL_sensors", zones: "wzL_zones", code: "wzL_code", notify: "wzL_notify", done: "wzL_done" }[this.step];
-    const later = `<button class="ag-btn ag-wz-later" data-wz="later">${narrow ? "" : ic("close", 18)}${esc(this._t("wzLater"))}</button>`;
-    const prog = narrow && this.step !== "welcome" ? `<div class="ag-wz-prog">${list.map((x, i) => `<span class="${this.step === "done" || i < n - 1 ? "done" : i === n - 1 ? "cur" : ""}"></span>`).join("")}</div>` : "";
+    const later = `<button class="ag-btn ag-wz-later" data-wz="later">${ic("clock", 18)}${esc(this._t("wzLater"))}</button>`;
+    const prog = narrow && this.step !== "welcome" ? `<div class="ag-wz-prog">${list.map((x, i) => { const back = this.step === "done" || i < n - 1; return `<button type="button" class="${back ? "done" : i === n - 1 ? "cur" : ""}" data-wz="goto" data-step="${x}" aria-label="${esc(this._t(`wzS_${x}`))}" ${back ? "" : "disabled"}></button>`; }).join("")}</div>` : "";
     const label = narrow && this.step !== "welcome" && this.step !== "done" ? `${kicker} · ${this._t(`wzS_${this.step}`)}` : kicker;
     // Auf der Startseite ein Logo des Assistenten (Zauberstab im Farbverlauf, Wunsch des Nutzers 2026-11-21): derselbe Stab wie im Knopf im Kopf, damit man ihn wiedererkennt
     const badge = this.step === "welcome" ? `<span class="ag-wz-badge" aria-hidden="true">${ic("wand", narrow ? 24 : 28)}</span>` : "";
@@ -447,8 +447,8 @@ export class WizardUi {
     const label = first ? this._t("wzStart") : this.step === "done" ? this._t("wzFinish") : noCode ? this._t("wzSkipCode") : this._t("wzNext");
     const err = this.error ? `<span class="ag-err ag-wz-err">${esc(this.error)}</span>` : "";
     const saved = !first && !narrow && !this.error ? `<span class="ag-wz-saved">${ic("check", 16)}${esc(this._t("wzSavedBefore"))}</span>` : "";
-    return `${first ? "" : `<button class="ag-btn" data-wz="back" ${this.busy ? "disabled" : ""}>${esc(this._t("wzBack"))}</button>`}${saved}${err}<span class="ag-grow"></span>
-      <button class="ag-btn primary ag-wz-next" data-wz="next" ${this.busy ? "disabled" : ""}>${esc(this.busy ? this._t("wzSaving") : label)}${first || this.step !== "done" ? ic("chevRight", 18) : ""}</button>`;
+    return `${first ? "" : `<button class="ag-btn" data-wz="back" ${this.busy ? "disabled" : ""}>${ic("chevLeft", 18)}${esc(this._t("wzBack"))}</button>`}${saved}${err}<span class="ag-grow"></span>
+      <button class="ag-btn primary ag-wz-next" data-wz="next" ${this.busy ? "disabled" : ""}>${this.step === "done" && !this.busy ? ic("check", 18) : ""}${esc(this.busy ? this._t("wzSaving") : label)}${first || this.step !== "done" ? ic("chevRight", 18) : ""}</button>`;
   }
 
   // Bausteine
