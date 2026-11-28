@@ -167,7 +167,7 @@ const CHECK = '<path class="chk" d="M38 62l16 16 30-34"/>';
         veil.appendChild(bar);
         const bx = cx - (r.left + r.width / 2), by = cy - (r.top + r.height / 2), s = 250 + i * 70, d = i % 2 ? 1 : -1;
         const f = (x, y, rot2, sx, sy, o) => `opacity:${o}; transform: translate(${x}px,${y}px) rotate(${rot2}deg) scale(${sx},${sy})`;
-        tl(bar, [[0, f(0, 0, 0, 1, 1, 0)], [s, f(0, 0, 0, 1, 1, 1), INOUT], [s + 520, f(bx * .55, by * .55 - 30, 200 * d, .8, 3, 1), INOUT], [s + 950, f(bx, by, 420 * d, .15, .15, 0)], [total, f(bx, by, 420 * d, .15, .15, 0)]]);
+        tl(bar, [[0, f(0, 0, 0, 1, 1, 0)], [s, f(0, 0, 0, 1, 1, 1), INOUT], [s + 520, f(bx * .55, by * .55 - 30, 200 * d, .8, 1, 1), INOUT], [s + 950, f(bx, by, 420 * d, .3, 1, 0)], [total, f(bx, by, 420 * d, .3, 1, 0)]]);
       });
     }
     // Haken, Puls, Glanz, Text
