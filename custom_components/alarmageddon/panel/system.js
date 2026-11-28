@@ -276,11 +276,12 @@ export class SystemUi {
     // Unteroption einer Schalter-Zeile (1.90.0, Wunsch des Nutzers 2026-11-25 zu "Höchstens" beim Nachalarm: "Option ohne den Strich, es gehört zu
     // Nachalarm"): ohne eigenes Symbol, ohne Linie dazwischen, eingerückt bis zum Text der Zeile darüber
     const sub = (title, hint, control) => `<div class="ag-setrow ag-rowsub"><div class="ag-settx"><b>${esc(this._t(title))}</b>${hint ? `<small>${esc(this._t(hint))}</small>` : ""}</div>${control}</div>`;
-    const row = (icon, title, hint, control) => `<div class="ag-setrow">${rowIcon(icon, true)}<div class="ag-settx"><b>${esc(this._t(title))}</b>${hint ? `<small>${esc(this._t(hint))}</small>` : ""}</div>${control}</div>`;
+    const row = (icon, title, hint, control, tint = "") => `<div class="ag-setrow">${rowIcon(icon, true, tint)}<div class="ag-settx"><b>${esc(this._t(title))}</b>${hint ? `<small>${esc(this._t(hint))}</small>` : ""}</div>${control}</div>`;
     // Seit 1.90.0 (Wunsch des Nutzers 2026-11-25): Kapitel "Zeiten", das Bestätigungsfenster in derselben Karte wie die Verzögerungen (bis 1.89.x
     // "Zeiten und Verhalten" mit zwei Karten und Untertiteln "Zeiten" und "Verhalten")
-    const timesRows = row("timer", "sysExitDelay", "sysExitDelayHint", num("exit_delay", v.exit_delay)) + row("doorOpen", "sysEntryDelay", "sysEntryDelayHint", num("entry_delay", v.entry_delay))
-      + row("check", "sysConfirm", "sysConfirmHint", num("confirm_window", v.confirm_window, WINDOW[0], WINDOW[1]));
+    // Jede Zeit hat ihre eigene Farbe (Wunsch des Nutzers 2026-11-28): Ausgangsverzögerung orange, Eingangsverzögerung blau, Bestätigungsfenster grün
+    const timesRows = row("timer", "sysExitDelay", "sysExitDelayHint", num("exit_delay", v.exit_delay), "ag-tint ag-tint-exit") + row("doorOpen", "sysEntryDelay", "sysEntryDelayHint", num("entry_delay", v.entry_delay), "ag-tint ag-tint-entry")
+      + row("check", "sysConfirm", "sysConfirmHint", num("confirm_window", v.confirm_window, WINDOW[0], WINDOW[1]), "ag-tint ag-tint-confirm");
     const scopeLine = d.perMode ? `<div class="ag-pmscope">${ic(MODE_ICON[scope], 18)}${esc(this._t("pmScope", { mode: this._t(MODE_KEY[scope]) }))}</div>` : "";
     const perMode = chapter(this._t("chapPerMode"), `<div class="ag-pmgroup ${d.perMode ? "on" : ""}">${switchRow}${scopeLine}${card(timesRows)}</div>`);
     // Nach einem Alarm (1.87.0): Nachalarm, wenn die Anlage im Alarm bleibt und ein weiterer Sensor auslöst. Die Meldung dazu ("Weiterer Sensor während
@@ -297,7 +298,7 @@ export class SystemUi {
     const raSwitch = `<div class="ag-pmbar"><div class="ag-pmsw">${perModeIcon(d.raPer)}<button class="ag-toggle ${d.raPer ? "on" : ""}" data-sys="ra-permode" role="switch" aria-checked="${d.raPer}" aria-label="${esc(this._t("sysPerMode"))}"></button>
       <div class="ag-settx"><b>${esc(this._t("sysPerMode"))}</b><small>${esc(this._t(d.raPer ? "raPerModeOn" : "raPerModeHint"))}</small></div></div>${raSeg}</div>`;
     const raLine = d.raPer ? `<div class="ag-pmscope">${ic(raIcon(this.raScope), 18)}${esc(this.raScope === "always" ? this._t("raScopeAlways") : this._t("pmScope", { mode: raLabel(this.raScope) }))}</div>` : "";
-    const realarmRows = modeRow('data-sys="realarm"', ra.on, "refresh", this._t("sysRealarm"), this._t(ra.on ? "sysRealarmOn" : "sysRealarmHint"))
+    const realarmRows = modeRow('data-sys="realarm"', ra.on, "refresh", this._t("sysRealarm"), this._t(ra.on ? "sysRealarmOn" : "sysRealarmHint"), "realarm")
       + (ra.on ? sub("sysRealarmCount", "sysRealarmCountHint", `<span class="ag-num ${raBad ? "bad" : ""}"><input type="number" min="${REALARM[0]}" max="${REALARM[1]}" step="1" inputmode="numeric" data-sys="realarm-count" value="${esc(Number.isFinite(ra.count) ? ra.count : "")}" aria-label="${esc(this._t("sysRealarmCount"))}"><span class="ag-t2">${esc(this._t("sysRealarmTimes"))}</span></span>`) : "");
     const afterAlarm = chapter(this._t("chapAfterAlarm"), `<div class="ag-pmgroup ag-ragroup ${d.raPer ? "on" : ""}">${raSwitch}${raLine}${card(realarmRows)}</div>`, this._t("chapAfterAlarmHint"));
     const html = chapter(this._t("sysModes"), card(modesRow), this._t("sysModesHint")) + afterAlarm + perMode
@@ -742,8 +743,8 @@ export class SystemUi {
     const row = (icon, title, hint, key, act, label) => `<div class="ag-setrow">${rowIcon(icon, false, "ag-oav-danger")}<div class="ag-settx"><b>${esc(title)}</b><small>${esc(hint)}</small>${note(key)}</div>
       <div class="ag-btnrow"><button class="ag-btn ag-btn-danger-text" data-sys="${act}" ${disarmed ? "" : "disabled"}>${ic(icon, 18)}${esc(label)}</button></div></div>`;
     return chapter(this._t("dzTitle"), `<div class="ag-card ag-setlist ag-codes ag-dangerzone">
-      ${row("restore", this._t("rsTitle"), this._t("rsHint", { name: sys.title }), "rsNotDisarmed", "reset", this._t("rsButton", { name: sys.title }))}
-      ${row("trash", this._t("delTitle"), this._t("delHint", { name: sys.title }), "delNotDisarmed", "delete", this._t("delButton", { name: sys.title }))}</div>`, "", "ag-chap-danger");
+      ${row("restore", this._t("rsTitle", { name: sys.title }), this._t("rsHint"), "rsNotDisarmed", "reset", this._t("rsButton"))}
+      ${row("trash", this._t("delTitle", { name: sys.title }), this._t("delHint"), "delNotDisarmed", "delete", this._t("delButton"))}</div>`, "", "ag-chap-danger");
   }
 
   // Liste der Sicherungen als Tabelle: Datum, Anlagen, Herunterladen, Wiederherstellen, Löschen

@@ -7,6 +7,16 @@ Alle nennenswerten Änderungen an dieser Integration stehen in dieser Datei.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionsnummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.96.0] - 2026-11-28
+
+### Geändert
+
+- **Einrichtungsassistent mit denselben Farben wie die Einstellungen:** die Modi und "Immer aktiv" sind rot, "Zeit zum Verlassen" orange, "Zeit zum Deaktivieren" blau, die Überwachung orange (auch in der Zusammenfassung auf der letzten Seite, dort zusammen mit dem Code).
+- **Farbe des Nachalarms:** sein Symbol ist rotorange (ein erneuter Alarm) statt in der Farbe der Anlage.
+- **Einzelne Knöpfe so gross wie die anderen (Handy):** "Assistent starten", "Zurücksetzen" und "Löschen" sind genau die halbe Zeile breit und linksbündig, wie jeder Knopf eines Paars (zum Beispiel "Fortsetzen" und "Nicht mehr anzeigen").
+- **Zurücksetzen und Löschen: der Name steht im Titel:** die Zeile heisst ""Name" zurücksetzen" bzw. ""Name" löschen", der Knopf trägt nur das Symbol und "Zurücksetzen" oder "Löschen"; die Beschreibung wiederholt den Namen nicht mehr.
+- **Farben der Zeiten (Konfiguration › Anlage › Zeiten):** "Ausgangsverzögerung" ist orange, "Eingangsverzögerung" blau und "Bestätigungsfenster" grün, statt alle drei in der Farbe der Anlage.
+
 ## [1.95.0] - 2026-11-28
 
 ### Hinzugefügt
@@ -2536,6 +2546,7 @@ Erste Vorabversion: der Kern der Alarmanlage mit Unterstützung für Apple HomeK
 - **Neustart:** Zustand, Verzögerungen und Alarm laufen nach einem Neustart oder beim Ändern der Optionen weiter. Eine Eingangsverzögerung, die während des Neustarts abgelaufen ist, wird zum Alarm. Ein Sensor, der aus "nicht verfügbar" als offen zurückkommt, löst nicht aus.
 - **Sprachen:** Englisch und Deutsch.
 
+[1.96.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.96.0
 [1.95.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.95.0
 [1.94.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.94.0
 [1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0

@@ -7,6 +7,16 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.96.0] - 2026-11-28
+
+### Changed
+
+- **Setup assistant with the same colours as the settings:** the modes and "Always active" are red, "Time to leave" orange, "Time to deactivate" blue, monitoring orange (also in the summary on the last page, together with the code).
+- **Colour of "Follow-up alarm":** its symbol is red-orange (an alarm again) instead of the colour of the alarm system.
+- **Single buttons as big as the others (phone):** "Start assistant", "Reset" and "Delete" are exactly half a row wide and left-aligned, like each button of a pair (for example "Continue" and "Don't show again").
+- **Reset and Delete: the name moves into the title:** the row is titled Reset "Name" / Delete "Name", the button only says "Reset" or "Delete" with its symbol; the description no longer repeats the name.
+- **Colours of the times (Configuration › Alarm system › Times):** "Exit delay" is orange, "Entry delay" blue and "Confirmation window" green, instead of all three in the colour of the alarm system.
+
 ## [1.95.0] - 2026-11-28
 
 ### Added
@@ -2536,6 +2546,7 @@ First pre-release: the alarm core with Apple HomeKit support. The graphical setu
 - **Restart:** state, delays and alarm continue after a restart or when the options change. An entry delay that ran out during the restart becomes an alarm. A sensor that comes back from "unavailable" as open does not trigger.
 - **Languages:** English and German.
 
+[1.96.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.96.0
 [1.95.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.95.0
 [1.94.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.94.0
 [1.93.0]: https://github.com/Diegofuego871/ha-alarmageddon/releases/tag/v1.93.0

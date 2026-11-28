@@ -461,6 +461,10 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 .ag-tint-accent { --ag-tint: #ef6c00; }
 .ag-tint-name { --ag-tint: #039be5; }
 .ag-tint-neutral { --ag-tint: #78909c; }
+.ag-tint-exit { --ag-tint: #ef6c00; } /* Zeiten: Ausgangsverzögerung orange, Eingangsverzögerung blau, Bestätigungsfenster grün (1.95.0) */
+.ag-tint-entry { --ag-tint: #039be5; }
+.ag-tint-confirm { --ag-tint: #2e9d57; }
+.ag-tint-realarm { --ag-tint: #e64a19; } /* Nachalarm: Rotorange, ein erneuter Alarm (nicht die Farbe der Anlage) */
 .ag-tint-alarm { --ag-tint: var(--ag-seg-alarm); } /* Modi wie die Reiter der Aktionen (Wunsch des Nutzers 2026-11-28): Rot, Überwachung orange, ausgeschaltet grau */
 .ag-tint-monitor { --ag-tint: var(--ag-seg-monitor); }
 :host([dark]) .ag-tint-routines { --ag-tint: #b39ddb; }
@@ -471,6 +475,10 @@ dialog.ag-dlg[open] > .ag-dlg-body { overflow: auto; min-height: 0; overscroll-b
 :host([dark]) .ag-tint-accent { --ag-tint: #ffb74d; }
 :host([dark]) .ag-tint-name { --ag-tint: #4fc3f7; }
 :host([dark]) .ag-tint-neutral { --ag-tint: #b0bec5; }
+:host([dark]) .ag-tint-exit { --ag-tint: #ffb74d; }
+:host([dark]) .ag-tint-entry { --ag-tint: #4fc3f7; }
+:host([dark]) .ag-tint-confirm { --ag-tint: #66bb6a; }
+:host([dark]) .ag-tint-realarm { --ag-tint: #ff8a65; }
 .ag-otx { flex: 1; min-width: 0; }
 .ag-otx b { font-weight: 500; display: block; }
 .ag-otx small { display: block; color: var(--ag-text2); font-size: 12.5px; margin-top: 2px; line-height: 1.35; }
@@ -1668,7 +1676,9 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 :host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn > svg { width: 16px; height: 16px; flex: none; }
 :host([narrow]) .ag-wzrow .ag-btnrow:has(> .ag-btn:only-child) { justify-content: flex-start; }
 :host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn:not(:only-child) { white-space: normal; text-align: center; line-height: 1.2; padding-top: 6px; padding-bottom: 6px; } /* breite Schrift (CI): der Text bricht um, statt über den Knopf zu ragen; beide Knöpfe bleiben gleich hoch (Zeile streckt) */
-:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn:only-child { flex: 0 0 auto; padding-left: 14px; padding-right: 14px; } /* ein einzelner Knopf ("Assistent starten") bleibt linksbündig und so gross wie "Anlage löschen" darunter (1.74.1), nur zwei Knöpfe teilen sich die Zeile */
+:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn:only-child, :host([narrow]) .ag-dangerzone .ag-btnrow > .ag-btn { flex: 0 0 calc(50% - 4px); max-width: calc(50% - 4px); justify-content: center; padding-left: 8px; padding-right: 8px; }
+:host([narrow]) .ag-dangerzone .ag-btnrow { flex: 1 1 100%; justify-content: flex-start; margin-left: 0; }
+/* Ein einzelner Knopf einer Zeile ("Assistent starten", "Zurücksetzen", "Löschen") ist auf dem Handy genau so gross wie ein Knopf von zweien: die halbe Zeile, linksbündig (Wunsch des Nutzers 2026-11-28: alle Knöpfe gleich gross) */ /* ein einzelner Knopf ("Assistent starten") bleibt linksbündig und so gross wie "Anlage löschen" darunter (1.74.1), nur zwei Knöpfe teilen sich die Zeile */
 :host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn { min-width: 0; padding-left: 8px; padding-right: 8px; gap: 6px; font-size: 14px; } /* "Fortsetzen" und "Nicht mehr anzeigen" teilen sich die Zeile je zur Hälfte wie überall (Wunsch des Nutzers 2026-11-28); bei sehr breiter Schrift bricht der Text um statt über den Rand zu ragen */
 /* Assistent starten: linksbündig und so gross wie "Anlage löschen" darunter, nicht über die ganze Breite (Wunsch des Nutzers 2026-11-21) */
 /* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */

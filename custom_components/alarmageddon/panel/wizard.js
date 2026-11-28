@@ -563,11 +563,11 @@ export class WizardUi {
     const h = this.host;
     const d = h.systemUi.ensureDraft();
     if (!d) return "";
-    const row = (attrs, on, icon, title, hint) => `<div class="ag-orow ag-moderow"><span class="ag-oav ${on ? "on" : ""}">${ic(icon, 20)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(hint)}</small></div>${this._toggle(on, attrs, title)}</div>`;
-    const modes = ALL_MODES.map((m) => row(`data-wz="mode" data-mode="${m}"`, d.modes[m], MODE_ICON[m], this._t(MODE_KEY[m]), this._t(`wzMode_${m}`))).join("");
+    const row = (attrs, on, icon, title, hint, tone = "") => `<div class="ag-orow ag-moderow"><span class="ag-oav ${tone ? `ag-tint ag-tint-${tone}` : ""} ${on ? "on" : ""}">${ic(icon, 20)}</span><div class="ag-otx"><b>${esc(title)}</b><small>${esc(hint)}</small></div>${this._toggle(on, attrs, title)}</div>`;
+    const modes = ALL_MODES.map((m) => row(`data-wz="mode" data-mode="${m}"`, d.modes[m], MODE_ICON[m], this._t(MODE_KEY[m]), this._t(`wzMode_${m}`), "alarm")).join("");
     const none = !ALL_MODES.some((m) => d.modes[m]) ? `<small class="ag-err">${esc(this._t("sysModesNone"))}</small>` : "";
     return `<div class="ag-card ag-setlist">${modes}</div>${none}
-      ${this._chap(this._t("wfAlways"), `<div class="ag-card ag-setlist">${row('data-wz="always"', d.always, "flash", this._t("wzAlwaysTitle"), this._t("wzAlwaysHint"))}</div>`)}
+      ${this._chap(this._t("wfAlways"), `<div class="ag-card ag-setlist">${row('data-wz="always"', d.always, "flash", this._t("wzAlwaysTitle"), this._t("wzAlwaysHint"), "alarm")}</div>`)}
       ${this._info("info", esc(this._t("wzModesInfo")))}`;
   }
 
@@ -653,8 +653,8 @@ export class WizardUi {
     const first = modes.includes("away") ? "away" : modes[0] || "away";
     const entries = [...new Set(modes.map((m) => d.per[m].entry_delay))];
     // Symbole wie unter Konfiguration › Anlage › Zeiten (1.90.0)
-    const exitRow = modes.includes("away") ? `<div class="ag-setrow">${rowIcon("timer")}<div class="ag-settx"><b>${esc(this._t("wzExit", { mode: this._t("modeAway") }))}</b><small>${esc(this._t("wzExitHint"))}</small></div>${num("exit", d.per.away.exit_delay, bad.has("away.exit_delay"))}</div>` : "";
-    const entryRow = `<div class="ag-setrow">${rowIcon("doorOpen")}<div class="ag-settx"><b>${esc(this._t("wzEntry"))}</b><small>${esc(this._t("wzEntryHint"))}${entries.length > 1 ? ` ${esc(this._t("wzEntryMixed"))}` : ""}</small></div>${num("entry", d.per[first].entry_delay, modes.some((m) => bad.has(`${m}.entry_delay`)))}</div>`;
+    const exitRow = modes.includes("away") ? `<div class="ag-setrow">${rowIcon("timer", true, "ag-tint ag-tint-exit")}<div class="ag-settx"><b>${esc(this._t("wzExit", { mode: this._t("modeAway") }))}</b><small>${esc(this._t("wzExitHint"))}</small></div>${num("exit", d.per.away.exit_delay, bad.has("away.exit_delay"))}</div>` : "";
+    const entryRow = `<div class="ag-setrow">${rowIcon("doorOpen", true, "ag-tint ag-tint-entry")}<div class="ag-settx"><b>${esc(this._t("wzEntry"))}</b><small>${esc(this._t("wzEntryHint"))}${entries.length > 1 ? ` ${esc(this._t("wzEntryMixed"))}` : ""}</small></div>${num("entry", d.per[first].entry_delay, modes.some((m) => bad.has(`${m}.entry_delay`)))}</div>`;
     return `${this._entryHtml()}${this._info("doorOpen", this._t("wzEntryInfo"))}${this._chap(this._t("chapTimes"), `<div class="ag-card ag-setlist">${exitRow}${entryRow}</div>`)}`;
   }
 
@@ -813,7 +813,7 @@ export class WizardUi {
           <span class="ag-wz-count">${esc(this._t("wzMonCount", { n: chosen.length }))}</span></div>
         <div class="ag-elist ag-wz-mlist">${this._monListHtml()}</div>`;
     return `${this._info("eye", this._t("wzL_monitor", { n: Object.keys(measures).length }))}
-      <div class="ag-card ag-setlist"><div class="ag-setrow ag-wz-sw">${rowIcon("eye", on)}${this._toggle(on, `data-wz="mon-use" ${this.busy ? "disabled" : ""}`, this._t("wzMonUse"))}<div class="ag-settx"><b>${esc(this._t("wzMonUse"))}</b><small>${esc(this._t("wzMonUseHint"))}</small></div></div>
+      <div class="ag-card ag-setlist"><div class="ag-setrow ag-wz-sw">${rowIcon("eye", on, "ag-tint ag-tint-monitor")}${this._toggle(on, `data-wz="mon-use" ${this.busy ? "disabled" : ""}`, this._t("wzMonUse"))}<div class="ag-settx"><b>${esc(this._t("wzMonUse"))}</b><small>${esc(this._t("wzMonUseHint"))}</small></div></div>
         ${on ? `<div class="ag-setrow ag-wz-monsensors">${body}</div>` : ""}</div>`;
   }
 
@@ -947,7 +947,7 @@ export class WizardUi {
     const h = this.host;
     const s = this.system;
     const icons = { modes: "shieldAway", zones: "sensor", code: "key", notify: "bell", actions: "power", monitor: "eye" };
-    const rows = ["modes", "zones", "code", "notify", "actions", ...(this.steps().includes("monitor") ? ["monitor"] : [])].map((step) => `<div class="ag-setrow"><span class="ag-oav on">${ic(icons[step], 20)}</span>
+    const rows = ["modes", "zones", "code", "notify", "actions", ...(this.steps().includes("monitor") ? ["monitor"] : [])].map((step) => `<div class="ag-setrow"><span class="ag-oav on ${{ modes: "ag-tint ag-tint-alarm", code: "ag-tint ag-tint-codes", monitor: "ag-tint ag-tint-monitor" }[step] || ""}">${ic(icons[step], 20)}</span>
       <div class="ag-settx"><b>${esc(this._t(`wzS_${step === "zones" ? "sensors" : step}`))}</b><small>${esc(this._summary(step))}</small></div><button class="ag-link" data-wz="goto" data-step="${step}">${esc(this._t("wzChange"))}</button></div>`).join("");
     const trig = h.actions.trigger;
     // Wie jeder Play-Knopf (Vorgabe des Nutzers 2026-11-17): rot mit Stopp, solange der Test läuft; ohne Aktionen gesperrt
