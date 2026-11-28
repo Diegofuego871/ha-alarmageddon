@@ -289,6 +289,34 @@ for (const lang of ["en", "de"]) {
     await page.waitForTimeout(800);
     await toElement(frame, '.ag-chap:has([data-sys="modecode"])', 0, 18);
   } });
+  // Konfiguration › Anlage (1.94.0): Kapitel "Allgemein" (Name, Akzentfarbe) mit der Karte des Einrichtungsassistenten ("Fortsetzen", "Nicht mehr anzeigen").
+  // Die übrigen Kapitel sind ausgeblendet, damit die feste Fusszeile nichts Halbes abschneidet; "verschoben bis" steht auf morgen (ein erfundener Zeitpunkt, den die Karte so zeigt)
+  const tomorrow = new Date(Date.now() + 86400e3).toISOString().slice(0, 10);
+  await shot(lang, "general", { tab: "config", height: 790, query: `&wizard=later&wzstep=notify&wzuntil=${tomorrow}`, prepare: async ({ page, frame }) => {
+    await click('[data-sub="system"]')({ frame });
+    await page.waitForTimeout(800);
+    await frame.evaluate(() => {
+      const r = document.querySelector("alarmageddon-panel").shadowRoot;
+      for (const c of r.querySelectorAll(".ag-chap")) c.hidden = !(c.querySelector(".ag-namerow") || c.querySelector(".ag-wzrow"));
+      r.host._content.scrollTop = 0;
+    });
+  } });
+  // Danger Zone (1.93.0): "Zurücksetzen" und "Anlage löschen" in einem roten Rahmen; die deaktivierte Anlage "Garage", sonst sind beide Knöpfe gesperrt
+  await shot(lang, "danger-zone", { tab: "config", height: 590, prepare: async ({ page, frame }) => {
+    await frame.evaluate(() => {
+      const sel = document.querySelector("alarmageddon-panel").shadowRoot.querySelector('select[data-act="system"]');
+      sel.value = "e_garage";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.waitForTimeout(500);
+    await click('[data-sub="system"]')({ frame });
+    await page.waitForTimeout(800);
+    await frame.evaluate(() => {
+      const r = document.querySelector("alarmageddon-panel").shadowRoot;
+      for (const c of r.querySelectorAll(".ag-chap")) c.hidden = !c.classList.contains("ag-chap-danger");
+      r.host._content.scrollTop = 0;
+    });
+  } });
   // Alarm auf dem Handy: rotes Band, Kachel mit Auslöser und "scharf seit … von …" (1.11.0)
   await shot(lang, "alarm", { mobile: true, prepare: async ({ page }) => {
     await page.evaluate(() => window.__setState("alarm_control_panel.haus", "triggered", { arm_mode: "away", changed_by: "Marco", armed_by: "Marco", armed_at: new Date(Date.now() - 95 * 60e3).toISOString(), triggered_by: "binary_sensor.haustuer", deadline: null }));
