@@ -50,7 +50,7 @@ svg { overflow:visible; }
 @keyframes bpulse { from { opacity:.7; transform:scale(.9) } to { opacity:0; transform:scale(2.1) } }
 .B .tag { position:absolute; left:50%; top:calc(50% + 92px); transform:translateX(-50%); font-size:20px; font-weight:600; opacity:0; animation:btag .4s ease 1.9s both; white-space:nowrap; }
 @keyframes btag { to { opacity:1 } }
-.chip { display:inline-flex; vertical-align:-4px; margin-right:8px; width:28px; height:28px; border-radius:50%; background:var(--ok2); align-items:center; justify-content:center; }
+.chip { display:inline-flex; vertical-align:-9px; margin:-8px 4px -8px 0; }
 .chip[hidden] { display:none; }
 
 /* ===== C: sieben Striche des Assistenten laufen als Ring, schliessen sich, Funken ===== */
@@ -82,7 +82,7 @@ svg { overflow:visible; }
 <div class="top"><small>Geschafft</small><div class="later">&#128339; Später</div></div>
 <div class="prog"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <div class="hero" id="hero"></div>
-<h2 id="title"><span class="chip" id="chip" hidden><svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Die Anlage "Alarmanlage" ist bereit</h2>
+<h2 id="title"><span class="chip" id="chip" hidden><svg width="36" height="36" viewBox="0 0 120 120"><defs><linearGradient id="gr2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fc27f"/><stop offset="1" stop-color="#3a8449"/></linearGradient></defs><path d="M60 12l36 14v26c0 24-15 42-36 52C39 94 24 76 24 52V26z" fill="url(#gr2)" stroke="#8fd69c" stroke-width="3.5" stroke-linejoin="round"/><path d="M40 60l14 14 27-30" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Die Anlage "Alarmanlage" ist bereit</h2>
 <p class="lead">Das Wichtigste ist eingerichtet. Probiere es aus, bevor du dich darauf verlässt.</p>
 <div class="card"><div class="row"><div class="ic"></div><div><b>Modi</b><span>Anwesend, Abwesend · Rauch, Wasser und Gas immer aktiv</span></div></div>
 <div class="row"><div class="ic"></div><div><b>Sensoren</b><span>30 Sensoren · Verlassen: 60 s · Deaktivieren: 30 s</span></div></div>
@@ -178,7 +178,7 @@ const CHECK = '<path class="chk" d="M38 62l16 16 30-34"/>';
     tl($("pulse"), [[0, "opacity:0; transform:scale(.95)"], [T0 + 380, "opacity:.7; transform:scale(.95)", "ease-out"], [T0 + 1280, "opacity:0; transform:scale(2.2)"], [total, "opacity:0; transform:scale(2.2)"]]);
     tl($("sheenr"), [[0, "transform:translateX(0px) skewX(-18deg)"], [T0 + 420, "transform:translateX(0px) skewX(-18deg)", "ease-in-out"], [T0 + 1120, "transform:translateX(260px) skewX(-18deg)"], [total, "transform:translateX(260px) skewX(-18deg)"]]);
     tl($("tag"), [[0, "opacity:0; transform:translate(-50%,6px)"], [T0 + 200, "opacity:0; transform:translate(-50%,6px)", "ease-out"], [T0 + 650, "opacity:1; transform:translate(-50%,0px)"], [TF - 100, "opacity:1; transform:translate(-50%,0px)"], [TF + 250, "opacity:0; transform:translate(-50%,0px)"], [total, "opacity:0; transform:translate(-50%,0px)"]]);
-    tl(chip, [[0, "opacity:0; transform:scale(.6)"], [TF + 560, "opacity:0; transform:scale(.6)", "ease-out"], [TF + 800, "opacity:1; transform:scale(1.15)"], [TF + 940, "opacity:1; transform:scale(1)"], [total, "opacity:1; transform:scale(1)"]]);
+    tl(chip, [[0, "opacity:0"], [TF + 560, "opacity:0"], [TF + 620, "opacity:1"], [total, "opacity:1"]]);
     const st = document.createElement("style"); st.id = "dyn"; st.textContent = css; document.head.appendChild(st);
   } else {
     let segs = "";
