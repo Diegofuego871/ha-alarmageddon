@@ -22,6 +22,8 @@ for (const lang of ["de", "en"]) {
     const t = T[lang];
     const s = await open(browser, { mobile, lang, query: "&monitor=1" });
     const dlg = (js) => s.ev(`const d=r.getElementById("ag-sensor"); ${js}`);
+    // Die beiden Ereignisse liegen 2 und 3 Stunden zurück: kurz nach Mitternacht (bis 03 Uhr) fallen sie auf zwei Tage, also zwei Tageszeilen (sonst eine)
+    const EXPECT_DAYS = () => dlg("const H=3600e3, n=Date.now(); return new Set([n - 2 * H, n - 3 * H].map((t) => new Date(t).toDateString())).size");
     const openView = async (id) => {
       await s.ev(`r.host.sensorView.open(${JSON.stringify(id)}); return 1`);
       return s.waitFor(`const d=r.getElementById("ag-sensor"); return d.open && !!d.querySelector('.ag-sv-chart svg') && !d.querySelector('.ag-sv[data-busy]')`, 8000);
@@ -38,7 +40,7 @@ for (const lang of ["de", "en"]) {
     check(`${tag}: die Leiste liegt in der Liste (scrollt mit), der Tabellenkopf ist sortierbar, "Zeit" absteigend gewählt; Spalte "${t.colRule}"`, await dlg(`const l=d.querySelector('.ag-sv-list'); const ths=[...d.querySelectorAll('.ag-sv-rows thead th')];
       return l.contains(d.querySelector('.ag-sv-lbar')) && ths[0].getAttribute('aria-sort') === 'descending' && !!ths[0].querySelector('[data-sv="lsort"][data-key="time"].on') && ths.some((th) => th.innerText.trim() === ${JSON.stringify(t.colRule)})`));
     let ev = await rows();
-    check(`${tag}: zwei Ereignisse, neuestes zuerst (wieder in Ordnung, ausserhalb), mit Tageszeile`, ev.length === 2 && ev[0].kind === "ok" && ev[1].kind === "out" && (await dlg("return d.querySelectorAll('.ag-sv-rows tr.day').length")) === 1, JSON.stringify(ev));
+    check(`${tag}: zwei Ereignisse, neuestes zuerst (wieder in Ordnung, ausserhalb), mit Tageszeile`, ev.length === 2 && ev[0].kind === "ok" && ev[1].kind === "out" && (await dlg("return d.querySelectorAll('.ag-sv-rows tr.day').length")) === (await EXPECT_DAYS()), JSON.stringify(ev));
     // Suche: Fokus bleibt, X erscheint, nur passende Zeilen
     await s.tap('#ag-sensor [data-sv="lq"]');
     await s.page.keyboard.type(t.q);
@@ -51,7 +53,7 @@ for (const lang of ["de", "en"]) {
     // Sortieren
     await s.tap('#ag-sensor [data-sv="lsort"][data-key="time"]');
     ev = await rows();
-    check(`${tag}: "Zeit" noch einmal: älteste zuerst, Tageszeile bleibt, Pfeil nach oben`, ev[0]?.kind === "out" && ev[1]?.kind === "ok" && (await dlg("return d.querySelectorAll('.ag-sv-rows tr.day').length === 1 && d.querySelector('.ag-sv-rows th[aria-sort=\"ascending\"] [data-key=\"time\"]') !== null")), JSON.stringify(ev));
+    check(`${tag}: "Zeit" noch einmal: älteste zuerst, Tageszeile bleibt, Pfeil nach oben`, ev[0]?.kind === "out" && ev[1]?.kind === "ok" && (await dlg("return d.querySelectorAll('.ag-sv-rows tr.day').length === " + (await EXPECT_DAYS()) + " && d.querySelector('.ag-sv-rows th[aria-sort=\"ascending\"] [data-key=\"time\"]') !== null")), JSON.stringify(ev));
     await s.tap('#ag-sensor [data-sv="lsort"][data-key="event"]');
     const byEvent = await dlg("return { days: d.querySelectorAll('.ag-sv-rows tr.day').length, time: d.querySelector('.ag-sv-rows tbody tr td').innerText.trim(), on: d.querySelector('.ag-sv-rows th[aria-sort=\"ascending\"] [data-key]')?.dataset.key }");
     check(`${tag}: nach "Ereignis" sortiert: aufsteigend, ohne Tageszeilen, der Tag steht bei der Uhrzeit`, byEvent.days === 0 && byEvent.on === "event" && /,/.test(byEvent.time), JSON.stringify(byEvent));
