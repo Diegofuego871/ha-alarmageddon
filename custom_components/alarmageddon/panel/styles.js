@@ -1666,6 +1666,9 @@ h3.ag-ttl > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 /* "Umbenennen" und "Akzentfarbe ändern" untereinander gleich gross, linksbündig (Wunsch des Nutzers 2026-11-28); die Breite deckt beide Sprachen */
 :host([narrow]) .ag-namerow .ag-btnrow > .ag-btn, :host([narrow]) .ag-accrow .ag-btnrow > .ag-btn { min-width: 220px; justify-content: center; }
 :host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn > svg { width: 16px; height: 16px; flex: none; }
+:host([narrow]) .ag-wzrow .ag-btnrow:has(> .ag-btn:only-child) { justify-content: flex-start; }
+:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn:not(:only-child) { white-space: normal; text-align: center; line-height: 1.2; padding-top: 6px; padding-bottom: 6px; } /* breite Schrift (CI): der Text bricht um, statt über den Knopf zu ragen; beide Knöpfe bleiben gleich hoch (Zeile streckt) */
+:host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn:only-child { flex: 0 0 auto; padding-left: 14px; padding-right: 14px; } /* ein einzelner Knopf ("Assistent starten") bleibt linksbündig und so gross wie "Anlage löschen" darunter (1.74.1), nur zwei Knöpfe teilen sich die Zeile */
 :host([narrow]) .ag-wzrow .ag-btnrow > .ag-btn { min-width: 0; padding-left: 8px; padding-right: 8px; gap: 6px; font-size: 14px; } /* "Fortsetzen" und "Nicht mehr anzeigen" teilen sich die Zeile je zur Hälfte wie überall (Wunsch des Nutzers 2026-11-28); bei sehr breiter Schrift bricht der Text um statt über den Rand zu ragen */
 /* Assistent starten: linksbündig und so gross wie "Anlage löschen" darunter, nicht über die ganze Breite (Wunsch des Nutzers 2026-11-21) */
 /* Fenster der eigenen Töne: auf dem Handy stehen die Knöpfe unter dem Namen (wie bei den Routinen), damit der Name Platz hat */
