@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, "..");
 const url = (v, t) => `file://${join(here, "mockup.html")}?v=${v}${t === undefined ? "" : `&t=${t}`}`;
-const TIMES = { a: [0, 350, 800, 1250, 1600, 2300], b: [0, 400, 900, 1500, 1950, 2600, 3000, 3500], c: [0, 450, 1000, 1500, 1900, 2300, 2900], d: [0, 500, 1000, 1500, 1900, 2300, 3000, 3600], e: [0, 400, 800, 1200, 1700, 2100, 3000, 3600] };
+const TIMES = { a: [0, 350, 800, 1250, 1600, 2300], b: [0, 400, 900, 1500, 1950, 2600, 3000, 3500], c: [0, 450, 1000, 1500, 1900, 2300, 2900], d: [0, 500, 1000, 1500, 1900, 2300, 3000, 3600], e: [0, 400, 800, 1200, 1700, 2100, 3000, 3600], f: [0, 1900, 2150, 2400, 2700, 3000, 3400, 3800] };
 const browser = await chromium.launch();
 for (const [v, times] of Object.entries(TIMES)) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 640 }, deviceScaleFactor: 2 });
